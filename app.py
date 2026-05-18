@@ -213,7 +213,7 @@ def init_db():
             
             # Auto-seed database from drivers_data.js if missing new drivers
             count = db.execute("SELECT COUNT(*) FROM drivers").fetchone()[0]
-            if count < 70:
+            if count < 200:
                 js_path = os.path.join(app.root_path, "drivers_data.js")
                 if os.path.exists(js_path):
                     try:
