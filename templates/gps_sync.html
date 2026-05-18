@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحديث كشف أجهزة GPS | شركة بن زومة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <style>
+        .header-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 auto 2rem auto;
+            width: 100%;
+            max-width: 1000px;
+            z-index: 2;
+        }
+
+        .site-logo {
+            max-width: 650px;
+            width: 90%;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
+            transition: var(--trans);
+        }
+
+        body.dark-mode .site-logo {
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 20px rgba(255, 255, 255, 0.4));
+        }
+
+        .header-title {
+            color: var(--accent);
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark-mode .header-title {
+            color: #82aaff !important;
+            text-shadow: 0 0 10px rgba(130, 170, 255, 0.4);
+        }
+
+        .header-subtitle {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .upload-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .file-input-wrapper {
+            margin-bottom: 1.5rem;
+            text-align: right;
+            background: var(--surface-hover);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 2px dashed var(--border-strong);
+        }
+
+        .file-input-wrapper label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: block;
+            width: 100%;
+        }
+                       
+        .result-stats {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(39, 174, 96, 0.1);
+            border: 1px solid rgba(39, 174, 96, 0.3);
+            border-radius: 12px;
+            display: none;
+        }
+
+        .result-stats h3 {
+            color: #27ae60;
+            margin-top: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="darkModeToggle" onclick="toggleDarkMode()"
+        style="position: absolute; top: 20px; right: 20px; border: none; font-size: 1.5rem; cursor: pointer; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; transition: var(--trans-spring); z-index: 1000; box-shadow: var(--shadow-sm); backdrop-filter: blur(5px);">🌙</button>
+
+    <div class="header-container">
+        {% if b64_en %}
+        <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">
+        {% endif %}
+        {% if google_user %}
+        <div class="user-badge"
+            style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; backdrop-filter: blur(5px);">
+            <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
+            <span style="font-weight: bold; color: #1A3A5C; font-size: 0.9rem;">{{ google_user.name }}</span>
+            <a href="/logout"
+                style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">تسجيل
+                خروج</a>
+        </div>
+        {% endif %}
+
+        <h1 class="header-title">📡 مزامنة أجهزة GPS</h1>
+        <p class="header-subtitle">قم برفع الملف المصدر وملف كشف الـ GPS لتحديث البيانات ومطابقتها</p>
+        <div class="nav-buttons">
+            <a href="/" class="btn-outline" style="text-decoration:none;">🏠 الرئيسية</a>
+            <a href="/oils" class="btn-outline" style="text-decoration:none;">📄 بيان الزيوت</a>
+            <a href="/purchase" class="btn-outline" style="text-decoration:none;">🛒 طلبات الشراء</a>
+            <a href="/schedule" class="btn-outline" style="text-decoration:none;">📋 الجدول الأسبوعي</a>
+            <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
+            <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="btn-outline"
+                style="text-decoration:none;">🛰️ التتبع المباشر</a>
+        </div>
+    </div>
+
+    <div class="upload-card">
+        <form id="gpsForm">
+            <div class="file-input-wrapper">
+                <label>الملف المصدر (الملف الذي يحتوي على البيانات المحدثة)</label>
+                <input type="file" id="sourceFile" accept=".xlsx, .xls" required>
+            </div>
+            <div class="file-input-wrapper">
+                <label>الملف الهدف (كشف أجهزة GPS للمركبات المراد تحديثه)</label>
+                <input type="file" id="targetFile" accept=".xlsx, .xls" required>
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn-submit-gold">
+                <span>🔄 دمج وتحديث البيانات</span>
+            </button>
+        </form>
+
+        <div id="resultBox" class="result-stats">
+            <h3>✅ اكتملت المزامنة بنجاح!</h3>
+            <p id="matchCount">عدد السيارات المطابقة: 0</p>
+            <p id="updateCount">عدد الخلايا المحدثة: 0</p>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 10px;">تم تحميل الملف المحدث تلقائياً.
+            </p>
+        </div>
+    </div>
+
+    <footer
+        style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">
+        تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
+
+    <script>
+        document.getElementById('gpsForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const sourceFile = document.getElementById('sourceFile').files[0];
+            const targetFile = document.getElementById('targetFile').files[0];
+            const btn = document.getElementById('submitBtn');
+
+            if (!sourceFile || !targetFile) {
+                showToast('يرجى اختيار كلا الملفين!', 'error');
+                return;
+            }
+            btn.innerHTML = '⏳ جاري معالجة البيانات...';
+            btn.disabled = true;
+            document.getElementById('resultBox').style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('source_file', sourceFile);
+            formData.append('target_file', targetFile);
+
+            try {
+                const response = await fetch('/api/gps_sync', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('matchCount').innerText = `عدد السيارات المطابقة: ${data.matches}`;
+                    document.getElementById('updateCount').innerText = `عدد الخلايا المحدثة: ${data.updates}`;
+                    document.getElementById('resultBox').style.display = 'block';
+
+                    // Download file
+                    const blob = new Blob([Uint8Array.from(atob(data.file_b64), c => c.charCodeAt(0))], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                    saveAs(blob, "كشف_اجهزة_GPS_محدث.xlsx");
+                    showToast('تم تحديث كشف الـ GPS بنجاح!', 'success');
+                } else {
+                    showToast('حدث خطأ: ' + data.error, 'error');
+                }
+            } catch (err) {
+                showToast('فشل الاتصال بالسيرفر.', 'error');
+            }
+
+            btn.innerHTML = '<span>🔄 دمج وتحديث البيانات</span>';
+            btn.disabled = false;
+        });
+    </script>
+</body>
+
+</html>
