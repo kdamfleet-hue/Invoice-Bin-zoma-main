@@ -15,24 +15,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- Theme Management ---
 function initThemeToggle() {
-    const isDark = localStorage.getItem('darkMode') === 'enabled';
-    if (isDark) document.body.classList.add('dark-mode');
-    updateToggleButtons(isDark);
+    // تم إيقاف الوضع الليلي وإزالته بالكامل
+    document.body.classList.remove('dark-mode');
+    localStorage.removeItem('darkMode');
+    
+    // إخفاء أي زر قديم لو تبقّى في الصفحة
+    document.querySelectorAll('#darkModeToggle').forEach(btn => {
+        btn.style.display = 'none';
+    });
 }
 
 window.toggleDarkMode = function() {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
-    updateToggleButtons(isDark);
+    // معطل
 };
 
 function updateToggleButtons(isDark) {
-    document.querySelectorAll('#darkModeToggle').forEach(btn => {
-        btn.innerHTML = isDark ? '☀️' : '🌙';
-        btn.style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
-        btn.style.color = isDark ? '#fff' : '#000';
-    });
+    // معطل
 }
 
 // --- Topographic Texture ---
@@ -40,23 +38,23 @@ function injectTopographicBackground() {
     if (document.getElementById('topo-bg')) return;
 
     const svgContent = `
-    <svg id="topo-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <svg id="topo-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position: fixed; top: 0; left: 0; z-index: -1; pointer-events: none; opacity: 0.4;">
         <defs>
             <pattern id="topoPattern" x="0" y="0" width="400" height="300" patternUnits="userSpaceOnUse">
-                <g class="topo-pulse">
+                <g class="topo-pulse" style="stroke: var(--accent); stroke-width: 1; fill: none; opacity: 0.15;">
                     <path class="topo-path" d="M 0 50 Q 50 100 100 50 T 200 50 T 300 100 T 400 50" />
                     <path class="topo-path" d="M 0 100 C 100 150 150 50 250 100 S 350 50 400 100" />
                     <path class="topo-path" d="M 50 0 Q 100 150 50 300 M 150 0 C 200 100 100 200 150 300 M 250 0 S 300 200 250 300 M 350 0 Q 300 150 350 300" />
                     <path class="topo-path" d="M 0 200 Q 80 280 150 200 T 300 250 T 400 200" />
                     <path class="topo-path" d="M 0 250 C 120 200 200 280 300 250 S 380 200 400 250" />
                     <!-- Clusters -->
-                    <circle cx="200" cy="150" r="20" fill="none" class="topo-path" />
-                    <circle cx="200" cy="150" r="40" fill="none" class="topo-path" />
-                    <circle cx="200" cy="150" r="60" fill="none" class="topo-path" />
+                    <circle cx="200" cy="150" r="20" class="topo-path" />
+                    <circle cx="200" cy="150" r="40" class="topo-path" />
+                    <circle cx="200" cy="150" r="60" class="topo-path" />
                 </g>
             </pattern>
         </defs>
-        <rect x="0" y="0" width="100%" height="100%" fill="url(#topoPattern)" />
+        <rect x="0" y="0" width="100%" height="100%" fill="url(#topoPattern)"></rect>
     </svg>`;
 
     document.body.insertAdjacentHTML('afterbegin', svgContent);

@@ -12,6 +12,104 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <style>
+        body {
+            padding-top: 180px;
+        }
+        /* الهيدر الأساسي */
+        header {
+          position: absolute; /* تغيير من fixed إلى absolute لكي يختفي عند النزول للأسفل */
+          top: 0;
+          left: 0;
+          width: 100%;
+          padding: 12px 40px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.2);
+          backdrop-filter: blur(8px);
+          z-index: 1000;
+        }
+
+        /* الشعار */
+        header .logo {
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+        }
+        header .logo img {
+          height: 260px;
+          margin-top: 100px; /* يدفع الشعار للأسفل ليبرز خارج الهيدر بفخامة */
+          filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)) contrast(1.2) saturate(1.3) brightness(1.05); /* زيادة تباين وتشبع الألوان لجودة أفضل */
+        }
+        body.dark-mode header .logo img {
+          filter: drop-shadow(0 8px 12px rgba(255,255,255,0.15)) contrast(1.2) saturate(1.3) brightness(1.15); /* إضاءة الشعار في الوضع الليلي */
+        }
+
+        /* روابط الديسكتوب */
+        .nav-links {
+          display: flex;
+          gap: 25px;
+        }
+
+        .nav-links a {
+          text-decoration: none;
+          font-size: 18px;
+          color: white;
+          font-weight: 500;
+          transition: 0.3s;
+        }
+
+        .nav-links a:hover {
+          color: #00c3ff;
+          transform: translateY(-2px);
+        }
+
+        /* زر القائمة للجوال */
+        .menu-icon {
+          font-size: 32px;
+          color: white;
+          cursor: pointer;
+          display: none;
+        }
+
+        /* القائمة الجانبية للجوال */
+        .mobile-menu {
+          position: fixed;
+          top: 0;
+          right: -250px;
+          width: 250px;
+          height: 100%;
+          background: rgba(0,0,0,0.85);
+          backdrop-filter: blur(6px);
+          display: flex;
+          flex-direction: column;
+          padding-top: 100px;
+          transition: 0.4s;
+          z-index: 999;
+        }
+
+        .mobile-menu a {
+          padding: 15px 25px;
+          text-decoration: none;
+          color: white;
+          font-size: 20px;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .mobile-menu a:hover {
+          background: rgba(255,255,255,0.1);
+        }
+
+        /* إخفاء وإظهار حسب حجم الشاشة */
+        @media (max-width: 768px) {
+          .nav-links {
+            display: none;
+          }
+          .menu-icon {
+            display: block;
+          }
+        }
+
         .header-container {
             display: flex;
             flex-direction: column;
@@ -29,7 +127,7 @@
             transition: var(--trans);
         }
         body.dark-mode .site-logo {
-            filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.2));
         }
 
         .header-title {
@@ -91,16 +189,45 @@
 </head>
 <body>
 
-    <button id="darkModeToggle" onclick="toggleDarkMode()" style="position: absolute; top: 20px; right: 20px; border: none; font-size: 1.5rem; cursor: pointer; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; transition: var(--trans-spring); z-index: 1000; box-shadow: var(--shadow-sm); backdrop-filter: blur(5px);">🌙</button>
 
+
+
+    <header>
+      <nav class="nav-links">
+        <a href="#home">الرئيسية</a>
+        <a href="#services">الخدمات</a>
+        <a href="#about">من نحن</a>
+        <a href="https://bz.sa" target="_blank">موقعنا الرسمي</a>
+        <a href="#contact">تواصل معنا</a>
+      </nav>
+
+      <div class="logo">
+        <img src="{{ url_for('static', filename='gemini_logo_header_v223.png', v=4) }}" alt="Bin Zomah Intl Logo">
+      </div>
+
+      <div class="menu-icon" onclick="toggleMenu()">
+        ☰
+      </div>
+
+      <nav class="mobile-menu" id="mobileMenu">
+        <a href="#home">الرئيسية</a>
+        <a href="#services">الخدمات</a>
+        <a href="#about">من نحن</a>
+        <a href="https://bz.sa" target="_blank">موقعنا الرسمي</a>
+        <a href="#contact">تواصل معنا</a>
+      </nav>
+    </header>
+
+    <script>
+    function toggleMenu() {
+      const menu = document.getElementById("mobileMenu");
+      menu.style.right = menu.style.right === "0px" ? "-250px" : "0px";
+    }
+    </script>
 
     <div class="header-container">
-        {% if b64_en %}
-            <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">
-        {% endif %}
-        
     {% if google_user %}
-    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; backdrop-filter: blur(5px);">
+    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1001; backdrop-filter: blur(5px);">
         <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
         <span style="font-weight: bold; color: #1A3A5C; font-size: 0.9rem;">{{ google_user.name }}</span>
         <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">تسجيل خروج</a>

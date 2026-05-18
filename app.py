@@ -73,6 +73,15 @@ CORS(app)
 from datetime import timedelta
 
 app.permanent_session_lifetime = timedelta(hours=8)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 # ── GPS Configuration ────────────────────────────────────────────────────────
 GPS_USER = os.environ.get("GPS_USER", "")
