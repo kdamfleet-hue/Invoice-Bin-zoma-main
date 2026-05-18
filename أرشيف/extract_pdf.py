@@ -54,3 +54,4 @@ with open(output_json, 'w', encoding='utf-8') as f:
 print(f"\nTable data saved to: {output_json}")
 
 pdf.close()
+

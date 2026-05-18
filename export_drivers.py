@@ -41,3 +41,4 @@ df['البيانات المدمجة (اسم - إقامة - لوحة - جوال -
 # حفظ البيانات في ملف إكسيل
 df.to_excel(excel_path, index=False, engine='openpyxl')
 print(f"تم تصدير البيانات بنجاح إلى ملف {excel_path}")
+

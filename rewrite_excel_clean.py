@@ -254,3 +254,4 @@ if ws_target._images:
 out_path = os.path.join(new_folder, "تحديث المركبات والسائقين-الدمام2026.xlsx")
 wb_target.save(out_path)
 print(f"✅ Success! File rewritten to match Image 1 completely: {out_path}")
+

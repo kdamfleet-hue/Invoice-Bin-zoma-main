@@ -32,3 +32,4 @@ for f in files:
             print_sheet(wb[sn])
     except Exception as e:
         print(f"Error reading {f}: {e}")
+

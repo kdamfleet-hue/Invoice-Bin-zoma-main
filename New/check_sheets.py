@@ -12,3 +12,4 @@ for sheet_name in wb.sheetnames:
         for c in range(1, ws.max_column + 1):
             row_data.append(str(ws.cell(row=r, column=c).value))
         print("  |  ".join(row_data))
+

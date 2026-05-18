@@ -42,3 +42,4 @@ added += process_file(f2)
 conn.commit()
 conn.close()
 print(f"Added {added} new drivers/vehicles to the database successfully.")
+

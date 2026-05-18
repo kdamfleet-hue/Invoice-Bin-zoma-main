@@ -97,3 +97,4 @@ for i, d in enumerate(drivers, 1):
     print(f"  {ok} [{i:2d}] {d['name']:<35s} | 🪪 {(d['iqama'] or '-'):<12s} | 🚗 {(d['plate'] or '-'):<12s} | 🚛 {(d['car'] or '-'):<30s} | 📱 {d['phone'] or '-'}")
 
 db.close()
+

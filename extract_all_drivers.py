@@ -165,3 +165,4 @@ output_path = os.path.join(BASE, "all_drivers_merged.json")
 with open(output_path, "w", encoding="utf-8") as f:
     json.dump(drivers_db, f, ensure_ascii=False, indent=2)
 print(f"Saved to: {output_path}")
+

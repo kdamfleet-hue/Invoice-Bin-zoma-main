@@ -212,3 +212,4 @@ DIESEL_FILTERS = [
 SIGNATURE_RIGHT = "قسم الحركة\nخالد الغامدي"
 SIGNATURE_LEFT = "التعميد"
 CLOSING_NOTE = "وبناءا عليه تم طلب وشراء فلاتر جديدة\nالحسابات"
+

@@ -17,3 +17,4 @@ print("\nCol widths:")
 for c in range(1, 12):
     letter = openpyxl.utils.get_column_letter(c)
     print(f"Col {letter}: {ws.column_dimensions[letter].width}")
+

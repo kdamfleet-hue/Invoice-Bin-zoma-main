@@ -85,3 +85,4 @@ for r in rows:
     print(f"  {r['name']} | iqama={r['iqama'] or '-'} | plate={r['plate'] or '-'} | car={r['car'] or '-'}")
 
 db.close()
+

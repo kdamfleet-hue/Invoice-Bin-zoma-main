@@ -64,3 +64,4 @@ with open(static_path, 'w', encoding='utf-8') as f:
     f.write(s_content)
 
 print("Updated templates and static index.html!")
+

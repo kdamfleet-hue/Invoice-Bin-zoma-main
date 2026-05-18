@@ -265,3 +265,4 @@ function initIdleTimeout() {
     // Kick off the idle timer
     window.resetIdleTimer();
 }
+

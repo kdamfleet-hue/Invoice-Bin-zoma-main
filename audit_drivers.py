@@ -180,3 +180,4 @@ no_phone = db.execute("SELECT COUNT(*) FROM drivers WHERE phone IS NULL OR phone
 print(f"\nFINAL: Total={total} | No plate={no_plate} | No car={no_car} | No phone={no_phone}")
 
 db.close()
+

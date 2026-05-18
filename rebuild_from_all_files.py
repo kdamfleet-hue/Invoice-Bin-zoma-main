@@ -356,3 +356,4 @@ if os.path.exists(db_path):
         print(f"  {status} {i:2d}. {d['name']:<35} | 🪪 {(d['iqama'] or '-'):<12} | 🚗 {(d['plate'] or '-'):<14} | 🚛 {(d['car'] or '-'):<25} | 📱 {(d['phone'] or '-')}")
     
     db.close()
+

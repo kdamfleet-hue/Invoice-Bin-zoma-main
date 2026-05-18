@@ -15,3 +15,4 @@ if 'alt="Logo"' not in s_content:
     with open(static_path, 'w', encoding='utf-8') as f:
         f.write(s_content)
     print("Injected logo into static website UI.")
+

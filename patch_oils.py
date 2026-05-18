@@ -56,3 +56,4 @@ with open(html_path, 'w', encoding='utf-8') as f:
     f.write(content)
 
 print("Updated oils.html with autocomplete and autofill.")
+

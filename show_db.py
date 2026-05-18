@@ -36,3 +36,4 @@ print(f"  ناقص جوال: {no_phone}")
 print(f"{'='*60}")
 
 db.close()
+

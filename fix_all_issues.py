@@ -140,3 +140,4 @@ for i, d in enumerate(drivers, 1):
     print(f"  {ok} [{i}] {d['name']} | 🪪{d['iqama'] or '-'} | 🚗{d['plate'] or '-'} | 🚛{d['car'] or '-'} | 📱{d['phone'] or '-'}")
 
 db.close()
+

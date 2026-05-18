@@ -81,3 +81,4 @@ for i, (_, src_row) in enumerate(df_src_data.iterrows()):
 print(f"تمت مزامنة {len(df_src_data)} صف بنجاح.")
 wb.save(FILE_OUTPUT)
 print(f"تم الحفظ: {FILE_OUTPUT}")
+

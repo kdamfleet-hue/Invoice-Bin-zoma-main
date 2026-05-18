@@ -38,3 +38,4 @@ for f in os.listdir('.'):
             if row_data:
                 print(f'  Row {r}: {" | ".join(row_data)}')
         break
+

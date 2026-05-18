@@ -27,3 +27,4 @@ for r in rows:
     ph = r['phone'] or '-'
     print(f'  {name} | iqama={iq} | plate={pl} | car={ca} | phone={ph}')
 db.close()
+

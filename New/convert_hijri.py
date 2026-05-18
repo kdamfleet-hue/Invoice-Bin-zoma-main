@@ -52,3 +52,4 @@ output_path = file_path.replace('.xlsx', '_ميلادي.xlsx')
 wb.save(output_path)
 print(f"Total converted: {count}")
 print(f"Saved as: {output_path}")
+

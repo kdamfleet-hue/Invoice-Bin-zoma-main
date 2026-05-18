@@ -110,3 +110,4 @@ if found_data:
     no_plate = db.execute("SELECT COUNT(*) FROM drivers WHERE plate IS NULL OR plate = '' OR plate = 'None'").fetchone()[0]
     print(f"Total: {total} | Still missing plate: {no_plate}")
     db.close()
+

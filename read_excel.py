@@ -30,3 +30,4 @@ for fname in files:
 archive = os.path.join(folder, 'أرشيف')
 logos = [f for f in os.listdir(archive) if f.endswith('.png')]
 print(f'\nLogos in archive: {logos}')
+

@@ -167,3 +167,4 @@ print(f"  ناقص لوحة: {no_plate} | سيارة: {no_car} | إقامة: {no
 print(f"{'='*60}")
 
 db.close()
+

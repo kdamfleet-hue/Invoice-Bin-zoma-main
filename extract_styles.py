@@ -56,3 +56,4 @@ for row in range(1, 45):
                 align = f" h={c.alignment.horizontal} v={c.alignment.vertical}"
             
             print(f"  {letter}{row}: val=\"{val}\" {font_info} {fill_info}{border_info}{align}")
+

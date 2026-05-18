@@ -43,3 +43,4 @@ out_path = os.path.join(folder, '..', 'InvoiceApp', 'drivers_data.js')
 with open(out_path, 'w', encoding='utf-8') as f:
     f.write("const driversData = " + json.dumps(drivers, ensure_ascii=False) + ";\n")
 print(f"Generated {len(drivers)} drivers.")
+

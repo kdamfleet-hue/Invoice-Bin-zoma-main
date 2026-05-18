@@ -128,3 +128,4 @@ if no_plate > 0:
         print(f"  {r['name']} (iqama={r['iqama'] or '-'})")
 
 db.close()
+

@@ -35,3 +35,4 @@ if c.fetchone()[0] == 0:
 conn.commit()
 conn.close()
 print("Database initialized successfully.")
+
