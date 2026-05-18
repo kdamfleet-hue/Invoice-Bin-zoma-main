@@ -440,3 +440,4 @@ new_wb.save(output_path)
 print(f"Styled Excel saved: {output_path}")
 print("Done!")
 
+

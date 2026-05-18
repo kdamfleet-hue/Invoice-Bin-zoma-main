@@ -17,3 +17,4 @@ for c in range(1, ws.max_column + 1):
             samples.append(str(val))
     print(f"Col {c} ({header}): {samples[:3]}")
 
+

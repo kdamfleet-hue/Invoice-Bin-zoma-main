@@ -55,3 +55,4 @@ print(f"\nTable data saved to: {output_json}")
 
 pdf.close()
 
+

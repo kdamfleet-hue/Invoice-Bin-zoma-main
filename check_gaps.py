@@ -28,3 +28,4 @@ for r in rows:
     print(f'  {name} | iqama={iq} | plate={pl} | car={ca} | phone={ph}')
 db.close()
 
+

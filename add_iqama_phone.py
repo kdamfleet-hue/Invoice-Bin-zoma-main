@@ -64,3 +64,4 @@ c.execute("SELECT name, iqama, phone FROM drivers WHERE iqama != '' LIMIT 5")
 for r in c.fetchall():
     print(f'  {r[0]}: iqama={r[1]}, phone={r[2]}')
 
+

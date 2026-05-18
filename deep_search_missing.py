@@ -111,3 +111,4 @@ if found_data:
     print(f"Total: {total} | Still missing plate: {no_plate}")
     db.close()
 
+

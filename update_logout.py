@@ -24,3 +24,4 @@ for f in files:
             file.write(content)
             print(f'Updated {f}')
 
+

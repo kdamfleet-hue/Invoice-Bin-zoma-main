@@ -81,3 +81,4 @@ const WASHING_VEHICLES = [
 {id:82,plate:"فوركلفت 3",type:"فوركلفت",driver:"",m:[1,0,1,0,0,0,0,0,0,0,0,0]}
 ];
 
+

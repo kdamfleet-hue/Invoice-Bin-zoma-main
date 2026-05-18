@@ -12,3 +12,4 @@ out = f"ar='{b64('source_img_1.png')}'\nen='{b64('source_img_0.png')}'\ncent='{b
 with open(os.path.join(folder, 'b64.txt'), 'w') as f:
     f.write(out)
 
+

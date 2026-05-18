@@ -16,3 +16,4 @@ if 'alt="Logo"' not in s_content:
         f.write(s_content)
     print("Injected logo into static website UI.")
 
+

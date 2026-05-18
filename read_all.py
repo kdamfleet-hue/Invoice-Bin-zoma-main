@@ -24,3 +24,4 @@ for f in os.listdir(folder):
             if rd:
                 print(f'  R{r}: {sep.join(rd)}')
 
+

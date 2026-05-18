@@ -10,3 +10,4 @@ no_plate = db.execute("SELECT COUNT(*) as c FROM drivers WHERE plate IS NULL OR 
 print(f'Total: {total} | Missing plate: {no_plate}')
 db.close()
 
+

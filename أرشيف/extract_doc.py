@@ -29,3 +29,4 @@ with open(os.path.join(script_dir, 'extracted_doc.txt'), 'w', encoding='utf-8') 
     f.write("\n--- UTF16 Words ---\n")
     f.write(" ".join(words_16))
 
+

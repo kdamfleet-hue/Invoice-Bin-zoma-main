@@ -13,3 +13,4 @@ for sheet_name in wb.sheetnames:
             row_data.append(str(ws.cell(row=r, column=c).value))
         print("  |  ".join(row_data))
 
+

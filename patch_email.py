@@ -182,3 +182,4 @@ full_email_html = email_html_start + logo_block + content_block + signature_html
 
 # استخدم full_email_html كجزء من جسم البريد في سكريبتك
 
+

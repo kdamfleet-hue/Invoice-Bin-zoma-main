@@ -129,3 +129,4 @@ if no_plate > 0:
 
 db.close()
 
+

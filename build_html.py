@@ -483,3 +483,4 @@ with open(os.path.join(folder, 'index.html'), 'w', encoding='utf-8') as f:
 
 print(f"Generated index.html successfully at: {os.path.join(folder, 'index.html')}")
 
+

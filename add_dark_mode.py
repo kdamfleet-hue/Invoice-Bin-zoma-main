@@ -69,3 +69,4 @@ with open(template_path, 'w', encoding='utf-8') as f:
     f.write(content)
 print("Applied responsive styles, bigger logo, and dark mode.")
 
+
