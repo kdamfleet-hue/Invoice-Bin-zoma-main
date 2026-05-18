@@ -673,12 +673,41 @@ def generate_washing():
         )
         if os.path.exists(logo_path):
             img = XLImage(logo_path)
-            # Scale down to fit nicely in Excel header (Original 1602x481)
             img.width = 300
             img.height = 90
-            # Put logo around center (column E/F, top)
             ws.add_image(img, "F1")
 
+        # Unmerge ALL merged cells to avoid MergedCell write errors
+        merged_ranges = list(ws.merged_cells.ranges)
+        for mr in merged_ranges:
+            ws.unmerge_cells(str(mr))
+
+        # Copy header style from row 4 for reuse
+        from copy import copy as shallow_copy
+        header_fills = {}
+        header_fonts = {}
+        header_aligns = {}
+        header_borders = {}
+        for c in range(1, 19):
+            cell = ws.cell(row=4, column=c)
+            header_fills[c] = shallow_copy(cell.fill)
+            header_fonts[c] = shallow_copy(cell.font)
+            header_aligns[c] = shallow_copy(cell.alignment)
+            header_borders[c] = shallow_copy(cell.border)
+
+        # Copy a data row style (row 5) for styling data rows
+        data_fills = {}
+        data_fonts = {}
+        data_aligns = {}
+        data_borders = {}
+        for c in range(1, 19):
+            cell = ws.cell(row=5, column=c)
+            data_fills[c] = shallow_copy(cell.fill)
+            data_fonts[c] = shallow_copy(cell.font)
+            data_aligns[c] = shallow_copy(cell.alignment)
+            data_borders[c] = shallow_copy(cell.border)
+
+        # Write vehicle data starting at row 5
         for idx, v in enumerate(vehicles):
             r = 5 + idx
             ws.cell(row=r, column=1, value=v.get("id", idx + 1))
@@ -688,11 +717,50 @@ def generate_washing():
             months = v.get("m", [])
             total = sum(months)
             for m_idx in range(12):
-                val = "استلم" if months[m_idx] == 1 else None
+                val = "استلم" if m_idx < len(months) and months[m_idx] == 1 else None
                 ws.cell(row=r, column=5 + m_idx, value=val)
             ws.cell(row=r, column=17, value=total)
+            # Apply data styling
+            for c in range(1, 19):
+                cell = ws.cell(row=r, column=c)
+                cell.fill = shallow_copy(data_fills.get(c, data_fills[1]))
+                cell.font = shallow_copy(data_fonts.get(c, data_fonts[1]))
+                cell.alignment = shallow_copy(data_aligns.get(c, data_aligns[1]))
+                cell.border = shallow_copy(data_borders.get(c, data_borders[1]))
 
-        # Add summary stats (similar to what was in row 2 of template)
+        # Summary row: right after last vehicle
+        summary_row = 5 + len(vehicles)
+        ws.cell(row=summary_row, column=1, value="إجمالي الغسيل الشهري")
+        ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
+        for m_idx in range(12):
+            col = 5 + m_idx
+            start_cell = ws.cell(row=5, column=col).coordinate.replace("5", "")
+            formula = '=COUNTIF(%s5:%s%d,"استلم")' % (start_cell, start_cell, summary_row - 1)
+            ws.cell(row=summary_row, column=col, value=formula)
+        ws.cell(row=summary_row, column=17, value="=SUM(Q5:Q%d)" % (summary_row - 1))
+
+        # Style summary row bold
+        from openpyxl.styles import Font, PatternFill, Alignment
+        summary_font = Font(name="Cairo", size=11, bold=True, color="FFFFFF")
+        summary_fill = PatternFill(start_color="1A3A5C", end_color="1A3A5C", fill_type="solid")
+        summary_align = Alignment(horizontal="center", vertical="center")
+        for c in range(1, 19):
+            cell = ws.cell(row=summary_row, column=c)
+            cell.font = summary_font
+            cell.fill = summary_fill
+            cell.alignment = summary_align
+
+        # Footer row
+        footer_row = summary_row + 2
+        ws.cell(row=footer_row, column=1, value="تم إعداد هذا الجدول بواسطة قسم الحركة - فرع الدمام")
+        ws.merge_cells(start_row=footer_row, start_column=1, end_row=footer_row, end_column=18)
+
+        # Re-merge header rows
+        ws.merge_cells("A1:R1")
+        ws.merge_cells("A2:D2")
+        ws.merge_cells("A3:R3")
+
+        # Update total washes in header
         total_washes = sum(sum(v.get("m", [])) for v in vehicles)
         ws.cell(row=2, column=12, value=total_washes)
 
