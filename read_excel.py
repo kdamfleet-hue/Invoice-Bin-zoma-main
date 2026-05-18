@@ -32,3 +32,4 @@ logos = [f for f in os.listdir(archive) if f.endswith('.png')]
 print(f'\nLogos in archive: {logos}')
 
 
+

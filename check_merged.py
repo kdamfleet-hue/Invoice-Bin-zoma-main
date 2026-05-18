@@ -19,3 +19,4 @@ for c in range(1, 12):
     print(f"Col {letter}: {ws.column_dimensions[letter].width}")
 
 
+

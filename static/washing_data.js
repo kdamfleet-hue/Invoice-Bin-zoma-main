@@ -82,3 +82,4 @@ const WASHING_VEHICLES = [
 ];
 
 
+

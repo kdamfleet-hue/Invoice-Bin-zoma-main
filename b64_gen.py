@@ -13,3 +13,4 @@ with open(os.path.join(folder, 'b64.txt'), 'w') as f:
     f.write(out)
 
 
+

@@ -641,6 +641,58 @@ def generate_schedule():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/generate_schedule_pdf", methods=["POST"])
+@login_required
+def generate_schedule_pdf():
+    try:
+        # First generate the excel file in memory
+        res = generate_schedule()
+        if type(res) is tuple:
+            return res
+        
+        json_data = res.get_json()
+        if not json_data.get("success"):
+            return jsonify(json_data), 500
+            
+        excel_bytes = base64.b64decode(json_data["file_b64"])
+        
+        import tempfile
+        import uuid
+        import pythoncom
+        import win32com.client
+        
+        temp_xlsx = os.path.join(tempfile.gettempdir(), f"temp_{uuid.uuid4().hex}.xlsx")
+        temp_pdf = os.path.join(tempfile.gettempdir(), f"temp_{uuid.uuid4().hex}.pdf")
+        
+        with open(temp_xlsx, "wb") as f:
+            f.write(excel_bytes)
+            
+        pythoncom.CoInitialize()
+        excel = win32com.client.Dispatch("Excel.Application")
+        excel.Visible = False
+        try:
+            wb_com = excel.Workbooks.Open(temp_xlsx)
+            wb_com.ActiveSheet.ExportAsFixedFormat(0, temp_pdf)
+            wb_com.Close(False)
+        finally:
+            excel.Quit()
+            pythoncom.CoUninitialize()
+            
+        with open(temp_pdf, "rb") as f:
+            pdf_bytes = f.read()
+            
+        os.remove(temp_xlsx)
+        os.remove(temp_pdf)
+        
+        b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+        return jsonify({"success": True, "file_b64": b64_pdf})
+    except Exception as e:
+        app.logger.error(f"PDF generation error: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
+
 @app.route("/api/generate_washing", methods=["POST"])
 @login_required
 def generate_washing():
@@ -990,6 +1042,10 @@ def generate_po():
         serial_val = data.get("serial", "")
         if serial_val:
             ws["J3"] = f"NO. {serial_val}"
+            
+        odometer_val = data.get("odometer", "")
+        if odometer_val:
+            ws["G9"] = odometer_val
 
         # Fill parts (rows 12-14)
         parts = data.get("parts", [])
@@ -1402,4 +1458,5 @@ if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     logger.info("Starting server on port %d (debug=%s)", port, debug)
     app.run(host="0.0.0.0", port=port, debug=debug)
+
 

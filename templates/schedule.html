@@ -9,11 +9,11 @@
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <style>
         .header { text-align:center; margin: 0 auto 1.5rem auto; z-index: 2; width: 100%; max-width: 1200px;}
-        .site-logo { max-width: 650px; width:80%; margin-bottom:0.5rem; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.2)); transition: var(--trans); }
-        body.dark-mode .site-logo { filter:brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.8)); }
+        .site-logo { width: 450px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
+        
         
         h1 { color:var(--accent); font-size:1.8rem; margin-bottom:0.3rem; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        body.dark-mode h1 { color: #82aaff; text-shadow: 0 0 10px rgba(130, 170, 255, 0.4); }
+        
         
         .subtitle { color:var(--text-muted); font-size:1rem; margin-bottom:1rem; }
         
@@ -21,7 +21,7 @@
         
         .date-bar { display:flex; gap:1rem; align-items:center; justify-content:center; padding:12px 20px; border-radius:10px; margin: 0 auto 1rem auto; flex-wrap:wrap; z-index: 2; width: 100%; max-width: 1200px;}
         .date-bar label { font-weight:700; color:var(--accent); }
-        body.dark-mode .date-bar label { color: #82aaff; }
+        
         .date-bar input { padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-family:Cairo; font-size:0.95rem; background: var(--surface); color: var(--text-primary); transition: var(--trans); }
         .date-bar input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
         
@@ -44,7 +44,7 @@
         .stat-card { border-radius:10px; padding:12px; text-align:center; transition: var(--trans-spring); }
         .stat-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
         .stat-card .num { font-size:1.8rem; font-weight:800; color:var(--accent); }
-        body.dark-mode .stat-card .num { color: #82aaff; }
+        
         .stat-card .lbl { font-size:0.8rem; color:var(--text-muted); }
         
         @media(max-width:768px) { h1{font-size:1.4rem;} .summary-grid{grid-template-columns:repeat(3,1fr);} }
@@ -71,7 +71,7 @@
     </style>
 </head>
 <body>
-    <button id="darkModeToggle" onclick="toggleDarkMode()" style="position:fixed;top:15px;right:15px;border:none;font-size:1.3rem;cursor:pointer;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;z-index:1000;box-shadow:var(--shadow-sm);transition:var(--trans-spring);backdrop-filter:blur(5px);">🌙</button>
+    
 
     <div class="header">
         {% if b64_en %}<img src="data:image/jpeg;base64,{{ b64_en }}" alt="Logo" class="site-logo">{% endif %}
@@ -107,7 +107,8 @@
         <label style="font-weight:700; color:var(--accent);">🔍 بحث سريع:</label>
         <input type="text" id="tableSearch" onkeyup="filterTables()" placeholder="ابحث بالاسم، اللوحة، الوظيفة، الإقامة..." style="flex: 1; min-width:200px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); font-family: Cairo;">
         <button class="btn-outline" onclick="clearScheduleData()" style="border-color: #e74c3c; color: #e74c3c;" title="تفريغ جميع الحقول وبدء جدول جديد">🗑️ مسح الجدول</button>
-        <button class="btn-outline" onclick="generateScheduleExcel()" style="border-color: #27ae60; color: #27ae60;">🖨️ طباعة الجدول (Excel)</button>
+        <button class="btn-outline" onclick="generateScheduleExcel()" style="border-color: #27ae60; color: #27ae60;">📥 تحميل (Excel)</button>
+        <button class="btn-outline" onclick="generateSchedulePDF()" style="border-color: #e74c3c; color: #e74c3c; margin-right: 10px;">🖨️ طباعة الجدول (PDF)</button>
     </div>
 
     <!-- Summary Stats -->
@@ -505,6 +506,22 @@ async function generateScheduleExcel() {
     } else { showToast('خطأ: '+result.error, 'error'); }
 }
 
+async function generateSchedulePDF() {
+    const data = collectData();
+    showToast('جاري تحويل الملف إلى PDF، يرجى الانتظار...', 'success');
+    const res = await fetch('/api/generate_schedule_pdf', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
+    });
+    const result = await res.json();
+    if(result.success) {
+        const bin = atob(result.file_b64);
+        const arr = new Uint8Array(bin.length);
+        for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+        const blob = new Blob([arr],{type:'application/pdf'});
+        saveAs(blob, `تحديث_المركبات_${data.date}.pdf`);
+    } else { showToast('خطأ: '+result.error, 'error'); }
+}
+
 async function sendScheduleEmail() {
     const email = document.getElementById('schedEmail').value;
     if(!email) return showToast('يرجى إدخال الإيميل', 'error');
@@ -541,6 +558,7 @@ function addSchedCc() {
 </script>
 </body>
 </html>
+
 
 
 

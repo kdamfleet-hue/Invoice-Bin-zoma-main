@@ -11,3 +11,4 @@ print(f'Total: {total} | Missing plate: {no_plate}')
 db.close()
 
 
+

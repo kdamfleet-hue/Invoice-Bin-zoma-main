@@ -37,3 +37,4 @@ conn.close()
 print("Database initialized successfully.")
 
 
+

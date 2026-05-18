@@ -182,3 +182,4 @@ print(f"\nFINAL: Total={total} | No plate={no_plate} | No car={no_car} | No phon
 db.close()
 
 
+

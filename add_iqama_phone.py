@@ -65,3 +65,4 @@ for r in c.fetchall():
     print(f'  {r[0]}: iqama={r[1]}, phone={r[2]}')
 
 
+

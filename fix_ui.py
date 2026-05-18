@@ -20,3 +20,4 @@ for f in glob.glob('templates/*.html') + ['static/base_styles.css']:
 print('Done fixing logo and removing dark mode.')
 
 
+

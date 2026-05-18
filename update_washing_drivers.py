@@ -50,3 +50,4 @@ else:
     print('Could not find WASHING_VEHICLES array.')
 
 
+
