@@ -15,98 +15,6 @@
             padding: 0;
             height: 100vh;
             overflow: hidden;
-            padding-top: 100px; /* حسب ارتفاع الهيدر */
-        }
-        
-        /* الهيدر الأساسي */
-        header {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          padding: 12px 40px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background: transparent;
-          backdrop-filter: blur(6px);
-          z-index: 1000;
-        }
-
-        /* الشعار */
-        header .logo {
-          position: absolute;
-          left: 50%;
-          transform: translateX(-50%);
-        }
-        header .logo img {
-          height: 60px;
-          filter: drop-shadow(0 0 4px rgba(0,0,0,0.25));
-        }
-
-        /* روابط الديسكتوب */
-        .nav-links {
-          display: flex;
-          gap: 25px;
-        }
-
-        .nav-links a {
-          text-decoration: none;
-          font-size: 18px;
-          color: white;
-          font-weight: 500;
-          transition: 0.3s;
-        }
-
-        .nav-links a:hover {
-          color: #00c3ff;
-          transform: translateY(-2px);
-        }
-
-        /* زر القائمة للجوال */
-        .menu-icon {
-          font-size: 32px;
-          color: white;
-          cursor: pointer;
-          display: none;
-        }
-
-        /* القائمة الجانبية للجوال */
-        .mobile-menu {
-          position: fixed;
-          top: 0;
-          right: -250px;
-          width: 250px;
-          height: 100%;
-          background: rgba(0,0,0,0.85);
-          backdrop-filter: blur(6px);
-          display: flex;
-          flex-direction: column;
-          padding-top: 100px;
-          transition: 0.4s;
-          z-index: 999;
-        }
-
-        .mobile-menu a {
-          padding: 15px 25px;
-          text-decoration: none;
-          color: white;
-          font-size: 20px;
-          border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .mobile-menu a:hover {
-          background: rgba(255,255,255,0.1);
-        }
-
-        /* إخفاء وإظهار حسب حجم الشاشة */
-        @media (max-width: 768px) {
-          .nav-links {
-            display: none;
-          }
-          .menu-icon {
-            display: block;
-          }
         }
         .login-card {
             padding: 3rem;
@@ -116,11 +24,6 @@
             width: 90%;
             z-index: 2;
             position: relative;
-        }
-        @media (max-width: 480px) {
-            .login-card {
-                padding: 1.5rem;
-            }
         }
         .login-card h2 {
             margin-top: 0;
@@ -167,48 +70,8 @@
     </style>
 </head>
 <body>
-    <!-- Intro Video Splash Screen -->
-    <div id="introContainer" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center;">
-        <video id="introVideo" style="width: 100%; height: 100%; object-fit: contain;" autoplay playsinline>
-            <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
-        </video>
-        <button id="skipIntroBtn" style="position: absolute; bottom: 30px; right: 30px; background: rgba(0,0,0,0.5); color: white; border: 1px solid white; padding: 10px 20px; border-radius: 20px; cursor: pointer; z-index: 10000; font-family: Cairo;">تخطي (Skip)</button>
-    </div>
-
-    <script>
-        const introContainer = document.getElementById('introContainer');
-        const introVideo = document.getElementById('introVideo');
-        const skipBtn = document.getElementById('skipIntroBtn');
-
-        function endIntro() {
-            introContainer.style.transition = "opacity 1s ease";
-            introContainer.style.opacity = "0";
-            setTimeout(() => {
-                introContainer.style.display = "none";
-                introVideo.pause();
-            }, 1000);
-        }
-
-        introVideo.onended = endIntro;
-        skipBtn.onclick = endIntro;
-        
-        // Browsers might block autoplay if not muted. 
-        // We try playing it, if it's blocked, we just end the intro or ask user to click.
-        let playPromise = introVideo.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                // Auto-play was prevented.
-                introVideo.muted = true;
-                introVideo.play().catch(e => endIntro());
-            });
-        }
-    </script>
-    
-
-
-
+    <button id="darkModeToggle" onclick="toggleDarkMode()" style="position:fixed;top:20px;right:20px;border:none;font-size:1.5rem;cursor:pointer;border-radius:50%;width:45px;height:45px;display:flex;align-items:center;justify-content:center;transition:var(--trans-spring);z-index:1000;box-shadow:var(--shadow-sm);backdrop-filter:blur(5px);">🌙</button>
     <div class="login-card glass-surface">
-        <img src="{{ url_for('static', filename='gemini_logo_header_v223.png', v=4) }}" alt="Bin Zomah Logo" class="site-logo" style="max-width: 320px; margin-bottom: 20px;">
         <h2>أهلاً بك</h2>
         <p>نظام الفواتير الذكي لشركة بن زومة فرع الدمام. الرجاء تسجيل الدخول للمتابعة.</p>
         <a href="/google-login" class="google-btn">
@@ -221,4 +84,3 @@
     </div>
 </body>
 </html>
-
