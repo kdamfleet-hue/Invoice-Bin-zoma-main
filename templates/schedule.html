@@ -76,10 +76,10 @@
     <div class="header">
         {% if b64_en %}<img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">{% endif %}
         {% if google_user %}
-        <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; backdrop-filter: blur(5px);">
+        <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: var(--surface); padding: 5px 15px; border-radius: 50px; box-shadow: var(--shadow-md); z-index: 100; backdrop-filter: blur(5px); border: 1px solid var(--border);">
             <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
-            <span style="font-weight: bold; color: #1A3A5C; font-size: 0.9rem;">{{ google_user.name }}</span>
-            <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">تسجيل خروج</a>
+            <span style="font-weight: bold; color: var(--text-primary); font-size: 0.9rem;">{{ google_user.name }}</span>
+            <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">🚪 خروج</a>
         </div>
         {% endif %}
         <h1>📋 تحديث الجدول الأسبوعي للمركبات والسائقين</h1>
@@ -107,7 +107,7 @@
         <label style="font-weight:700; color:var(--accent);">🔍 بحث سريع:</label>
         <input type="text" id="tableSearch" onkeyup="filterTables()" placeholder="ابحث بالاسم، اللوحة، الوظيفة، الإقامة..." style="flex: 1; min-width:200px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); font-family: Cairo;">
         <button class="btn-outline" onclick="clearScheduleData()" style="border-color: #e74c3c; color: #e74c3c;" title="تفريغ جميع الحقول وبدء جدول جديد">🗑️ مسح الجدول</button>
-        <button class="btn-outline" onclick="window.print()" style="border-color: #27ae60; color: #27ae60;">🖨️ طباعة الجدول</button>
+        <button class="btn-outline" onclick="generateScheduleExcel()" style="border-color: #27ae60; color: #27ae60;">🖨️ طباعة الجدول (Excel)</button>
     </div>
 
     <!-- Summary Stats -->
@@ -188,6 +188,9 @@
             </div>
         </div>
     </div>
+
+<!-- WhatsApp FAB -->
+<a href="#" onclick="let d=collectData();let msg='📋 الجدول الأسبوعي\n📅 التاريخ: '+d.date+'\n👷 عدد السائقين: '+d.main.length+'\n⚠️ اسبير/معطلة: '+d.spare.length;window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');return false;" style="position:fixed;bottom:25px;right:25px;width:60px;height:60px;border-radius:50%;background:#25D366;color:#fff;border:none;font-size:1.8rem;cursor:pointer;box-shadow:0 4px 15px rgba(37,211,102,0.4);z-index:999;display:flex;align-items:center;justify-content:center;transition:var(--trans-spring);text-decoration:none;" title="إرسال عبر واتساب">💬</a>
 
 <footer style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:20px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
 

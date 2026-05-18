@@ -208,10 +208,10 @@
     <div class="header-container">
         {% if b64_en %}<img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">{% endif %}
                 {% if google_user %}
-        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
+        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:var(--surface);padding:5px 15px;border-radius:50px;box-shadow:var(--shadow-md);z-index:100;backdrop-filter:blur(5px);border:1px solid var(--border);">
             <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
-            <span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
-            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
+            <span style="font-weight:bold;color:var(--text-primary);font-size:0.9rem">{{ google_user.name }}</span>
+            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">🚪 خروج</a>
         </div>
         {% endif %}
         <h1 class="header-title">نموذج طلب شراء وإصلاح سيارة</h1>
@@ -245,6 +245,7 @@
             <div><label>الموديل:</label><input type="text" id="poModel"></div>
             <div><label>رقم الجوال:</label><input type="text" id="poPhone"></div>
             <div><label>التاريخ:</label><input type="date" id="poDate"></div>
+            <div><label>عداد السيارة (كم):</label><input type="number" id="poOdometer" placeholder="مثال: 125000"></div>
         </div>
 
         <!-- Parts -->
@@ -359,6 +360,21 @@
                 الإيميل</button>
         </div>
     </div>
+
+    <!-- WhatsApp FAB -->
+    <a href="#" onclick="sendWhatsApp()" style="position:fixed;bottom:25px;right:25px;width:60px;height:60px;border-radius:50%;background:#25D366;color:#fff;border:none;font-size:1.8rem;cursor:pointer;box-shadow:0 4px 15px rgba(37,211,102,0.4);z-index:999;display:flex;align-items:center;justify-content:center;transition:var(--trans-spring);text-decoration:none;" title="إرسال عبر واتساب">💬</a>
+    <script>
+    function sendWhatsApp() {
+        const d = document.getElementById('poDriver').value || '';
+        const p = document.getElementById('poPlate').value || '';
+        const c = document.getElementById('poCar').value || '';
+        const s = document.getElementById('poSerial').value || '';
+        const gt = document.getElementById('sumGrandTotal').value || '0';
+        const msg = `📋 طلب شراء رقم: ${s}\n👤 السائق: ${d}\n🚗 السيارة: ${c}\n🔢 اللوحة: ${p}\n💰 الإجمالي: ${gt} ريال`;
+        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    }
+    </script>
+
     <footer
         style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;width:100%">
         تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
@@ -586,6 +602,7 @@
                 plate: document.getElementById('poPlate').value,
                 model: document.getElementById('poModel').value,
                 date: document.getElementById('poDate').value,
+                odometer: document.getElementById('poOdometer').value,
                 notes: document.getElementById('poNotes').value,
                 summary,
                 parts, repairs, tires, batteries
@@ -642,7 +659,16 @@
         document.getElementById('sumTires').style.background = 'var(--surface)';
         document.getElementById('sumTires').placeholder = 'أدخل يدوياً';
 
-        window.onload = async () => { await fetchDrivers(); document.getElementById('poDate').valueAsDate = new Date(); document.getElementById('poSerial').value = Math.floor(100000 + Math.random() * 900000).toString(); addPartRow(); addRepairRow(); addTireRow(); addBatteryRow(); };
+        window.onload = async () => {
+            await fetchDrivers();
+            document.getElementById('poDate').valueAsDate = new Date();
+            // Ascending serial number
+            let lastSerial = parseInt(localStorage.getItem('poSerialCounter') || '0');
+            lastSerial++;
+            localStorage.setItem('poSerialCounter', lastSerial.toString());
+            document.getElementById('poSerial').value = lastSerial.toString().padStart(6, '0');
+            addPartRow(); addRepairRow(); addTireRow(); addBatteryRow();
+        };
     </script>
 
 

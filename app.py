@@ -658,34 +658,40 @@ def generate_washing():
         wb = openpyxl.load_workbook(template_path)
         ws = wb.active
 
+        def wash_safe_set(row, col, val):
+            cell = ws.cell(row=row, column=col)
+            if not isinstance(cell, MC):
+                cell.value = val
+
         # Insert Logo
         logo_path = os.path.join(
             app.root_path, "templates", "ApplicationFrameHost_KUIZUuJ46O (1).png"
         )
         if os.path.exists(logo_path):
-            img = XLImage(logo_path)
-            # Scale down to fit nicely in Excel header (Original 1602x481)
-            img.width = 300
-            img.height = 90
-            # Put logo around center (column E/F, top)
-            ws.add_image(img, "F1")
+            try:
+                img = XLImage(logo_path)
+                img.width = 300
+                img.height = 90
+                ws.add_image(img, "F1")
+            except Exception:
+                pass
 
         for idx, v in enumerate(vehicles):
             r = 5 + idx
-            ws.cell(row=r, column=1, value=v.get("id", idx + 1))
-            ws.cell(row=r, column=2, value=v.get("plate", ""))
-            ws.cell(row=r, column=3, value=v.get("type", ""))
-            ws.cell(row=r, column=4, value=v.get("driver", ""))
+            wash_safe_set(r, 1, v.get("id", idx + 1))
+            wash_safe_set(r, 2, v.get("plate", ""))
+            wash_safe_set(r, 3, v.get("type", ""))
+            wash_safe_set(r, 4, v.get("driver", ""))
             months = v.get("m", [])
             total = sum(months)
             for m_idx in range(12):
                 val = "استلم" if months[m_idx] == 1 else None
-                ws.cell(row=r, column=5 + m_idx, value=val)
-            ws.cell(row=r, column=17, value=total)
+                wash_safe_set(r, 5 + m_idx, val)
+            wash_safe_set(r, 17, total)
 
-        # Add summary stats (similar to what was in row 2 of template)
+        # Add summary stats
         total_washes = sum(sum(v.get("m", [])) for v in vehicles)
-        ws.cell(row=2, column=12, value=total_washes)
+        wash_safe_set(2, 12, total_washes)
 
         output = io.BytesIO()
         wb.save(output)
