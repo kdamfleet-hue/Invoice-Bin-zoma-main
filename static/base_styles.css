@@ -42,8 +42,6 @@
     margin: 0;
     padding: 0;
     font-family: 'Tajawal', sans-serif;
-    letter-spacing: 0;
-    word-spacing: normal;
 }
 
 body {
@@ -171,7 +169,7 @@ button:active { transform: scale(0.96); }
     border-radius: 8px; 
 }
 
-
+body
 
 .btn-danger:hover { 
     background: #dc2626; 
@@ -296,8 +294,6 @@ tr:hover td { background: var(--surface-hover); }
     transform: scale(0.95) translateY(20px); 
     opacity: 0;
     transition: var(--trans-spring);
-    direction: rtl;
-    text-align: right;
 }
 .modal-backdrop.show .modal-content-custom { 
     transform: scale(1) translateY(0); 
@@ -308,21 +304,10 @@ tr:hover td { background: var(--surface-hover); }
     padding: 24px 24px 16px; 
     display: flex; justify-content: space-between; align-items: center;
     border-bottom: 1px solid var(--border);
-    flex-direction: row-reverse;
 }
 
 .modal-header-custom h2 { margin: 0; font-size: 1.4rem; }
-.modal-body-custom { 
-    padding: 24px; 
-    direction: rtl;
-    text-align: right;
-}
-
-.modal-body-custom input,
-.modal-body-custom select,
-.modal-body-custom textarea {
-    text-align: right;
-}
+.modal-body-custom { padding: 24px; }
 
 /* ==========================================================================
    NOTIFICATIONS & PROGRESS
@@ -336,9 +321,7 @@ tr:hover td { background: var(--surface-hover); }
 }
 
 #toast-container {
-    position: fixed; bottom: 24px;
-    left: auto; right: 24px;
-    align-items: flex-end;
+    position: fixed; bottom: 24px; left: 24px; /* Move to left for Arabic RTL feel */
     display: flex; flex-direction: column; gap: 12px;
     z-index: 10000; pointer-events: none;
 }
@@ -347,22 +330,20 @@ tr:hover td { background: var(--surface-hover); }
     background: var(--surface);
     color: var(--text-primary);
     border: 1px solid var(--border);
-    border-left: none;
-    border-right: 4px solid transparent;
     padding: 16px 20px;
     border-radius: 12px;
     box-shadow: var(--shadow-md);
     display: flex; align-items: center; gap: 12px;
     font-weight: 600; font-size: 0.95rem;
-    transform: translateX(120%) scale(0.95);
+    transform: translateX(-120%) scale(0.95);
     opacity: 0;
     transition: var(--trans-spring);
     pointer-events: auto;
 }
 
 .toast.show { transform: translateX(0) scale(1); opacity: 1; }
-.toast.success { border-right-color: #10b981; }
-.toast.error { border-right-color: #ef4444; }
+.toast.success { border-left: 4px solid #10b981; }
+.toast.error { border-left: 4px solid #ef4444; }
 
 /* ==========================================================================
    UTILITY & ANIMATIONS
@@ -393,8 +374,6 @@ tr:hover td { background: var(--surface-hover); }
     background: var(--surface-hover); border: none; font-size: 1.2rem; cursor: pointer;
     line-height: 1; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
     color: var(--text-secondary); transition: var(--trans);
-    margin-right: auto;
-    margin-left: 0;
 }
 .close-btn:hover { background: var(--border-strong); color: var(--text-primary); }
 
@@ -421,27 +400,3 @@ tr:hover td { background: var(--surface-hover); }
     border-radius: 24px; padding: 3rem; max-width: 400px; box-shadow: var(--shadow-lg);
 }
 #session-countdown { font-weight: 900; font-size: 3rem; color: #ef4444; display: block; margin: 20px 0; }
-
-/* ==========================================================================
-   RTL & RESPONSIVENESS FIXES
-   ========================================================================== */
-
-.ltr {
-    direction: ltr;
-    text-align: left;
-}
-
-@media (max-width: 768px) {
-    body { padding: 12px; }
-    h1 { font-size: 1.7rem; }
-    h2 { font-size: 1.4rem; }
-    h3 { font-size: 1.15rem; }
-    .glass-surface, .card, .modal-body-custom { padding: 14px; }
-    .modal-content-custom { width: calc(100% - 20px); max-height: 92vh; border-radius: 16px; }
-    .flex-between { flex-direction: column; align-items: stretch; gap: 12px; }
-    #toast-container { left: 12px; right: 12px; bottom: 12px; }
-    .toast { width: 100%; }
-    button, .btn-primary, .btn-outline, .btn-danger { width: 100%; margin-bottom: 8px; }
-}
-
-

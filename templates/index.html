@@ -11,7 +11,6 @@
 </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
-    <style>
         .header-container {
             display: flex;
             flex-direction: column;
@@ -28,7 +27,9 @@
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
             transition: var(--trans);
         }
-        
+        body.dark-mode .site-logo {
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+        }
 
         .header-title {
             color: var(--text-primary);
@@ -100,19 +101,16 @@
     
 
 
-    
-    
-
     <div class="header-container">
         {% if b64_en %}
             <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">
         {% endif %}
         
     {% if google_user %}
-    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: var(--surface); padding: 5px 15px; border-radius: 50px; box-shadow: var(--shadow-md); z-index: 100; backdrop-filter: blur(5px); border: 1px solid var(--border);">
+    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; backdrop-filter: blur(5px);">
         <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
-        <span style="font-weight: bold; color: var(--text-primary); font-size: 0.9rem;">{{ google_user.name }}</span>
-        <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">🚪 خروج</a>
+        <span style="font-weight: bold; color: #1A3A5C; font-size: 0.9rem;">{{ google_user.name }}</span>
+        <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">تسجيل خروج</a>
     </div>
     {% endif %}
 
@@ -669,10 +667,6 @@
         }
     
 </script>
-
-<!-- WhatsApp FAB -->
-<a href="#" onclick="const d=document.getElementById('driverInput')?.value||'';const p=document.getElementById('plateInput')?.value||'';const c=document.getElementById('carInput')?.value||'';const msg='📄 فاتورة صيانة\n👤 السائق: '+d+'\n🚗 السيارة: '+c+'\n🔢 اللوحة: '+p;window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');return false;" style="position:fixed;bottom:25px;right:25px;width:60px;height:60px;border-radius:50%;background:#25D366;color:#fff;border:none;font-size:1.8rem;cursor:pointer;box-shadow:0 4px 15px rgba(37,211,102,0.4);z-index:998;display:flex;align-items:center;justify-content:center;transition:var(--trans-spring);text-decoration:none;" title="إرسال عبر واتساب">💬</a>
-
 <footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
 
 
@@ -808,5 +802,3 @@ document.getElementById('composeForm').addEventListener('submit', async function
 
 </body>
 </html>
-
-
