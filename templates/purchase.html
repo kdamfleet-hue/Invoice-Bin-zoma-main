@@ -340,10 +340,10 @@
             </thead>
             <tbody>
                 <tr>
-                    <td><input type="number" id="sumParts" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;"></td>
-                    <td><input type="number" id="sumRepairs" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;"></td>
+                    <td><input type="number" id="sumParts" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="الإجمالي"></td>
+                    <td><input type="number" id="sumRepairs" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="الإجمالي"></td>
                     <td><input type="number" id="sumTires" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;" placeholder="أدخل يدوياً"></td>
-                    <td><input type="number" id="sumBatteries" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;"></td>
+                    <td><input type="number" id="sumBatteries" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="الإجمالي"></td>
                     <td><input type="number" id="sumSubtotal" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:var(--accent);"></td>
                     <td><input type="number" id="sumVat" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:#e67e22;"></td>
                     <td><input type="number" id="sumGrandTotal" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:#27ae60;font-size:1.1rem;"></td>
@@ -436,20 +436,15 @@
         });
 
         // ── Auto-calculate summary totals ──
-        function recalcSummary() {
-            // Parts total
+        function updateSummaryFieldsFromTables() {
             let partsTotal = 0;
             document.querySelectorAll('#partsTable tbody tr:not(.empty-row)').forEach(tr => {
                 partsTotal += parseFloat(tr.querySelector('.p-val')?.value) || 0;
             });
-            // Repairs total
             let repairsTotal = 0;
             document.querySelectorAll('#repairsTable tbody tr:not(.empty-row)').forEach(tr => {
                 repairsTotal += parseFloat(tr.querySelector('.r-val')?.value) || 0;
             });
-            // Tires total (no price column in tires, user enters manually if needed)
-            let tiresTotal = parseFloat(document.getElementById('sumTires').value) || 0;
-            // Batteries total
             let batteriesTotal = 0;
             document.querySelectorAll('#batteriesTable tbody tr:not(.empty-row)').forEach(tr => {
                 const count = parseFloat(tr.querySelector('.b-count')?.value) || 0;
@@ -457,9 +452,16 @@
                 batteriesTotal += count * price;
             });
 
-            document.getElementById('sumParts').value = partsTotal ? partsTotal.toFixed(2) : '';
-            document.getElementById('sumRepairs').value = repairsTotal ? repairsTotal.toFixed(2) : '';
-            document.getElementById('sumBatteries').value = batteriesTotal ? batteriesTotal.toFixed(2) : '';
+            if (partsTotal > 0) document.getElementById('sumParts').value = partsTotal.toFixed(2);
+            if (repairsTotal > 0) document.getElementById('sumRepairs').value = repairsTotal.toFixed(2);
+            if (batteriesTotal > 0) document.getElementById('sumBatteries').value = batteriesTotal.toFixed(2);
+        }
+
+        function recalcSummary() {
+            let partsTotal = parseFloat(document.getElementById('sumParts').value) || 0;
+            let repairsTotal = parseFloat(document.getElementById('sumRepairs').value) || 0;
+            let tiresTotal = parseFloat(document.getElementById('sumTires').value) || 0;
+            let batteriesTotal = parseFloat(document.getElementById('sumBatteries').value) || 0;
 
             const subtotal = partsTotal + repairsTotal + tiresTotal + batteriesTotal;
             const vat = subtotal * 0.15;
@@ -472,7 +474,10 @@
 
         // Recalc on any input change within tables
         document.addEventListener('input', function(e) {
-            if (e.target.closest('#partsTable') || e.target.closest('#repairsTable') || e.target.closest('#batteriesTable') || e.target.id === 'sumTires') {
+            if (e.target.closest('#partsTable') || e.target.closest('#repairsTable') || e.target.closest('#batteriesTable')) {
+                updateSummaryFieldsFromTables();
+                recalcSummary();
+            } else if (e.target.id === 'sumParts' || e.target.id === 'sumRepairs' || e.target.id === 'sumTires' || e.target.id === 'sumBatteries') {
                 recalcSummary();
             }
         });
@@ -484,7 +489,7 @@
             const empty = t.querySelector('.empty-row');
             if (empty) empty.remove();
             const r = document.createElement('tr');
-            r.innerHTML = `<td>${pc}</td><td><input class="p-desc"></td><td><input type="number" class="p-qty" oninput="calcPartVal(this)"></td><td><input type="number" class="p-price" oninput="calcPartVal(this)"></td><td><input type="number" class="p-val" readonly></td><td><input class="p-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updatePartIds();recalcSummary()">✕</button></td>`;
+            r.innerHTML = `<td>${pc}</td><td><input class="p-desc"></td><td><input type="number" class="p-qty" oninput="calcPartVal(this);updateSummaryFieldsFromTables();recalcSummary();updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="number" class="p-price" oninput="calcPartVal(this);updateSummaryFieldsFromTables();recalcSummary();updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="number" class="p-val" readonly></td><td><input class="p-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updatePartIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
             t.appendChild(r);
         }
         function updatePartIds() {
@@ -503,7 +508,7 @@
             const empty = t.querySelector('.empty-row');
             if (empty) empty.remove();
             const r = document.createElement('tr');
-            r.innerHTML = `<td>${rc}</td><td><input class="r-desc"></td><td><input type="number" class="r-val" oninput="recalcSummary()"></td><td><input class="r-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateRepairIds();recalcSummary()">✕</button></td>`;
+            r.innerHTML = `<td>${rc}</td><td><input class="r-desc"></td><td><input type="number" class="r-val" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input class="r-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateRepairIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
             t.appendChild(r);
         }
         function updateRepairIds() {
@@ -538,7 +543,7 @@
             const empty = t.querySelector('.empty-row');
             if (empty) empty.remove();
             const r = document.createElement('tr');
-            r.innerHTML = `<td>${bc}</td><td><input class="b-desc"></td><td><input type="number" class="b-count" oninput="recalcSummary()"></td><td><input class="b-size"></td><td><input class="b-amp"></td><td><input type="number" class="b-price" oninput="recalcSummary()"></td><td><input type="date" class="b-date" value="${new Date().toISOString().split('T')[0]}"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateBatteryIds();recalcSummary()">✕</button></td>`;
+            r.innerHTML = `<td>${bc}</td><td><input class="b-desc"></td><td><input type="number" class="b-count" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input class="b-size"></td><td><input class="b-amp"></td><td><input type="number" class="b-price" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="date" class="b-date" value="${new Date().toISOString().split('T')[0]}"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateBatteryIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
             t.appendChild(r);
         }
         function updateBatteryIds() {
@@ -640,8 +645,8 @@
         }
 
         // Make sumTires editable (not readonly) so user can manually enter tire costs
-        document.getElementById('sumTires').removeAttribute('readonly');
-        document.getElementById('sumTires').style.background = 'var(--surface)';
+        
+        
         document.getElementById('sumTires').placeholder = 'أدخل يدوياً';
 
         window.onload = async () => { await fetchDrivers(); document.getElementById('poDate').valueAsDate = new Date(); document.getElementById('poSerial').value = Math.floor(Date.now() / 1000).toString(); addPartRow(); addRepairRow(); addTireRow(); addBatteryRow(); };
