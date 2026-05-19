@@ -73,6 +73,15 @@ CORS(app)
 from datetime import timedelta
 
 app.permanent_session_lifetime = timedelta(hours=8)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 # ── GPS Configuration ────────────────────────────────────────────────────────
 GPS_USER = os.environ.get("GPS_USER", "")
@@ -204,7 +213,7 @@ def init_db():
             
             # Auto-seed database from drivers_data.js if missing new drivers
             count = db.execute("SELECT COUNT(*) FROM drivers").fetchone()[0]
-            if count < 70:
+            if count < 200:
                 js_path = os.path.join(app.root_path, "drivers_data.js")
                 if os.path.exists(js_path):
                     try:
@@ -641,58 +650,6 @@ def generate_schedule():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/generate_schedule_pdf", methods=["POST"])
-@login_required
-def generate_schedule_pdf():
-    try:
-        # First generate the excel file in memory
-        res = generate_schedule()
-        if type(res) is tuple:
-            return res
-        
-        json_data = res.get_json()
-        if not json_data.get("success"):
-            return jsonify(json_data), 500
-            
-        excel_bytes = base64.b64decode(json_data["file_b64"])
-        
-        import tempfile
-        import uuid
-        import pythoncom
-        import win32com.client
-        
-        temp_xlsx = os.path.join(tempfile.gettempdir(), f"temp_{uuid.uuid4().hex}.xlsx")
-        temp_pdf = os.path.join(tempfile.gettempdir(), f"temp_{uuid.uuid4().hex}.pdf")
-        
-        with open(temp_xlsx, "wb") as f:
-            f.write(excel_bytes)
-            
-        pythoncom.CoInitialize()
-        excel = win32com.client.Dispatch("Excel.Application")
-        excel.Visible = False
-        try:
-            wb_com = excel.Workbooks.Open(temp_xlsx)
-            wb_com.ActiveSheet.ExportAsFixedFormat(0, temp_pdf)
-            wb_com.Close(False)
-        finally:
-            excel.Quit()
-            pythoncom.CoUninitialize()
-            
-        with open(temp_pdf, "rb") as f:
-            pdf_bytes = f.read()
-            
-        os.remove(temp_xlsx)
-        os.remove(temp_pdf)
-        
-        b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-        return jsonify({"success": True, "file_b64": b64_pdf})
-    except Exception as e:
-        app.logger.error(f"PDF generation error: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-
-
 @app.route("/api/generate_washing", methods=["POST"])
 @login_required
 def generate_washing():
@@ -710,40 +667,102 @@ def generate_washing():
         wb = openpyxl.load_workbook(template_path)
         ws = wb.active
 
-        def wash_safe_set(row, col, val):
-            cell = ws.cell(row=row, column=col)
-            if not isinstance(cell, MC):
-                cell.value = val
-
         # Insert Logo
         logo_path = os.path.join(
             app.root_path, "templates", "ApplicationFrameHost_KUIZUuJ46O (1).png"
         )
         if os.path.exists(logo_path):
-            try:
-                img = XLImage(logo_path)
-                img.width = 300
-                img.height = 90
-                ws.add_image(img, "F1")
-            except Exception:
-                pass
+            img = XLImage(logo_path)
+            img.width = 300
+            img.height = 90
+            ws.add_image(img, "F1")
 
+        # Unmerge ALL merged cells to avoid MergedCell write errors
+        merged_ranges = list(ws.merged_cells.ranges)
+        for mr in merged_ranges:
+            ws.unmerge_cells(str(mr))
+
+        # Copy header style from row 4 for reuse
+        from copy import copy as shallow_copy
+        header_fills = {}
+        header_fonts = {}
+        header_aligns = {}
+        header_borders = {}
+        for c in range(1, 19):
+            cell = ws.cell(row=4, column=c)
+            header_fills[c] = shallow_copy(cell.fill)
+            header_fonts[c] = shallow_copy(cell.font)
+            header_aligns[c] = shallow_copy(cell.alignment)
+            header_borders[c] = shallow_copy(cell.border)
+
+        # Copy a data row style (row 5) for styling data rows
+        data_fills = {}
+        data_fonts = {}
+        data_aligns = {}
+        data_borders = {}
+        for c in range(1, 19):
+            cell = ws.cell(row=5, column=c)
+            data_fills[c] = shallow_copy(cell.fill)
+            data_fonts[c] = shallow_copy(cell.font)
+            data_aligns[c] = shallow_copy(cell.alignment)
+            data_borders[c] = shallow_copy(cell.border)
+
+        # Write vehicle data starting at row 5
         for idx, v in enumerate(vehicles):
             r = 5 + idx
-            wash_safe_set(r, 1, v.get("id", idx + 1))
-            wash_safe_set(r, 2, v.get("plate", ""))
-            wash_safe_set(r, 3, v.get("type", ""))
-            wash_safe_set(r, 4, v.get("driver", ""))
+            ws.cell(row=r, column=1, value=v.get("id", idx + 1))
+            ws.cell(row=r, column=2, value=v.get("plate", ""))
+            ws.cell(row=r, column=3, value=v.get("type", ""))
+            ws.cell(row=r, column=4, value=v.get("driver", ""))
             months = v.get("m", [])
             total = sum(months)
             for m_idx in range(12):
-                val = "استلم" if months[m_idx] == 1 else None
-                wash_safe_set(r, 5 + m_idx, val)
-            wash_safe_set(r, 17, total)
+                val = "استلم" if m_idx < len(months) and months[m_idx] == 1 else None
+                ws.cell(row=r, column=5 + m_idx, value=val)
+            ws.cell(row=r, column=17, value=total)
+            # Apply data styling
+            for c in range(1, 19):
+                cell = ws.cell(row=r, column=c)
+                cell.fill = shallow_copy(data_fills.get(c, data_fills[1]))
+                cell.font = shallow_copy(data_fonts.get(c, data_fonts[1]))
+                cell.alignment = shallow_copy(data_aligns.get(c, data_aligns[1]))
+                cell.border = shallow_copy(data_borders.get(c, data_borders[1]))
 
-        # Add summary stats
+        # Summary row: right after last vehicle
+        summary_row = 5 + len(vehicles)
+        ws.cell(row=summary_row, column=1, value="إجمالي الغسيل الشهري")
+        ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
+        for m_idx in range(12):
+            col = 5 + m_idx
+            start_cell = ws.cell(row=5, column=col).coordinate.replace("5", "")
+            formula = '=COUNTIF(%s5:%s%d,"استلم")' % (start_cell, start_cell, summary_row - 1)
+            ws.cell(row=summary_row, column=col, value=formula)
+        ws.cell(row=summary_row, column=17, value="=SUM(Q5:Q%d)" % (summary_row - 1))
+
+        # Style summary row bold
+        from openpyxl.styles import Font, PatternFill, Alignment
+        summary_font = Font(name="Cairo", size=11, bold=True, color="FFFFFF")
+        summary_fill = PatternFill(start_color="1A3A5C", end_color="1A3A5C", fill_type="solid")
+        summary_align = Alignment(horizontal="center", vertical="center")
+        for c in range(1, 19):
+            cell = ws.cell(row=summary_row, column=c)
+            cell.font = summary_font
+            cell.fill = summary_fill
+            cell.alignment = summary_align
+
+        # Footer row
+        footer_row = summary_row + 2
+        ws.cell(row=footer_row, column=1, value="تم إعداد هذا الجدول بواسطة قسم الحركة - فرع الدمام")
+        ws.merge_cells(start_row=footer_row, start_column=1, end_row=footer_row, end_column=18)
+
+        # Re-merge header rows
+        ws.merge_cells("A1:R1")
+        ws.merge_cells("A2:D2")
+        ws.merge_cells("A3:R3")
+
+        # Update total washes in header
         total_washes = sum(sum(v.get("m", [])) for v in vehicles)
-        wash_safe_set(2, 12, total_washes)
+        ws.cell(row=2, column=12, value=total_washes)
 
         output = io.BytesIO()
         wb.save(output)
@@ -1036,16 +1055,13 @@ def generate_po():
         ws["D8"] = data.get("car", "")
         ws["G8"] = data.get("plate", "")
         ws["I8"] = data.get("model", "")
+        ws["D9"] = data.get("odometer", "")
         date_val = data.get("date", "")
         if date_val:
             ws["C4"] = date_val
         serial_val = data.get("serial", "")
         if serial_val:
             ws["J3"] = f"NO. {serial_val}"
-            
-        odometer_val = data.get("odometer", "")
-        if odometer_val:
-            ws["G9"] = odometer_val
 
         # Fill parts (rows 12-14)
         parts = data.get("parts", [])
@@ -1458,5 +1474,4 @@ if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     logger.info("Starting server on port %d (debug=%s)", port, debug)
     app.run(host="0.0.0.0", port=port, debug=debug)
-
 

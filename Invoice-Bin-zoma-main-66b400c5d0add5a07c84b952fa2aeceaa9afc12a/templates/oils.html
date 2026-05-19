@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بيان الزيوت والفلاتر | شركة بن زومة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <style>
+        .header-container { display: flex; flex-direction: column; align-items: center; margin: 0 auto 1rem auto; width: 100%; max-width: 1200px; z-index: 2;}
+        .site-logo { max-width: 650px; width: 90%; margin-bottom: 1rem; transition: var(--trans); filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
+        body.dark-mode .site-logo { filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.8)) drop-shadow(0 0 20px rgba(255,255,255,0.4)); }
+        
+        .header-title { font-size: 2.2rem; font-weight: 800; color: var(--accent); text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        body.dark-mode .header-title { color: #82aaff !important; text-shadow: 0 0 10px rgba(130, 170, 255, 0.4); }
+
+        .nav-buttons { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
+        
+        .table-container { width: 100%; max-width: 1200px; padding: 1.5rem; margin: 2rem auto 0 auto; z-index: 2; }
+        
+        .section-title { background: linear-gradient(135deg, var(--accent), #2C6FAC); color: white; text-align: center; padding: 10px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; margin: 20px 0 10px 0; box-shadow: var(--shadow-md); }
+        
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; border-radius: 8px; overflow: hidden; }
+        th, td { border: 1px solid var(--border); padding: 10px; text-align: center; }
+        th { background: linear-gradient(135deg, var(--accent), #2C6FAC); color: white; font-weight: bold; font-size: 0.95rem; }
+        td { background: var(--surface); color: var(--text-primary); }
+        
+        input, select { width: 100%; min-width: 90px; padding: 10px; border: 1px solid var(--border-strong); border-radius: 6px; font-family: 'Cairo'; font-size: 0.95rem; font-weight: 600; outline: none; transition: var(--trans); background: var(--surface); color: var(--text-primary); box-sizing: border-box; }
+        input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        
+        .btn-remove { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: var(--trans); }
+        .btn-remove:hover { background: #c0392b; transform: scale(1.1); }
+        
+        @media (max-width: 768px) { body { padding: 1rem; padding-top: 4rem;} .header-title { font-size: 1.6rem; } }
+
+        /* Floating Action Button */
+        .fab-btn { position: fixed; bottom: 25px; left: 25px; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #2C6FAC); color: #fff; border: none; font-size: 1.8rem; cursor: pointer; box-shadow: 0 4px 15px var(--accent-glow); z-index: 999; display: flex; align-items: center; justify-content: center; transition: var(--trans-spring); }
+        .fab-btn:hover { transform: scale(1.1) rotate(10deg); }
+    </style>
+</head>
+<body>
+    <datalist id="driversList"></datalist>
+    <button id="darkModeToggle" onclick="toggleDarkMode()" style="position: fixed; top: 20px; right: 20px; border: none; font-size: 1.5rem; cursor: pointer; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; transition: var(--trans-spring); z-index: 1000; box-shadow: var(--shadow-sm); backdrop-filter: blur(5px);">🌙</button>
+
+    <div class="header-container">
+        {% if b64_en %}
+            <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">
+        {% endif %}
+                {% if google_user %}
+        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
+            <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
+            <span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
+            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
+        </div>
+        {% endif %}
+        <h1 class="header-title">بيان استهلاك الزيوت والفلاتر</h1>
+        <div class="nav-buttons">
+            <a href="/" class="btn-outline">🔙 العودة للفواتير</a>
+            <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
+            <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
+            <button class="btn-outline" onclick="addOilRow()">➕ إضافة صف زيوت</button>
+            <button class="btn-outline" onclick="addFilterLeftRow()">➕ إضافة صف جرد فلاتر</button>
+            <button class="btn-outline" onclick="addFilterRightRow()">➕ إضافة صف شراء فلاتر</button>
+        </div>
+    </div>
+
+    <div class="table-container glass-surface">
+        <!-- Oil Table -->
+        <div class="section-title">🛢️ بيان استهلاك الزيوت</div>
+        <table id="oilTable">
+            <thead>
+                <tr>
+                    <th style="width:40px">م</th>
+                    <th>رقم لوحة السيارة</th>
+                    <th>المستخدم</th>
+                    <th>تاريخ تغيير الزيت</th>
+                    <th>رقم العداد</th>
+                    <th>عدد اللترات</th>
+                    <th>عدد فلاتر الزيت والديزل والهواء</th>
+                    <th style="width:50px">حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Filter Details - matching original Excel structure -->
+        <div class="section-title">🔧 ملاحظات وتفاصيل الفلاتر</div>
+        <div style="margin-bottom:10px;">
+            <input type="text" id="notesRow65" placeholder="مثال: شراء عدد 3 براميل زيت (بترومين) من تاريخ 2025/12/17 الى تاريخ 2026/2/7" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+        </div>
+        <div style="margin-bottom:15px;">
+            <input type="text" id="notesRow66" placeholder="مثال: الكمية= 625 لتر - 622 زيت مستهلك= 3 لتر المتبقي | وبناءاً عليه تم طلب زيت جديد" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+        </div>
+
+        <!-- Filter Inventory - Left Side (نوع الفلتر / السابق / المستهلك / المتبقي) -->
+        <div class="section-title">📦 جرد الفلاتر (الجانب الأيسر - زيت وهواء)</div>
+        <table id="filterLeftTable">
+            <thead>
+                <tr>
+                    <th style="width:40px">م</th>
+                    <th>نوع الفلتر</th>
+                    <th>السابق</th>
+                    <th>المستهلك</th>
+                    <th>المتبقي</th>
+                    <th style="width:50px">حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Filter Inventory - Right Side (نوع الفلتر / العدد) -->
+        <div class="section-title">📦 شراء فلاتر جديدة (الجانب الأيمن)</div>
+        <table id="filterRightTable">
+            <thead>
+                <tr>
+                    <th style="width:40px">م</th>
+                    <th>نوع الفلتر</th>
+                    <th>العدد</th>
+                    <th style="width:50px">حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Diesel Filter Notes -->
+        <div class="section-title">⛽ فلاتر الديزل</div>
+        <div id="dieselNotesContainer">
+            <div style="margin-bottom:6px;">
+                <input type="text" id="diesel0" class="diesel-note" placeholder="فلاتر الديزل (عنوان)" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div style="margin-bottom:6px;">
+                <input type="text" id="diesel1" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div style="margin-bottom:6px;">
+                <input type="text" id="diesel2" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div style="margin-bottom:6px;">
+                <input type="text" id="diesel3" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div style="margin-bottom:6px;">
+                <input type="text" id="diesel4" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div style="margin-bottom:6px;">
+                <input type="text" id="diesel5" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div style="margin-bottom:6px;">
+                <input type="text" id="diesel6" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+            </div>
+            <div style="margin-bottom:6px;">
+                <input type="text" id="diesel7" class="diesel-note" placeholder="وبناءاً عليه تم طلب وشراء فلاتر جديدة — الحسابات" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+            <button class="btn-primary" onclick="downloadExcel()">📥 استخراج البيان (Excel)</button>
+            <button class="btn-primary" style="background: #e67e22;" onclick="openCustomModal('emailModal')">📧 إرسال عبر الإيميل</button>
+        </div>
+    </div>
+
+    <footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd; width: 100%;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
+
+    <!-- Email Modal -->
+    
+
+    <script>
+        let driversData = [];
+        async function fetchDrivers() {
+            try {
+                const res = await fetch('/api/drivers');
+                driversData = await res.json();
+                const dl = document.getElementById('driversList');
+                dl.innerHTML = '';
+                driversData.forEach(d => { 
+                    const merged = `${d.name || 'لا يوجد'} - ${d.iqama || 'بدون إقامة'} - ${d.plate || 'بدون لوحة'} - ${d.phone || 'بدون جوال'} - ${d.car || 'بدون موديل'}`;
+                    d._merged = merged;
+                    const o = document.createElement('option'); o.value = merged; dl.appendChild(o); 
+                });
+            } catch (err) { console.error(err); }
+        }
+        function autofillRow(elem) {
+            const driver = driversData.find(d => d._merged === elem.value || d.name === elem.value);
+            if (driver) {
+                elem.value = driver.name && driver.name !== 'None' ? driver.name : '';
+                const tr = elem.closest('tr');
+                const plate = tr.querySelector('.t-plate');
+                if(plate && driver.plate && driver.plate !== 'None') plate.value = driver.plate;
+            }
+        }
+
+        // Oil Rows
+        let oilCount = 0;
+        function addOilRow() {
+            oilCount++;
+            const tb = document.querySelector('#oilTable tbody');
+            const empty = tb.querySelector('.empty-row');
+            if(empty) empty.remove();
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${oilCount}</td><td><input type="text" class="t-plate" placeholder="اللوحة"></td><td><input type="text" class="t-driver" list="driversList" placeholder="المستخدم" onchange="autofillRow(this)"></td><td><input type="date" class="t-date" value="${new Date().toISOString().split('T')[0]}"></td><td><input type="number" class="t-km" placeholder="العداد"></td><td><input type="number" class="t-qty" placeholder="اللترات"></td><td><input type="text" class="t-filter" placeholder="مثال: زيت 1 / هواء"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateOilIds()">✕</button></td>`;
+            tb.appendChild(tr);
+        }
+        function updateOilIds() { 
+            const tb = document.querySelector('#oilTable tbody');
+            oilCount=0; 
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r=>{oilCount++;r.cells[0].innerText=oilCount;}); 
+            if(oilCount === 0) {
+                tb.innerHTML = '<tr class="empty-row"><td colspan="8"><div class="empty-state"><div class="empty-state-icon">🛢️</div><h3>لا يوجد بيانات</h3><p>قم بإضافة بيانات لتظهر هنا.</p></div></td></tr>';
+            }
+        }
+
+        // Filter Left Rows (جرد الفلاتر)
+        let filterLeftCount = 0;
+        function addFilterLeftRow() {
+            filterLeftCount++;
+            const tb = document.querySelector('#filterLeftTable tbody');
+            const empty = tb.querySelector('.empty-row');
+            if(empty) empty.remove();
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${filterLeftCount}</td><td><input type="text" class="fl-name" placeholder="نوع الفلتر"></td><td><input type="number" class="fl-prev" placeholder="السابق"></td><td><input type="number" class="fl-used" placeholder="المستهلك"></td><td><input type="number" class="fl-remaining" placeholder="المتبقي"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateFilterLeftIds()">✕</button></td>`;
+            tb.appendChild(tr);
+        }
+        function updateFilterLeftIds() { 
+            const tb = document.querySelector('#filterLeftTable tbody');
+            filterLeftCount=0; 
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r=>{filterLeftCount++;r.cells[0].innerText=filterLeftCount;}); 
+            if(filterLeftCount === 0) {
+                tb.innerHTML = '<tr class="empty-row"><td colspan="6"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد فلاتر</h3><p>قم بإضافة فلاتر للجرد.</p></div></td></tr>';
+            }
+        }
+
+        // Filter Right Rows (شراء فلاتر جديدة)
+        let filterRightCount = 0;
+        function addFilterRightRow() {
+            filterRightCount++;
+            const tb = document.querySelector('#filterRightTable tbody');
+            const empty = tb.querySelector('.empty-row');
+            if(empty) empty.remove();
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${filterRightCount}</td><td><input type="text" class="fr-name" placeholder="نوع الفلتر"></td><td><input type="number" class="fr-qty" placeholder="العدد"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateFilterRightIds()">✕</button></td>`;
+            tb.appendChild(tr);
+        }
+        function updateFilterRightIds() { 
+            const tb = document.querySelector('#filterRightTable tbody');
+            filterRightCount=0; 
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r=>{filterRightCount++;r.cells[0].innerText=filterRightCount;}); 
+            if(filterRightCount === 0) {
+                tb.innerHTML = '<tr class="empty-row"><td colspan="4"><div class="empty-state"><div class="empty-state-icon">🛒</div><h3>لا يوجد مشتريات</h3><p>أضف طلب شراء جديد.</p></div></td></tr>';
+            }
+        }
+
+        // Excel - Server-side template approach
+        function collectOilsData() {
+            const oils = [];
+            document.querySelectorAll('#oilTable tbody tr').forEach(tr => {
+                oils.push({
+                    plate: tr.querySelector('.t-plate').value,
+                    driver: tr.querySelector('.t-driver').value,
+                    date: tr.querySelector('.t-date').value.split('-').join('/'),
+                    counter: tr.querySelector('.t-km').value,
+                    liters: tr.querySelector('.t-qty').value,
+                    filters: tr.querySelector('.t-filter').value
+                });
+            });
+            // Filter Left (جرد الفلاتر)
+            const filters_left = [];
+            document.querySelectorAll('#filterLeftTable tbody tr').forEach(tr => {
+                filters_left.push({
+                    name: tr.querySelector('.fl-name').value,
+                    prev: parseInt(tr.querySelector('.fl-prev').value)||0,
+                    used: parseInt(tr.querySelector('.fl-used').value)||0,
+                    remaining: parseInt(tr.querySelector('.fl-remaining').value)||0
+                });
+            });
+            // Filter Right (شراء فلاتر جديدة)
+            const filters_right = [];
+            document.querySelectorAll('#filterRightTable tbody tr').forEach(tr => {
+                filters_right.push({
+                    name: tr.querySelector('.fr-name').value,
+                    qty: parseInt(tr.querySelector('.fr-qty').value)||0
+                });
+            });
+            // Notes (rows 65-66 only, 63 and 67 are fixed headers in template)
+            const notes = {
+                row65: document.getElementById('notesRow65').value,
+                row66: document.getElementById('notesRow66').value
+            };
+            // Diesel notes
+            const diesel_notes = [];
+            for(let i=0;i<8;i++) {
+                const el = document.getElementById('diesel'+i);
+                diesel_notes.push(el ? el.value : '');
+            }
+            // Build title
+            const dateInputs = document.querySelectorAll('#oilTable .t-date');
+            let dates = Array.from(dateInputs).map(i=>i.value).filter(v=>v);
+            dates.sort();
+            let minD = dates.length ? dates[0].split('-').join('/') : '';
+            let maxD = dates.length ? dates[dates.length-1].split('-').join('/') : '';
+            const title = 'بيان استهلاك الزيوت والفلاتر للسيارات الديزل (فرع الدمام) من تاريخ ' + minD + ' الى تاريخ ' + maxD;
+            return { oils, filters_left, filters_right, notes, diesel_notes, title };
+        }
+
+        async function downloadExcel() {
+            const btn = event.target; btn.innerText = 'جاري التحميل... ⏳';
+            try {
+                const res = await fetch('/api/generate_oils', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(collectOilsData())});
+                const data = await res.json();
+                if(data.success) {
+                    const bin = atob(data.file_b64);
+                    const bytes = new Uint8Array(bin.length);
+                    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+                    saveAs(new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),'بيان_زيوت_وفلاتر_الدمام.xlsx');
+                } else showToast('خطأ: '+data.error, 'error');
+            } catch(e) { showToast('خطأ: '+e, 'error'); }
+            btn.innerText = '📥 تحميل Excel';
+        }
+
+        async function sendExcelEmail() {
+            const email=document.getElementById('targetEmail').value; if(!email) return showToast('يرجى إدخال الإيميل', 'error');
+            const btn=document.getElementById('btnSendEmail'); btn.innerText='جاري الإرسال... ⏳';
+            try {
+                const oilRes = await fetch('/api/generate_oils', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(collectOilsData())});
+                const oilData = await oilRes.json();
+                if(oilData.success) {
+                    const filename = 'بيان_زيوت_وفلاتر_الدمام.xlsx';
+                    const res=await fetch('/api/send_email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,filename,file_b64:oilData.file_b64,subject:document.getElementById('emailSubject').value,cc:getCcEmails()})});
+                    const data=await res.json();
+                    if(data.success){
+                        showToast('تم إرسال البيان بنجاح! ✅', 'success');
+                        closeCustomModal('emailModal');
+                    } else showToast('خطأ: '+data.error, 'error');
+                } else showToast('خطأ: '+oilData.error, 'error');
+            }catch(e){showToast('خطأ: '+e, 'error');} btn.innerText='إرسال 🚀';
+        }
+
+        // Dark Mode
+        
+        function addCcRow() {
+            const container = document.getElementById('ccContainer');
+            const row = document.createElement('div');
+            row.className = 'cc-row';
+            row.style.cssText = 'display:flex;gap:5px;align-items:center';
+            row.innerHTML = '<input type="email" class="cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
+            container.appendChild(row);
+        }
+        function getCcEmails() {
+            return Array.from(document.querySelectorAll('.cc-email')).map(i => i.value.trim()).filter(v => v);
+        }
+
+        window.onload=async()=>{await fetchDrivers();for(let i=0;i<3;i++)addOilRow();for(let i=0;i<2;i++)addFilterRow();};
+    </script>
+
+
+    <div class="modal-backdrop" id="emailModal">
+        <div class="modal-content-custom">
+            <div class="modal-header-custom">
+                <span>📧 إرسال عبر الإيميل</span>
+                <button class="close-btn" style="color:white;" onclick="closeCustomModal('emailModal')">✖</button>
+            </div>
+            <div class="modal-body-custom">
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+                    <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
+                    <input type="email" id="targetEmail" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+                </div>
+                <div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة إلى:</label>
+                        <div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
+                            <div class="cc-row" style="display:flex;gap:5px;align-items:center">
+                                <input type="email" class="cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);">
+                                <button type="button" onclick="addCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
+                    <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
+                    <input type="text" id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+                    <button type="button" onclick="if(confirm('هل تريد حفظه في سطح المكتب؟')) { downloadExcel(); }" class="btn-outline">حفظ في سطح المكتب 💾</button>
+                    <button onclick="closeCustomModal('emailModal')" class="btn-outline" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+                    <button id="btnSendEmail" onclick="sendExcelEmail()" class="btn-primary">إرسال 🚀</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Compose Email FAB -->
+<button id="composeFab" onclick="openCustomModal('composeModal')" class="fab-btn" title="إنشاء رسالة">✉️</button>
+
+<div class="modal-backdrop" id="composeModal">
+    <div class="modal-content-custom">
+        <div class="modal-header-custom">
+            <span>✉️ إنشاء رسالة جديدة</span>
+            <button class="close-btn" style="color:white;" onclick="closeCustomModal('composeModal')">✖</button>
+        </div>
+        <form id="composeForm" class="modal-body-custom" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+                <label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
+                <input type="email" name="email" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+                <label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
+                <input type="text" name="subject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+            </div>
+            <textarea name="body" rows="5" placeholder="اكتب رسالتك هنا..." style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:Cairo;font-size:1rem;resize:vertical;outline:none"></textarea>
+            <div style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer" onclick="document.getElementById('composeFile').click()">
+                <span style="font-size:1.3rem">📎</span>
+                <span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو أي ملف آخر</span>
+                <input type="file" id="composeFile" name="attachment" style="display:none" onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'">
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
+                <button type="button" onclick="closeCustomModal('composeModal')" class="btn-outline" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+                <button type="submit" id="composeSendBtn" class="btn-primary">إرسال 🚀</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('composeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('composeSendBtn');
+    btn.innerText = 'جاري الإرسال... ⏳';
+    btn.disabled = true;
+    try {
+        const formData = new FormData(this);
+        const res = await fetch('/api/compose_email', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+            showToast('تم إرسال الرسالة بنجاح! ✅', 'success');
+            closeCustomModal('composeModal');
+            this.reset();
+            document.getElementById('composeFileName').innerText = 'اضغط لإرفاق ملف';
+        } else {
+            showToast('خطأ: ' + data.error, 'error');
+        }
+    } catch (err) { showToast('خطأ في الاتصال: ' + err, 'error'); }
+    btn.innerText = 'إرسال 🚀';
+    btn.disabled = false;
+});
+</script>
+
+</body>
+</html>
+

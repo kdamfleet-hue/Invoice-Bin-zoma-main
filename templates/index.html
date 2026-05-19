@@ -11,13 +11,130 @@
 </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <style>
+        body {
+            padding-top: 180px;
+        }
+        /* الهيدر الأساسي */
+        header {
+          position: absolute; /* تغيير من fixed إلى absolute لكي يختفي عند النزول للأسفل */
+          top: 0;
+          left: 0;
+          width: 100%;
+          padding: 12px 40px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.2);
+          backdrop-filter: blur(8px);
+          z-index: 1000;
+        }
+
+        /* الشعار */
+        header .logo {
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+        }
+        header .logo img {
+          height: 260px;
+          margin-top: 100px; /* يدفع الشعار للأسفل ليبرز خارج الهيدر بفخامة */
+          filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)) contrast(1.2) saturate(1.3) brightness(1.05); /* زيادة تباين وتشبع الألوان لجودة أفضل */
+        }
+        body.dark-mode header .logo img {
+          filter: drop-shadow(0 8px 12px rgba(255,255,255,0.15)) contrast(1.2) saturate(1.3) brightness(1.15); /* إضاءة الشعار في الوضع الليلي */
+        }
+
+        /* روابط الديسكتوب */
+        .nav-links {
+          display: flex;
+          gap: 25px;
+        }
+
+        .nav-links a {
+          text-decoration: none;
+          font-size: 18px;
+          color: #1A3A5C;
+          font-weight: 600;
+          transition: 0.3s;
+        }
+
+        .nav-links a:hover {
+          color: #00c3ff;
+          transform: translateY(-2px);
+        }
+
+        /* زر القائمة للجوال */
+        .menu-icon {
+          font-size: 32px;
+          color: #1A3A5C;
+          cursor: pointer;
+          display: none;
+        }
+
+        /* القائمة الجانبية للجوال */
+        .mobile-menu {
+          position: fixed;
+          top: 0;
+          right: -250px;
+          width: 250px;
+          height: 100%;
+          background: rgba(0,0,0,0.85);
+          backdrop-filter: blur(6px);
+          display: flex;
+          flex-direction: column;
+          padding-top: 100px;
+          transition: 0.4s;
+          z-index: 999;
+        }
+
+        .mobile-menu a {
+          padding: 15px 25px;
+          text-decoration: none;
+          color: white;
+          font-size: 20px;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .mobile-menu a:hover {
+          background: rgba(255,255,255,0.1);
+        }
+
+        /* إخفاء وإظهار حسب حجم الشاشة (الجوالات) */
+        @media (max-width: 768px) {
+          .nav-links {
+            display: none;
+          }
+          .menu-icon {
+            display: block;
+          }
+          header {
+            padding: 12px 15px; /* تصغير حواف الهيدر في الجوال */
+          }
+          header .logo img {
+            height: 110px !important; /* تصغير الشعار العملاق ليتناسب مع شاشة الجوال */
+            margin-top: 50px !important;
+          }
+          body {
+            padding-top: 120px !important; /* تقليل المساحة العلوية في الجوال */
+          }
+          .user-badge {
+            top: 0.5rem !important;
+            left: 0.5rem !important;
+            padding: 3px 10px !important;
+          }
+          .user-badge span {
+            display: none; /* إخفاء اسم المستخدم في الجوال لتوفير مساحة */
+          }
+        }
+
         .header-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0 auto 2rem auto;
             width: 100%;
-            max-width: 1000px;
+            max-width: 95%; /* أصبحت حرة وعريضة */
             z-index: 2;
         }
 
@@ -28,7 +145,7 @@
             transition: var(--trans);
         }
         body.dark-mode .site-logo {
-            filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.2));
         }
 
         .header-title {
@@ -52,8 +169,16 @@
             gap: 1.5rem;
             margin: 0 auto;
             width: 100%;
-            max-width: 1000px;
+            max-width: 95%; /* أصبحت حرة وعريضة */
             z-index: 2;
+        }
+        @media (max-width: 480px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+            .financial-grid {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         .card label { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem; display: block; color: var(--text-primary); }
@@ -70,7 +195,7 @@
         .btn-add { background: var(--accent); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; grid-column: span 2; transition: var(--trans); }
         .btn-add:hover { transform: translateY(-2px); filter: brightness(1.1); }
         
-        .drivers-table-wrapper { width: 100%; overflow-y: auto; max-height: 300px; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem; }
+        .drivers-table-wrapper { width: 100%; overflow-y: auto; max-height: 70vh !important; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem; }
         
         /* Floating Action Button */
         .fab-btn {
@@ -90,24 +215,48 @@
 </head>
 <body>
 
-    <div class="top-nav-bar" style="position: absolute; top: 1.5rem; right: 1.5rem; z-index: 100; display: flex; gap: 15px; background: rgba(255,255,255,0.9); padding: 8px 20px; border-radius: 50px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); font-weight: bold; font-size: 0.95rem; border: 1px solid #e1e8ed;">
-        <a href="/" style="color: #1A3A5C; text-decoration: none; transition: 0.3s;">الرئيسية</a> |
-        <a href="#" style="color: #1A3A5C; text-decoration: none; transition: 0.3s;">من نحن</a> |
-        <a href="https://bz.sa" target="_blank" style="color: #1A3A5C; text-decoration: none; transition: 0.3s;">موقعنا الرسمي (bz.sa)</a> |
-        <a href="#" style="color: #1A3A5C; text-decoration: none; transition: 0.3s;">تواصل معنا</a>
-    </div>
+<a href="/logout" style="position: absolute; top: 1.5rem; left: 1.5rem; z-index: 100; background: #e74c3c; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 0.95rem; text-decoration: none; font-family: Cairo;">تسجيل الخروج</a>
 
 
-    
 
+
+
+    <header>
+      <nav class="nav-links">
+        <a href="#home">الرئيسية</a>
+        <a href="#services">الخدمات</a>
+        <a href="#about">من نحن</a>
+        <a href="https://bz.sa" target="_blank">موقعنا الرسمي</a>
+        <a href="#contact">تواصل معنا</a>
+      </nav>
+
+      <div class="logo">
+        <img src="{{ url_for('static', filename='gemini_logo_header_v223.png', v=4) }}" alt="Bin Zomah Intl Logo">
+      </div>
+
+      <div class="menu-icon" onclick="toggleMenu()">
+        ☰
+      </div>
+
+      <nav class="mobile-menu" id="mobileMenu">
+        <a href="#home">الرئيسية</a>
+        <a href="#services">الخدمات</a>
+        <a href="#about">من نحن</a>
+        <a href="https://bz.sa" target="_blank">موقعنا الرسمي</a>
+        <a href="#contact">تواصل معنا</a>
+      </nav>
+    </header>
+
+    <script>
+    function toggleMenu() {
+      const menu = document.getElementById("mobileMenu");
+      menu.style.right = menu.style.right === "0px" ? "-250px" : "0px";
+    }
+    </script>
 
     <div class="header-container">
-        {% if b64_en %}
-            <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">
-        {% endif %}
-        
     {% if google_user %}
-    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; backdrop-filter: blur(5px);">
+    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1001; backdrop-filter: blur(5px);">
         <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
         <span style="font-weight: bold; color: #1A3A5C; font-size: 0.9rem;">{{ google_user.name }}</span>
         <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">تسجيل خروج</a>
@@ -212,13 +361,16 @@
         </div>
     </div>
 
-    <div style="display: flex; gap: 1rem; justify-content: center; max-width: 900px; margin: 0 auto; width: 100%; flex-wrap: wrap; z-index: 2; position: relative;">
+    <div style="display: flex; gap: 1rem; justify-content: center; max-width: 95%; margin: 0 auto; width: 100%; flex-wrap: wrap; z-index: 2; position: relative;">
         <button class="btn-submit-gold" style="flex:1; min-width: 250px;" onclick="generateExcel()">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
             تصدير PDF / Excel
         </button>
         <button class="btn-submit-orange" style="flex:1; min-width: 250px;" onclick="openCustomModal('emailModal')">
             📧 إرسال الفاتورة للإيميل
+        </button>
+        <button class="btn-submit-green" style="background-color: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; flex:1; min-width: 250px;" onclick="sendWhatsApp()">
+            💬 إرسال عبر الواتساب
         </button>
         <button class="btn-outline" style="flex:1; min-width: 200px; margin-top: 3rem; border-radius: 50px; border-color: #e74c3c; color: #e74c3c; font-weight: 800; font-size: 1.2rem; display: inline-flex; align-items: center; justify-content: center;" onclick="clearInvoiceForm()">
             🗑️ إفراغ الفاتورة
@@ -230,7 +382,7 @@
 
     <!-- Modal Drivers Database -->
     <div class="modal-backdrop" id="driversModal">
-        <div class="modal-content-custom">
+        <div class="modal-content-custom" style="max-width: 1200px !important; width: 95vw !important;">
             <div class="modal-header-custom">
                 <h2>إدارة قاعدة بيانات السائقين</h2>
                 <button class="close-btn" style="color:white;" onclick="closeCustomModal('driversModal')">✖</button>
@@ -268,6 +420,10 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div style="text-align:center; margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
+                    <button class="btn-primary" onclick="closeCustomModal('driversModal')" style="padding:12px 60px; font-size:1.1rem; border-radius:12px;">إغلاق ✖</button>
+                </div>
             </div>
         </div>
     </div>
@@ -290,9 +446,9 @@
             const list = document.getElementById('driversList');
             list.innerHTML = '';
             driversData.forEach(d => {
-                const option = document.createElement('option');
                 const merged = `${d.name || 'لا يوجد'} - ${d.iqama || 'بدون إقامة'} - ${d.plate || 'بدون لوحة'} - ${d.phone || 'بدون جوال'} - ${d.car || 'بدون موديل'}`;
                 d._merged = merged;
+                const option = document.createElement('option');
                 option.value = merged;
                 list.appendChild(option);
             });
@@ -421,7 +577,7 @@
             const val = document.getElementById('driverName').value;
             const driver = driversData.find(d => d._merged === val || d.name === val);
             if (driver) {
-                document.getElementById('driverName').value = driver.name && driver.name !== 'لا يوجد' ? driver.name : val;
+                document.getElementById('driverName').value = driver.name && driver.name !== 'None' ? driver.name : '';
                 document.getElementById('carType').value = driver.car && driver.car !== 'None' ? driver.car : '';
                 document.getElementById('plateNum').value = driver.plate && driver.plate !== 'None' ? driver.plate : '';
                 document.getElementById('iqamaNum').value = driver.iqama && driver.iqama !== 'None' ? driver.iqama : '';
@@ -667,6 +823,110 @@
         }
     
 </script>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- قسم الخدمات -->
+<!-- ═══════════════════════════════════════════ -->
+<section id="services" style="max-width:1100px; margin:3rem auto; padding:2rem 1.5rem; z-index:2; position:relative;">
+    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:2rem;">🛠️ خدماتنا</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.2rem;">
+        <a href="#" onclick="event.preventDefault(); openModal();" style="text-decoration:none;">
+            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
+                <div style="font-size:2rem; margin-bottom:0.5rem;">👥</div>
+                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">إدارة السائقين وقاعدة البيانات</h3>
+                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">إضافة وتعديل وحذف بيانات السائقين والسيارات</p>
+            </div>
+        </a>
+        <a href="/oils" style="text-decoration:none;">
+            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
+                <div style="font-size:2rem; margin-bottom:0.5rem;">📄</div>
+                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">إنشاء بيان زيوت وفلاتر</h3>
+                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">تسجيل ومتابعة استهلاك الزيوت والفلاتر</p>
+            </div>
+        </a>
+        <a href="/purchase" style="text-decoration:none;">
+            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
+                <div style="font-size:2rem; margin-bottom:0.5rem;">🛒</div>
+                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">طلبات الشراء</h3>
+                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">إنشاء وإدارة طلبات شراء قطع الغيار والإصلاح</p>
+            </div>
+        </a>
+        <a href="/schedule" style="text-decoration:none;">
+            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
+                <div style="font-size:2rem; margin-bottom:0.5rem;">📋</div>
+                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">الجدول الأسبوعي</h3>
+                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">جدولة توزيع السائقين والمركبات أسبوعياً</p>
+            </div>
+        </a>
+        <a href="/washing" style="text-decoration:none;">
+            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
+                <div style="font-size:2rem; margin-bottom:0.5rem;">🚿</div>
+                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">تحضير جدول الغسيل</h3>
+                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">متابعة جداول غسيل المركبات الشهرية</p>
+            </div>
+        </a>
+        <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" style="text-decoration:none;">
+            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
+                <div style="font-size:2rem; margin-bottom:0.5rem;">🛰️</div>
+                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">التتبع المباشر</h3>
+                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">مراقبة مواقع المركبات لحظياً عبر GPS</p>
+            </div>
+        </a>
+        <a href="/gps_sync" style="text-decoration:none;">
+            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
+                <div style="font-size:2rem; margin-bottom:0.5rem;">📡</div>
+                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">مزامنة كشف GPS</h3>
+                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">مزامنة وتحديث بيانات التتبع مع النظام</p>
+            </div>
+        </a>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- قسم من نحن -->
+<!-- ═══════════════════════════════════════════ -->
+<section id="about" style="max-width:900px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
+    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:1.5rem;">🏢 من نحن</h2>
+    <div style="color:#3A4A5A; font-size:1rem; line-height:2; text-align:center;">
+        <p style="margin-bottom:1rem;">
+            <strong style="color:#1A3A5C;">شركة بن زومة العالمية</strong> — فرع الدمام، قسم الحركة والنقل.
+        </p>
+        <p style="margin-bottom:1rem;">
+            نحن فريق متخصص في إدارة الأساطيل والمركبات، نعمل على تقديم حلول ذكية ومتكاملة لإدارة حركة السيارات والسائقين بكفاءة عالية.
+        </p>
+        <p style="margin-bottom:1rem;">
+            يُدار هذا النظام الإلكتروني بواسطة <strong style="color:#1A3A5C;">قسم الحركة</strong>، ويهدف إلى أتمتة جميع العمليات اليومية من فوترة وصيانة وتتبع وجدولة، مما يضمن سير العمل بسلاسة ودقة.
+        </p>
+        <p style="color:#6B7B8D; font-size:0.9rem;">
+            📍 المملكة العربية السعودية — الدمام<br>
+            🌐 <a href="https://bz.sa" target="_blank" style="color:#1A3A5C; font-weight:bold;">bz.sa</a>
+        </p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- قسم تواصل معنا -->
+<!-- ═══════════════════════════════════════════ -->
+<section id="contact" style="max-width:700px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
+    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:2rem;">📞 تواصل معنا</h2>
+    <div style="display:flex; flex-direction:column; gap:1.2rem; align-items:center;">
+        <a href="mailto:damfleet@bz.sa" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''">
+            <span style="font-size:1.8rem;">📧</span>
+            <div>
+                <div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">البريد الإلكتروني</div>
+                <div style="color:#3A4A5A; font-size:1rem; direction:ltr;">damfleet@bz.sa</div>
+            </div>
+        </a>
+        <a href="tel:0138959850" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''">
+            <span style="font-size:1.8rem;">📱</span>
+            <div>
+                <div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">رقم الهاتف</div>
+                <div style="color:#3A4A5A; font-size:1rem; direction:ltr;">0138959850</div>
+            </div>
+        </a>
+    </div>
+</section>
+
 <footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
 
 
@@ -790,6 +1050,57 @@ document.getElementById('composeForm').addEventListener('submit', async function
             return Array.from(document.querySelectorAll('.cc-email')).map(i => i.value.trim()).filter(v => v);
         }
 
+        function sendWhatsApp() {
+            try {
+                const driverMerged = document.getElementById('driverName').value.trim();
+                let phone = '';
+                let rawName = driverMerged;
+                
+                // Try to find the driver in data to get phone
+                const driver = driversData.find(d => (d._merged && d._merged.trim() === driverMerged) || (d.name && d.name.trim() === driverMerged));
+                if(driver && driver.phone && driver.phone !== 'None' && driver.phone.toString().trim() !== '') {
+                    phone = driver.phone.toString().trim();
+                    rawName = driver.name;
+                } else {
+                    phone = prompt('لم يتم العثور على رقم جوال مسجل لهذا السائق. يرجى إدخال رقم الجوال (مثال: 0500000000):');
+                    if(!phone) return;
+                }
+                
+                // Clean the phone number (remove spaces, dashes, plus signs)
+                phone = phone.replace(/\D/g, '');
+                
+                // Format phone to international standard (Saudi Arabia default)
+                if(phone.startsWith('05')) {
+                    phone = '966' + phone.substring(1);
+                } else if(phone.startsWith('5') && phone.length === 9) {
+                    phone = '966' + phone;
+                } else if(phone.startsWith('00966')) {
+                    phone = phone.substring(2);
+                }
+                
+                // Collect invoice details
+                const req = document.getElementById('requestType').value;
+                const car = document.getElementById('carType').value || 'غير محدد';
+                const plate = document.getElementById('plateNum').value || 'غير محدد';
+                const total = document.getElementById('total').value || '0';
+                const date = document.getElementById('invoiceDate').value;
+                
+                const msg = `مرحباً بك عزيزي السائق (${rawName})،\n\nنود إعلامك بأنه تم إصدار فاتورة / طلب لمركبتك:\n🚗 نوع السيارة: ${car}\n🔢 رقم اللوحة: ${plate}\n🛠️ نوع الطلب: ${req}\n💰 الإجمالي: ${total} ريال\n📅 التاريخ: ${date}\n\nشكراً لتعاونكم - إدارة الحركة بفرع الدمام.`;
+                
+                const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+                // Force open
+                const newWindow = window.open(url, '_blank');
+                if(!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                    // Popup blocked
+                    alert('⚠️ المتصفح قام بحظر فتح نافذة الواتساب. يرجى السماح بالنوافذ المنبثقة (Pop-ups) لهذا الموقع من أعلى المتصفح.');
+                    window.location.href = url; // fallback to same window
+                }
+            } catch(e) {
+                console.error(e);
+                alert('حدث خطأ غير متوقع: ' + e.message);
+            }
+        }
+
         function addComposeCcRow() {
             const container = document.getElementById('composeCcContainer');
             const row = document.createElement('div');
@@ -800,5 +1111,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
         }
 </script>
 
+<a href="https://wa.me/?text=مرحباً" target="_blank" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; font-family: Cairo;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل واتساب / إرسال نماذج</a>
 </body>
 </html>
+

@@ -22,13 +22,16 @@
         }
 
         .site-logo {
-            max-width: 650px; width: 90%;
+            max-width: 650px;
+            width: 90%;
             margin-bottom: 1rem;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
             transition: var(--trans);
         }
 
-        
+        body.dark-mode .site-logo {
+            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 20px rgba(255, 255, 255, 0.4));
+        }
 
         .header-title {
             font-size: 2.2rem;
@@ -38,7 +41,10 @@
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        
+        body.dark-mode .header-title {
+            color: #82aaff !important;
+            text-shadow: 0 0 10px rgba(130, 170, 255, 0.4);
+        }
 
         .nav-buttons {
             display: flex;
@@ -81,7 +87,9 @@
             font-size: 0.9rem;
         }
 
-        
+        body.dark-mode .info-grid label {
+            color: #82aaff;
+        }
 
         table {
             width: 100%;
@@ -194,29 +202,17 @@
 </head>
 
 <body>
-
-    <div class="top-nav-bar" style="position: absolute; top: 1.5rem; right: 1.5rem; z-index: 100; display: flex; gap: 15px; background: rgba(255,255,255,0.9); padding: 8px 20px; border-radius: 50px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); font-weight: bold; font-size: 0.95rem; border: 1px solid #e1e8ed;">
-        <a href="/" style="color: #1A3A5C; text-decoration: none; transition: 0.3s;">الرئيسية</a> |
-        <a href="#" style="color: #1A3A5C; text-decoration: none; transition: 0.3s;">من نحن</a> |
-        <a href="https://bz.sa" target="_blank" style="color: #1A3A5C; text-decoration: none; transition: 0.3s;">موقعنا الرسمي (bz.sa)</a> |
-        <a href="#" style="color: #1A3A5C; text-decoration: none; transition: 0.3s;">تواصل معنا</a>
-    </div>
-
-
-    
-
+<a href="/logout" style="position: absolute; top: 1.5rem; left: 1.5rem; z-index: 100; background: #e74c3c; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 0.95rem; text-decoration: none; font-family: Cairo; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">تسجيل الخروج</a>
     <datalist id="driversList"></datalist>
-    
-    
-    
+
 
     <div class="header-container">
-        {% if b64_en %}<img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">{% endif %}
+        <img src="{{ url_for('static', filename='site_logo.jpg') }}" alt="Logo" class="site-logo" style="width: 300px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
                 {% if google_user %}
-        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:var(--surface);padding:5px 15px;border-radius:50px;box-shadow:var(--shadow-md);z-index:100;backdrop-filter:blur(5px);border:1px solid var(--border);">
+        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
             <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
-            <span style="font-weight:bold;color:var(--text-primary);font-size:0.9rem">{{ google_user.name }}</span>
-            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">🚪 خروج</a>
+            <span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
+            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
         </div>
         {% endif %}
         <h1 class="header-title">نموذج طلب شراء وإصلاح سيارة</h1>
@@ -247,10 +243,10 @@
             <div><label>الوظيفة:</label><input type="text" id="poJob" value="سائق"></div>
             <div><label>نوع السيارة:</label><input type="text" id="poCar"></div>
             <div><label>رقم اللوحة:</label><input type="text" id="poPlate"></div>
+            <div><label>عداد السيارة (كم):</label><input type="number" id="odometer" required placeholder="مثال: 150000"></div>
             <div><label>الموديل:</label><input type="text" id="poModel"></div>
             <div><label>رقم الجوال:</label><input type="text" id="poPhone"></div>
             <div><label>التاريخ:</label><input type="date" id="poDate"></div>
-            <div><label>عداد السيارة (كم):</label><input type="number" id="poOdometer" placeholder="مثال: 125000" oninput="document.getElementById('sumOdometer').value = this.value"></div>
         </div>
 
         <!-- Parts -->
@@ -333,7 +329,6 @@
         <table id="summaryTable">
             <thead>
                 <tr>
-                    <th>عداد السيارة</th>
                     <th>قطع الغيار</th>
                     <th>الإصلاح</th>
                     <th>الكفرات</th>
@@ -345,7 +340,6 @@
             </thead>
             <tbody>
                 <tr>
-                    <td><input type="text" id="sumOdometer" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:var(--accent);" placeholder="---"></td>
                     <td><input type="number" id="sumParts" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;"></td>
                     <td><input type="number" id="sumRepairs" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;"></td>
                     <td><input type="number" id="sumTires" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;" placeholder="أدخل يدوياً"></td>
@@ -367,21 +361,6 @@
                 الإيميل</button>
         </div>
     </div>
-
-    <!-- WhatsApp FAB -->
-    <a href="#" onclick="sendWhatsApp()" style="position:fixed;bottom:25px;right:25px;width:60px;height:60px;border-radius:50%;background:#25D366;color:#fff;border:none;font-size:1.8rem;cursor:pointer;box-shadow:0 4px 15px rgba(37,211,102,0.4);z-index:999;display:flex;align-items:center;justify-content:center;transition:var(--trans-spring);text-decoration:none;" title="إرسال عبر واتساب">💬</a>
-    <script>
-    function sendWhatsApp() {
-        const d = document.getElementById('poDriver').value || '';
-        const p = document.getElementById('poPlate').value || '';
-        const c = document.getElementById('poCar').value || '';
-        const s = document.getElementById('poSerial').value || '';
-        const gt = document.getElementById('sumGrandTotal').value || '0';
-        const msg = `📋 طلب شراء رقم: ${s}\n👤 السائق: ${d}\n🚗 السيارة: ${c}\n🔢 اللوحة: ${p}\n💰 الإجمالي: ${gt} ريال`;
-        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
-    }
-    </script>
-
     <footer
         style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;width:100%">
         تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
@@ -609,7 +588,6 @@
                 plate: document.getElementById('poPlate').value,
                 model: document.getElementById('poModel').value,
                 date: document.getElementById('poDate').value,
-                odometer: document.getElementById('poOdometer').value,
                 notes: document.getElementById('poNotes').value,
                 summary,
                 parts, repairs, tires, batteries
@@ -666,16 +644,7 @@
         document.getElementById('sumTires').style.background = 'var(--surface)';
         document.getElementById('sumTires').placeholder = 'أدخل يدوياً';
 
-        window.onload = async () => {
-            await fetchDrivers();
-            document.getElementById('poDate').valueAsDate = new Date();
-            // Ascending serial number
-            let lastSerial = parseInt(localStorage.getItem('poSerialCounter') || '0');
-            lastSerial++;
-            localStorage.setItem('poSerialCounter', lastSerial.toString());
-            document.getElementById('poSerial').value = lastSerial.toString().padStart(6, '0');
-            addPartRow(); addRepairRow(); addTireRow(); addBatteryRow();
-        };
+        window.onload = async () => { await fetchDrivers(); document.getElementById('poDate').valueAsDate = new Date(); document.getElementById('poSerial').value = Math.floor(Date.now() / 1000).toString(); addPartRow(); addRepairRow(); addTireRow(); addBatteryRow(); };
     </script>
 
 
@@ -791,9 +760,8 @@
         });
     </script>
 
+<a href="https://wa.me/?text=مرحباً" target="_blank" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; font-family: Cairo;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل واتساب / إرسال نماذج</a>
 </body>
 
 </html>
-
-
 
