@@ -199,6 +199,84 @@
             transform: scale(1.1) rotate(10deg);
         }
     </style>
+
+    <style>
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+            font-family: 'Cairo', sans-serif;
+            border: 2px solid #000;
+            background: #fff;
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid #000;
+            padding: 0;
+            margin: 0;
+        }
+        .excel-header {
+            background-color: #BDD7EE !important;
+            color: #000 !important;
+            text-align: center;
+            font-weight: bold;
+            padding: 8px !important;
+            font-size: 1.1rem;
+            border: 1px solid #000;
+        }
+        .excel-label {
+            background-color: #BDD7EE !important;
+            color: #000 !important;
+            text-align: center;
+            font-weight: bold;
+            padding: 6px !important;
+            font-size: 0.95rem;
+            width: 12%;
+            white-space: nowrap;
+        }
+        .excel-table th {
+            background-color: #BDD7EE;
+            color: #000;
+            text-align: center;
+            font-weight: bold;
+            padding: 6px !important;
+            font-size: 0.95rem;
+        }
+        .excel-input {
+            width: 21%;
+        }
+        .excel-input input, .excel-table td input {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: none !important;
+            padding: 8px;
+            background: transparent;
+            font-family: 'Cairo', sans-serif;
+            font-weight: bold;
+            color: #000;
+            text-align: center;
+            outline: none;
+            min-height: 35px;
+        }
+        .excel-input input:focus, .excel-table td input:focus {
+            background: #f0f8ff;
+        }
+        .btn-add-row {
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-right: 15px;
+        }
+        .btn-add-row:hover {
+            background: #219653;
+        }
+    </style>
 </head>
 
 <body>
@@ -234,116 +312,125 @@
             <div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:0 0 10px 10px;max-height:300px;overflow-y:auto;z-index:100;box-shadow:var(--shadow-md);"></div>
         </div>
 
-        <div class="info-grid">
-            <div><label>الرقم التسلسلي (سيريال):</label><input type="text" id="poSerial" readonly style="background: rgba(0,0,0,0.05); color: var(--accent); font-weight: bold; border-color: var(--accent);"></div>
-            <div><label>اسم السائق:</label><input type="text" id="poDriver" list="driversList" onchange="poAutofill()">
-            </div>
-            <div><label>رقم الإقامة:</label><input type="text" id="poIqama"></div>
-            <div><label>الفرع:</label><input type="text" id="poBranch" value="الدمام"></div>
-            <div><label>الوظيفة:</label><input type="text" id="poJob" value="سائق"></div>
-            <div><label>نوع السيارة:</label><input type="text" id="poCar"></div>
-            <div><label>رقم اللوحة:</label><input type="text" id="poPlate"></div>
-            <div><label>عداد السيارة (كم):</label><input type="number" id="odometer" required placeholder="مثال: 150000"></div>
-            <div><label>الموديل:</label><input type="text" id="poModel"></div>
-            <div><label>رقم الجوال:</label><input type="text" id="poPhone"></div>
-            <div><label>التاريخ:</label><input type="date" id="poDate"></div>
-        </div>
+        
+        <table class="excel-table">
+            <thead>
+                <tr><th colspan="6" class="excel-header">بيانات السيارة والسائق</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th class="excel-label">اسم السائق:</th><td class="excel-input"><input type="text" id="poDriver" list="driversList" onchange="poAutofill()"></td>
+                    <th class="excel-label">الوظيفة:</th><td class="excel-input"><input type="text" id="poJob" value="سائق"></td>
+                    <th class="excel-label">الفرع:</th><td class="excel-input"><input type="text" id="poBranch" value="الدمام"></td>
+                </tr>
+                <tr>
+                    <th class="excel-label">نوع السيارة:</th><td class="excel-input"><input type="text" id="poCar"></td>
+                    <th class="excel-label">الموديل:</th><td class="excel-input"><input type="text" id="poModel"></td>
+                    <th class="excel-label">رقم اللوحة:</th><td class="excel-input"><input type="text" id="poPlate"></td>
+                </tr>
+                <tr>
+                    <th class="excel-label">عداد السيارة:</th><td class="excel-input" colspan="5"><input type="number" id="odometer" required placeholder="مثال: 150000"></td>
+                </tr>
+                <tr>
+                    <th class="excel-label">رقم الإقامة:</th><td class="excel-input"><input type="text" id="poIqama"></td>
+                    <th class="excel-label">رقم الجوال:</th><td class="excel-input"><input type="text" id="poPhone"></td>
+                    <th class="excel-label">التاريخ:</th><td class="excel-input"><input type="date" id="poDate"></td>
+                </tr>
+                <tr>
+                    <th class="excel-label">الرقم التسلسلي:</th><td class="excel-input" colspan="5"><input type="text" id="poSerial" readonly style="background: rgba(0,0,0,0.05); color: #d35400;"></td>
+                </tr>
+            </tbody>
+        </table>
 
         <!-- Parts -->
-        <div class="section-title">⚙️ قطع الغيار <button class="btn-remove"
-                style="background:#27ae60;margin-right:10px;padding:3px 10px" onclick="addPartRow()">+ صف</button></div>
-        <table id="partsTable">
+        <table id="partsTable" class="excel-table">
             <thead>
+                <tr><th colspan="7" class="excel-header">قطع الغيار <button class="btn-add-row" onclick="addPartRow()">+ إضافة</button></th></tr>
                 <tr>
-                    <th>م</th>
-                    <th>البيان</th>
-                    <th>الكمية</th>
-                    <th>السعر</th>
-                    <th>القيمة</th>
-                    <th>ملاحظات</th>
-                    <th>حذف</th>
+                    <th style="width: 5%;">م</th>
+                    <th style="width: 35%;">البيان</th>
+                    <th style="width: 10%;">الكمية</th>
+                    <th style="width: 15%;">السعر</th>
+                    <th style="width: 15%;">القيمة</th>
+                    <th style="width: 15%;">ملاحظات</th>
+                    <th style="width: 5%;">حذف</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
 
         <!-- Repairs -->
-        <div class="section-title">🔧 الإصلاح <button class="btn-remove"
-                style="background:#27ae60;margin-right:10px;padding:3px 10px" onclick="addRepairRow()">+ صف</button>
-        </div>
-        <table id="repairsTable">
+        <table id="repairsTable" class="excel-table">
             <thead>
+                <tr><th colspan="5" class="excel-header">الإصلاح <button class="btn-add-row" onclick="addRepairRow()">+ إضافة</button></th></tr>
                 <tr>
-                    <th>م</th>
-                    <th>الوصف</th>
-                    <th>القيمة</th>
-                    <th>ملاحظات</th>
-                    <th>حذف</th>
+                    <th style="width: 5%;">م</th>
+                    <th style="width: 45%;">الوصف</th>
+                    <th style="width: 20%;">القيمة</th>
+                    <th style="width: 25%;">ملاحظات</th>
+                    <th style="width: 5%;">حذف</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
 
         <!-- Tires -->
-        <div class="section-title">🛞 الكفرات <button class="btn-remove"
-                style="background:#27ae60;margin-right:10px;padding:3px 10px" onclick="addTireRow()">+ صف</button></div>
-        <table id="tiresTable">
+        <table id="tiresTable" class="excel-table">
             <thead>
+                <tr><th colspan="9" class="excel-header">الكفرات <button class="btn-add-row" onclick="addTireRow()">+ إضافة</button></th></tr>
                 <tr>
-                    <th>م</th>
-                    <th>تاريخ التغيير</th>
-                    <th>العدد</th>
-                    <th>أمامية</th>
-                    <th>خلفية</th>
-                    <th>قراءة سابقة</th>
-                    <th>قراءة حالية</th>
-                    <th>المسافة</th>
-                    <th>حذف</th>
+                    <th style="width: 5%;">م</th>
+                    <th style="width: 15%;">تاريخ التغيير</th>
+                    <th style="width: 10%;">العدد</th>
+                    <th style="width: 10%;">أمامية</th>
+                    <th style="width: 10%;">خلفية</th>
+                    <th style="width: 15%;">قراءة سابقة</th>
+                    <th style="width: 15%;">قراءة حالية</th>
+                    <th style="width: 15%;">المسافة</th>
+                    <th style="width: 5%;">حذف</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
 
         <!-- Batteries -->
-        <div class="section-title">🔋 البطاريات <button class="btn-remove"
-                style="background:#27ae60;margin-right:10px;padding:3px 10px" onclick="addBatteryRow()">+ صف</button>
-        </div>
-        <table id="batteriesTable">
+        <table id="batteriesTable" class="excel-table">
             <thead>
+                <tr><th colspan="8" class="excel-header">البطاريات <button class="btn-add-row" onclick="addBatteryRow()">+ إضافة</button></th></tr>
                 <tr>
-                    <th>م</th>
-                    <th>الوصف</th>
-                    <th>العدد</th>
-                    <th>المقاس</th>
-                    <th>أمبير</th>
-                    <th>السعر للوحدة</th>
-                    <th>التاريخ</th>
-                    <th>حذف</th>
+                    <th style="width: 5%;">م</th>
+                    <th style="width: 30%;">الوصف</th>
+                    <th style="width: 10%;">العدد</th>
+                    <th style="width: 15%;">المقاس</th>
+                    <th style="width: 10%;">أمبير</th>
+                    <th style="width: 15%;">السعر للوحدة</th>
+                    <th style="width: 10%;">التاريخ</th>
+                    <th style="width: 5%;">حذف</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
 
         <!-- Summary Totals -->
-        <div class="section-title">📊 ملخص الإجماليات</div>
-        <table id="summaryTable">
+        <table id="summaryTable" class="excel-table">
             <thead>
+                <tr><th colspan="7" class="excel-header">ملخص الإجماليات</th></tr>
                 <tr>
-                    <th>قطع الغيار</th>
-                    <th>الإصلاح</th>
-                    <th>الكفرات</th>
-                    <th>البطاريات</th>
-                    <th>الإجمالي (قبل الضريبة)</th>
-                    <th>ضريبة 15%</th>
-                    <th>الإجمالي شامل الضريبة</th>
+                    <th style="width: 14%;">قطع الغيار</th>
+                    <th style="width: 14%;">الإصلاح</th>
+                    <th style="width: 14%;">الكفرات</th>
+                    <th style="width: 14%;">البطاريات</th>
+                    <th style="width: 15%;">الإجمالي (قبل الضريبة)</th>
+                    <th style="width: 14%;">ضريبة 15%</th>
+                    <th style="width: 15%;">الإجمالي شامل الضريبة</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td><input type="number" id="sumParts" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="الإجمالي"></td>
-                    <td><input type="number" id="sumRepairs" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="الإجمالي"></td>
-                    <td><input type="number" id="sumTires" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;" placeholder="أدخل يدوياً"></td>
-                    <td><input type="number" id="sumBatteries" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="الإجمالي"></td>
+                    <td><input type="number" id="sumParts" style="font-weight:bold;text-align:center;" placeholder="الإجمالي"></td>
+                    <td><input type="number" id="sumRepairs" style="font-weight:bold;text-align:center;" placeholder="الإجمالي"></td>
+                    <td><input type="number" id="sumTires" style="font-weight:bold;text-align:center;" placeholder="الإجمالي"></td>
+                    <td><input type="number" id="sumBatteries" style="font-weight:bold;text-align:center;" placeholder="الإجمالي"></td>
                     <td><input type="number" id="sumSubtotal" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:var(--accent);"></td>
                     <td><input type="number" id="sumVat" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:#e67e22;"></td>
                     <td><input type="number" id="sumGrandTotal" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:#27ae60;font-size:1.1rem;"></td>
@@ -351,9 +438,8 @@
             </tbody>
         </table>
 
-        <!-- General Notes -->
-        <div class="section-title">📝 ملاحظات عامة</div>
-        <textarea id="poNotes" rows="3" placeholder="أدخل أي ملاحظات إضافية هنا..." style="width:100%;padding:12px;border:1px solid var(--border-strong);border-radius:8px;font-family:'Cairo';font-size:0.95rem;font-weight:600;outline:none;transition:var(--trans);background:var(--surface);color:var(--text-primary);box-sizing:border-box;resize:vertical;"></textarea>
+        <div class="section-title">ملاحظات هامة</div>
+<textarea id="poNotes" rows="3" placeholder="أدخل أي ملاحظات إضافية هنا..." style="width:100%;padding:12px;border:1px solid var(--border-strong);border-radius:8px;font-family:'Cairo';font-size:0.95rem;font-weight:600;outline:none;transition:var(--trans);background:var(--surface);color:var(--text-primary);box-sizing:border-box;resize:vertical;"></textarea>
 
         <div style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
             <button class="btn-primary" onclick="downloadPO()">📥 استخراج الطلب (Excel)</button>
