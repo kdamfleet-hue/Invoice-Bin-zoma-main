@@ -135,6 +135,62 @@
         .fade-in { animation: fadeInRow 0.4s ease-out forwards; }
         .search-wrapper { position: relative; margin: 0 auto 1rem auto; display: flex; width: 100%; max-width: 1200px; padding: 12px 20px; border-radius: 10px; z-index: 2; align-items: center; gap: 10px; flex-wrap: wrap; }
     </style>
+
+    <style>
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Cairo', sans-serif;
+            border: 2px solid #000;
+            background: #fff;
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid #000;
+            padding: 0;
+            margin: 0;
+        }
+        .excel-header {
+            background-color: #BDD7EE !important;
+            color: #000 !important;
+            text-align: center;
+            font-weight: bold;
+            padding: 10px !important;
+            font-size: 0.95rem;
+            border: 1px solid #000;
+        }
+        .excel-input input, .excel-table td input {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: none !important;
+            padding: 8px;
+            background: transparent;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+            color: #000;
+            text-align: center;
+            outline: none;
+            min-height: 40px;
+        }
+        .excel-input input:focus, .excel-table td input:focus {
+            background: #f0f8ff;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .excel-table-container, .excel-table-container * {
+                visibility: visible;
+            }
+            .excel-table-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            @page { size: landscape; margin: 5mm; }
+        }
+    </style>
 </head>
 <body>
 {% if not google_user %}<a href="/logout" style="position: absolute; top: 1.5rem; left: 1.5rem; z-index: 9999; background: #e74c3c; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 0.95rem; text-decoration: none; font-family: Cairo; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">تسجيل الخروج</a>{% endif %}
@@ -153,656 +209,593 @@
         <p class="subtitle">فرع الدمام — شركة بن زومة الدولية</p>
     </div>
 
+    
     <div class="nav-buttons">
-        <a href="/" class="btn-outline">🔙 العودة للفواتير</a>
-        <a href="/oils" class="btn-outline">🛢️ بيان الزيوت</a>
-        <a href="/purchase" class="btn-outline">🛒 طلبات الشراء</a>
-        <a href="/washing" class="btn-outline">🚿 جدول الغسيل</a>
-        <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="btn-outline">🛰️ التتبع المباشر</a>
-        <button class="btn-outline" onclick="addMainRow()">➕ إضافة سائق</button>
-        <button class="btn-outline" onclick="addSpareRow()">➕ إضافة اسبير/معطلة</button>
+        <a href="/" class="btn-outline" style="text-decoration:none;">العودة للفواتير</a>
+        <a href="/oils" class="btn-outline" style="text-decoration:none;">بيانات الزيوت</a>
+        <a href="/purchase" class="btn-outline" style="text-decoration:none;">طلب شراء وإصلاح</a>
+        <a href="/washing" class="btn-outline" style="text-decoration:none;">جدول الغسيل</a>
+        <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="btn-outline" style="text-decoration:none;">نظام التتبع GPS</a>
+        <button class="btn-outline" onclick="addScheduleRow()" style="border-color: #27ae60; color: #27ae60;">+ إضافة صف جديد</button>
+        <button class="btn-outline" onclick="window.print()" style="border-color: #e67e22; color: #e67e22;">🖨 طباعة الجدول</button>
     </div>
 
-    <div class="date-bar glass-surface">
-        <label>📅 اليوم والتاريخ:</label>
-        <input type="date" id="scheduleDate" onchange="updateDateDisplay()">
-        <span id="dayName" style="font-weight:700;color:var(--accent);font-size:1.1rem;"></span>
-    </div>
+    <!-- Excel Table Replica -->
+    <div class="excel-table-container" style="width: 100%; max-width: 1800px; margin: 0 auto; overflow-x: auto; padding: 20px;">
+        <table class="excel-table" id="scheduleExcelTable">
+            <thead>
+                <tr>
+                    <th colspan="3" style="border:none;"></th>
+                    <th colspan="3" style="border:none; text-align: left; padding-bottom: 10px;">
+                        <input type="date" id="scheduleDate" style="font-weight:bold; font-size: 1.1rem; text-align:center; padding: 5px; border: 1px solid #ccc; font-family:'Cairo';">
+                    </th>
+                    <th colspan="4" style="border:none; text-align: center; font-size: 1.5rem; font-weight: 800; color: #000; padding-bottom: 10px;">
+                        جدول تحديث مركبات وموصلين و موزعين الأسبوعي فرع الدمام
+                    </th>
+                    <th colspan="3" style="border:none;"></th>
+                </tr>
+                <tr>
+                    <th class="excel-header" style="width:2%;">م</th>
+                    <th class="excel-header" style="width:6%;">الرقم الوظيفي</th>
+                    <th class="excel-header" style="width:14%;">اسم السائق</th>
+                    <th class="excel-header" style="width:8%;">رقم الإقامة</th>
+                    <th class="excel-header" style="width:6%;">الوظيفة</th>
+                    <th class="excel-header" style="width:8%;">رقم اللوحة</th>
+                    <th class="excel-header" style="width:5%;">موديل</th>
+                    <th class="excel-header" style="width:10%;">نوع المركبة</th>
+                    <th class="excel-header" style="width:5%;">عدد الطبالي</th>
+                    <th class="excel-header" style="width:5%;">الحمولة</th>
+                    <th class="excel-header" style="width:10%;">الرقم التسلسلي للمركبة</th>
+                    <th class="excel-header" style="width:10%;">تاريخ انتهاء<br>الفحص الدوري</th>
+                    <th class="excel-header" style="width:10%;">تاريخ انتهاء<br>رخصة السير</th>
+                </tr>
+            </thead>
+            <tbody id="scheduleBody">
 
-    <!-- Search & Advanced Actions -->
-    <div class="search-wrapper glass-surface">
-        <label style="font-weight:700; color:var(--accent);">🔍 بحث سريع:</label>
-        <input type="text" id="tableSearch" onkeyup="filterTables()" placeholder="ابحث بالاسم، اللوحة، الوظيفة، الإقامة..." style="flex: 1; min-width:200px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); font-family: Cairo;">
-        <button class="btn-outline" onclick="clearScheduleData()" style="border-color: #e74c3c; color: #e74c3c;" title="تفريغ جميع الحقول وبدء جدول جديد">🗑️ مسح الجدول</button>
-        <button class="btn-outline" onclick="exportExcel()" style="border-color: #27ae60; color: #27ae60;">🖨️ طباعة الجدول</button>
-    </div>
-
-    <!-- Summary Stats -->
-    <div class="summary-grid" id="summaryStats">
-        <div class="stat-card glass-surface"><div class="num" id="statDrivers">0</div><div class="lbl">عدد السائقين</div></div>
-        <div class="stat-card glass-surface"><div class="num" id="statDina">0</div><div class="lbl">عدد الدينات</div></div>
-        <div class="stat-card glass-surface"><div class="num" id="statLorry">0</div><div class="lbl">عدد اللواري</div></div>
-        <div class="stat-card glass-surface"><div class="num" id="statDelivery">0</div><div class="lbl">عدد الموصلين</div></div>
-        <div class="stat-card glass-surface"><div class="num" id="statDistributor">0</div><div class="lbl">عدد الموزعين</div></div>
-        <div class="stat-card glass-surface"><div class="num" id="statVacation">0</div><div class="lbl">في إجازة</div></div>
-    </div>
-
-    <!-- Main Table -->
-    <div class="section-title">🚛 جدول تحديث مركبات وموصلين وموزعين</div>
-    <div class="table-wrap glass-surface" style="padding: 0;">
-        <table id="mainTable">
-            <thead><tr>
-                <th>م</th><th>الرقم الوظيفي</th><th>اسم السائق</th><th>رقم الإقامة</th><th>الوظيفة</th>
-                <th>رقم اللوحة</th><th>موديل المركبة</th><th>نوع المركبة</th><th>عدد الطبالي</th>
-                <th>حمولة المركبة</th><th>الرقم التسلسلي</th><th>انتهاء الفحص الدوري</th>
-                <th>انتهاء رخصة السير</th><th>انتهاء بطاقة السائق</th><th>انتهاء بطاقة التشغيل</th>
-                <th>الملاحظات</th><th>رقم الجوال</th><th>حذف</th>
-            </tr></thead>
-            <tbody id="mainBody"></tbody>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">1</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100310"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="شومون مياه ادريس مياه"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2253252916"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م  8013"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="17554020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-03-31"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-10 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">2</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100200"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="ثابت قاسم محسن بن نصور"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2171087048"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م  8025"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="968754020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-14"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">3</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100327"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="محمد عبدالصبور عبدالعزيز "></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2283628259"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م 8024"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="358754020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-14"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">4</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100245"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="كابيل مياه"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2121612820"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ح  8714 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="29819910"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-30"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-05-06 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">5</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="102179"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="تنفير حسين"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2519784710"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر ع  2234"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="196860810"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-06-03"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-10 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">6</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100837"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="سراج ثاندو عبدول"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2460710367"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و 4140"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="826065910"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-03-14"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2025-12-17 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">7</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100276"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="علاء عبدالنبي رفاعي احمد"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2327676793"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س  8015"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="698454020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-01"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-10 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">8</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100385"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="رفيق اسان بيلات"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2407663372"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ق 7776  "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2016"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="831809610"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-12-08"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-08-30 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">9</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100360"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="ابراهيم محمد ابوزيد محمد"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2393652496"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="أ ر ع  2233"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="886860810"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-07-10"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-10 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">10</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="101238"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="مد سيف الإسلام"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2485516401"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و 4085 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2022"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="211941910"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-02-08"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2028-04-17 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">11</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="102126"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="ارجوان"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2530207360"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س  8015"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="207954020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-01"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">12</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100332"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="انفير كاريماري عمير"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2350147415"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و 4084 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2022"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="960941910"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-10"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2028-04-17 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">13</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100522"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="سليم اختر محمد"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2430898482"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ح 8670"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="379167910"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-11-15"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2029-01-23 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">14</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="101199"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="محمد عبدالنبي رفاعي احمد"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2468851676"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ص ق 6853"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2024"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="739131120"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-04"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-07-24 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">15</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100330"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="اسف باث شوهل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2325599070"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ح  8717"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="949819910"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-03-24"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-05-06 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">16</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100303"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="فالق سجاد سجاد"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2090207859"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م 8029 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="537954020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-03-31"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">17</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="102452"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="محمد يونس "></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2550977850"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ل 8850 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2016"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="451809610"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-11-12"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-04 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">18</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="102368"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="بسام علي احمد الجلال"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2537417152"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م 8023 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="277754020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-15"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">19</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="101260"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="كرم ابو الهدى صادق "></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2487345031"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و  4071"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2022"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="74841910"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-06"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2028-04-16 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">20</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="101936"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="مران حسين مد تارو"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2505074498"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م 8031 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="317954020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-02"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">21</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100717"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="محمد عبدالحميد محمد "></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2445181585"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م  8035"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="776954020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-06"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">22</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100711"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="احمد عبدالصبور رشوان"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2409104953"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م  8021"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="538754020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-26"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">23</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="101958"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="انصار الم"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2512564010"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و  4139  "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="395065910"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2028-10-23"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2025-12-17 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">24</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100249"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="شندان دبينات "></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2255207751"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و 4141"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="186065910"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-02-04"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2025-12-17 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">25</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="101225"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="نديم فضل سبحان"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2472649249"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر ع 2240 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="427860810"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-07-09"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-10 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">26</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100237"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="شوكت علي"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2317876015"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="أ س ر 8873 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="203480020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-01"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-08-07 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">27</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="102181"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="محمد مصلح"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2536883693"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ص ق 6855"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2024"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="761431120"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-01"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-07-24 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">28</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100217"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="مارييل فينود"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2265030078"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ق 7920"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2016"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي لوري "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="621809610"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="1447-05-16"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-08-25 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">29</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100714"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="علي محمد ابوزيد محمد"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2441374739"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر ل  5580 "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2015"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="322761410"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-06-03 00:00:00"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-06-15 00:00:00"></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">30</td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="100231"></td>
+                    <td class="excel-input" style="width:14%;"><input type="text" value="انال كومار"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="2255854875"></td>
+                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر ع 2232"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="2020"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
+                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
+                    <td class="excel-input" style="width:10%;"><input type="text" value="386860810"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-05-22 00:00:00"></td>
+                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-10 00:00:00"></td>
+                </tr>
+            </tbody>
         </table>
     </div>
 
-    <!-- Spare/Broken Table -->
-    <div class="section-title">⚠️ بيان المركبات الاسبير والمعطلة</div>
-    <div class="table-wrap glass-surface" style="padding: 0;">
-        <table id="spareTable">
-            <thead><tr>
-                <th>م</th><th>اسم السائق</th><th>الرقم الوظيفي</th><th>رقم الإقامة</th>
-                <th>رقم اللوحة</th><th>نوع المركبة والموديل</th><th>عدد الطبالي</th>
-                <th>حمولة المركبة</th><th>الملاحظات</th><th>رقم الجوال</th><th>حذف</th>
-            </tr></thead>
-            <tbody id="spareBody"></tbody>
-        </table>
-    </div>
-
-    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
-        <button class="btn-submit" onclick="generateScheduleExcel()">📥 تصدير Excel</button>
-        <button class="btn-submit" style="background:linear-gradient(135deg,#e67e22,#d35400);" onclick="openCustomModal('scheduleEmailModal')">📧 إرسال عبر الإيميل</button>
-    </div>
-
-    <!-- Email Modal -->
-    <div class="modal-backdrop" id="scheduleEmailModal">
-        <div class="modal-content-custom">
-            <div class="modal-header-custom">
-                <span>📧 إرسال الجدول الأسبوعي</span>
-                <button class="close-btn" style="color:white;" onclick="closeCustomModal('scheduleEmailModal')">✕</button>
-            </div>
-            <div class="modal-body-custom">
-                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-                    <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
-                    <input type="email" id="schedEmail" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
-                </div>
-                <div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة إلى:</label>
-                        <div id="schedCcContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
-                            <div style="display:flex;gap:5px;align-items:center">
-                                <input type="email" class="sched-cc" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);">
-                                <button type="button" onclick="addSchedCc()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
-                    <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
-                    <input type="text" id="schedSubject" placeholder="تحديث الجدول الأسبوعي" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
-                </div>
-                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-                    <button type="button" onclick="if(confirm('هل تريد حفظه في سطح المكتب؟')) { generateScheduleExcel(); }" class="btn-outline">حفظ في سطح المكتب 💾</button>
-                    <button onclick="closeCustomModal('scheduleEmailModal')" class="btn-outline" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
-                    <button id="schedSendBtn" onclick="sendScheduleEmail()" class="btn-primary">إرسال 🚀</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-<footer style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:20px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js">
-    function exportExcel() {
-        const btn = document.querySelector('.btn-outline');
-        const oldText = btn.innerHTML;
-        btn.innerHTML = 'جاري التصدير... ⏳';
-        btn.disabled = true;
-
-        const mainData = [];
-        document.querySelectorAll('#mainDriversTable tbody tr').forEach(tr => {
-            if (tr.classList.contains('empty-row')) return;
-            mainData.push({
-                car: tr.querySelector('.in-car')?.value || '',
-                type: tr.querySelector('.in-type')?.value || '',
-                plate: tr.querySelector('.in-plate')?.value || '',
-                job: tr.querySelector('.in-job')?.value || '',
-                driver: tr.querySelector('.in-driver')?.value || '',
-                iqama: tr.querySelector('.in-iqama')?.value || '',
-                notes: tr.querySelector('.in-notes')?.value || ''
-            });
-        });
-
-        const spareData = [];
-        document.querySelectorAll('#spareDriversTable tbody tr').forEach(tr => {
-            if (tr.classList.contains('empty-row')) return;
-            spareData.push({
-                car: tr.querySelector('.in-car')?.value || '',
-                type: tr.querySelector('.in-type')?.value || '',
-                plate: tr.querySelector('.in-plate')?.value || '',
-                job: tr.querySelector('.in-job')?.value || '',
-                driver: tr.querySelector('.in-driver')?.value || '',
-                iqama: tr.querySelector('.in-iqama')?.value || '',
-                notes: tr.querySelector('.in-notes')?.value || ''
-            });
-        });
-
-        const dateVal = document.getElementById('weekDate')?.value || '';
-
-        fetch('/api/generate_schedule', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                date: dateVal,
-                main: mainData,
-                spare: spareData
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
-            if (data.success && data.file_b64) {
-                const link = document.createElement("a");
-                link.href = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + data.file_b64;
-                link.download = "جدول_المركبات.xlsx";
-                link.click();
-            } else {
-                alert('حدث خطأ أثناء التصدير');
-            }
-        })
-        .catch(err => {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
-            alert('حدث خطأ أثناء الاتصال بالخادم');
-        });
-    }
-
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js">
-    function exportExcel() {
-        const btn = document.querySelector('.btn-outline');
-        const oldText = btn.innerHTML;
-        btn.innerHTML = 'جاري التصدير... ⏳';
-        btn.disabled = true;
-
-        const mainData = [];
-        document.querySelectorAll('#mainDriversTable tbody tr').forEach(tr => {
-            if (tr.classList.contains('empty-row')) return;
-            mainData.push({
-                car: tr.querySelector('.in-car')?.value || '',
-                type: tr.querySelector('.in-type')?.value || '',
-                plate: tr.querySelector('.in-plate')?.value || '',
-                job: tr.querySelector('.in-job')?.value || '',
-                driver: tr.querySelector('.in-driver')?.value || '',
-                iqama: tr.querySelector('.in-iqama')?.value || '',
-                notes: tr.querySelector('.in-notes')?.value || ''
-            });
-        });
-
-        const spareData = [];
-        document.querySelectorAll('#spareDriversTable tbody tr').forEach(tr => {
-            if (tr.classList.contains('empty-row')) return;
-            spareData.push({
-                car: tr.querySelector('.in-car')?.value || '',
-                type: tr.querySelector('.in-type')?.value || '',
-                plate: tr.querySelector('.in-plate')?.value || '',
-                job: tr.querySelector('.in-job')?.value || '',
-                driver: tr.querySelector('.in-driver')?.value || '',
-                iqama: tr.querySelector('.in-iqama')?.value || '',
-                notes: tr.querySelector('.in-notes')?.value || ''
-            });
-        });
-
-        const dateVal = document.getElementById('weekDate')?.value || '';
-
-        fetch('/api/generate_schedule', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                date: dateVal,
-                main: mainData,
-                spare: spareData
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
-            if (data.success && data.file_b64) {
-                const link = document.createElement("a");
-                link.href = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + data.file_b64;
-                link.download = "جدول_المركبات.xlsx";
-                link.click();
-            } else {
-                alert('حدث خطأ أثناء التصدير');
-            }
-        })
-        .catch(err => {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
-            alert('حدث خطأ أثناء الاتصال بالخادم');
-        });
-    }
-
-</script>
-<script>
-let driversData = [];
-
-// Fetch drivers for autofill then add first row
-async function fetchDrivers() {
-    try {
-        const res = await fetch('/api/drivers');
-        driversData = await res.json();
-        if (!loadFromLocalStorage()) {
-            document.getElementById('mainBody').innerHTML = '';
-            addMainRow();
+    <script>
+        function addScheduleRow() {
+            const tbody = document.getElementById('scheduleBody');
+            const rowCount = tbody.querySelectorAll('tr').length + 1;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">${rowCount}</td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="date"></td>
+                    <td class="excel-input"><input type="date"></td>
+            `;
+            tbody.appendChild(tr);
+            saveToLocalStorage();
         }
-    } catch(e) { 
-        console.error(e); 
-        if (!loadFromLocalStorage()) {
-            document.getElementById('mainBody').innerHTML = '';
-            addMainRow();
-        }
-    }
-}
-fetchDrivers();
-
-function autofillDriver(input) {
-    const name = input.value.trim();
-    const driver = driversData.find(d => d.name === name);
-    if(!driver) return;
-    const tr = input.closest('tr');
-    if(driver.empid) tr.querySelector('.m-empid').value = driver.empid;
-    if(driver.plate) tr.querySelector('.m-plate').value = driver.plate;
-    if(driver.car) tr.querySelector('.m-type').value = driver.car;
-    if(driver.iqama) tr.querySelector('.m-iqama').value = driver.iqama;
-    if(driver.phone) tr.querySelector('.m-phone').value = driver.phone;
-    updateStats();
-    saveToLocalStorage();
-}
-
-function autofillSpareDriver(input) {
-    const name = input.value.trim();
-    const driver = driversData.find(d => d.name === name);
-    if(!driver) return;
-    const tr = input.closest('tr');
-    if(driver.empid) tr.querySelector('.s-empid').value = driver.empid;
-    if(driver.plate) tr.querySelector('.s-plate').value = driver.plate;
-    if(driver.car) tr.querySelector('.s-typemodel').value = driver.car;
-    if(driver.iqama) tr.querySelector('.s-iqama').value = driver.iqama;
-    if(driver.phone) tr.querySelector('.s-phone').value = driver.phone;
-    saveToLocalStorage();
-}
-
-// Set today's date
-const today = new Date();
-document.getElementById('scheduleDate').valueAsDate = today;
-updateDateDisplay();
-
-function updateDateDisplay() {
-    const d = document.getElementById('scheduleDate').valueAsDate || new Date();
-    const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-    document.getElementById('dayName').textContent = days[d.getDay()];
-}
-
-function getDriverOptions() {
-    return driversData.map(d => `<option value="${d.name}">`).join('');
-}
-
-function addMainRow() {
-    const tb = document.getElementById('mainBody');
-    const empty = tb.querySelector('.empty-row');
-    if (empty) empty.remove();
-    const n = tb.querySelectorAll('tr:not(.empty-row)').length + 1;
-    const uid = 'dl_m_' + Date.now() + n;
-    const tr = document.createElement('tr');
-    tr.className = 'fade-in';
-    tr.innerHTML = `
-        <td>${n}</td>
-        <td><input class="m-empid" placeholder="الرقم الوظيفي"></td>
-        <td><input class="m-name" list="${uid}" placeholder="اسم السائق" onchange="autofillDriver(this)"><datalist id="${uid}">${getDriverOptions()}</datalist></td>
-        <td><input class="m-iqama" placeholder="رقم الإقامة"></td>
-        <td><select class="m-job" onchange="updateStats()"><option value="موزع">موزع</option><option value="موصل">موصل</option></select></td>
-        <td><input class="m-plate" placeholder="رقم اللوحة"></td>
-        <td><input class="m-model" placeholder="الموديل"></td>
-        <td><input class="m-type" placeholder="نوع المركبة" onchange="updateStats()"></td>
-        <td><input class="m-pallets" type="number" placeholder="0" style="width:50px"></td>
-        <td><input class="m-capacity" type="number" placeholder="0" style="width:50px"></td>
-        <td><input class="m-serial" placeholder="الرقم التسلسلي"></td>
-        <td><input class="m-inspect" type="date"></td>
-        <td><input class="m-license" placeholder="التاريخ"></td>
-        <td><input class="m-drivercard" type="date"></td>
-        <td><input class="m-opcard" placeholder="التاريخ"></td>
-        <td><input class="m-notes" placeholder="الملاحظات"></td>
-        <td><input class="m-phone" placeholder="رقم الجوال"></td>
-        <td><button class="btn-delete" onclick="this.closest('tr').remove();reindex('mainBody')">✕</button></td>`;
-    tb.appendChild(tr);
-    updateStats();
-    saveToLocalStorage();
-}
-
-function addSpareRow() {
-    const tb = document.getElementById('spareBody');
-    const empty = tb.querySelector('.empty-row');
-    if (empty) empty.remove();
-    const n = tb.querySelectorAll('tr:not(.empty-row)').length + 1;
-    const uid = 'dl_s_' + Date.now() + n;
-    const tr = document.createElement('tr');
-    tr.className = 'fade-in';
-    tr.innerHTML = `
-        <td>${n}</td>
-        <td><input class="s-name" list="${uid}" placeholder="اسم السائق" onchange="autofillSpareDriver(this)"><datalist id="${uid}">${getDriverOptions()}</datalist></td>
-        <td><input class="s-empid" placeholder="الرقم الوظيفي"></td>
-        <td><input class="s-iqama" placeholder="رقم الإقامة"></td>
-        <td><input class="s-plate" placeholder="رقم اللوحة"></td>
-        <td><input class="s-typemodel" placeholder="نوع المركبة والموديل"></td>
-        <td><input class="s-pallets" type="number" placeholder="0" style="width:50px"></td>
-        <td><input class="s-capacity" type="number" placeholder="0" style="width:50px"></td>
-        <td><input class="s-notes" placeholder="الملاحظات"></td>
-        <td><input class="s-phone" placeholder="رقم الجوال"></td>
-        <td><button class="btn-delete" onclick="this.closest('tr').remove();reindex('spareBody')">✕</button></td>`;
-    tb.appendChild(tr);
-    saveToLocalStorage();
-}
-
-function reindex(tbId) {
-    const tb = document.getElementById(tbId);
-    const rows = tb.querySelectorAll('tr:not(.empty-row)');
-    rows.forEach((tr,i) => { tr.cells[0].textContent = i+1; });
-    if (rows.length === 0) {
-        tb.innerHTML = `<tr class="empty-row"><td colspan="20"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد بيانات</h3><p>الجدول فارغ.</p></div></td></tr>`;
-    }
-    updateStats();
-    saveToLocalStorage();
-}
-
-function updateStats() {
-    const rows = document.querySelectorAll('#mainBody tr');
-    let drivers=rows.length, dina=0, lorry=0, delivery=0, dist=0;
-    rows.forEach(tr => {
-        const type = (tr.querySelector('.m-type')?.value||'').trim();
-        const job = (tr.querySelector('.m-job')?.value||'').trim();
-        if(type.includes('دينا')) dina++;
-        if(type.includes('لوري')) lorry++;
-        if(job==='موصل') delivery++;
-        if(job==='موزع') dist++;
-    });
-    const vacation = document.querySelectorAll('#spareBody tr').length;
-    document.getElementById('statDrivers').textContent = drivers;
-    document.getElementById('statDina').textContent = dina;
-    document.getElementById('statLorry').textContent = lorry;
-    document.getElementById('statDelivery').textContent = delivery;
-    document.getElementById('statDistributor').textContent = dist;
-    document.getElementById('statVacation').textContent = vacation;
-}
-
-function collectData() {
-    const main = [];
-    document.querySelectorAll('#mainBody tr').forEach(tr => {
-        main.push({
-            empid: tr.querySelector('.m-empid')?.value||'',
-            name: tr.querySelector('.m-name')?.value||'',
-            iqama: tr.querySelector('.m-iqama')?.value||'',
-            job: tr.querySelector('.m-job')?.value||'',
-            plate: tr.querySelector('.m-plate')?.value||'',
-            model: tr.querySelector('.m-model')?.value||'',
-            type: tr.querySelector('.m-type')?.value||'',
-            pallets: tr.querySelector('.m-pallets')?.value||'',
-            capacity: tr.querySelector('.m-capacity')?.value||'',
-            serial: tr.querySelector('.m-serial')?.value||'',
-            inspect: tr.querySelector('.m-inspect')?.value||'',
-            license: tr.querySelector('.m-license')?.value||'',
-            drivercard: tr.querySelector('.m-drivercard')?.value||'',
-            opcard: tr.querySelector('.m-opcard')?.value||'',
-            notes: tr.querySelector('.m-notes')?.value||'',
-            phone: tr.querySelector('.m-phone')?.value||''
-        });
-    });
-    const spare = [];
-    document.querySelectorAll('#spareBody tr').forEach(tr => {
-        spare.push({
-            name: tr.querySelector('.s-name')?.value||'',
-            empid: tr.querySelector('.s-empid')?.value||'',
-            iqama: tr.querySelector('.s-iqama')?.value||'',
-            plate: tr.querySelector('.s-plate')?.value||'',
-            typemodel: tr.querySelector('.s-typemodel')?.value||'',
-            pallets: tr.querySelector('.s-pallets')?.value||'',
-            capacity: tr.querySelector('.s-capacity')?.value||'',
-            notes: tr.querySelector('.s-notes')?.value||'',
-            phone: tr.querySelector('.s-phone')?.value||''
-        });
-    });
-    return { date: document.getElementById('scheduleDate').value, main, spare };
-}
-
-// --- Advanced Features: Filter, Save, Clear ---
-function filterTables() {
-    const q = document.getElementById('tableSearch').value.toLowerCase();
-    document.querySelectorAll('tbody tr').forEach(tr => {
-        if (tr.classList.contains('empty-row')) return;
-        const text = tr.innerText.toLowerCase();
-        const inputs = Array.from(tr.querySelectorAll('input, select')).map(i => i.value.toLowerCase()).join(' ');
-        if (text.includes(q) || inputs.includes(q)) tr.style.display = '';
-        else tr.style.display = 'none';
-    });
-}
-
-function clearScheduleData() {
-    if(!confirm('هل أنت متأكد من تفريغ جميع البيانات وبدء جدول جديد؟')) return;
-    document.getElementById('mainBody').innerHTML = '';
-    document.getElementById('spareBody').innerHTML = '';
-    localStorage.removeItem('scheduleData_main');
-    localStorage.removeItem('scheduleData_spare');
-    addMainRow();
-    updateStats();
-    showToast('تم مسح الجدول بنجاح', 'success');
-}
-
-function saveToLocalStorage() {
-    // Debounce slightly to avoid heavy writes
-    clearTimeout(window._saveTimer);
-    window._saveTimer = setTimeout(() => {
-        const data = collectData();
-        localStorage.setItem('scheduleData_main', JSON.stringify(data.main));
-        localStorage.setItem('scheduleData_spare', JSON.stringify(data.spare));
-    }, 500);
-}
-
-function loadFromLocalStorage() {
-    const mainStr = localStorage.getItem('scheduleData_main');
-    const spareStr = localStorage.getItem('scheduleData_spare');
-    let loaded = false;
-    
-    if (mainStr) {
-        const main = JSON.parse(mainStr);
-        if (main.length > 0) {
-            document.getElementById('mainBody').innerHTML = '';
-            main.forEach(d => {
-                addMainRow();
-                const tr = document.getElementById('mainBody').lastElementChild;
-                if(tr) {
-                    if(d.empid) tr.querySelector('.m-empid').value = d.empid;
-                    if(d.name) tr.querySelector('.m-name').value = d.name;
-                    if(d.iqama) tr.querySelector('.m-iqama').value = d.iqama;
-                    if(d.job) tr.querySelector('.m-job').value = d.job;
-                    if(d.plate) tr.querySelector('.m-plate').value = d.plate;
-                    if(d.model) tr.querySelector('.m-model').value = d.model;
-                    if(d.type) tr.querySelector('.m-type').value = d.type;
-                    if(d.pallets) tr.querySelector('.m-pallets').value = d.pallets;
-                    if(d.capacity) tr.querySelector('.m-capacity').value = d.capacity;
-                    if(d.serial) tr.querySelector('.m-serial').value = d.serial;
-                    if(d.inspect) tr.querySelector('.m-inspect').value = d.inspect;
-                    if(d.license) tr.querySelector('.m-license').value = d.license;
-                    if(d.drivercard) tr.querySelector('.m-drivercard').value = d.drivercard;
-                    if(d.opcard) tr.querySelector('.m-opcard').value = d.opcard;
-                    if(d.notes) tr.querySelector('.m-notes').value = d.notes;
-                    if(d.phone) tr.querySelector('.m-phone').value = d.phone;
+        
+        function saveToLocalStorage() {
+            const rows = [];
+            document.querySelectorAll('#scheduleBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if(inputs.length > 0) {
+                    const rowData = [];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    rows.push(rowData);
                 }
             });
-            loaded = true;
+            localStorage.setItem('excel_schedule_data', JSON.stringify(rows));
+            
+            const dateVal = document.getElementById('scheduleDate').value;
+            localStorage.setItem('excel_schedule_date', dateVal);
         }
-    }
-    
-    if (spareStr) {
-        const spare = JSON.parse(spareStr);
-        if (spare.length > 0) {
-            document.getElementById('spareBody').innerHTML = '';
-            spare.forEach(d => {
-                addSpareRow();
-                const tr = document.getElementById('spareBody').lastElementChild;
-                if(tr) {
-                    if(d.name) tr.querySelector('.s-name').value = d.name;
-                    if(d.empid) tr.querySelector('.s-empid').value = d.empid;
-                    if(d.iqama) tr.querySelector('.s-iqama').value = d.iqama;
-                    if(d.plate) tr.querySelector('.s-plate').value = d.plate;
-                    if(d.typemodel) tr.querySelector('.s-typemodel').value = d.typemodel;
-                    if(d.pallets) tr.querySelector('.s-pallets').value = d.pallets;
-                    if(d.capacity) tr.querySelector('.s-capacity').value = d.capacity;
-                    if(d.notes) tr.querySelector('.s-notes').value = d.notes;
-                    if(d.phone) tr.querySelector('.s-phone').value = d.phone;
-                }
-            });
-            loaded = true;
-        }
-    }
-    
-    if (loaded) {
-        updateStats();
-        setTimeout(() => showToast('تم استعادة آخر نسخة محفوظة من الجدول 🔄', 'info'), 1000);
-    }
-    return loaded;
-}
-
-document.addEventListener('input', (e) => {
-    if(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
-        saveToLocalStorage();
-    }
-});
-
-async function generateScheduleExcel() {
-    const data = collectData();
-    const res = await fetch('/api/generate_schedule', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
-    });
-    const result = await res.json();
-    if(result.success) {
-        const bin = atob(result.file_b64);
-        const arr = new Uint8Array(bin.length);
-        for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
-        const blob = new Blob([arr],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-        saveAs(blob, `تحديث_المركبات_${data.date}.xlsx`);
-    } else { showToast('خطأ: '+result.error, 'error'); }
-}
-
-async function sendScheduleEmail() {
-    const email = document.getElementById('schedEmail').value;
-    if(!email) return showToast('يرجى إدخال الإيميل', 'error');
-    const btn = document.getElementById('schedSendBtn');
-    btn.innerText = 'جاري الإرسال... ⏳';
-    try {
-        const data = collectData();
-        const res = await fetch('/api/generate_schedule', {
-            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
-        });
-        const result = await res.json();
-        if(!result.success) { showToast('خطأ: '+result.error, 'error'); btn.innerText='إرسال 🚀'; return; }
-        const ccs = Array.from(document.querySelectorAll('.sched-cc')).map(i=>i.value.trim()).filter(v=>v);
-        const emailRes = await fetch('/api/send_email', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({ email, filename:`تحديث_المركبات_${data.date}.xlsx`, file_b64:result.file_b64, subject:document.getElementById('schedSubject').value||'تحديث الجدول الأسبوعي', cc:ccs })
-        });
-        const emailData = await emailRes.json();
-        if(emailData.success) { showToast('تم الإرسال بنجاح! ✅', 'success'); closeCustomModal('scheduleEmailModal'); }
-        else { showToast('خطأ: '+emailData.error, 'error'); }
-    } catch(e) { showToast('خطأ: '+e, 'error'); }
-    btn.innerText = 'إرسال 🚀';
-}
-
-function addSchedCc() {
-    const c = document.getElementById('schedCcContainer');
-    const d = document.createElement('div');
-    d.style.cssText = 'display:flex;gap:5px;align-items:center;margin-top:5px';
-    d.innerHTML = '<input type="email" class="sched-cc" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
-    c.appendChild(d);
-}
-
-// First row is added by fetchDrivers() after data loads
-
-    function exportExcel() {
-        const btn = document.querySelector('.btn-outline');
-        const oldText = btn.innerHTML;
-        btn.innerHTML = 'جاري التصدير... ⏳';
-        btn.disabled = true;
-
-        const mainData = [];
-        document.querySelectorAll('#mainDriversTable tbody tr').forEach(tr => {
-            if (tr.classList.contains('empty-row')) return;
-            mainData.push({
-                car: tr.querySelector('.in-car')?.value || '',
-                type: tr.querySelector('.in-type')?.value || '',
-                plate: tr.querySelector('.in-plate')?.value || '',
-                job: tr.querySelector('.in-job')?.value || '',
-                driver: tr.querySelector('.in-driver')?.value || '',
-                iqama: tr.querySelector('.in-iqama')?.value || '',
-                notes: tr.querySelector('.in-notes')?.value || ''
-            });
-        });
-
-        const spareData = [];
-        document.querySelectorAll('#spareDriversTable tbody tr').forEach(tr => {
-            if (tr.classList.contains('empty-row')) return;
-            spareData.push({
-                car: tr.querySelector('.in-car')?.value || '',
-                type: tr.querySelector('.in-type')?.value || '',
-                plate: tr.querySelector('.in-plate')?.value || '',
-                job: tr.querySelector('.in-job')?.value || '',
-                driver: tr.querySelector('.in-driver')?.value || '',
-                iqama: tr.querySelector('.in-iqama')?.value || '',
-                notes: tr.querySelector('.in-notes')?.value || ''
-            });
-        });
-
-        const dateVal = document.getElementById('weekDate')?.value || '';
-
-        fetch('/api/generate_schedule', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                date: dateVal,
-                main: mainData,
-                spare: spareData
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
-            if (data.success && data.file_b64) {
-                const link = document.createElement("a");
-                link.href = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + data.file_b64;
-                link.download = "جدول_المركبات.xlsx";
-                link.click();
-            } else {
-                alert('حدث خطأ أثناء التصدير');
+        
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem('excel_schedule_data');
+            if(savedData) {
+                try {
+                    const rows = JSON.parse(savedData);
+                    const tbody = document.getElementById('scheduleBody');
+                    
+                    if(rows.length > 0) {
+                        tbody.innerHTML = '';
+                        rows.forEach((r, idx) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">${idx+1}</td>
+                                <td class="excel-input"><input type="text" value="${r[0] || ''}"></td>
+                                <td class="excel-input"><input type="text" value="${r[1] || ''}"></td>
+                                <td class="excel-input"><input type="text" value="${r[2] || ''}"></td>
+                                <td class="excel-input"><input type="text" value="${r[3] || ''}"></td>
+                                <td class="excel-input"><input type="text" value="${r[4] || ''}"></td>
+                                <td class="excel-input"><input type="text" value="${r[5] || ''}"></td>
+                                <td class="excel-input"><input type="text" value="${r[6] || ''}"></td>
+                                <td class="excel-input"><input type="text" value="${r[7] || ''}"></td>
+                                <td class="excel-input"><input type="text" value="${r[8] || ''}"></td>
+                                <td class="excel-input"><input type="text" value="${r[9] || ''}"></td>
+                                <td class="excel-input"><input type="date" value="${r[10] || ''}"></td>
+                                <td class="excel-input"><input type="date" value="${r[11] || ''}"></td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+                } catch(e) {}
             }
-        })
-        .catch(err => {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
-            alert('حدث خطأ أثناء الاتصال بالخادم');
-        });
-    }
+            
+            const dateVal = localStorage.getItem('excel_schedule_date');
+            if(dateVal) {
+                document.getElementById('scheduleDate').value = dateVal;
+            }
+        }
 
-</script>
-<a href="https://wa.me/?text=مرحباً" target="_blank" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; font-family: Cairo;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل واتساب / إرسال نماذج</a>
+        document.addEventListener('input', function(e) {
+            if(e.target.tagName.toLowerCase() === 'input') {
+                clearTimeout(window._saveTimer);
+                window._saveTimer = setTimeout(saveToLocalStorage, 1000);
+            }
+        });
+        
+        window.addEventListener('DOMContentLoaded', loadFromLocalStorage);
+    </script>
+
+    <footer style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;width:100%">
+        تم التطوير بواسطة قسم التقنية (فرع الدمام)
+    </footer>
 </body>
 </html>
-
-
