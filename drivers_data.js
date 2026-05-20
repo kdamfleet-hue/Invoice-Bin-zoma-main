@@ -1,202 +1,10 @@
 const driversData = [
   {
-    "name": "ALINOR PACO MAAMOR",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا و ب 2760",
-    "car": "ايسوزو بكب غمارتين 2013",
-    "phone": ""
-  },
-  {
-    "name": "ALNOR AMPUAN SARIP",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ر ل 3099",
-    "car": "متسوبيشي بكب غمارتين 2020",
-    "phone": ""
-  },
-  {
-    "name": "AMANODING DILAOSAN RASID",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ب ق 4868",
-    "car": "ايسوزو بكب غمارتين 2016",
-    "phone": ""
-  },
-  {
-    "name": "ANVER KULUMBERI UMMER",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا ر و 4084",
-    "car": "ايسوزو صندوق 2022",
-    "phone": ""
-  },
-  {
-    "name": "ARJUN DEBNATH",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س م 8015",
-    "car": "ايسوزو صندوق مغلق 2023",
-    "phone": ""
-  },
-  {
     "name": "Employee Name (اسم السائق)",
     "empid": "",
     "iqama": "ID Number (رقم الإقامة)",
     "plate": "",
     "car": "",
-    "phone": ""
-  },
-  {
-    "name": "FAHAD BENASING LOMINOG",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ر ل 3098",
-    "car": "متسوبيشي بكب غمارتين 2020",
-    "phone": ""
-  },
-  {
-    "name": "HAMDANIE COMPA LIMGAS",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ط س 3258",
-    "car": "ايسوزو بكب غماره 2023",
-    "phone": ""
-  },
-  {
-    "name": "HASAN MIAH",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ط س 3261",
-    "car": "ايسوزو بكب غماره 2023",
-    "phone": ""
-  },
-  {
-    "name": "JAMALUDDIN MOHAMMAD YUSUF",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا ر ه 3213",
-    "car": "تويوتا بكب غمارتين 2009",
-    "phone": ""
-  },
-  {
-    "name": "JEFFREY CRIS BADILLA CAGA",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا و ب 2759",
-    "car": "ايسوزو بكب غمارتين 2013",
-    "phone": ""
-  },
-  {
-    "name": "KAIL - - MIAH",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س ح 8714",
-    "car": "متسوبيشي صندوق 2023",
-    "phone": ""
-  },
-  {
-    "name": "KALEEM ULLAH SADIQ MUHAMMAD",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س ط 6745",
-    "car": "متسوبيشي صندوق 2016",
-    "phone": ""
-  },
-  {
-    "name": "MAHTAB ALTAF ALTAF AHMED",
-    "empid": "",
-    "iqama": "",
-    "plate": "س د ي 2487",
-    "car": "سوزوكي BALENO 2026",
-    "phone": ""
-  },
-  {
-    "name": "MAMUN MIAH",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ط س 3263",
-    "car": "ايسوزو بكب غماره 2023",
-    "phone": ""
-  },
-  {
-    "name": "MOHAMMAD ANWAR MOHAMMAD",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ص ب 5129",
-    "car": "رينو فان 2022",
-    "phone": ""
-  },
-  {
-    "name": "MOHAMMAD YUNUS MOHAMMAD YUSUF",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س ق 7775",
-    "car": "متسوبيشي صندوق 2016",
-    "phone": ""
-  },
-  {
-    "name": "MOHAMMAED PASHA",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ب ق 4866",
-    "car": "ايسوزو بكب غمارتين 2016",
-    "phone": ""
-  },
-  {
-    "name": "MUZAID JAVID KHAN",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س م 8022",
-    "car": "ايسوزو صندوق مغلق 2023",
-    "phone": ""
-  },
-  {
-    "name": "OMAR USMAN NATANGCOP",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ط س 3259",
-    "car": "ايسوزو بكب غماره 2023",
-    "phone": ""
-  },
-  {
-    "name": "RAFEEQ ASSAIN PILATHOTTATHIL",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س ق 7776",
-    "car": "متسوبيشي صندوق 2016",
-    "phone": ""
-  },
-  {
-    "name": "SHAH ZEB ZAFAR",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ح ل 4436",
-    "car": "سايك موتور تي 60 بيك اب 2020",
-    "phone": ""
-  },
-  {
-    "name": "SHOUKATHALI KARUVA PALLIYALIL MOHAMEDSHAH",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س ر 8873",
-    "car": "متسوبيشي صندوق 2023",
-    "phone": ""
-  },
-  {
-    "name": "SUMON MIA IDRIS MIA",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س م 8013",
-    "car": "ايسوزو صندوق مغلق 2023",
-    "phone": ""
-  },
-  {
-    "name": "VINODANANDAN MARIYIL KUNHIKUTTAN MARIYIL",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س ق 7920",
-    "car": "متسوبيشي صندوق 2016",
     "phone": ""
   },
   {
@@ -272,14 +80,6 @@ const driversData = [
     "phone": "501486037"
   },
   {
-    "name": "احمد محمد عبدالحميد موسى",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س ل 8850",
-    "car": "2016 متسوبيشي لوري",
-    "phone": ""
-  },
-  {
     "name": "ارجوان ارجوان",
     "empid": "102126",
     "iqama": "2530207360",
@@ -336,14 +136,6 @@ const driversData = [
     "phone": "595770006"
   },
   {
-    "name": "خالد محمد سفر الغامدي",
-    "empid": "",
-    "iqama": "",
-    "plate": "ب ط س 3262",
-    "car": "ايسوزو بكب غماره 2023",
-    "phone": ""
-  },
-  {
     "name": "رفيق اسان",
     "empid": "100385",
     "iqama": "2407663372",
@@ -374,14 +166,6 @@ const driversData = [
     "plate": "أ ر و 4141",
     "car": "ايسوزو صندوق 2023",
     "phone": "502219743"
-  },
-  {
-    "name": "شوكت كاروفا بلا محمد",
-    "empid": "",
-    "iqama": "",
-    "plate": "ا س ح 8715",
-    "car": "2023 متسوبيشي دينا",
-    "phone": ""
   },
   {
     "name": "شمون مياه ادريس مياه",
