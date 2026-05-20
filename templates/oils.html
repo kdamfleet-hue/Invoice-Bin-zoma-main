@@ -145,7 +145,8 @@
                     <th class="excel-header" style="width:14%;">تاريخ تغيير الزيت</th>
                     <th class="excel-header" style="width:12%;">رقم العداد</th>
                     <th class="excel-header" style="width:12%;">عدد اللترات</th>
-                    <th class="excel-header" style="width:30%;">عدد فلاتر الزيت والديزل والهواء</th>
+                    <th class="excel-header" style="width:28%;">عدد فلاتر الزيت والديزل والهواء</th>
+                      <th class="excel-header" style="width:3%; border-right:none; background-color:#ffcccc; color:red;">حذف</th>
                 </tr>
             </thead>
             <tbody id="oilsBody">
@@ -1039,6 +1040,25 @@
 <datalist id="oilsDriversList"></datalist>
 
     <script>
+
+        function deleteRow(btn) {
+            if(confirm('هل أنت متأكد من حذف هذا الصف؟')) {
+                const tr = btn.closest('tr');
+                const tbody = tr.parentElement;
+                tr.remove();
+                if(tbody.id === 'oilsBody') {
+                    const rows = tbody.querySelectorAll('tr');
+                    rows.forEach((r, idx) => {
+                        const td0 = r.querySelector('td');
+                        if(td0 && td0.textContent.match(/^\d+$/)) {
+                            td0.textContent = idx + 1;
+                        }
+                    });
+                }
+                saveToLocalStorage();
+            }
+        }
+
         function addOilsRow() {
             const tbody = document.getElementById('oilsBody');
             const rowCount = tbody.querySelectorAll('tr').length + 1;
@@ -1051,7 +1071,8 @@
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
-            `;
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+              `;
             tbody.appendChild(tr);
             saveToLocalStorage();
         }
@@ -1091,7 +1112,8 @@
                                 <td class="excel-input"><input type="text" value="${r[3] || ''}"></td>
                                 <td class="excel-input"><input type="text" value="${r[4] || ''}"></td>
                                 <td class="excel-input"><input type="text" value="${r[5] || ''}"></td>
-                            `;
+                                  <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                              `;
                             tbody.appendChild(tr);
                         });
                     }
