@@ -7,71 +7,85 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}">
-    function exportExcel() {
-        const btn = document.querySelector('.btn-outline');
+    async function exportScheduleExcel() {
+        if(typeof ExcelJS === 'undefined') {
+            alert("يرجى الانتظار، جاري تحميل مكتبة التصدير...");
+            return;
+        }
+
+        const btn = document.querySelector('button[onclick="exportScheduleExcel()"]');
         const oldText = btn.innerHTML;
         btn.innerHTML = 'جاري التصدير... ⏳';
         btn.disabled = true;
 
-        const mainData = [];
-        document.querySelectorAll('#mainDriversTable tbody tr').forEach(tr => {
-            if (tr.classList.contains('empty-row')) return;
-            mainData.push({
-                car: tr.querySelector('.in-car')?.value || '',
-                type: tr.querySelector('.in-type')?.value || '',
-                plate: tr.querySelector('.in-plate')?.value || '',
-                job: tr.querySelector('.in-job')?.value || '',
-                driver: tr.querySelector('.in-driver')?.value || '',
-                iqama: tr.querySelector('.in-iqama')?.value || '',
-                notes: tr.querySelector('.in-notes')?.value || ''
+        try {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('الجدول الأسبوعي', { views: [{ rightToLeft: true }] });
+            
+            // Add Title
+            const titleDate = document.getElementById('scheduleDate').value;
+            ws.addRow(['تحديث الجدول الأسبوعي للمركبات والسائقين ' + titleDate]);
+            ws.mergeCells('A1:M1');
+            ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+            ws.getCell('A1').font = { bold: true, size: 14, name: 'Calibri' };
+            ws.getCell('A1').border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+            
+            // Extract Table Data
+            const table = document.getElementById('scheduleExcelTable');
+            const rows = table.querySelectorAll('tr');
+            
+            rows.forEach((tr, idx) => {
+                // Skip the first row if it's the title (we added our own title)
+                if(idx === 0) return;
+                
+                const rowData = [];
+                const tds = tr.querySelectorAll('th, td');
+                
+                tds.forEach(td => {
+                    let val = td.innerText.trim();
+                    const input = td.querySelector('input');
+                    if(input) val = input.value;
+                    rowData.push(val);
+                });
+                
+                const excelRow = ws.addRow(rowData);
+                
+                // Style cells
+                tds.forEach((td, cIdx) => {
+                    const cell = excelRow.getCell(cIdx + 1);
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                    
+                    if(td.tagName === 'TH' || td.classList.contains('excel-header')) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'BDD7EE' } };
+                        cell.font = { bold: true, name: 'Calibri' };
+                    } else if(td.style.backgroundColor && td.style.backgroundColor.includes('f8f9fa')) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8F9FA' } };
+                    }
+                    
+                    const colSpan = parseInt(td.getAttribute('colspan') || 1);
+                    if(colSpan > 1) {
+                        ws.mergeCells(excelRow.number, cIdx + 1, excelRow.number, cIdx + colSpan);
+                    }
+                });
             });
-        });
-
-        const spareData = [];
-        document.querySelectorAll('#spareDriversTable tbody tr').forEach(tr => {
-            if (tr.classList.contains('empty-row')) return;
-            spareData.push({
-                car: tr.querySelector('.in-car')?.value || '',
-                type: tr.querySelector('.in-type')?.value || '',
-                plate: tr.querySelector('.in-plate')?.value || '',
-                job: tr.querySelector('.in-job')?.value || '',
-                driver: tr.querySelector('.in-driver')?.value || '',
-                iqama: tr.querySelector('.in-iqama')?.value || '',
-                notes: tr.querySelector('.in-notes')?.value || ''
-            });
-        });
-
-        const dateVal = document.getElementById('weekDate')?.value || '';
-
-        fetch('/api/generate_schedule', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                date: dateVal,
-                main: mainData,
-                spare: spareData
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
+            
+            // Set widths
+            ws.columns.forEach(col => { col.width = 15; });
+            ws.getColumn(1).width = 5; // Index
+            ws.getColumn(3).width = 25; // Driver Name
+            
+            const buffer = await wb.xlsx.writeBuffer();
+            saveAs(new Blob([buffer]), 'الجدول_الاسبوعي.xlsx');
+            
+        } catch(e) {
+            console.error(e);
+            alert("حدث خطأ أثناء التصدير.");
+        } finally {
             btn.innerHTML = oldText;
             btn.disabled = false;
-            if (data.success && data.file_b64) {
-                const link = document.createElement("a");
-                link.href = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + data.file_b64;
-                link.download = "جدول_المركبات.xlsx";
-                link.click();
-            } else {
-                alert('حدث خطأ أثناء التصدير');
-            }
-        })
-        .catch(err => {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
-            alert('حدث خطأ أثناء الاتصال بالخادم');
-        });
+        }
     }
-
 </script>
     <style>
         .header { text-align:center; margin: 0 auto 1.5rem auto; z-index: 2; width: 100%; max-width: 1200px;}
@@ -191,6 +205,8 @@
             @page { size: landscape; margin: 5mm; }
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
 {% if not google_user %}<a href="/logout" style="position: absolute; top: 1.5rem; left: 1.5rem; z-index: 9999; background: #e74c3c; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 0.95rem; text-decoration: none; font-family: Cairo; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">تسجيل الخروج</a>{% endif %}
@@ -219,7 +235,8 @@
         <a href="/washing" class="btn-outline" style="text-decoration:none;">جدول الغسيل</a>
         <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="btn-outline" style="text-decoration:none;">نظام التتبع GPS</a>
         <button class="btn-outline" onclick="addScheduleRow()" style="border-color: #27ae60; color: #27ae60;">+ إضافة صف جديد</button>
-        <button class="btn-outline" onclick="window.print()" style="border-color: #e67e22; color: #e67e22;">🖨 طباعة الجدول</button>
+        <button class="btn-outline" onclick="exportScheduleExcel()" style="border-color: #3498db; color: #3498db;">📥 تحميل كملف Excel</button>
+          <button class="btn-outline" onclick="window.print()" style="border-color: #e67e22; color: #e67e22;">🖨 طباعة الجدول</button>
     </div>
 
     <!-- Excel Table Replica -->
