@@ -1194,113 +1194,90 @@
             btn.disabled = true;
 
             try {
-                const wb = new ExcelJS.Workbook();
-                const ws = wb.addWorksheet('بيان الزيوت', { views: [{ rightToLeft: true }] });
+                const response = await fetch('/static/oils_template.xlsx');
+                if(!response.ok) throw new Error("لم يتم العثور على قالب الإكسل الأساسي.");
+                const buffer = await response.arrayBuffer();
                 
-                // Add Title
-                const title = document.getElementById('oilsTitle').value;
-                const titleRow = ws.addRow([title]);
-                ws.mergeCells('A1:G1');
-                ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
-                ws.getCell('A1').font = { bold: true, size: 14, name: 'Calibri' };
-                ws.getCell('A1').border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-                titleRow.height = 30;
-
-                let currentRow = 2;
+                const wb = new ExcelJS.Workbook();
+                await wb.xlsx.load(buffer);
+                const ws = wb.getWorksheet(1);
+                
+                // 1. Title
+                ws.getCell('A4').value = document.getElementById('oilsTitle').value;
+                
+                // 2. Main Oils Table (Max 59 rows: Excel Row 6 to 64)
+                const oilsRows = document.querySelectorAll('#oilsBody tr');
+                oilsRows.forEach((tr, idx) => {
+                    if(idx < 59) {
+                        const r = 6 + idx;
+                        const tds = tr.querySelectorAll('td');
+                        const getVal = (c) => {
+                            if(!tds[c]) return '';
+                            const input = tds[c].querySelector('input');
+                            if(input) return input.value;
+                            return tds[c].innerText.replace('❌','').trim();
+                        };
+                        
+                        ws.getCell('A'+r).value = getVal(0);
+                        ws.getCell('B'+r).value = getVal(1);
+                        ws.getCell('C'+r).value = getVal(2);
+                        ws.getCell('E'+r).value = getVal(3);
+                        ws.getCell('F'+r).value = getVal(4);
+                        ws.getCell('G'+r).value = getVal(5);
+                        ws.getCell('H'+r).value = getVal(6);
+                    }
+                });
 
                 const tables = document.querySelectorAll('.excel-table');
                 
-                tables.forEach((table, tIdx) => {
-                    if(tIdx > 0) {
-                        ws.addRow([]); // empty row separator
-                        currentRow++;
-                    }
+                // 3. Top Notes (Row 65,66,67)
+                if(tables.length > 1) {
+                    const topNotes = tables[1].querySelectorAll('input');
+                    if(topNotes.length >= 1) ws.getCell('A65').value = topNotes[0].value;
+                    if(topNotes.length >= 2) ws.getCell('A66').value = topNotes[1].value;
+                    if(topNotes.length >= 3) ws.getCell('A67').value = topNotes[2].value;
+                }
 
-                    const rows = table.querySelectorAll('tr');
-                    rows.forEach(tr => {
-                        const rowData = [];
-                        const tds = tr.querySelectorAll('th, td');
-                        
-                        let hasData = false;
-                        tds.forEach((td, idx) => {
-                            // Skip Delete button column in main table
-                            if(table.id === 'oilsExcelTable' && idx === tds.length - 1 && td.innerText.includes('حذف')) return;
-                            if(table.id === 'oilsExcelTable' && idx === tds.length - 1 && td.querySelector('.btn-del')) return;
-
-                            let val = td.innerText.trim();
-                            const input = td.querySelector('input');
-                            if(input) val = input.value;
+                // 4. Filters Table (Max 18 rows: Excel Row 69 to 86)
+                if(tables.length > 2) {
+                    const filterRows = tables[2].querySelectorAll('tbody tr');
+                    filterRows.forEach((tr, idx) => {
+                        if(idx < 18) {
+                            const r = 69 + idx;
+                            const tds = tr.querySelectorAll('td');
+                            const getVal = (c) => tds[c] ? (tds[c].querySelector('input') ? tds[c].querySelector('input').value : tds[c].innerText.trim()) : '';
                             
-                            rowData.push(val);
-                            if(val) hasData = true;
-                        });
-
-                        // Don't skip empty rows, they might be needed for spacing
-                        const excelRow = ws.addRow(rowData);
-                        
-                        // Apply styling
-                        tds.forEach((td, idx) => {
-                            if(table.id === 'oilsExcelTable' && idx === tds.length - 1 && td.innerText.includes('حذف')) return;
-                            if(table.id === 'oilsExcelTable' && idx === tds.length - 1 && td.querySelector('.btn-del')) return;
-
-                            // Actual column index in excel (1-based)
-                            const colIdx = idx + 1;
-                            const cell = excelRow.getCell(colIdx);
+                            ws.getCell('A'+r).value = getVal(0);
+                            ws.getCell('B'+r).value = getVal(1);
+                            ws.getCell('C'+r).value = getVal(2);
+                            ws.getCell('D'+r).value = getVal(3);
+                            ws.getCell('E'+r).value = getVal(4);
                             
-                            // Alignments
-                            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                            cell.font = { name: 'Calibri', bold: td.tagName === 'TH' || td.style.fontWeight === 'bold' };
-                            
-                            // Borders
-                            if (table.style.border !== 'none' && td.style.border !== 'none') {
-                                cell.border = {
-                                    top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}
-                                };
-                            }
-
-                            // Background colors
-                            let bg = '';
-                            if(td.tagName === 'TH' || td.classList.contains('excel-header')) bg = 'BDD7EE';
-                            else if(td.style.backgroundColor) {
-                                if(td.style.backgroundColor.includes('f8f9fa')) bg = 'F8F9FA';
-                                if(td.style.backgroundColor.includes('34495e')) bg = '34495E';
-                            }
-                            
-                            if(bg) {
-                                cell.fill = {
-                                    type: 'pattern',
-                                    pattern: 'solid',
-                                    fgColor: { argb: bg }
-                                };
-                                if(bg === '34495E') cell.font.color = { argb: 'FFFFFFFF' };
-                            }
-                            
-                            // Colspans
-                            const colSpan = parseInt(td.getAttribute('colspan') || 1);
-                            if(colSpan > 1) {
-                                ws.mergeCells(currentRow, colIdx, currentRow, colIdx + colSpan - 1);
-                            }
-                        });
-                        
-                        currentRow++;
+                            ws.getCell('F'+r).value = getVal(5);
+                            ws.getCell('G'+r).value = getVal(6);
+                            ws.getCell('H'+r).value = getVal(7);
+                            ws.getCell('I'+r).value = getVal(8);
+                        }
                     });
-                });
-                
-                // Set Column Widths
-                ws.getColumn(1).width = 5;
-                ws.getColumn(2).width = 20;
-                ws.getColumn(3).width = 25;
-                ws.getColumn(4).width = 18;
-                ws.getColumn(5).width = 15;
-                ws.getColumn(6).width = 12;
-                ws.getColumn(7).width = 35;
-                
-                const buffer = await wb.xlsx.writeBuffer();
-                saveAs(new Blob([buffer]), 'بيان_الزيوت.xlsx');
-                
+                }
+
+                // 5. Bottom Notes (Row 89 to 94)
+                if(tables.length > 3) {
+                    const bottomNotes = tables[3].querySelectorAll('input');
+                    if(bottomNotes.length >= 1) ws.getCell('A89').value = bottomNotes[0].value;
+                    if(bottomNotes.length >= 2) ws.getCell('A90').value = bottomNotes[1].value;
+                    if(bottomNotes.length >= 3) ws.getCell('A91').value = bottomNotes[2].value;
+                    if(bottomNotes.length >= 4) ws.getCell('A92').value = bottomNotes[3].value;
+                    if(bottomNotes.length >= 5) ws.getCell('A93').value = bottomNotes[4].value;
+                    if(bottomNotes.length >= 6) ws.getCell('A94').value = bottomNotes[5].value;
+                }
+
+                const outBuffer = await wb.xlsx.writeBuffer();
+                saveAs(new Blob([outBuffer]), 'بيان_الزيوت.xlsx');
+
             } catch (e) {
                 console.error(e);
-                alert("حدث خطأ أثناء التصدير.");
+                alert("حدث خطأ أثناء التصدير: " + e.message);
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
