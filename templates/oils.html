@@ -126,7 +126,8 @@
         <a href="/washing" class="btn-outline" style="text-decoration:none;">جدول الغسيل</a>
         <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="btn-outline" style="text-decoration:none;">نظام التتبع GPS</a>
         <button class="btn-outline" onclick="addOilsRow()" style="border-color: #27ae60; color: #27ae60;">+ إضافة صف جديد</button>
-        <button class="btn-outline" onclick="window.print()" style="border-color: #e67e22; color: #e67e22;">🖨 طباعة الجدول</button>
+        <button class="btn-outline" onclick="exportOilsExcel()" style="border-color: #3498db; color: #3498db; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 6px; background: transparent;">📥 تحميل كملف Excel</button>
+          <button class="btn-outline" onclick="window.print()" style="border-color: #e67e22; color: #e67e22;">🖨 طباعة الجدول</button>
     </div>
 
     <!-- Excel Table Replica -->
@@ -1180,7 +1181,56 @@
             loadFromLocalStorage();
             fetchDrivers();
         });
-    </script>
+    
+        async function exportOilsExcel() {
+            if(typeof ExcelJS === 'undefined') {
+                alert("يرجى الانتظار، جاري تحميل مكتبة التصدير...");
+                return;
+            }
+            
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('بيان الزيوت');
+            
+            // Add Title
+            const title = document.getElementById('oilsTitle').value;
+            ws.addRow([title]);
+            ws.mergeCells('A1:G1');
+            ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+            ws.getCell('A1').font = { bold: true, size: 14 };
+            
+            // Add Headers
+            const headers = [];
+            document.querySelectorAll('#oilsExcelTable thead th').forEach(th => {
+                if(!th.innerHTML.includes('input') && !th.innerText.includes('حذف')) {
+                    headers.push(th.innerText.replace(/\n/g, ' '));
+                }
+            });
+            ws.addRow(headers);
+            
+            // Add Rows
+            document.querySelectorAll('#oilsBody tr').forEach(tr => {
+                const rowData = [];
+                const tds = tr.querySelectorAll('td');
+                tds.forEach((td, idx) => {
+                    if(idx < tds.length - 1) { // Skip Delete Button Column
+                        const input = td.querySelector('input');
+                        rowData.push(input ? input.value : td.innerText);
+                    }
+                });
+                if(rowData.length > 0) ws.addRow(rowData);
+            });
+            
+            // Apply RTL
+            ws.views = [ { rightToLeft: true } ];
+            
+            // Auto-fit columns
+            ws.columns.forEach(col => { col.width = 20; });
+            
+            // Save
+            const buffer = await wb.xlsx.writeBuffer();
+            saveAs(new Blob([buffer]), 'بيان_الزيوت.xlsx');
+        }
+</script>
 
     
 
@@ -1189,7 +1239,8 @@
     
     <div class="nav-buttons" style="margin: 30px auto; width: 100%; max-width: 1200px; display: flex; justify-content: center; gap: 10px;">
         <button class="btn-outline" onclick="addOilsRow()" style="border-color: #27ae60; color: #27ae60; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 6px; background: transparent;">+ إضافة صف جديد للزيوت</button>
-        <button class="btn-outline" onclick="window.print()" style="border-color: #e67e22; color: #e67e22; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 6px; background: transparent;">🖨 طباعة الجدول</button>
+        <button class="btn-outline" onclick="exportOilsExcel()" style="border-color: #3498db; color: #3498db; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 6px; background: transparent;">📥 تحميل كملف Excel</button>
+          <button class="btn-outline" onclick="window.print()" style="border-color: #e67e22; color: #e67e22; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 6px; background: transparent;">🖨 طباعة الجدول</button>
         <button class="btn-outline" onclick="localStorage.removeItem('excel_oils_data'); window.location.reload();" style="border-color: #e74c3c; color: #e74c3c; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 6px; background: transparent;">🗑 مسح البيانات</button>
     </div>
 
