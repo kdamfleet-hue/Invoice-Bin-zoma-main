@@ -15,7 +15,6 @@ from functools import wraps
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_cors import CORS
 from dotenv import load_dotenv
-from authlib.integrations.flask_client import OAuth
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
@@ -157,15 +156,7 @@ app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
 mail = Mail(app)
 
-# OAuth Configuration
-oauth = OAuth(app)
-google = oauth.register(
-    name="google",
-    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
-    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"},
-)
+# OAuth configuration removed
 
 
 def get_db():
@@ -241,54 +232,39 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get("authenticated"):
-            return redirect(url_for("password_entry"))
+            return redirect(url_for("login"))
         return f(*args, **kwargs)
 
     return decorated_function
 
 
-@app.route("/login")
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("authenticated"):
         return redirect(url_for("index"))
-    return render_template("login.html")
-
-
-@app.route("/google-login")
-def google_login():
-    redirect_uri = url_for("authorize", _external=True)
-    return google.authorize_redirect(redirect_uri)
-
-
-@app.route("/authorize")
-def authorize():
-    token = google.authorize_access_token()
-    user = google.parse_id_token(token, nonce=None)
-    if user:
-        session["google_user"] = user
-        return redirect(url_for("password_entry"))
-    return redirect(url_for("login"))
-
-
-@app.route("/password", methods=["GET", "POST"])
-def password_entry():
+        
     if request.method == "POST":
-        pw = request.form.get("password", "")
-        master = os.environ.get("MASTER_PASSWORD")
-        if not master:
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        
+        master_user = os.environ.get("ADMIN_USERNAME", "admin")
+        master_pass = os.environ.get("MASTER_PASSWORD")
+        
+        if not master_pass:
             logger.error("MASTER_PASSWORD environment variable is not set!")
-            return render_template(
-                "password.html", error="خطأ في إعداد النظام. يرجى التواصل مع المدير."
-            )
-        if pw == master:
+            return render_template("login.html", error="خطأ في إعداد النظام. يرجى التواصل مع المدير.")
+            
+        if username == master_user and password == master_pass:
             session["authenticated"] = True
             session.permanent = True
-            logger.info("Successful password login")
+            session["google_user"] = {"name": master_user, "email": "admin@system.local"}
+            logger.info("Successful login")
             return redirect(url_for("index"))
         else:
             logger.warning("Failed login attempt")
-            return render_template("password.html", error="كلمة المرور غير صحيحة")
-    return render_template("password.html")
+            return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة")
+            
+    return render_template("login.html")
 
 
 @app.route("/logout")

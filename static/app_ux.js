@@ -254,7 +254,7 @@ window.resetIdleTimer = function() {
 function initIdleTimeout() {
     // Skip on public pages
     const path = window.location.pathname;
-    const publicPaths = ['/login', '/password', '/google-login', '/authorize'];
+    const publicPaths = ['/login'];
     if (publicPaths.some(p => path.startsWith(p))) return;
 
     // Reset timer on any user interaction
