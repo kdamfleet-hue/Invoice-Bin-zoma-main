@@ -1238,9 +1238,9 @@ def generate_po():
                 logo_path = os.path.join(os.path.dirname(__file__), "static", "site_logo.png")
             if os.path.exists(logo_path):
                 img = XLImage(logo_path)
-                img.width = 220
-                img.height = 60
-                ws.add_image(img, 'E1') 
+                img.width = 450
+                img.height = 85
+                ws.add_image(img, 'C1') 
         except Exception as e:
             logger.error("Logo injection failed: %s", e)
 
