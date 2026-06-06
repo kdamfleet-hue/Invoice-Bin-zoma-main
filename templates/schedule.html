@@ -737,7 +737,7 @@
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
-                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList"></td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
@@ -782,7 +782,7 @@
                                 <td class="excel-input"><input type="text" list="scheduleDriversList" value="${r[1] || ''}"></td>
                                 <td class="excel-input"><input type="text" value="${r[2] || ''}"></td>
                                 <td class="excel-input"><input type="text" value="${r[3] || ''}"></td>
-                                <td class="excel-input"><input type="text" value="${r[4] || ''}"></td>
+                                <td class="excel-input"><input type="text" list="schedulePlatesList" value="${r[4] || ''}"></td>
                                 <td class="excel-input"><input type="text" value="${r[5] || ''}"></td>
                                 <td class="excel-input"><input type="text" value="${r[6] || ''}"></td>
                                 <td class="excel-input"><input type="text" value="${r[7] || ''}"></td>
@@ -817,25 +817,40 @@
             try {
                 driversData = await (await fetch('/api/drivers')).json();
                 let list = document.getElementById('scheduleDriversList');
+                let platesList = document.getElementById('schedulePlatesList');
                 if(!list) {
                     list = document.createElement('datalist');
                     list.id = 'scheduleDriversList';
                     document.body.appendChild(list);
                 }
+                if(!platesList) {
+                    platesList = document.createElement('datalist');
+                    platesList.id = 'schedulePlatesList';
+                    document.body.appendChild(platesList);
+                }
                 list.innerHTML = '';
+                platesList.innerHTML = '';
                 driversData.forEach(d => {
                     if (d.name) {
                         const o = document.createElement('option');
-                        o.value = d.name;
+                        o.value = d.plate && d.plate !== 'None' ? `${d.name} - ${d.plate}` : d.name;
                         list.appendChild(o);
+                    }
+                    if (d.plate && d.plate !== 'None') {
+                        const op = document.createElement('option');
+                        op.value = d.plate;
+                        platesList.appendChild(op);
                     }
                 });
             } catch (e) { console.error('Failed to fetch drivers', e); }
         }
 
         function handleAutofill(inputEl) {
-            const name = inputEl.value.trim();
-            const driver = driversData.find(d => d.name === name);
+            const val = inputEl.value.trim();
+            const driver = driversData.find(d => {
+                const combined = d.plate && d.plate !== 'None' ? `${d.name} - ${d.plate}` : d.name;
+                return combined === val || d.name === val || d.plate === val;
+            });
             if(driver) {
                 const tr = inputEl.closest('tr');
                 const inputs = tr.querySelectorAll('input');
@@ -848,8 +863,11 @@
                 // 5: model
                 // 6: car
                 if(driver.empid && driver.empid !== 'None') inputs[0].value = driver.empid;
+                inputs[1].value = driver.name;
                 if(driver.iqama && driver.iqama !== 'None') inputs[2].value = driver.iqama;
+                if(driver.job && driver.job !== 'None') inputs[3].value = driver.job;
                 if(driver.plate && driver.plate !== 'None') inputs[4].value = driver.plate;
+                if(driver.model && driver.model !== 'None') inputs[5].value = driver.model;
                 if(driver.car && driver.car !== 'None') inputs[6].value = driver.car;
                 
                 saveToLocalStorage();
@@ -857,13 +875,22 @@
         }
 
         document.addEventListener('change', function(e) {
-            if(e.target.tagName.toLowerCase() === 'input' && e.target.getAttribute('list') === 'scheduleDriversList') {
+            if(e.target.tagName.toLowerCase() === 'input' && 
+               (e.target.getAttribute('list') === 'scheduleDriversList' || e.target.getAttribute('list') === 'schedulePlatesList')) {
                 handleAutofill(e.target);
             }
         });
 
         // Initialize fetch when page loads
-        window.addEventListener('DOMContentLoaded', fetchDrivers);
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchDrivers();
+            document.querySelectorAll('#scheduleBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 4 && !inputs[4].getAttribute('list')) {
+                    inputs[4].setAttribute('list', 'schedulePlatesList');
+                }
+            });
+        });
 
     </script>
 

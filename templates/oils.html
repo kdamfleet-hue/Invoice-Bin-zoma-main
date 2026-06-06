@@ -1039,6 +1039,7 @@
         </div>
     </div>
 <datalist id="oilsDriversList"></datalist>
+<datalist id="oilsPlatesList"></datalist>
 
     <script>
 
@@ -1066,7 +1067,7 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                     <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">${rowCount}</td>
-                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text" list="oilsPlatesList"></td>
                     <td class="excel-input"><input type="text" list="oilsDriversList"></td>
                     <td class="excel-input"><input type="date"></td>
                     <td class="excel-input"><input type="text"></td>
@@ -1107,7 +1108,7 @@
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
                                 <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">${idx+1}</td>
-                                <td class="excel-input"><input type="text" value="${r[0] || ''}"></td>
+                                <td class="excel-input"><input type="text" list="oilsPlatesList" value="${r[0] || ''}"></td>
                                 <td class="excel-input"><input type="text" list="oilsDriversList" value="${r[1] || ''}"></td>
                                 <td class="excel-input"><input type="date" value="${r[2] || ''}"></td>
                                 <td class="excel-input"><input type="text" value="${r[3] || ''}"></td>
@@ -1134,20 +1135,30 @@
                 const res = await fetch('/api/drivers');
                 driversData = await res.json();
                 let list = document.getElementById('oilsDriversList');
+                let platesList = document.getElementById('oilsPlatesList');
                 list.innerHTML = '';
+                if(platesList) platesList.innerHTML = '';
                 driversData.forEach(d => {
                     if (d.name) {
                         const o = document.createElement('option');
-                        o.value = d.name;
+                        o.value = d.plate && d.plate !== 'None' ? `${d.name} - ${d.plate}` : d.name;
                         list.appendChild(o);
+                    }
+                    if (d.plate && d.plate !== 'None' && platesList) {
+                        const op = document.createElement('option');
+                        op.value = d.plate;
+                        platesList.appendChild(op);
                     }
                 });
             } catch (e) { console.error('Failed to fetch drivers', e); }
         }
 
         function handleAutofill(inputEl) {
-            const name = inputEl.value.trim();
-            const driver = driversData.find(d => d.name === name);
+            const val = inputEl.value.trim();
+            const driver = driversData.find(d => {
+                const combined = d.plate && d.plate !== 'None' ? `${d.name} - ${d.plate}` : d.name;
+                return combined === val || d.name === val || d.plate === val;
+            });
             if(driver) {
                 const tr = inputEl.closest('tr');
                 const inputs = tr.querySelectorAll('input');
@@ -1159,13 +1170,15 @@
                 // 4: liters
                 // 5: filters
                 if(driver.plate && driver.plate !== 'None') inputs[0].value = driver.plate;
+                inputs[1].value = driver.name;
                 
                 saveToLocalStorage();
             }
         }
 
         document.addEventListener('change', function(e) {
-            if(e.target.tagName.toLowerCase() === 'input' && e.target.getAttribute('list') === 'oilsDriversList') {
+            if(e.target.tagName.toLowerCase() === 'input' && 
+               (e.target.getAttribute('list') === 'oilsDriversList' || e.target.getAttribute('list') === 'oilsPlatesList')) {
                 handleAutofill(e.target);
             }
         });
@@ -1180,6 +1193,12 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadFromLocalStorage();
             fetchDrivers();
+            document.querySelectorAll('#oilsBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 0 && !inputs[0].getAttribute('list')) {
+                    inputs[0].setAttribute('list', 'oilsPlatesList');
+                }
+            });
         });
     
         async function exportOilsExcel() {
