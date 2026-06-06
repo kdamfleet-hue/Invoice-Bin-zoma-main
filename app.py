@@ -1119,6 +1119,7 @@ def generate_po():
         ws["I8"] = model_val
         
         ws["D9"] = data.get("odometer", "")
+        ws["G9"] = data.get("phone", "")
         date_val = data.get("date", "")
         if date_val:
             ws["C4"] = date_val
@@ -1201,13 +1202,15 @@ def generate_po():
         if notes:
             set_formatted(35, 9, notes)
 
-        # Row 37: الإجمالي شامل الضريبة (grand total line)
+        # Row 37: الإجمالي شامل الضريبة (grand total line) - Replaced with Tafqeet text
         grand_total_val = summary.get("grand_total")
-        set_formatted(37, 5, grand_total_val, is_currency=True)
         
-        # Add Tafqeet in Col 1 of Row 37
-        ws.cell(row=37, column=1).value = tafqeet(grand_total_val)
-        ws.cell(row=37, column=1).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        # Add Tafqeet in Col 5 (E) of Row 37 INSTEAD of the numeric value
+        ws.cell(row=37, column=5).value = tafqeet(grand_total_val)
+        ws.cell(row=37, column=5).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+        # Remove the previous logic that put it in Col 1
+        ws.cell(row=37, column=1).value = ""
 
         # Inject Logo
         try:
