@@ -1233,7 +1233,7 @@ def generate_po():
         # Inject Logo
         try:
             from openpyxl.drawing.image import Image as XLImage
-            logo_path = os.path.join(os.path.dirname(__file__), "new_logo_clean.png")
+            logo_path = os.path.join(os.path.dirname(__file__), "logo_excel.png")
             if not os.path.exists(logo_path):
                 logo_path = os.path.join(os.path.dirname(__file__), "static", "site_logo.png")
             if os.path.exists(logo_path):
