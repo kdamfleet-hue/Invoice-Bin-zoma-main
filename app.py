@@ -1098,26 +1098,45 @@ def generate_po():
         
         ws["D9"] = data.get("odometer", "")
         
-        # Merge E9:I9 and add Phone and EmpID
         try:
-            ws.merge_cells(start_row=9, start_column=5, end_row=9, end_column=9)
+            ws.unmerge_cells(start_row=9, start_column=5, end_row=9, end_column=9)
         except Exception:
             pass
-            
-        combined_text = []
-        if data.get("phone"):
-            combined_text.append(f"رقم الجوال: {data.get('phone')}")
-        if data.get("empid"):
-            combined_text.append(f"الرقم الوظيفي: {data.get('empid')}")
-            
-        ws["E9"] = "   |   ".join(combined_text)
+
+        ws["F8"] = "رقم اللوحة:"
+        ws["H8"] = "الموديل:"
+
+        ws["F9"] = "رقم الجوال:"
+        ws["G9"] = data.get("phone", "")
+        ws["H9"] = "الرقم الوظيفي:"
+        ws["I9"] = data.get("empid", "")
         
-        from copy import copy
-        for col in range(5, 10): # E to I
-            ws.cell(row=9, column=col).font = copy(ws.cell(row=8, column=4).font) 
-            ws.cell(row=9, column=col).fill = copy(ws.cell(row=8, column=4).fill)
-            ws.cell(row=9, column=col).border = copy(ws.cell(row=8, column=4).border)
-            ws.cell(row=9, column=col).alignment = copy(ws.cell(row=8, column=4).alignment)
+        from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
+        label_fill = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        
+        # Labels to format: F8(Plate), H8(Model), F9(Phone), H9(EmpID)
+        for r, c in [(8, 6), (8, 8), (9, 6), (9, 8)]:
+            cell = ws.cell(row=r, column=c)
+            # Copy font from A8, but hardcode the rest to ensure it matches perfectly
+            try:
+                cell.font = copy(ws["A8"].font)
+            except:
+                cell.font = Font(name="Arial", size=12, bold=True)
+            cell.fill = label_fill
+            cell.border = thin_border
+            cell.alignment = center_align
+            
+        # Values to format: G8(PlateVal), I8(ModelVal), G9(PhoneVal), I9(EmpIDVal)
+        for r, c in [(8, 7), (8, 9), (9, 7), (9, 9)]:
+            cell = ws.cell(row=r, column=c)
+            try:
+                cell.font = copy(ws["D8"].font)
+            except:
+                pass
+            cell.border = thin_border
+            cell.alignment = center_align
 
         date_val = data.get("date", "")
         if date_val:
@@ -1213,15 +1232,15 @@ def generate_po():
 
         # Inject Logo
         try:
-            from openpyxl.drawing.image import Image as xlImage
+            from openpyxl.drawing.image import Image as XLImage
             logo_path = os.path.join(os.path.dirname(__file__), "new_logo_clean.png")
             if not os.path.exists(logo_path):
                 logo_path = os.path.join(os.path.dirname(__file__), "static", "site_logo.png")
             if os.path.exists(logo_path):
-                img = xlImage(logo_path)
-                img.width = 180
+                img = XLImage(logo_path)
+                img.width = 220
                 img.height = 60
-                ws.add_image(img, "A1") 
+                ws.add_image(img, 'E1') 
         except Exception as e:
             logger.error("Logo injection failed: %s", e)
 
