@@ -247,10 +247,10 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         
-        master_user = os.environ.get("ADMIN_USERNAME", "Khaled@1105090615")
+        master_user = os.environ.get("ADMIN_USERNAME", "admin")
         master_pass = os.environ.get("MASTER_PASSWORD")
         
-        allowed_users = [master_user, "Khaled@1105090615", "Khaled@admin"]
+        allowed_users = [master_user, "admin"]
         
         if not master_pass:
             logger.error("MASTER_PASSWORD environment variable is not set!")
