@@ -1109,7 +1109,15 @@ def generate_po():
         ws["I7"] = data.get("job", "سائق")
         ws["D8"] = data.get("car", "")
         ws["G8"] = data.get("plate", "")
-        ws["I8"] = data.get("model", "")
+        
+        model_val = data.get("model", "")
+        if not model_val and data.get("car"):
+            import re
+            match = re.search(r'(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})', data.get("car", ""))
+            if match:
+                model_val = match.group(1)
+        ws["I8"] = model_val
+        
         ws["D9"] = data.get("odometer", "")
         date_val = data.get("date", "")
         if date_val:
