@@ -1119,7 +1119,25 @@ def generate_po():
         ws["I8"] = model_val
         
         ws["D9"] = data.get("odometer", "")
+        
+        # Add Phone and Iqama to row 9
+        ws["F9"] = "رقم الجوال:"
         ws["G9"] = data.get("phone", "")
+        ws["H9"] = "رقم الإقامة:"
+        ws["I9"] = data.get("iqama", "")
+        
+        from copy import copy
+        for col in [6, 8]: # F, H
+            ws.cell(row=9, column=col).font = copy(ws.cell(row=8, column=1).font) 
+            ws.cell(row=9, column=col).fill = copy(ws.cell(row=8, column=1).fill)
+            ws.cell(row=9, column=col).border = copy(ws.cell(row=8, column=1).border)
+            ws.cell(row=9, column=col).alignment = copy(ws.cell(row=8, column=1).alignment)
+            
+        for col in [7, 9]: # G, I
+            ws.cell(row=9, column=col).font = copy(ws.cell(row=8, column=4).font) 
+            ws.cell(row=9, column=col).border = copy(ws.cell(row=8, column=4).border)
+            ws.cell(row=9, column=col).alignment = copy(ws.cell(row=8, column=4).alignment)
+
         date_val = data.get("date", "")
         if date_val:
             ws["C4"] = date_val
