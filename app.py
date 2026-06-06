@@ -833,6 +833,61 @@ def normalize_plate(plate):
     letters = "".join(re.findall(r"[^\d]+", plate))
     return digits + letters
 
+def tafqeet(amount):
+    try:
+        amount = float(amount)
+    except:
+        return ""
+    if amount == 0: return "صفر ريال فقط لا غير"
+    
+    units = ["", "واحد", "اثنان", "ثلاثة", "أربعة", "خمسة", "ستة", "سبعة", "ثمانية", "تسعة", "عشرة",
+             "أحد عشر", "اثنا عشر", "ثلاثة عشر", "أربعة عشر", "خمسة عشر", "ستة عشر", "سبعة عشر", "ثمانية عشر", "تسعة عشر"]
+    tens = ["", "عشرة", "عشرون", "ثلاثون", "أربعون", "خمسون", "ستون", "سبعون", "ثمانون", "تسعون"]
+    hundreds = ["", "مائة", "مائتان", "ثلاثمائة", "أربعمائة", "خمسمائة", "ستمائة", "سبعمائة", "ثمانمائة", "تسعمائة"]
+    
+    def convert_999(n):
+        if n == 0: return ""
+        h = n // 100
+        rem = n % 100
+        words = []
+        if h > 0:
+            words.append(hundreds[h])
+        if rem > 0:
+            if rem < 20:
+                words.append(units[rem])
+            else:
+                t = rem // 10
+                u = rem % 10
+                if u > 0:
+                    words.append(units[u] + " و" + tens[t])
+                else:
+                    words.append(tens[t])
+        return " و".join(words)
+
+    int_part = int(amount)
+    dec_part = int(round((amount - int_part) * 100))
+    
+    mils = int_part // 1000000
+    thous = (int_part % 1000000) // 1000
+    ones = int_part % 1000
+    
+    parts = []
+    if mils > 0:
+        if mils == 1: parts.append("مليون")
+        elif mils == 2: parts.append("مليونان")
+        else: parts.append(convert_999(mils) + " مليون")
+    if thous > 0:
+        if thous == 1: parts.append("ألف")
+        elif thous == 2: parts.append("ألفان")
+        else: parts.append(convert_999(thous) + " ألف")
+    if ones > 0:
+        parts.append(convert_999(ones))
+        
+    res = " و".join(parts) + " ريال"
+    if dec_part > 0:
+        res += " و" + convert_999(dec_part) + " هللة"
+    return res + " فقط لا غير"
+
 
 @app.route("/api/gps_sync", methods=["POST"])
 @login_required
@@ -1139,7 +1194,26 @@ def generate_po():
             set_formatted(35, 9, notes)
 
         # Row 37: الإجمالي شامل الضريبة (grand total line)
-        set_formatted(37, 5, summary.get("grand_total"), is_currency=True)
+        grand_total_val = summary.get("grand_total")
+        set_formatted(37, 5, grand_total_val, is_currency=True)
+        
+        # Add Tafqeet in Col 1 of Row 37
+        ws.cell(row=37, column=1).value = tafqeet(grand_total_val)
+        ws.cell(row=37, column=1).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+        # Inject Logo
+        try:
+            from openpyxl.drawing.image import Image as xlImage
+            logo_path = os.path.join(os.path.dirname(__file__), "new_logo_clean.png")
+            if not os.path.exists(logo_path):
+                logo_path = os.path.join(os.path.dirname(__file__), "static", "site_logo.png")
+            if os.path.exists(logo_path):
+                img = xlImage(logo_path)
+                img.width = 180
+                img.height = 60
+                ws.add_image(img, "A1") 
+        except Exception as e:
+            logger.error("Logo injection failed: %s", e)
 
         output = io.BytesIO()
         wb.save(output)
