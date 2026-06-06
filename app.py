@@ -1226,6 +1226,10 @@ def generate_po():
         # Add Tafqeet in Col 5 (E) of Row 37 INSTEAD of the numeric value
         ws.cell(row=37, column=5).value = tafqeet(grand_total_val)
         ws.cell(row=37, column=5).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        try:
+            ws.merge_cells(start_row=37, start_column=5, end_row=37, end_column=9)
+        except Exception:
+            pass
 
         # Remove the previous logic that put it in Col 1
         ws.cell(row=37, column=1).value = ""
