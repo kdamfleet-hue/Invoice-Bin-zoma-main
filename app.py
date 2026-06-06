@@ -1120,11 +1120,11 @@ def generate_po():
         
         ws["D9"] = data.get("odometer", "")
         
-        # Add Phone and Iqama to row 9
+        # Add Phone and EmpID to row 9
         ws["F9"] = "رقم الجوال:"
         ws["G9"] = data.get("phone", "")
-        ws["H9"] = "رقم الإقامة:"
-        ws["I9"] = data.get("iqama", "")
+        ws["H9"] = "الرقم الوظيفي:"
+        ws["I9"] = data.get("empid", "")
         
         from copy import copy
         for col in [6, 8]: # F, H
