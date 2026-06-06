@@ -247,17 +247,19 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         
-        master_user = os.environ.get("ADMIN_USERNAME", "admin")
+        master_user = os.environ.get("ADMIN_USERNAME", "Khaled@1105090615")
         master_pass = os.environ.get("MASTER_PASSWORD")
+        
+        allowed_users = [master_user, "Khaled@1105090615", "Khaled@admin"]
         
         if not master_pass:
             logger.error("MASTER_PASSWORD environment variable is not set!")
             return render_template("login.html", error="خطأ في إعداد النظام. يرجى التواصل مع المدير.")
             
-        if username == master_user and password == master_pass:
+        if username in allowed_users and password == master_pass:
             session["authenticated"] = True
             session.permanent = True
-            session["google_user"] = {"name": master_user, "email": "admin@system.local"}
+            session["google_user"] = {"name": username, "email": "admin@system.local"}
             logger.info("Successful login")
             return redirect(url_for("index"))
         else:
