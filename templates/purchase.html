@@ -282,7 +282,7 @@
 <body>
 {% if not google_user %}<a href="/logout" style="position: absolute; top: 1.5rem; left: 1.5rem; z-index: 9999; background: #e74c3c; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 0.95rem; text-decoration: none; font-family: Cairo; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">تسجيل الخروج</a>{% endif %}
     <datalist id="driversList"></datalist>
-
+    <datalist id="platesList"></datalist>
 
     <div class="header-container">
         <img src="{{ url_for('static', filename='site_logo.png') }}" alt="Logo" class="site-logo" style="width: 300px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
@@ -326,7 +326,7 @@
                 <tr>
                     <th class="excel-label">نوع السيارة:</th><td class="excel-input"><input type="text" id="poCar"></td>
                     <th class="excel-label">الموديل:</th><td class="excel-input"><input type="text" id="poModel"></td>
-                    <th class="excel-label">رقم اللوحة:</th><td class="excel-input"><input type="text" id="poPlate"></td>
+                    <th class="excel-label">رقم اللوحة:</th><td class="excel-input"><input type="text" id="poPlate" list="platesList" onchange="poAutofill()"></td>
                 </tr>
                 <tr>
                     <th class="excel-label">عداد السيارة:</th><td class="excel-input" colspan="5"><input type="number" id="odometer" required placeholder="مثال: 150000"></td>
@@ -495,10 +495,35 @@
 
     <script>
         let driversData = [];
-        async function fetchDrivers() { try { driversData = await (await fetch('/api/drivers')).json(); const dl = document.getElementById('driversList'); dl.innerHTML = ''; driversData.forEach(d => { const o = document.createElement('option'); o.value = d.name; dl.appendChild(o); }) } catch (e) { } }
+        async function fetchDrivers() { 
+            try { 
+                driversData = await (await fetch('/api/drivers')).json(); 
+                const dl = document.getElementById('driversList'); 
+                const pl = document.getElementById('platesList');
+                dl.innerHTML = ''; 
+                pl.innerHTML = '';
+                driversData.forEach(d => { 
+                    if (d.name) {
+                        const o = document.createElement('option'); o.value = d.name; dl.appendChild(o); 
+                    }
+                    if (d.plate && d.plate !== 'None') {
+                        const o2 = document.createElement('option'); o2.value = d.plate; pl.appendChild(o2); 
+                    }
+                }) 
+            } catch (e) { } 
+        }
+
         function poAutofill() {
-            const val = document.getElementById('poDriver').value;
-            const d = driversData.find(x => x.name === val);
+            const driverVal = document.getElementById('poDriver').value;
+            const plateVal = document.getElementById('poPlate').value;
+            
+            let d = null;
+            if (driverVal && driversData.some(x => x.name === driverVal)) {
+                d = driversData.find(x => x.name === driverVal);
+            } else if (plateVal && driversData.some(x => x.plate === plateVal)) {
+                d = driversData.find(x => x.plate === plateVal);
+            }
+
             if (d) { fillDriverFields(d); }
         }
 
@@ -735,6 +760,11 @@
                     const bytes = new Uint8Array(bin.length);
                     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
                     saveAs(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), 'طلب_شراء_' + (document.getElementById('poSerial').value) + '_' + (document.getElementById('poDriver').value || 'سائق') + '.xlsx');
+                    
+                    // Increment Serial after successful download
+                    let currentSerial = parseInt(localStorage.getItem('poSerialCounter')) || 102;
+                    localStorage.setItem('poSerialCounter', currentSerial + 1);
+                    document.getElementById('poSerial').value = currentSerial + 1;
                 } else showToast('خطأ: ' + data.error, 'error');
             } catch (e) { showToast('خطأ: ' + e, 'error'); }
             btn.innerText = '📥 استخراج الطلب (Excel)';
@@ -750,7 +780,15 @@
                     const filename = 'طلب_شراء_' + (document.getElementById('poSerial').value) + '_' + (document.getElementById('poDriver').value || 'سائق') + '.xlsx';
                     const res = await fetch('/api/send_email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, filename, file_b64: poData.file_b64, subject: document.getElementById('emailSubject').value, cc: getCcEmails() }) });
                     const data = await res.json();
-                    if (data.success) { showToast('تم إرسال طلب الشراء بنجاح! ✅', 'success'); closeCustomModal('emailModal'); }
+                    if (data.success) { 
+                        showToast('تم إرسال طلب الشراء بنجاح! ✅', 'success'); 
+                        closeCustomModal('emailModal'); 
+                        
+                        // Increment Serial after successful email
+                        let currentSerial = parseInt(localStorage.getItem('poSerialCounter')) || 102;
+                        localStorage.setItem('poSerialCounter', currentSerial + 1);
+                        document.getElementById('poSerial').value = currentSerial + 1;
+                    }
                     else showToast('خطأ: ' + data.error, 'error');
                 } else showToast('خطأ: ' + poData.error, 'error');
             } catch (e) { showToast('خطأ: ' + e, 'error'); }
@@ -775,7 +813,13 @@
         
         document.getElementById('sumTires').placeholder = 'أدخل يدوياً';
 
-        window.onload = async () => { await fetchDrivers(); document.getElementById('poDate').valueAsDate = new Date(); document.getElementById('poSerial').value = Math.floor(Date.now() / 1000).toString(); addPartRow(); addRepairRow(); addTireRow(); addBatteryRow(); };
+        window.onload = async () => { 
+            await fetchDrivers(); 
+            document.getElementById('poDate').valueAsDate = new Date(); 
+            let serialNum = parseInt(localStorage.getItem('poSerialCounter')) || 102;
+            document.getElementById('poSerial').value = serialNum; 
+            addPartRow(); addRepairRow(); addTireRow(); addBatteryRow(); 
+        };
     </script>
 
 

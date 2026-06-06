@@ -1063,69 +1063,83 @@ def generate_po():
         if serial_val:
             ws["J3"] = f"NO. {serial_val}"
 
+        from openpyxl.styles import Alignment
+        center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+        def set_formatted(row, col, val, is_currency=False):
+            cell = ws.cell(row=row, column=col)
+            if not isinstance(cell, MC):
+                if val is not None and val != "":
+                    if is_currency:
+                        try:
+                            cell.value = float(val)
+                            cell.number_format = '#,##0.00'
+                        except:
+                            cell.value = val
+                    else:
+                        cell.value = val
+                else:
+                    cell.value = None
+                cell.alignment = center_align
+
         # Fill parts (rows 12-14)
         parts = data.get("parts", [])
         for i, p in enumerate(parts[:3]):
             r = 12 + i
-            ws.cell(row=r, column=4).value = p.get("desc", "")
-            ws.cell(row=r, column=7).value = p.get("qty") or None
-            ws.cell(row=r, column=8).value = p.get("price") or None
-            ws.cell(row=r, column=9).value = p.get("val") or None
-            ws.cell(row=r, column=10).value = p.get("notes", "")
+            set_formatted(r, 4, p.get("desc", ""))
+            set_formatted(r, 7, p.get("qty"))
+            set_formatted(r, 8, p.get("price"), is_currency=True)
+            set_formatted(r, 9, p.get("val"), is_currency=True)
+            set_formatted(r, 10, p.get("notes", ""))
 
         # Fill repairs (rows 18-20)
         repairs = data.get("repairs", [])
         for i, rep in enumerate(repairs[:3]):
             r = 18 + i
-            ws.cell(row=r, column=4).value = rep.get("desc", "")
-            ws.cell(row=r, column=8).value = rep.get("val") or None
-            ws.cell(row=r, column=9).value = rep.get("notes", "")
+            set_formatted(r, 4, rep.get("desc", ""))
+            set_formatted(r, 8, rep.get("val"), is_currency=True)
+            set_formatted(r, 9, rep.get("notes", ""))
 
         # Fill tires (rows 24-26)
         tires = data.get("tires", [])
         for i, t in enumerate(tires[:3]):
             r = 24 + i
-            ws.cell(row=r, column=4).value = t.get("date", "")
-            ws.cell(row=r, column=5).value = t.get("count") or None
-            ws.cell(row=r, column=6).value = t.get("front") or None
-            ws.cell(row=r, column=7).value = t.get("back") or None
-            ws.cell(row=r, column=8).value = t.get("prev") or None
-            ws.cell(row=r, column=9).value = t.get("curr") or None
-            ws.cell(row=r, column=10).value = t.get("dist") or None
+            set_formatted(r, 4, t.get("date", ""))
+            set_formatted(r, 5, t.get("count"))
+            set_formatted(r, 6, t.get("front"))
+            set_formatted(r, 7, t.get("back"))
+            set_formatted(r, 8, t.get("prev"))
+            set_formatted(r, 9, t.get("curr"))
+            set_formatted(r, 10, t.get("dist"))
 
         # Fill batteries (rows 30-32)
         batteries = data.get("batteries", [])
         for i, b in enumerate(batteries[:3]):
             r = 30 + i
-            ws.cell(row=r, column=4).value = b.get("desc", "")
-            ws.cell(row=r, column=6).value = b.get("count") or None
-            ws.cell(row=r, column=7).value = b.get("size", "")
-            ws.cell(row=r, column=8).value = b.get("amp", "")
-            ws.cell(row=r, column=9).value = b.get("price") or None
-            ws.cell(row=r, column=10).value = b.get("date", "")
+            set_formatted(r, 4, b.get("desc", ""))
+            set_formatted(r, 6, b.get("count"))
+            set_formatted(r, 7, b.get("size", ""))
+            set_formatted(r, 8, b.get("amp", ""))
+            set_formatted(r, 9, b.get("price"), is_currency=True)
+            set_formatted(r, 10, b.get("date", ""))
 
         # Fill summary totals (row 34: per-category, row 35-36: subtotals, row 37: grand total)
         summary = data.get("summary", {})
 
-        def po_safe_set(row, col, val):
-            cell = ws.cell(row=row, column=col)
-            if not isinstance(cell, MC):
-                cell.value = val
-
         # Row 34: individual category totals
-        po_safe_set(35, 3, summary.get("parts_total") or None)
-        po_safe_set(35, 4, summary.get("repairs_total") or None)
-        po_safe_set(35, 5, summary.get("tires_total") or None)
-        po_safe_set(35, 6, summary.get("batteries_total") or None)
+        set_formatted(35, 3, summary.get("parts_total"), is_currency=True)
+        set_formatted(35, 4, summary.get("repairs_total"), is_currency=True)
+        set_formatted(35, 5, summary.get("tires_total"), is_currency=True)
+        set_formatted(35, 6, summary.get("batteries_total"), is_currency=True)
         # Row 34 col 7-8: "الإجمالي شامل الضريبة" (label already in template)
-        po_safe_set(35, 7, summary.get("grand_total") or None)
+        set_formatted(35, 7, summary.get("grand_total"), is_currency=True)
         # Row 34 col 9: Notes
         notes = data.get("notes", "")
         if notes:
-            po_safe_set(35, 9, notes)
+            set_formatted(35, 9, notes)
 
         # Row 37: الإجمالي شامل الضريبة (grand total line)
-        po_safe_set(37, 5, summary.get("grand_total") or None)
+        set_formatted(37, 5, summary.get("grand_total"), is_currency=True)
 
         output = io.BytesIO()
         wb.save(output)
