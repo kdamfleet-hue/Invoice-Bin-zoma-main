@@ -1120,21 +1120,24 @@ def generate_po():
         
         ws["D9"] = data.get("odometer", "")
         
-        # Add Phone and EmpID to row 9
-        ws["F9"] = "رقم الجوال:"
-        ws["G9"] = data.get("phone", "")
-        ws["H9"] = "الرقم الوظيفي:"
-        ws["I9"] = data.get("empid", "")
+        # Merge E9:I9 and add Phone and EmpID
+        try:
+            ws.merge_cells(start_row=9, start_column=5, end_row=9, end_column=9)
+        except Exception:
+            pass
+            
+        combined_text = []
+        if data.get("phone"):
+            combined_text.append(f"رقم الجوال: {data.get('phone')}")
+        if data.get("empid"):
+            combined_text.append(f"الرقم الوظيفي: {data.get('empid')}")
+            
+        ws["E9"] = "   |   ".join(combined_text)
         
         from copy import copy
-        for col in [6, 8]: # F, H
-            ws.cell(row=9, column=col).font = copy(ws.cell(row=8, column=1).font) 
-            ws.cell(row=9, column=col).fill = copy(ws.cell(row=8, column=1).fill)
-            ws.cell(row=9, column=col).border = copy(ws.cell(row=8, column=1).border)
-            ws.cell(row=9, column=col).alignment = copy(ws.cell(row=8, column=1).alignment)
-            
-        for col in [7, 9]: # G, I
+        for col in range(5, 10): # E to I
             ws.cell(row=9, column=col).font = copy(ws.cell(row=8, column=4).font) 
+            ws.cell(row=9, column=col).fill = copy(ws.cell(row=8, column=4).fill)
             ws.cell(row=9, column=col).border = copy(ws.cell(row=8, column=4).border)
             ws.cell(row=9, column=col).alignment = copy(ws.cell(row=8, column=4).alignment)
 
@@ -1226,10 +1229,6 @@ def generate_po():
         # Add Tafqeet in Col 5 (E) of Row 37 INSTEAD of the numeric value
         ws.cell(row=37, column=5).value = tafqeet(grand_total_val)
         ws.cell(row=37, column=5).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        try:
-            ws.merge_cells(start_row=37, start_column=5, end_row=37, end_column=9)
-        except Exception:
-            pass
 
         # Remove the previous logic that put it in Col 1
         ws.cell(row=37, column=1).value = ""
