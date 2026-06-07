@@ -7,93 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
-    <script>
-    async function exportScheduleExcel() {
-        if(typeof ExcelJS === 'undefined') {
-            alert("يرجى الانتظار، جاري تحميل مكتبة التصدير...");
-            return;
-        }
-
-        const btn = document.querySelector('button[onclick="exportScheduleExcel()"]');
-        const oldText = btn.innerHTML;
-        btn.innerHTML = 'جاري التصدير... ⏳';
-        btn.disabled = true;
-
-        try {
-            const wb = new ExcelJS.Workbook();
-            const ws = wb.addWorksheet('الجدول الأسبوعي', { views: [{ rightToLeft: true }] });
-            
-            // Add Title
-            const titleDate = document.getElementById('scheduleDate').value;
-            ws.addRow(['تحديث الجدول الأسبوعي للمركبات والسائقين ' + titleDate]);
-            ws.mergeCells('A1:M1');
-            ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
-            ws.getCell('A1').font = { bold: true, size: 14, name: 'Calibri' };
-            ws.getCell('A1').border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-            
-            // Extract Table Data
-            const table = document.getElementById('scheduleExcelTable');
-            const rows = table.querySelectorAll('tr');
-            
-            rows.forEach((tr, idx) => {
-                // Skip the first row if it's the title (we added our own title)
-                if(idx === 0) return;
-                
-                const rowData = [];
-                // Filter out the actions column/delete cell
-                const tds = Array.from(tr.querySelectorAll('th, td')).filter((td, tdIdx, arr) => {
-                    if (tdIdx === arr.length - 1 && (td.classList.contains('actions-column') || td.querySelector('.btn-delete'))) {
-                        return false;
-                    }
-                    return true;
-                });
-                
-                tds.forEach(td => {
-                    let val = td.innerText.trim();
-                    const input = td.querySelector('input');
-                    if(input) val = input.value;
-                    rowData.push(val);
-                });
-                
-                const excelRow = ws.addRow(rowData);
-                
-                // Style cells
-                tds.forEach((td, cIdx) => {
-                    const cell = excelRow.getCell(cIdx + 1);
-                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                    cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-                    
-                    if(td.tagName === 'TH' || td.classList.contains('excel-header')) {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'BDD7EE' } };
-                        cell.font = { bold: true, name: 'Calibri' };
-                    } else if(td.style.backgroundColor && td.style.backgroundColor.includes('f8f9fa')) {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8F9FA' } };
-                    }
-                    
-                    const colSpan = parseInt(td.getAttribute('colspan') || 1);
-                    if(colSpan > 1) {
-                        ws.mergeCells(excelRow.number, cIdx + 1, excelRow.number, cIdx + colSpan);
-                    }
-                });
-            });
-            
-            // Set widths
-            ws.columns.forEach(col => { col.width = 15; });
-            ws.getColumn(1).width = 5; // Index
-            ws.getColumn(3).width = 25; // Driver Name
-            
-            const buffer = await wb.xlsx.writeBuffer();
-            saveAs(new Blob([buffer]), 'الجدول_الاسبوعي.xlsx');
-            
-        } catch(e) {
-            console.error(e);
-            alert("حدث خطأ أثناء التصدير.");
-        } finally {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
-        }
-    }
-</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         .header { text-align:center; margin: 0 auto 1.5rem auto; z-index: 2; width: 100%; max-width: 1200px;}
         .site-logo { max-width: 650px; width:80%; margin-bottom:0.5rem; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.2)); transition: var(--trans); }
@@ -147,7 +62,7 @@
             td { border: 1px solid #000 !important; }
             td input, td select { border: none !important; appearance: none !important; padding: 0 !important; background: transparent !important; color: #000 !important; }
             .btn-delete { display: none !important; }
-            th:last-child, td:last-child { display: none !important; }
+            .actions-column { display: none !important; }
         }
         .table-wrap { max-height: 65vh; overflow-y: auto; }
         thead th { position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -176,15 +91,17 @@
             text-align: center;
             font-weight: bold;
             padding: 10px !important;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             border: 1px solid #000;
+            white-space: normal;
+            line-height: 1.3;
         }
         .excel-input input, .excel-table td input {
             width: 100%;
             height: 100%;
             box-sizing: border-box;
             border: none !important;
-            padding: 8px;
+            padding: 8px 4px;
             background: transparent;
             font-family: 'Cairo', sans-serif;
             font-weight: 600;
@@ -192,10 +109,82 @@
             text-align: center;
             outline: none;
             min-height: 40px;
+            font-size: 0.85rem;
         }
         .excel-input input:focus, .excel-table td input:focus {
             background: #f0f8ff;
         }
+
+        /* Spare vehicles section */
+        .spare-section-title {
+            background-color: #FFD966 !important;
+            color: #000 !important;
+            text-align: center;
+            font-weight: 800;
+            padding: 12px !important;
+            font-size: 1rem;
+            border: 2px solid #000;
+        }
+        .spare-header {
+            background-color: #FFE699 !important;
+            color: #000 !important;
+            text-align: center;
+            font-weight: bold;
+            padding: 10px !important;
+            font-size: 0.85rem;
+            border: 1px solid #000;
+            white-space: normal;
+            line-height: 1.3;
+        }
+        
+        /* Summary section */
+        .summary-section-title {
+            background-color: #A9D08E !important;
+            color: #000 !important;
+            text-align: center;
+            font-weight: 800;
+            padding: 12px !important;
+            font-size: 1rem;
+            border: 2px solid #000;
+        }
+        .summary-header {
+            background-color: #C6EFCE !important;
+            color: #000 !important;
+            text-align: center;
+            font-weight: bold;
+            padding: 10px !important;
+            font-size: 0.85rem;
+            border: 1px solid #000;
+        }
+        .summary-cell {
+            text-align: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            padding: 10px !important;
+            background: #f8fff8;
+        }
+        
+        /* Footer section */
+        .excel-footer-text {
+            text-align: center;
+            font-weight: 700;
+            padding: 15px !important;
+            font-size: 0.95rem;
+            color: #333;
+            border: 1px solid #000;
+        }
+        .excel-footer-name {
+            text-align: center;
+            font-weight: 800;
+            padding: 10px !important;
+            font-size: 1rem;
+            color: #1A3A5C;
+        }
+
+        /* Expired date highlighting */
+        .date-expired { background: #FFCCCC !important; }
+        .date-warning { background: #FFFACD !important; }
+
         @media print {
             body * {
                 visibility: hidden;
@@ -210,10 +199,9 @@
                 width: 100%;
             }
             @page { size: landscape; margin: 5mm; }
+            .actions-column { display: none !important; }
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
 {% if not google_user %}<a href="/logout" style="position: absolute; top: 1.5rem; left: 1.5rem; z-index: 9999; background: #e74c3c; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 0.95rem; text-decoration: none; font-family: Cairo; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">تسجيل الخروج</a>{% endif %}
@@ -241,505 +229,859 @@
         <a href="/purchase" class="btn-outline" style="text-decoration:none;">طلب شراء وإصلاح</a>
         <a href="/washing" class="btn-outline" style="text-decoration:none;">جدول الغسيل</a>
         <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="btn-outline" style="text-decoration:none;">نظام التتبع GPS</a>
-        <button class="btn-outline" onclick="addScheduleRow()" style="border-color: #27ae60; color: #27ae60;">+ إضافة صف جديد</button>
+        <button class="btn-outline" onclick="addScheduleRow('scheduleBody')" style="border-color: #27ae60; color: #27ae60;">+ إضافة صف جديد</button>
+        <button class="btn-outline" onclick="addScheduleRow('spareBody')" style="border-color: #e67e22; color: #e67e22;">+ إضافة صف (الاسبير)</button>
         <button class="btn-outline" onclick="exportScheduleExcel()" style="border-color: #3498db; color: #3498db;">📥 تحميل كملف Excel</button>
           <button class="btn-outline" onclick="window.print()" style="border-color: #e67e22; color: #e67e22;">🖨 طباعة الجدول</button>
     </div>
 
     <!-- Excel Table Replica -->
-    <div class="excel-table-container" style="width: 100%; max-width: 1800px; margin: 0 auto; overflow-x: auto; padding: 20px;">
+    <div class="excel-table-container" style="width: 100%; max-width: 2200px; margin: 0 auto; overflow-x: auto; padding: 20px;">
         <table class="excel-table" id="scheduleExcelTable">
             <thead>
                 <tr>
-                    <th colspan="3" style="border:none;"></th>
+                    <th colspan="4" style="border:none;"></th>
                     <th colspan="3" style="border:none; text-align: left; padding-bottom: 10px;">
                         <input type="date" id="scheduleDate" style="font-weight:bold; font-size: 1.1rem; text-align:center; padding: 5px; border: 1px solid #ccc; font-family:'Cairo';">
                     </th>
-                    <th colspan="4" style="border:none; text-align: center; font-size: 1.5rem; font-weight: 800; color: #000; padding-bottom: 10px;">
+                    <th colspan="6" style="border:none; text-align: center; font-size: 1.3rem; font-weight: 800; color: #000; padding-bottom: 10px;">
                         جدول تحديث مركبات وموصلين و موزعين الأسبوعي فرع الدمام
                     </th>
-                    <th colspan="4" style="border:none;"></th>
+                    <th colspan="5" style="border:none;"></th>
                 </tr>
                 <tr>
                     <th class="excel-header" style="width:2%;">م</th>
-                    <th class="excel-header" style="width:6%;">الرقم الوظيفي</th>
-                    <th class="excel-header" style="width:14%;">اسم السائق</th>
-                    <th class="excel-header" style="width:8%;">رقم الإقامة</th>
-                    <th class="excel-header" style="width:6%;">الوظيفة</th>
-                    <th class="excel-header" style="width:8%;">رقم اللوحة</th>
-                    <th class="excel-header" style="width:5%;">موديل</th>
-                    <th class="excel-header" style="width:10%;">نوع المركبة</th>
-                    <th class="excel-header" style="width:5%;">عدد الطبالي</th>
-                    <th class="excel-header" style="width:5%;">الحمولة</th>
-                    <th class="excel-header" style="width:10%;">الرقم التسلسلي للمركبة</th>
-                    <th class="excel-header" style="width:10%;">تاريخ انتهاء<br>الفحص الدوري</th>
-                    <th class="excel-header" style="width:10%;">تاريخ انتهاء<br>رخصة السير</th>
-                    <th class="excel-header actions-column" style="width:4%;">الإجراءات</th>
+                    <th class="excel-header" style="width:5%;">الرقم الوظيفي</th>
+                    <th class="excel-header" style="width:11%;">اسم السائق</th>
+                    <th class="excel-header" style="width:6%;">رقم الإقامة</th>
+                    <th class="excel-header" style="width:4%;">الوظيفة</th>
+                    <th class="excel-header" style="width:7%;">رقم اللوحة</th>
+                    <th class="excel-header" style="width:4%;">موديل</th>
+                    <th class="excel-header" style="width:8%;">نوع المركبة</th>
+                    <th class="excel-header" style="width:3%;">عدد الطبالي</th>
+                    <th class="excel-header" style="width:3%;">الحمولة</th>
+                    <th class="excel-header" style="width:7%;">الرقم التسلسلي<br>للمركبة</th>
+                    <th class="excel-header" style="width:7%;">تاريخ انتهاء<br>الفحص الدوري</th>
+                    <th class="excel-header" style="width:7%;">تاريخ انتهاء<br>رخصة السير</th>
+                    <th class="excel-header" style="width:7%;">تاريخ انتهاء<br>بطاقة السائق</th>
+                    <th class="excel-header" style="width:7%;">تاريخ انتهاء<br>بطاقة التشغيل</th>
+                    <th class="excel-header" style="width:8%;">الملاحظات</th>
+                    <th class="excel-header" style="width:5%;">رقم الجوال</th>
+                    <th class="excel-header actions-column" style="width:3%;">الإجراءات</th>
                 </tr>
             </thead>
             <tbody id="scheduleBody">
-
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">1</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100310"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="شومون مياه ادريس مياه"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2253252916"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م  8013"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="17554020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-03-31"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-10 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">1</td>
+                    <td class="excel-input"><input type="text" value="100310"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="شومون مياه ادريس مياه"></td>
+                    <td class="excel-input"><input type="text" value="2253252916"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م  8013"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="17554020"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-01"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-10"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-02"></td>
+                    <td class="excel-input"><input type="text" value="لا يوجد"></td>
+                    <td class="excel-input"><input type="text" value="0504125217"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">2</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100200"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="ثابت قاسم محسن بن نصور"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2171087048"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م  8025"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="968754020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-14"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">2</td>
+                    <td class="excel-input"><input type="text" value="100200"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="ثابت قاسم محسن بن نصور"></td>
+                    <td class="excel-input"><input type="text" value="2171087048"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م  8025"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="968754020"></td>
+                    <td class="excel-input"><input type="text" value="2026-10-14"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-11"></td>
+                    <td class="excel-input"><input type="text" value="2026-05-19"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-07"></td>
+                    <td class="excel-input"><input type="text" value="لم يتم تجديد "></td>
+                    <td class="excel-input"><input type="text" value="0595770006"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">3</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100327"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="محمد عبدالصبور عبدالعزيز "></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2283628259"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م 8024"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="358754020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-14"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">3</td>
+                    <td class="excel-input"><input type="text" value="100327"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد عبدالصبور عبدالعزيز "></td>
+                    <td class="excel-input"><input type="text" value="2283628259"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8024"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="358754020"></td>
+                    <td class="excel-input"><input type="text" value="2026-10-14"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-11"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-05"></td>
+                    <td class="excel-input"><input type="text" value="لا يوجد"></td>
+                    <td class="excel-input"><input type="text" value="0565369080"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">4</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100245"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="كابيل مياه"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2121612820"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ح  8714 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="29819910"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-30"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-05-06 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">4</td>
+                    <td class="excel-input"><input type="text" value="100245"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="كابيل مياه"></td>
+                    <td class="excel-input"><input type="text" value="2121612820"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ح  8714 "></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="29819910"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-30"></td>
+                    <td class="excel-input"><input type="text" value="2029-04-02"></td>
+                    <td class="excel-input"><input type="text" value="2026-06-25"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="(تعديل مهنة ) "></td>
+                    <td class="excel-input"><input type="text" value="0567116916"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">5</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="102179"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="تنفير حسين"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2519784710"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر ع  2234"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="196860810"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-06-03"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-10 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">5</td>
+                    <td class="excel-input"><input type="text" value="102179"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="تنفير حسين"></td>
+                    <td class="excel-input"><input type="text" value="2519784710"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر ع  2234"></td>
+                    <td class="excel-input"><input type="text" value="2020"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="196860810"></td>
+                    <td class="excel-input"><input type="text" value="2026-06-03"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-10"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0594535961"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">6</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100837"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="سراج ثاندو عبدول"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2460710367"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و 4140"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="826065910"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-03-14"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2025-12-17 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">6</td>
+                    <td class="excel-input"><input type="text" value="100837"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="سراج ثاندو عبدول"></td>
+                    <td class="excel-input"><input type="text" value="2460710367"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و 4140"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="826065910"></td>
+                    <td class="excel-input"><input type="text" value="2027-03-14"></td>
+                    <td class="excel-input"><input type="text" value="2028-10-23"></td>
+                    <td class="excel-input"><input type="text" value="2026-02-15"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="(اصدار) ** رخصة نقل ثقيل **"></td>
+                    <td class="excel-input"><input type="text" value="0571729294"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">7</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100276"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="علاء عبدالنبي رفاعي احمد"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2327676793"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س  8015"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="698454020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-01"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-10 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">7</td>
+                    <td class="excel-input"><input type="text" value="101238"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="علاء عبد النبي رفاعي احمد"></td>
+                    <td class="excel-input"><input type="text" value="2485516401"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س  8015"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="698454020"></td>
+                    <td class="excel-input"><input type="text" value="1448-12-23"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-10"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0535690637"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">8</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100385"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="رفيق اسان بيلات"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2407663372"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ق 7776  "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2016"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="831809610"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-12-08"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-08-30 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">8</td>
+                    <td class="excel-input"><input type="text" value="100385"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="رفيق اسان بيلات"></td>
+                    <td class="excel-input"><input type="text" value="2407663372"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ق 7776  "></td>
+                    <td class="excel-input"><input type="text" value="2016"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="831809610"></td>
+                    <td class="excel-input"><input type="text" value="2026-12-08"></td>
+                    <td class="excel-input"><input type="text" value="2026-08-30"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0570528945"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">9</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100360"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="ابراهيم محمد ابوزيد محمد"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2393652496"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="أ ر ع  2233"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="886860810"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-07-10"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-10 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">9</td>
+                    <td class="excel-input"><input type="text" value="100360"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="ابراهيم محمد ابوزيد محمد"></td>
+                    <td class="excel-input"><input type="text" value="2393652496"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="أ ر ع  2233"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="886860810"></td>
+                    <td class="excel-input"><input type="text" value="2026-07-10"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-10"></td>
+                    <td class="excel-input"><input type="text" value="2026-06-28"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value=""></td>
+                    <td class="excel-input"><input type="text" value="0541364538"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">10</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="101238"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="مد سيف الإسلام"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2485516401"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و 4085 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2022"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="211941910"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-02-08"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2028-04-17 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">10</td>
+                    <td class="excel-input"><input type="text" value="100332"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="انفير كاريماري عمير"></td>
+                    <td class="excel-input"><input type="text" value="2350147415"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و 4085 "></td>
+                    <td class="excel-input"><input type="text" value="2022"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="211941910"></td>
+                    <td class="excel-input"><input type="text" value="2027-02-08"></td>
+                    <td class="excel-input"><input type="text" value="2028-04-17"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-09"></td>
+                    <td class="excel-input"><input type="text" value="2026-12-13"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0571991926"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">11</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="102126"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="ارجوان"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2530207360"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س  8015"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="207954020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-01"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">11</td>
+                    <td class="excel-input"><input type="text" value="102126"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="ارجوان"></td>
+                    <td class="excel-input"><input type="text" value="2530207360"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8033 "></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="207954020"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-01"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-11"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-08"></td>
+                    <td class="excel-input"><input type="text" value="لا يوجد"></td>
+                    <td class="excel-input"><input type="text" value="0567948210"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">12</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100332"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="انفير كاريماري عمير"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2350147415"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و 4084 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2022"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="960941910"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-10"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2028-04-17 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">12</td>
+                    <td class="excel-input"><input type="text" value="100828"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="اجيت راجا"></td>
+                    <td class="excel-input"><input type="text" value="2461544377"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و 4084 "></td>
+                    <td class="excel-input"><input type="text" value="2022"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="960941910"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-10"></td>
+                    <td class="excel-input"><input type="text" value="2028-04-17"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-13"></td>
+                    <td class="excel-input"><input type="text" value="2026-12-13"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0549131428"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">13</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100522"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="سليم اختر محمد"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2430898482"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ح 8670"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="379167910"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-11-15"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2029-01-23 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">13</td>
+                    <td class="excel-input"><input type="text" value="100522"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="سليم اختر محمد"></td>
+                    <td class="excel-input"><input type="text" value="2430898482"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ح 8670"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="379167910"></td>
+                    <td class="excel-input"><input type="text" value="2026-11-15"></td>
+                    <td class="excel-input"><input type="text" value="2029-01-23"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-23"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0581993668"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">14</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="101199"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="محمد عبدالنبي رفاعي احمد"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2468851676"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ص ق 6853"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2024"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="739131120"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-04"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-07-24 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">14</td>
+                    <td class="excel-input"><input type="text" value="101199"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد عبدالنبي رفاعي احمد"></td>
+                    <td class="excel-input"><input type="text" value="2468851676"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ص ق 6853"></td>
+                    <td class="excel-input"><input type="text" value="2024"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="739131120"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-04"></td>
+                    <td class="excel-input"><input type="text" value="2027-07-24"></td>
+                    <td class="excel-input"><input type="text" value="2026-11-06"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-05"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0558654476"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">15</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100330"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="اسف باث شوهل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2325599070"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ح  8717"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="949819910"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-03-24"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-05-06 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">15</td>
+                    <td class="excel-input"><input type="text" value="100330"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="اسف باث شوهل"></td>
+                    <td class="excel-input"><input type="text" value="2325599070"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ح  8717"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="949819910"></td>
+                    <td class="excel-input"><input type="text" value="2027-03-24"></td>
+                    <td class="excel-input"><input type="text" value="2029-04-02"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-03"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0571724688"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">16</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100303"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="فالق سجاد سجاد"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2090207859"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م 8029 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="537954020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-03-31"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">16</td>
+                    <td class="excel-input"><input type="text" value="100303"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="فالق سجاد سجاد"></td>
+                    <td class="excel-input"><input type="text" value="2090207859"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8029 "></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="537954020"></td>
+                    <td class="excel-input"><input type="text" value="2027-03-31"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-11"></td>
+                    <td class="excel-input"><input type="text" value="2027-03-20"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-02"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0558453231"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">17</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="102452"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="محمد يونس "></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2550977850"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ل 8850 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2016"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="451809610"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-11-12"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-04 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">17</td>
+                    <td class="excel-input"><input type="text" value="102845"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="موزيد خان"></td>
+                    <td class="excel-input"><input type="text" value="2607260698"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ل 8850 "></td>
+                    <td class="excel-input"><input type="text" value="2016"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="451809610"></td>
+                    <td class="excel-input"><input type="text" value="2026-11-12"></td>
+                    <td class="excel-input"><input type="text" value="2026-10-04"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0572901340"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">18</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="102368"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="بسام علي احمد الجلال"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2537417152"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م 8023 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="277754020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-15"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">18</td>
+                    <td class="excel-input"><input type="text" value="102368"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="بسام علي احمد الجلال"></td>
+                    <td class="excel-input"><input type="text" value="2537417152"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8023 "></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="277754020"></td>
+                    <td class="excel-input"><input type="text" value="2026-10-15"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-11"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-23"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-07"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0536735114"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">19</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="101260"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="كرم ابو الهدى صادق "></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2487345031"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و  4071"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2022"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="74841910"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-06"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2028-04-16 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">19</td>
+                    <td class="excel-input"><input type="text" value="101260"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="كرم ابو الهدى صادق "></td>
+                    <td class="excel-input"><input type="text" value="2487345031"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و  4071"></td>
+                    <td class="excel-input"><input type="text" value="2022"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="74841910"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-06"></td>
+                    <td class="excel-input"><input type="text" value="2028-04-16"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-04"></td>
+                    <td class="excel-input"><input type="text" value="2026-12-13"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0564649987"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">20</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="101936"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="مران حسين مد تارو"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2505074498"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م 8031 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="317954020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-02"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">20</td>
+                    <td class="excel-input"><input type="text" value="101936"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="مران حسين مد تارو"></td>
+                    <td class="excel-input"><input type="text" value="2505074498"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8031 "></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="317954020"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-02"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-11"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0550920461"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">21</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100717"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="محمد عبدالحميد محمد "></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2445181585"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م  8035"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="776954020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-06"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">21</td>
+                    <td class="excel-input"><input type="text" value="100717"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد عبدالحميد محمد "></td>
+                    <td class="excel-input"><input type="text" value="2445181585"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م  8035"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="776954020"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-06"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-11"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-05"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0564701656"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">22</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100711"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="احمد عبدالصبور رشوان"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2409104953"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س م  8021"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="538754020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-26"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-01-11 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">22</td>
+                    <td class="excel-input"><input type="text" value="100711"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="احمد عبدالصبور رشوان"></td>
+                    <td class="excel-input"><input type="text" value="2409104953"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م  8021"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="538754020"></td>
+                    <td class="excel-input"><input type="text" value="2026-10-26"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-11"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-05"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0567428582"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">23</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="101958"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="انصار الم"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2512564010"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و  4139  "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="395065910"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2028-10-23"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2025-12-17 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">23</td>
+                    <td class="excel-input"><input type="text" value="101958"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="انصار الم"></td>
+                    <td class="excel-input"><input type="text" value="2512564010"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و  4139  "></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="395065910"></td>
+                    <td class="excel-input"><input type="text" value="2028-10-23"></td>
+                    <td class="excel-input"><input type="text" value="2028-09-24"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0530727974"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">24</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100249"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="شندان دبينات "></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2255207751"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر و 4141"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2023"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو لوري"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="186065910"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-02-04"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2025-12-17 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">24</td>
+                    <td class="excel-input"><input type="text" value="100249"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="شندان دبينات "></td>
+                    <td class="excel-input"><input type="text" value="2255207751"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و 4141"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="186065910"></td>
+                    <td class="excel-input"><input type="text" value="2027-02-04"></td>
+                    <td class="excel-input"><input type="text" value="2028-09-24"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0502219743"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">25</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="101225"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="نديم فضل سبحان"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2472649249"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر ع 2240 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="427860810"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-07-09"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-10 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">25</td>
+                    <td class="excel-input"><input type="text" value="101225"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="نديم فضل سبحان"></td>
+                    <td class="excel-input"><input type="text" value="2472649249"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر ع 2240 "></td>
+                    <td class="excel-input"><input type="text" value="2020"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="427860810"></td>
+                    <td class="excel-input"><input type="text" value="2026-07-09"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-10"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0501901731"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">26</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100237"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="شوكت علي"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2317876015"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="أ س ر 8873 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="203480020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-10-01"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-08-07 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">26</td>
+                    <td class="excel-input"><input type="text" value="100237"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="شوكت علي"></td>
+                    <td class="excel-input"><input type="text" value="2317876015"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="أ س ر 8873 "></td>
+                    <td class="excel-input"><input type="text" value="2020"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="203480020"></td>
+                    <td class="excel-input"><input type="text" value="2026-10-01"></td>
+                    <td class="excel-input"><input type="text" value="2026-08-07"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0551575512"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">27</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="102181"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="محمد مصلح"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2536883693"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ص ق 6855"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2024"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="761431120"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-04-01"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-07-24 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">27</td>
+                    <td class="excel-input"><input type="text" value="102181"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد مصلح"></td>
+                    <td class="excel-input"><input type="text" value="2536883693"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ص ق 6855"></td>
+                    <td class="excel-input"><input type="text" value="2024"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="761431120"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-01"></td>
+                    <td class="excel-input"><input type="text" value="2027-07-24"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-05"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0548827398"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">28</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100217"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="مارييل فينود"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2265030078"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا س ق 7920"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2016"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي لوري "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="8"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="621809610"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="1447-05-16"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-08-25 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">28</td>
+                    <td class="excel-input"><input type="text" value="100217"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="مارييل فينود"></td>
+                    <td class="excel-input"><input type="text" value="2265030078"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ق 7920"></td>
+                    <td class="excel-input"><input type="text" value="2016"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي لوري "></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="621809610"></td>
+                    <td class="excel-input"><input type="text" value="1447-05-16"></td>
+                    <td class="excel-input"><input type="text" value="2026-08-25"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="( صيانة جهاز التتبع)"></td>
+                    <td class="excel-input"><input type="text" value="0564915114"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">29</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100714"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="علي محمد ابوزيد محمد"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2441374739"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موصل"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر ل  5580 "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2015"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="ايسوزو دينا"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="322761410"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-06-03 00:00:00"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2027-06-15 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">29</td>
+                    <td class="excel-input"><input type="text" value="100714"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="علي محمد ابوزيد محمد"></td>
+                    <td class="excel-input"><input type="text" value="2441374739"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر ل  5580 "></td>
+                    <td class="excel-input"><input type="text" value="2015"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو دينا"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="322761410"></td>
+                    <td class="excel-input"><input type="text" value="2026-06-03"></td>
+                    <td class="excel-input"><input type="text" value="2027-06-15"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0530658749"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
                 <tr>
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">30</td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="100231"></td>
-                    <td class="excel-input" style="width:14%;"><input type="text" list="scheduleDriversList" value="انال كومار"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="2255854875"></td>
-                    <td class="excel-input" style="width:6%;"><input type="text" value="موزع"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="ا ر ع 2232"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="2020"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="متسوبيشي دينا "></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="4"></td>
-                    <td class="excel-input" style="width:5%;"><input type="text" value="3"></td>
-                    <td class="excel-input" style="width:10%;"><input type="text" value="386860810"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-05-22 00:00:00"></td>
-                    <td class="excel-input" style="width:10%;"><input type="date" value="2026-09-10 00:00:00"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">30</td>
+                    <td class="excel-input"><input type="text" value="100231"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="انال كومار"></td>
+                    <td class="excel-input"><input type="text" value="2255854875"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ح 8715"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="539819910"></td>
+                    <td class="excel-input"><input type="text" value="2027-02-15"></td>
+                    <td class="excel-input"><input type="text" value="2029-04-02"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-09"></td>
+                    <td class="excel-input"><input type="text" value="2026-05-17"></td>
+                    <td class="excel-input"><input type="text" value=" لم يتم تجديد بطاقة التشغيل "></td>
+                    <td class="excel-input"><input type="text" value="0570947069"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">31</td>
+                    <td class="excel-input"><input type="text" value="100729"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="احمد دنقل"></td>
+                    <td class="excel-input"><input type="text" value="2441375439"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ص ا 7810"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="هينو  دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="829737020"></td>
+                    <td class="excel-input"><input type="text" value="2026-08-24"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-22"></td>
+                    <td class="excel-input"><input type="text" value="2026-10-18"></td>
+                    <td class="excel-input"><input type="text" value="2026-10-21"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0563480939"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'scheduleBody')">✕</button></td>
                 </tr>
             </tbody>
+        </table>
+
+        <!-- Spare/Broken Vehicles Section -->
+        <table class="excel-table" id="spareTable" style="margin-top: 30px;">
+            <thead>
+                <tr>
+                    <th class="spare-section-title" colspan="18">بيان المركبات الاسبير والمعطلة</th>
+                </tr>
+                <tr>
+                    <th class="spare-header" style="width:2%;">م</th>
+                    <th class="spare-header" style="width:5%;">الرقم الوظيفي</th>
+                    <th class="spare-header" style="width:11%;">اسم السائق</th>
+                    <th class="spare-header" style="width:6%;">رقم الإقامة</th>
+                    <th class="spare-header" style="width:4%;">الوظيفة</th>
+                    <th class="spare-header" style="width:7%;">رقم اللوحة</th>
+                    <th class="spare-header" style="width:4%;">موديل</th>
+                    <th class="spare-header" style="width:8%;">نوع المركبة</th>
+                    <th class="spare-header" style="width:3%;">عدد الطبالي</th>
+                    <th class="spare-header" style="width:3%;">الحمولة</th>
+                    <th class="spare-header" style="width:7%;">الرقم التسلسلي<br>للمركبة</th>
+                    <th class="spare-header" style="width:7%;">تاريخ انتهاء<br>الفحص الدوري</th>
+                    <th class="spare-header" style="width:7%;">تاريخ انتهاء<br>رخصة السير</th>
+                    <th class="spare-header" style="width:7%;">تاريخ انتهاء<br>بطاقة السائق</th>
+                    <th class="spare-header" style="width:7%;">تاريخ انتهاء<br>بطاقة التشغيل</th>
+                    <th class="spare-header" style="width:8%;">الملاحظات</th>
+                    <th class="spare-header" style="width:5%;">رقم الجوال</th>
+                    <th class="spare-header actions-column" style="width:3%;">الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="spareBody">
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #FFF8E1;">1</td>
+                    <td class="excel-input"><input type="text" value="————"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="فحص"></td>
+                    <td class="excel-input"><input type="text" value="————"></td>
+                    <td class="excel-input"><input type="text" value="——"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ق 7774"></td>
+                    <td class="excel-input"><input type="text" value="2016"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي لوري "></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="178838410"></td>
+                    <td class="excel-input"><input type="text" value="2025-11-17"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-19"></td>
+                    <td class="excel-input"><input type="text" value="————"></td>
+                    <td class="excel-input"><input type="text" value="2026-05-17"></td>
+                    <td class="excel-input"><input type="text" value=" لم يتم تجديد بطاقة التشغيل (فحص دوري + صيانة جهاز التتبع)"></td>
+                    <td class="excel-input"><input type="text" value="————"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'spareBody')">✕</button></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #FFF8E1;">2</td>
+                    <td class="excel-input"><input type="text" value="————"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="فحص"></td>
+                    <td class="excel-input"><input type="text" value="————"></td>
+                    <td class="excel-input"><input type="text" value="——"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ق 7821"></td>
+                    <td class="excel-input"><input type="text" value="2016"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي لوري "></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="787571510"></td>
+                    <td class="excel-input"><input type="text" value="2025-12-02"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-26"></td>
+                    <td class="excel-input"><input type="text" value="————"></td>
+                    <td class="excel-input"><input type="text" value="2026-05-17"></td>
+                    <td class="excel-input"><input type="text" value="لم يتم تجديد بطاقة التشغيل (فحص دوري- صيانة جهاز التتبع)"></td>
+                    <td class="excel-input"><input type="text" value="————"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'spareBody')">✕</button></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #FFF8E1;">3</td>
+                    <td class="excel-input"><input type="text" value="101238"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="مد سيف "></td>
+                    <td class="excel-input"><input type="text" value="2485516401"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="أ س ق 7775"></td>
+                    <td class="excel-input"><input type="text" value="2016"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي لوري "></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="490809610"></td>
+                    <td class="excel-input"><input type="text" value="2026-11-22"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-19"></td>
+                    <td class="excel-input"><input type="text" value="2026-08-05"></td>
+                    <td class="excel-input"><input type="text" value="2026-05-17"></td>
+                    <td class="excel-input"><input type="text" value="ورشة خارجي (لم يتم تجديد بطاقة التشغيل  صيانة جهاز التتبع)"></td>
+                    <td class="excel-input"><input type="text" value="0570947069"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'spareBody')">✕</button></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #FFF8E1;">4</td>
+                    <td class="excel-input"><input type="text" value="102452"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد يونس "></td>
+                    <td class="excel-input"><input type="text" value="2550977850"></td>
+                    <td class="excel-input"><input type="text" value="موصل"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر ع 2232"></td>
+                    <td class="excel-input"><input type="text" value="2020"></td>
+                    <td class="excel-input"><input type="text" value="متسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="386860810"></td>
+                    <td class="excel-input"><input type="text" value="2026-05-22"></td>
+                    <td class="excel-input"><input type="text" value="2026-09-10"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-09"></td>
+                    <td class="excel-input"><input type="text" value="2027-05-08"></td>
+                    <td class="excel-input"><input type="text" value="لايوجد"></td>
+                    <td class="excel-input"><input type="text" value="0575806817"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'spareBody')">✕</button></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #FFF8E1;">5</td>
+                    <td class="excel-input"><input type="text" value="100574"></td>
+                    <td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد عبدالرحمن المندوه"></td>
+                    <td class="excel-input"><input type="text" value="2441077944"></td>
+                    <td class="excel-input"><input type="text" value="موزع"></td>
+                    <td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8022"></td>
+                    <td class="excel-input"><input type="text" value="2023"></td>
+                    <td class="excel-input"><input type="text" value="ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="3"></td>
+                    <td class="excel-input"><input type="text" value="978754020"></td>
+                    <td class="excel-input"><input type="text" value="لا يوجد"></td>
+                    <td class="excel-input"><input type="text" value="2027-01-11"></td>
+                    <td class="excel-input"><input type="text" value="2016-05-19"></td>
+                    <td class="excel-input"><input type="text" value="2027-04-02"></td>
+                    <td class="excel-input"><input type="text" value="ورشة خارجية للتامين ( بطاقة التشغيل منتهيه وتحتاج الى فحص دوري)"></td>
+                    <td class="excel-input"><input type="text" value="0576559794"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, 'spareBody')">✕</button></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Summary Section -->
+        <table class="excel-table" id="summaryTable" style="margin-top: 30px; max-width: 900px;">
+            <thead>
+                <tr>
+                    <th class="summary-section-title" colspan="7">ملخص الأعداد</th>
+                </tr>
+                <tr>
+                    <th class="summary-header">م</th>
+                    <th class="summary-header">عدد السائقيين</th>
+                    <th class="summary-header">عدد الدينات</th>
+                    <th class="summary-header">عدد اللواري</th>
+                    <th class="summary-header">عدد الموصلين</th>
+                    <th class="summary-header">عدد الموزعين</th>
+                    <th class="summary-header">عدد السائقين في إجازة</th>
+                </tr>
+            </thead>
+            <tbody id="summaryBody">
+                <tr>
+                    <td class="summary-cell">1</td>
+                    <td class="summary-cell" id="summaryDrivers">-</td>
+                    <td class="summary-cell" id="summaryDina">-</td>
+                    <td class="summary-cell" id="summaryLorry">-</td>
+                    <td class="summary-cell" id="summaryMosel">-</td>
+                    <td class="summary-cell" id="summaryMowaze">-</td>
+                    <td class="summary-cell"><input type="text" value="4" style="text-align:center; font-weight:800; font-size:1.1rem; border:none; background:transparent; width:60px; font-family:Cairo;"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Footer -->
+        <table class="excel-table" style="margin-top: 20px; max-width: 900px;">
+            <tr>
+                <td class="excel-footer-text" colspan="7">تم إعداد هذا الجدول بواسطة قسم الحركة</td>
+            </tr>
+            <tr>
+                <td class="excel-footer-name" colspan="7" style="border:none;">قسم الحركة</td>
+            </tr>
+            <tr>
+                <td class="excel-footer-name" colspan="7" style="border:none;">خالد الغامدي</td>
+            </tr>
         </table>
     </div>
 
     <script>
-        function addScheduleRow() {
-            const tbody = document.getElementById('scheduleBody');
+        // ===== COLUMN COUNT: 17 data columns (index 0-16) + delete button =====
+        // 0: empid, 1: name, 2: iqama, 3: job, 4: plate, 5: model, 6: car, 
+        // 7: pallets, 8: load, 9: serial, 10: inspection, 11: license, 
+        // 12: driverCard, 13: operationCard, 14: notes, 15: phone
+
+        function addScheduleRow(tbodyId) {
+            const tbody = document.getElementById(tbodyId);
             const rowCount = tbody.querySelectorAll('tr').length + 1;
+            const bgColor = tbodyId === 'spareBody' ? '#FFF8E1' : '#f8f9fa';
             const tr = document.createElement('tr');
+            tr.classList.add('fade-in');
             tr.innerHTML = `
-                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">${rowCount}</td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: ${bgColor};">${rowCount}</td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text" list="scheduleDriversList"></td>
                     <td class="excel-input"><input type="text"></td>
@@ -750,108 +1092,186 @@
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
-                    <td class="excel-input"><input type="date"></td>
-                    <td class="excel-input"><input type="date"></td>
-                    <td style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this)">✕</button></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
+                    <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, '${tbodyId}')">✕</button></td>
             `;
             tbody.appendChild(tr);
             saveToLocalStorage();
+            updateSummary();
         }
         
         function saveToLocalStorage() {
-            const rows = [];
+            // Save main table
+            const mainRows = [];
             document.querySelectorAll('#scheduleBody tr').forEach(tr => {
                 const inputs = tr.querySelectorAll('input');
                 if(inputs.length > 0) {
                     const rowData = [];
                     inputs.forEach(inp => rowData.push(inp.value));
-                    rows.push(rowData);
+                    mainRows.push(rowData);
                 }
             });
-            localStorage.setItem('excel_schedule_data', JSON.stringify(rows));
+            localStorage.setItem('excel_schedule_data_v2', JSON.stringify(mainRows));
             
+            // Save spare table
+            const spareRows = [];
+            document.querySelectorAll('#spareBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if(inputs.length > 0) {
+                    const rowData = [];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    spareRows.push(rowData);
+                }
+            });
+            localStorage.setItem('excel_spare_data_v2', JSON.stringify(spareRows));
+            
+            // Save date
             const dateVal = document.getElementById('scheduleDate').value;
             localStorage.setItem('excel_schedule_date', dateVal);
+
+            // Save vacation count
+            const vacInput = document.querySelector('#summaryBody input');
+            if (vacInput) localStorage.setItem('excel_vacation_count', vacInput.value);
         }
 
-        function deleteScheduleRow(btn) {
+        function deleteScheduleRow(btn, tbodyId) {
             if(!confirm('هل أنت متأكد من حذف هذا الصف؟')) return;
             const tr = btn.closest('tr');
             tr.remove();
             
             // Re-index remaining rows
-            document.querySelectorAll('#scheduleBody tr').forEach((row, idx) => {
+            document.querySelectorAll(`#${tbodyId} tr`).forEach((row, idx) => {
                 row.cells[0].innerText = idx + 1;
             });
             
             saveToLocalStorage();
+            updateSummary();
         }
 
-        function ensureDeleteButtons() {
-            document.querySelectorAll('#scheduleBody tr').forEach((tr, idx) => {
-                const tds = tr.querySelectorAll('td');
-                if (tds.length === 13) {
-                    const td = document.createElement('td');
-                    td.style.textAlign = 'center';
-                    td.style.border = '1px solid #000';
-                    td.innerHTML = `<button class="btn-delete" onclick="deleteScheduleRow(this)">✕</button>`;
-                    tr.appendChild(td);
-                }
-            });
+        function buildRowHTML(rowData, tbodyId, idx) {
+            const bgColor = tbodyId === 'spareBody' ? '#FFF8E1' : '#f8f9fa';
+            return `
+                <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: ${bgColor};">${idx+1}</td>
+                <td class="excel-input"><input type="text" value="${rowData[0] || ''}"></td>
+                <td class="excel-input"><input type="text" list="scheduleDriversList" value="${rowData[1] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[2] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[3] || ''}"></td>
+                <td class="excel-input"><input type="text" list="schedulePlatesList" value="${rowData[4] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[5] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[6] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[7] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[8] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[9] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[10] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[11] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[12] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[13] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[14] || ''}"></td>
+                <td class="excel-input"><input type="text" value="${rowData[15] || ''}"></td>
+                <td class="actions-column" style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this, '${tbodyId}')">✕</button></td>
+            `;
         }
         
         function loadFromLocalStorage() {
-            const savedData = localStorage.getItem('excel_schedule_data');
-            if(savedData) {
+            // Load main table
+            const savedMain = localStorage.getItem('excel_schedule_data_v2');
+            if(savedMain) {
                 try {
-                    const rows = JSON.parse(savedData);
-                    const tbody = document.getElementById('scheduleBody');
-                    
+                    const rows = JSON.parse(savedMain);
                     if(rows.length > 0) {
+                        const tbody = document.getElementById('scheduleBody');
                         tbody.innerHTML = '';
                         rows.forEach((r, idx) => {
                             const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">${idx+1}</td>
-                                <td class="excel-input"><input type="text" value="${r[0] || ''}"></td>
-                                <td class="excel-input"><input type="text" list="scheduleDriversList" value="${r[1] || ''}"></td>
-                                <td class="excel-input"><input type="text" value="${r[2] || ''}"></td>
-                                <td class="excel-input"><input type="text" value="${r[3] || ''}"></td>
-                                <td class="excel-input"><input type="text" list="schedulePlatesList" value="${r[4] || ''}"></td>
-                                <td class="excel-input"><input type="text" value="${r[5] || ''}"></td>
-                                <td class="excel-input"><input type="text" value="${r[6] || ''}"></td>
-                                <td class="excel-input"><input type="text" value="${r[7] || ''}"></td>
-                                <td class="excel-input"><input type="text" value="${r[8] || ''}"></td>
-                                <td class="excel-input"><input type="text" value="${r[9] || ''}"></td>
-                                <td class="excel-input"><input type="date" value="${r[10] || ''}"></td>
-                                <td class="excel-input"><input type="date" value="${r[11] || ''}"></td>
-                                <td style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this)">✕</button></td>
-                            `;
+                            tr.innerHTML = buildRowHTML(r, 'scheduleBody', idx);
                             tbody.appendChild(tr);
                         });
                     }
-                } catch(e) {}
+                } catch(e) { console.error('Error loading main data', e); }
             }
             
+            // Load spare table
+            const savedSpare = localStorage.getItem('excel_spare_data_v2');
+            if(savedSpare) {
+                try {
+                    const rows = JSON.parse(savedSpare);
+                    if(rows.length > 0) {
+                        const tbody = document.getElementById('spareBody');
+                        tbody.innerHTML = '';
+                        rows.forEach((r, idx) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = buildRowHTML(r, 'spareBody', idx);
+                            tbody.appendChild(tr);
+                        });
+                    }
+                } catch(e) { console.error('Error loading spare data', e); }
+            }
+            
+            // Load date
             const dateVal = localStorage.getItem('excel_schedule_date');
             if(dateVal) {
                 document.getElementById('scheduleDate').value = dateVal;
             } else {
                 document.getElementById('scheduleDate').valueAsDate = new Date();
             }
+
+            // Load vacation count
+            const vacCount = localStorage.getItem('excel_vacation_count');
+            if (vacCount) {
+                const vacInput = document.querySelector('#summaryBody input');
+                if (vacInput) vacInput.value = vacCount;
+            }
             
-            ensureDeleteButtons();
+            updateSummary();
         }
 
+        // ===== Auto-save on input =====
         document.addEventListener('input', function(e) {
             if(e.target.tagName.toLowerCase() === 'input') {
                 clearTimeout(window._saveTimer);
-                window._saveTimer = setTimeout(saveToLocalStorage, 1000);
+                window._saveTimer = setTimeout(() => {
+                    saveToLocalStorage();
+                    updateSummary();
+                }, 1000);
             }
         });
         
         window.addEventListener('DOMContentLoaded', loadFromLocalStorage);
 
+        // ===== Summary calculation =====
+        function updateSummary() {
+            let totalDrivers = 0;
+            let dinaCount = 0;
+            let lorryCount = 0;
+            let moselCount = 0;
+            let mowazeCount = 0;
+
+            document.querySelectorAll('#scheduleBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length < 7) return;
+                totalDrivers++;
+                const carType = (inputs[6].value || '').trim().toLowerCase();
+                const job = (inputs[3].value || '').trim();
+                
+                if (carType.includes('دينا') || carType.includes('دينه')) dinaCount++;
+                if (carType.includes('لوري')) lorryCount++;
+                if (job === 'موصل') moselCount++;
+                if (job === 'موزع') mowazeCount++;
+            });
+
+            document.getElementById('summaryDrivers').textContent = totalDrivers;
+            document.getElementById('summaryDina').textContent = dinaCount;
+            document.getElementById('summaryLorry').textContent = lorryCount;
+            document.getElementById('summaryMosel').textContent = moselCount;
+            document.getElementById('summaryMowaze').textContent = mowazeCount;
+        }
+
+        // ===== Driver Autofill =====
         let driversData = [];
         async function fetchDrivers() {
             try {
@@ -895,13 +1315,9 @@
                 const tr = inputEl.closest('tr');
                 const inputs = tr.querySelectorAll('input');
                 // Column indices for inputs:
-                // 0: empid
-                // 1: name
-                // 2: iqama
-                // 3: job
-                // 4: plate
-                // 5: model
-                // 6: car
+                // 0: empid, 1: name, 2: iqama, 3: job, 4: plate, 5: model, 6: car
+                // 7: pallets, 8: load, 9: serial, 10: inspection, 11: license
+                // 12: driverCard, 13: operationCard, 14: notes, 15: phone
                 if(driver.empid && driver.empid !== 'None') inputs[0].value = driver.empid;
                 inputs[1].value = driver.name;
                 if(driver.iqama && driver.iqama !== 'None') inputs[2].value = driver.iqama;
@@ -914,8 +1330,14 @@
                         inputs[5].value = match[1];
                     }
                 }
+                if(driver.phone && driver.phone !== 'None') {
+                    let phone = String(driver.phone);
+                    if (!phone.startsWith('0')) phone = '0' + phone;
+                    inputs[15].value = phone;
+                }
                 
                 saveToLocalStorage();
+                updateSummary();
             }
         }
 
@@ -929,17 +1351,206 @@
         // Initialize fetch when page loads
         window.addEventListener('DOMContentLoaded', () => {
             fetchDrivers();
-            ensureDeleteButtons();
-            document.querySelectorAll('#scheduleBody tr').forEach(tr => {
+            // Ensure plate inputs have datalist
+            document.querySelectorAll('#scheduleBody tr, #spareBody tr').forEach(tr => {
                 const inputs = tr.querySelectorAll('input');
                 if (inputs.length > 4 && !inputs[4].getAttribute('list')) {
                     inputs[4].setAttribute('list', 'schedulePlatesList');
                 }
             });
         });
+
+        // ===== Excel Export =====
+        async function exportScheduleExcel() {
+            if(typeof ExcelJS === 'undefined') {
+                alert("يرجى الانتظار، جاري تحميل مكتبة التصدير...");
+                return;
+            }
+
+            const btn = document.querySelector('button[onclick="exportScheduleExcel()"]');
+            const oldText = btn.innerHTML;
+            btn.innerHTML = 'جاري التصدير... ⏳';
+            btn.disabled = true;
+
+            try {
+                const wb = new ExcelJS.Workbook();
+                const ws = wb.addWorksheet('ورقة1', { views: [{ rightToLeft: true }] });
+                
+                const titleDate = document.getElementById('scheduleDate').value;
+                const headerStyle = { 
+                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'BDD7EE' } },
+                    font: { bold: true, name: 'Calibri', size: 11 },
+                    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+                    border: { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} }
+                };
+                const cellStyle = {
+                    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+                    border: { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} },
+                    font: { name: 'Calibri', size: 10 }
+                };
+
+                // Column widths matching Excel
+                ws.columns = [
+                    { width: 4 },   // م
+                    { width: 10 },  // الرقم الوظيفي
+                    { width: 22 },  // اسم السائق
+                    { width: 13 },  // رقم الإقامة
+                    { width: 7 },   // الوظيفة
+                    { width: 13 },  // رقم اللوحة
+                    { width: 7 },   // موديل
+                    { width: 16 },  // نوع المركبة
+                    { width: 5 },   // عدد الطبالي
+                    { width: 5 },   // الحمولة
+                    { width: 16 },  // الرقم التسلسلي
+                    { width: 14 },  // تاريخ الفحص
+                    { width: 14 },  // رخصة السير
+                    { width: 14 },  // بطاقة السائق
+                    { width: 14 },  // بطاقة التشغيل
+                    { width: 25 },  // الملاحظات
+                    { width: 13 },  // رقم الجوال
+                ];
+
+                // Row 1: Date
+                const dateRow = ws.addRow([titleDate]);
+                ws.mergeCells('A1:B1');
+                dateRow.getCell(1).font = { bold: true, size: 12, name: 'Calibri' };
+
+                // Row 2: Title
+                const titleRow = ws.addRow(['', '', '', '', '', '', '', 'جدول تحديث مركبات وموصلين و موزعين الأسبوعي فرع الدمام-' + new Date().getFullYear()]);
+                ws.mergeCells(2, 8, 2, 17);
+                titleRow.getCell(8).alignment = { horizontal: 'center', vertical: 'middle' };
+                titleRow.getCell(8).font = { bold: true, size: 14, name: 'Calibri' };
+
+                // Row 3: Headers
+                const headers = ['م', 'الرقم الوظيفي', 'اسم السائق', 'رقم الإقامة', 'الوظيفة', 'رقم اللوحة', 'موديل', 'نوع المركبة', 'عدد الطبالي', 'الحمولة', 'الرقم التسلسلي للمركبة', 'تاريخ انتهاء الفحص الدوري', 'تاريخ انتهاء رخصة السير', 'تاريخ انتهاء بطاقة السائق', 'تاريخ انتهاء بطاقة التشغيل', 'الملاحظات', 'رقم الجوال'];
+                const headerRow = ws.addRow(headers);
+                headerRow.eachCell((cell) => {
+                    Object.assign(cell, headerStyle);
+                    cell.fill = headerStyle.fill;
+                    cell.font = headerStyle.font;
+                    cell.alignment = headerStyle.alignment;
+                    cell.border = headerStyle.border;
+                });
+                headerRow.height = 35;
+
+                // Main data rows
+                document.querySelectorAll('#scheduleBody tr').forEach((tr, idx) => {
+                    const inputs = tr.querySelectorAll('input');
+                    const rowData = [idx + 1];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    const excelRow = ws.addRow(rowData);
+                    excelRow.eachCell((cell) => {
+                        cell.alignment = cellStyle.alignment;
+                        cell.border = cellStyle.border;
+                        cell.font = cellStyle.font;
+                    });
+                });
+
+                // Empty row
+                ws.addRow([]);
+
+                // Spare section title
+                const spareTitle = ws.addRow(['بيان المركبات الاسبير والمعطلة']);
+                const spareTitleRowNum = spareTitle.number;
+                ws.mergeCells(spareTitleRowNum, 1, spareTitleRowNum, 17);
+                spareTitle.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+                spareTitle.getCell(1).font = { bold: true, size: 12, name: 'Calibri' };
+                spareTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD966' } };
+                spareTitle.getCell(1).border = cellStyle.border;
+
+                // Spare headers
+                const spareHeaderRow = ws.addRow(headers);
+                spareHeaderRow.eachCell((cell) => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE699' } };
+                    cell.font = { bold: true, name: 'Calibri', size: 10 };
+                    cell.alignment = headerStyle.alignment;
+                    cell.border = headerStyle.border;
+                });
+                spareHeaderRow.height = 35;
+
+                // Spare data rows
+                document.querySelectorAll('#spareBody tr').forEach((tr, idx) => {
+                    const inputs = tr.querySelectorAll('input');
+                    const rowData = [idx + 1];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    const excelRow = ws.addRow(rowData);
+                    excelRow.eachCell((cell) => {
+                        cell.alignment = cellStyle.alignment;
+                        cell.border = cellStyle.border;
+                        cell.font = cellStyle.font;
+                    });
+                });
+
+                // Empty row
+                ws.addRow([]);
+
+                // Summary section
+                const summaryTitle = ws.addRow(['ملخص الأعداد']);
+                const sumTitleNum = summaryTitle.number;
+                ws.mergeCells(sumTitleNum, 1, sumTitleNum, 7);
+                summaryTitle.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+                summaryTitle.getCell(1).font = { bold: true, size: 12, name: 'Calibri' };
+                summaryTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'A9D08E' } };
+                summaryTitle.getCell(1).border = cellStyle.border;
+
+                const sumHeaders = ['م', 'عدد السائقيين', 'عدد الدينات', 'عدد اللواري', 'عدد الموصلين', 'عدد الموزعين', 'عدد السائقين في إجازة'];
+                const sumHeaderRow = ws.addRow(sumHeaders);
+                sumHeaderRow.eachCell((cell) => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6EFCE' } };
+                    cell.font = { bold: true, name: 'Calibri', size: 10 };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = cellStyle.border;
+                });
+
+                const vacInput = document.querySelector('#summaryBody input');
+                const sumDataRow = ws.addRow([1, 
+                    document.getElementById('summaryDrivers').textContent,
+                    document.getElementById('summaryDina').textContent,
+                    document.getElementById('summaryLorry').textContent,
+                    document.getElementById('summaryMosel').textContent,
+                    document.getElementById('summaryMowaze').textContent,
+                    vacInput ? vacInput.value : ''
+                ]);
+                sumDataRow.eachCell((cell) => {
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = cellStyle.border;
+                    cell.font = { bold: true, name: 'Calibri', size: 12 };
+                });
+
+                // Empty row
+                ws.addRow([]);
+
+                // Footer
+                const footerRow = ws.addRow(['تم إعداد هذا الجدول بواسطة قسم الحركة']);
+                const fRowNum = footerRow.number;
+                ws.mergeCells(fRowNum, 1, fRowNum, 17);
+                footerRow.getCell(1).alignment = { horizontal: 'center' };
+                footerRow.getCell(1).font = { bold: true, size: 11, name: 'Calibri' };
+
+                const deptRow = ws.addRow(['', '', 'قسم الحركة']);
+                deptRow.getCell(3).alignment = { horizontal: 'center' };
+                deptRow.getCell(3).font = { bold: true, size: 11, name: 'Calibri' };
+
+                const nameRow = ws.addRow(['', '', 'خالد الغامدي']);
+                nameRow.getCell(3).alignment = { horizontal: 'center' };
+                nameRow.getCell(3).font = { bold: true, size: 12, name: 'Calibri' };
+                
+                const buffer = await wb.xlsx.writeBuffer();
+                const fileName = 'تحديث الاسبوعي' + (titleDate || '') + '.xlsx';
+                saveAs(new Blob([buffer]), fileName);
+                
+            } catch(e) {
+                console.error(e);
+                alert("حدث خطأ أثناء التصدير: " + e.message);
+            } finally {
+                btn.innerHTML = oldText;
+                btn.disabled = false;
+            }
+        }
     </script>
     <footer style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;width:100%">
         تم التطوير بواسطة قسم التقنية (فرع الدمام)
     </footer>
+
 </body>
 </html>
