@@ -6,7 +6,8 @@
     <title>تحديث الجدول الأسبوعي | شركة بن زومة</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
-    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <script>
     async function exportScheduleExcel() {
         if(typeof ExcelJS === 'undefined') {
             alert("يرجى الانتظار، جاري تحميل مكتبة التصدير...");
@@ -39,7 +40,13 @@
                 if(idx === 0) return;
                 
                 const rowData = [];
-                const tds = tr.querySelectorAll('th, td');
+                // Filter out the actions column/delete cell
+                const tds = Array.from(tr.querySelectorAll('th, td')).filter((td, tdIdx, arr) => {
+                    if (tdIdx === arr.length - 1 && (td.classList.contains('actions-column') || td.querySelector('.btn-delete'))) {
+                        return false;
+                    }
+                    return true;
+                });
                 
                 tds.forEach(td => {
                     let val = td.innerText.trim();
@@ -251,7 +258,7 @@
                     <th colspan="4" style="border:none; text-align: center; font-size: 1.5rem; font-weight: 800; color: #000; padding-bottom: 10px;">
                         جدول تحديث مركبات وموصلين و موزعين الأسبوعي فرع الدمام
                     </th>
-                    <th colspan="3" style="border:none;"></th>
+                    <th colspan="4" style="border:none;"></th>
                 </tr>
                 <tr>
                     <th class="excel-header" style="width:2%;">م</th>
@@ -267,6 +274,7 @@
                     <th class="excel-header" style="width:10%;">الرقم التسلسلي للمركبة</th>
                     <th class="excel-header" style="width:10%;">تاريخ انتهاء<br>الفحص الدوري</th>
                     <th class="excel-header" style="width:10%;">تاريخ انتهاء<br>رخصة السير</th>
+                    <th class="excel-header actions-column" style="width:4%;">الإجراءات</th>
                 </tr>
             </thead>
             <tbody id="scheduleBody">
@@ -736,14 +744,15 @@
                     <td class="excel-input"><input type="text" list="scheduleDriversList"></td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
-                    <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text" list="schedulePlatesList"></td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="text"></td>
+                    <td class="excel-input"><input type="text"></td>
                     <td class="excel-input"><input type="date"></td>
                     <td class="excel-input"><input type="date"></td>
+                    <td style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this)">✕</button></td>
             `;
             tbody.appendChild(tr);
             saveToLocalStorage();
@@ -763,6 +772,32 @@
             
             const dateVal = document.getElementById('scheduleDate').value;
             localStorage.setItem('excel_schedule_date', dateVal);
+        }
+
+        function deleteScheduleRow(btn) {
+            if(!confirm('هل أنت متأكد من حذف هذا الصف؟')) return;
+            const tr = btn.closest('tr');
+            tr.remove();
+            
+            // Re-index remaining rows
+            document.querySelectorAll('#scheduleBody tr').forEach((row, idx) => {
+                row.cells[0].innerText = idx + 1;
+            });
+            
+            saveToLocalStorage();
+        }
+
+        function ensureDeleteButtons() {
+            document.querySelectorAll('#scheduleBody tr').forEach((tr, idx) => {
+                const tds = tr.querySelectorAll('td');
+                if (tds.length === 13) {
+                    const td = document.createElement('td');
+                    td.style.textAlign = 'center';
+                    td.style.border = '1px solid #000';
+                    td.innerHTML = `<button class="btn-delete" onclick="deleteScheduleRow(this)">✕</button>`;
+                    tr.appendChild(td);
+                }
+            });
         }
         
         function loadFromLocalStorage() {
@@ -790,6 +825,7 @@
                                 <td class="excel-input"><input type="text" value="${r[9] || ''}"></td>
                                 <td class="excel-input"><input type="date" value="${r[10] || ''}"></td>
                                 <td class="excel-input"><input type="date" value="${r[11] || ''}"></td>
+                                <td style="text-align:center; border: 1px solid #000;"><button class="btn-delete" onclick="deleteScheduleRow(this)">✕</button></td>
                             `;
                             tbody.appendChild(tr);
                         });
@@ -800,7 +836,11 @@
             const dateVal = localStorage.getItem('excel_schedule_date');
             if(dateVal) {
                 document.getElementById('scheduleDate').value = dateVal;
+            } else {
+                document.getElementById('scheduleDate').valueAsDate = new Date();
             }
+            
+            ensureDeleteButtons();
         }
 
         document.addEventListener('input', function(e) {
@@ -867,8 +907,13 @@
                 if(driver.iqama && driver.iqama !== 'None') inputs[2].value = driver.iqama;
                 if(driver.job && driver.job !== 'None') inputs[3].value = driver.job;
                 if(driver.plate && driver.plate !== 'None') inputs[4].value = driver.plate;
-                if(driver.model && driver.model !== 'None') inputs[5].value = driver.model;
-                if(driver.car && driver.car !== 'None') inputs[6].value = driver.car;
+                if(driver.car && driver.car !== 'None') {
+                    inputs[6].value = driver.car;
+                    const match = driver.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+                    if (match) {
+                        inputs[5].value = match[1];
+                    }
+                }
                 
                 saveToLocalStorage();
             }
@@ -884,6 +929,7 @@
         // Initialize fetch when page loads
         window.addEventListener('DOMContentLoaded', () => {
             fetchDrivers();
+            ensureDeleteButtons();
             document.querySelectorAll('#scheduleBody tr').forEach(tr => {
                 const inputs = tr.querySelectorAll('input');
                 if (inputs.length > 4 && !inputs[4].getAttribute('list')) {
@@ -891,9 +937,7 @@
                 }
             });
         });
-
     </script>
-
     <footer style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;width:100%">
         تم التطوير بواسطة قسم التقنية (فرع الدمام)
     </footer>
