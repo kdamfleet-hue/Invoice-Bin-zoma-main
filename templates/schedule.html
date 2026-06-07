@@ -988,6 +988,65 @@
             }
         }
 
+        
+        // ──── WhatsApp Message ────
+        function sendWhatsApp(btn) {
+            const tr = btn.closest('tr');
+            const inputs = tr.querySelectorAll('input');
+            if (inputs.length < 16) return;
+            
+            const empid = inputs[0].value || '---';
+            const name = inputs[1].value || '---';
+            const iqama = inputs[2].value || '---';
+            const job = inputs[3].value || '---';
+            const plate = inputs[4].value || '---';
+            const model = inputs[5].value || '---';
+            const carType = inputs[6].value || '---';
+            const pallets = inputs[7].value || '---';
+            const capacity = inputs[8].value || '---';
+            const serial = inputs[9].value || '---';
+            const inspectDate = inputs[10].value || '---';
+            const licenseDate = inputs[11].value || '---';
+            const driverCardDate = inputs[12].value || '---';
+            const opCardDate = inputs[13].value || '---';
+            const phoneInput = inputs[15].value || '';
+            
+            if (!phoneInput || phoneInput === '————' || phoneInput.trim() === '') {
+                alert('لا يوجد رقم جوال صالح لهذا السائق.');
+                return;
+            }
+            
+            let phone = phoneInput.replace(/\D/g, '');
+            if (phone.startsWith('05')) {
+                phone = '966' + phone.substring(1);
+            } else if (phone.startsWith('5')) {
+                phone = '966' + phone;
+            }
+
+            const message = *الرقم الوظيفي :* \n +
+*رقم الإقامة :* \n +
+*الوظيفة :* \n +
+*رقم اللوحة :* \n +
+*موديل :* \n +
+*نوع المركبة :* \n +
+*عدد الطبالي :* \n +
+*الحمولة :* \n +
+*الرقم التسلسلي :*\n +
+*للمركبة :* \n\n +
+*تاريخ انتهاء -*\n +
+-الفحص الدوري - \n +
+*تاريخ انتهاء -*\n +
+-رخصة السير - \n +
+*تاريخ انتهاء -*\n +
+-بطاقة السائق - \n +
+-تاريخ انتهاء -*\n +
+*بطاقة التشغيل - ;
+
+            const encodedMsg = encodeURIComponent(message);
+            const waUrl = https://wa.me/?text=;
+            window.open(waUrl, '_blank');
+        }
+
         // ──── Update Statistics ────
         function updateStats() {
             const rows = document.querySelectorAll('#scheduleBody tr');
