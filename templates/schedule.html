@@ -1176,6 +1176,64 @@
             }
         });
 
+        // ===== Smart Paste Feature =====
+        document.addEventListener('paste', function(e) {
+            const target = e.target;
+            if (target.tagName.toLowerCase() !== 'input') return;
+            
+            const tbody = target.closest('tbody');
+            if (!tbody || (tbody.id !== 'scheduleBody' && tbody.id !== 'spareBody')) return;
+
+            const clipboardData = e.clipboardData || window.clipboardData;
+            const pastedText = clipboardData.getData('Text');
+            
+            if (!pastedText.includes('\t') && !pastedText.includes('\n')) return;
+
+            e.preventDefault();
+
+            const rows = pastedText.split(/\r?\n/).filter(r => r.trim() !== '');
+            if (rows.length === 0) return;
+
+            const tr = target.closest('tr');
+            const allTrs = Array.from(tbody.querySelectorAll('tr'));
+            const startRowIdx = allTrs.indexOf(tr);
+            
+            const td = target.closest('td');
+            const allTds = Array.from(tr.querySelectorAll('td.excel-input'));
+            const startColIdx = allTds.indexOf(td);
+
+            const firstRowCols = rows[0].split('\t');
+            const isFullBlock = firstRowCols.length >= 15;
+            const isStartingAtFirstCol = startColIdx === 0;
+
+            rows.forEach((rowStr, i) => {
+                const targetRow = allTrs[startRowIdx + i];
+                if (!targetRow) return;
+
+                const cols = rowStr.split('\t');
+                const inputs = targetRow.querySelectorAll('input');
+
+                if (isFullBlock && isStartingAtFirstCol) {
+                    if (cols[0] !== undefined) inputs[0].value = cols[0].trim();
+                    if (cols[1] !== undefined) inputs[1].value = cols[1].trim();
+                    if (cols[2] !== undefined) inputs[2].value = cols[2].trim();
+                    if (cols[3] !== undefined) inputs[3].value = cols[3].trim();
+                    if (cols[12] !== undefined) inputs[12].value = cols[12].trim();
+                    if (cols[15] !== undefined) inputs[15].value = cols[15].trim();
+                } else {
+                    cols.forEach((colVal, j) => {
+                        const targetInput = inputs[startColIdx + j];
+                        if (targetInput) {
+                            targetInput.value = colVal.trim();
+                        }
+                    });
+                }
+            });
+
+            saveToLocalStorage();
+            updateSummary();
+        });
+
         // ──── Initialize ────
         window.addEventListener('DOMContentLoaded', () => {
             loadFromLocalStorage();
