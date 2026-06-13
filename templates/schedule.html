@@ -1248,6 +1248,7 @@ ${notes}
                 if (inputs.length < 16) return;
                 
                 const name = inputs[1].value.trim();
+                const plate = inputs[4].value.trim();
                 const phoneInput = inputs[15].value.trim();
                 
                 if (name && phoneInput && phoneInput !== '————') {
@@ -1256,11 +1257,13 @@ ${notes}
                         validDrivers++;
                         const waUrl = generateWaUrl(inputs);
                         
+                        const plateSpan = (plate && plate !== '————') ? `<span style="font-size: 0.85rem; color: #e67e22; background: #fef5e7; padding: 2px 6px; border-radius: 4px; margin-right: 5px; border: 1px solid #fdebd0; vertical-align: middle;">🚗 ${plate}</span>` : '';
+                        
                         const rowEl = document.createElement('div');
                         rowEl.className = 'dispatcher-row';
                         rowEl.innerHTML = `
                             <div class="dispatcher-info">
-                                <span class="dispatcher-name">${name}</span>
+                                <span class="dispatcher-name" style="display:flex; align-items:center;">${name} ${plateSpan}</span>
                                 <span class="dispatcher-phone" dir="ltr">${phoneInput}</span>
                             </div>
                             <button class="dispatcher-btn" id="dispatchBtn_${index}" onclick="dispatchMessage(this, '${waUrl}')">
