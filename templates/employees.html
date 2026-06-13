@@ -163,8 +163,8 @@
         const TOTAL_COLS = 46;
         const LS_EMPLOYEES_KEY = 'excel_employees_data';
 
-        document.addEventListener('DOMContentLoaded', () => {
-            loadFromLocalStorage();
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadFromLocalStorage();
             if (document.getElementById('employeesBody').children.length === 0) {
                 for (let i = 0; i < 50; i++) {
                     addEmployeeRow(false);
@@ -217,11 +217,28 @@
             localStorage.setItem(LS_EMPLOYEES_KEY, JSON.stringify(data));
         }
 
-        function loadFromLocalStorage() {
-            const saved = localStorage.getItem(LS_EMPLOYEES_KEY);
-            if (!saved) return;
-            try {
-                const rows = JSON.parse(saved);
+        async function loadFromLocalStorage() {
+            let saved = localStorage.getItem(LS_EMPLOYEES_KEY);
+            let rows = [];
+            
+            if (!saved || saved === '[]') {
+                try {
+                    const response = await fetch('/static/employees_default.json');
+                    if (response.ok) {
+                        rows = await response.json();
+                        // Save it so it doesn't fetch every time
+                        localStorage.setItem(LS_EMPLOYEES_KEY, JSON.stringify(rows));
+                    }
+                } catch(e) {
+                    console.error('Error fetching default data:', e);
+                }
+            } else {
+                try {
+                    rows = JSON.parse(saved);
+                } catch(e) {}
+            }
+
+            if (rows && rows.length > 0) {
                 const tbody = document.getElementById('employeesBody');
                 tbody.innerHTML = '';
                 rows.forEach((r, idx) => {
@@ -235,7 +252,7 @@
                     tr.innerHTML = html;
                     tbody.appendChild(tr);
                 });
-            } catch(e) {}
+            }
         }
 
         document.addEventListener('input', (e) => {
