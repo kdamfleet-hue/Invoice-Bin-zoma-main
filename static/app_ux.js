@@ -1,8 +1,224 @@
 /**
  * GLOBAL UX & UI CONTROLLER
  * Handles Theme Toggling, Topographic Background, Toasts, Progress Bar,
- * Page Transitions, and Idle Session Timeout.
+ * Page Transitions, Idle Session Timeout, and Bilingual Translation.
  */
+
+const translations = {
+    "en": {
+        // Titles and headers
+        "منشئ الفواتير الاحترافي | شركة بن زومة": "Professional Invoice Builder | Bin Zoma Co.",
+        "نظام الفواتير الذكي": "Smart Invoice System",
+        "اختر السائق وسيتم تعبئة البيانات تلقائياً": "Select a driver to auto-populate fields",
+        "بيان استهلاك الزيوت والفلاتر للسيارات الديزل (فرع الدمام) من تاريخ 2025/12/17 الى تاريخ 2026/2/7": "Statement of Oil & Filter Consumption for Diesel Vehicles (Dammam Branch) from 2025/12/17 to 2026/2/7",
+        "بيان الزيوت والفلاتر | شركة بن زومة": "Oils & Filters Statement | Bin Zoma Co.",
+        "نظام إدارة الأسطول": "Fleet Management System",
+        "فرع الدمام - إدارة الصيانة": "Dammam Branch - Maintenance Dept",
+        
+        // Navigation links
+        "الرئيسية": "Home",
+        "الخدمات": "Services",
+        "من نحن": "About Us",
+        "موقعنا الرسمي": "Official Website",
+        "تواصل معنا": "Contact Us",
+        "العودة للفواتير": "Back to Invoices",
+        "العودة للرئيسية": "Back to Home",
+        "طلب شراء وإصلاح": "Purchase Order & Repair",
+        "تحديث الجدول الأسبوعي": "Update Weekly Schedule",
+        "جدول الغسيل": "Washing Schedule",
+        "نظام التتبع GPS": "GPS Tracking System",
+        "بيانات موظفين الفرع": "Branch Employees Data",
+        "تحضير جدول الغسيل": "Prepare Washing List",
+        "التتبع المباشر": "Live Tracking",
+        "مزامنة كشف GPS": "Sync GPS Report",
+        "تسجيل الخروج": "Logout",
+        "تسجيل خروج": "Logout",
+        
+        // Buttons
+        "⚙️ إدارة السائقين وقاعدة البيانات": "⚙️ Manage Drivers & Database",
+        "📄 إنشاء بيان زيوت وفلاتر": "📄 Oils & Filters Statement",
+        "🛒 طلبات الشراء": "🛒 Purchase Orders",
+        "📋 الجدول الأسبوعي": "📋 Weekly Schedule",
+        "👥 بيانات موظفين الفرع": "👥 Branch Employees Data",
+        "🚿 تحضير جدول الغسيل": "🚿 Washing List",
+        "🛰️ التتبع المباشر": "🛰️ Live Tracking",
+        "📡 مزامنة كشف GPS": "📡 Sync GPS Report",
+        "+ إضافة صف جديد": "+ Add New Row",
+        "إضافة صف جديد": "Add New Row",
+        "📥 تحميل كملف Excel": "📥 Download Excel File",
+        "🖨 طباعة الجدول": "🖨 Print Table",
+        "إرسال رسالة واتساب": "Send WhatsApp Message",
+        "إضافة إلى قاعدة البيانات ➕": "Add to Database ➕",
+        "إغلاق ✖": "Close ✖",
+        "تعديل": "Edit",
+        "حذف": "Delete",
+        
+        // Invoice Form
+        "اسم السائق (اكتب للبحث)": "Driver Name (Type to search)",
+        "ابحث عن اسم السائق هنا...": "Search for driver name here...",
+        "نوع السيارة": "Vehicle Type",
+        "مثال: ايسوزو دينا 2024": "e.g., Isuzu Dina 2024",
+        "رقم اللوحة": "Plate Number",
+        "مثال: ا ب ج 1234": "e.g., ABC 1234",
+        "نوع الطلب": "Request Type",
+        "صيانة دورية": "Periodic Maintenance",
+        "إصلاح عطل": "Repair Fault",
+        "إصلاح بنشر": "Tire Repair",
+        "تغيير قطع غيار": "Change Spare Parts",
+        "غيار زيت": "Oil Change",
+        "أخرى": "Other",
+        "رقم الإقامة": "Iqama Number",
+        "مثال: 2441077944": "e.g., 2441077944",
+        "التاريخ": "Date",
+        "الكمية": "Quantity",
+        "السعر الإفرادي (ريال)": "Unit Price (SAR)",
+        "الوصف / التفاصيل": "Description / Details",
+        "أدخل تفاصيل الفاتورة أو القطع المستبدلة...": "Enter invoice details or replaced parts...",
+        "الحسابات المالية": "Financial Calculations",
+        "المبلغ": "Subtotal",
+        "الضريبة (15%)": "Tax (15%)",
+        "الإجمالي النهائي": "Grand Total",
+        "المبلغ الإجمالي (قبل الضريبة)": "Subtotal (Before Tax)",
+        "ضريبة القيمة المضافة (15%)": "VAT (15%)",
+        "المجموع الكلي (مع الضريبة)": "Grand Total (With Tax)",
+        
+        // Submit buttons
+        "تصدير PDF / Excel": "Export PDF / Excel",
+        "📧 إرسال الفاتورة للإيميل": "📧 Email Invoice",
+        "💬 إرسال عبر الواتساب": "💬 Send via WhatsApp",
+        "🗑️ إفراغ الفاتورة": "🗑️ Clear Invoice",
+        
+        // Modals / Database management
+        "إدارة قاعدة بيانات السائقين": "Manage Drivers Database",
+        "الاسم الرباعي (مطلوب)": "Full Name (Required)",
+        "الرقم الوظيفي": "Employee ID",
+        "نوع السيارة وموديلها": "Vehicle Type & Model",
+        "تاريخ انتهاء بطاقة السائق": "Driver Card Expiry Date",
+        "الاسم": "Name",
+        "السيارة": "Vehicle",
+        "اللوحة": "Plate",
+        "الإقامة": "Iqama",
+        "بطاقة السائق": "Driver Card",
+        "الجوال": "Phone",
+        "الإجراءات": "Actions",
+        "تحميل البيانات...": "Loading data...",
+        "حذف الصف": "Delete Row",
+        
+        // Oils page table headers
+        "م": "No.",
+        "رقم لوحة السيارة": "Vehicle Plate Number",
+        "المستخدم": "User",
+        "تاريخ تغيير الزيت": "Oil Change Date",
+        "رقم العداد": "Odometer",
+        "عدد اللترات": "Liters Count",
+        "عدد فلاتر الزيت والديزل والهواء": "Oil, Diesel & Air Filters Count",
+        "حذف": "Delete",
+        
+        // Purchase Page
+        "استمارة طلب شراء قطع غيار وإصلاح سيارات": "Purchase Request Form for Spare Parts & Vehicle Repair",
+        "الاسم الوظيفي": "Job Title",
+        "فرع": "Branch",
+        "الموديل": "Model",
+        "أولا : قطع غيار": "First: Spare Parts",
+        "الوصف": "Description",
+        "سعر الوحدة": "Unit Price",
+        "القيمة": "Value",
+        "ملاحظات": "Notes",
+        "ثانيا : أجور إصلاح": "Second: Repair Labor",
+        "ثالثا : إطارات": "Third: Tires",
+        "تاريخ التركيب": "Installation Date",
+        "العدد": "Count",
+        "أمامي": "Front",
+        "خلفي": "Back",
+        "السابق": "Previous",
+        "الحالي": "Current",
+        "المسافة المقطوعة": "Distance Driven",
+        "رابعا : بطاريات": "Fourth: Batteries",
+        "المقاس": "Size",
+        "الأمبير": "Amps",
+        "خامسا : ملخص الحسابات": "Fifth: Financial Summary",
+        "الإجمالي لقطع الغيار": "Total Spare Parts",
+        "الإجمالي لأجور الإصلاح": "Total Repair Labor",
+        "الإجمالي للإطارات": "Total Tires",
+        "الإجمالي للبطاريات": "Total Batteries",
+        "ملاحظات وتوصية الورشة": "Workshop Recommendation & Notes",
+        "حفظ وإرسال": "Save & Send",
+        
+        // Washing Page
+        "كشف غسيل السيارات فرع الدمام": "Vehicle Washing List - Dammam Branch",
+        "يناير": "January",
+        "فبراير": "February",
+        "مارس": "March",
+        "أبريل": "April",
+        "مايو": "May",
+        "يونيو": "June",
+        "يوليو": "July",
+        "أغسطس": "August",
+        "سبتمبر": "September",
+        "أكتوبر": "October",
+        "نوفمبر": "November",
+        "ديسمبر": "December",
+        "استلم": "Received",
+        "لم يستلم": "Not Received",
+        
+        // GPS page
+        "مزامنة لوحة التتبع مع كشف السيارات": "Sync Tracking Board with Vehicle List",
+        "تحميل ملف كشف سيارات GPS": "Upload GPS Vehicle List File",
+        "تحميل ملف كشف السائقين (الجدول الأسبوعي)": "Upload Drivers List File (Weekly Schedule)",
+        "مزامنة ومطابقة البيانات": "Sync & Match Data",
+        "النتائج والتقارير": "Results & Reports",
+        
+        // Employees page headers
+        "بيانات جميع الموظفين في الفرع": "All Branch Employees Data",
+        "بيانات الموظف العامة": "General Employee Data",
+        "مقيم": "Muqeem Data",
+        "قوى": "Qiwa Data",
+        "مسيرات الشركة": "Company Payroll",
+        "البصمة": "Fingerprint",
+        "المركبة": "Vehicle Details",
+        "السكن والسند والتامين": "Housing, Bond & Insurance",
+        "اسم العامل": "Employee Name",
+        "الاسم بالانجليزي": "English Name",
+        "الجنسية": "Nationality",
+        "المسمئ الوظيفي": "Job Title",
+        "الايميل": "Email",
+        "تاريخ انتهاء الاقامة": "Iqama Expiry",
+        "تاريخ انتهاء الجواز": "Passport Expiry",
+        "تاريح الميلاد": "Date of Birth",
+        "العمر": "Age",
+        "المهنة": "Profession",
+        "رقم صاحب العمل": "Employer Number",
+        "تاريخ التعين": "Hire Date",
+        "تاريخ انتهاء العقد": "Contract Expiry",
+        "التامينات": "Social Insurance",
+        "الاساسي في قوى": "Basic in Qiwa",
+        "بدل السكن في قوى": "Housing Allowance in Qiwa",
+        "النقل في قوى": "Transport in Qiwa",
+        "اخرى في قوى": "Others in Qiwa",
+        "المنشئة": "Establishment",
+        "التنبيه بتجديد العقد": "Contract Renewal Alert",
+        "في الشركة الاساسي": "Company Basic",
+        "في الشركة بدل السكن": "Company Housing Allowance",
+        "بدل نقل": "Transport Allowance",
+        "بدل اتصال": "Communication Allowance",
+        "ملاحظات الرواتب": "Payroll Notes",
+        "رقم البصمة": "Fingerprint Number",
+        "الدخول": "Access/Entry",
+        "الرخصة": "License",
+        "الايبان": "IBAN",
+        "نوع النقل": "Transport Type",
+        "حمولة المركبة(عدد الركاب)": "Vehicle Capacity (Passengers)",
+        "الماركة": "Make",
+        "الطراز": "Model Series",
+        "رقم الهيكل": "Chassis Number",
+        "السكن": "Housing",
+        "سند امر": "Promissory Note",
+        "كرت البلدية": "Municipality Card",
+        "الكرت الوظيفي": "Work ID Card",
+        "حالة التامين": "Insurance Status",
+        "الاستحقاقات السنوية": "Annual Entitlements"
+    }
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     initThemeToggle();
@@ -11,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initPageTransition();
     wrapFetchForProgress();
     initIdleTimeout();
+    initLanguageTranslation();
 });
 
 // --- Theme Management ---
@@ -283,3 +500,288 @@ function initIdleTimeout() {
     window.resetIdleTimer();
 }
 
+// =============================================================================
+// BILINGUAL TRANSLATION SYSTEM
+// =============================================================================
+let translationObserver = null;
+
+function initLanguageTranslation() {
+    applyEnglishStyles();
+    
+    // Auto-inject translation button
+    injectLanguageToggle();
+
+    // Fetch and apply saved language
+    const currentLang = localStorage.getItem('lang') || 'ar';
+    setLanguage(currentLang);
+}
+
+window.toggleLanguage = function() {
+    const currentLang = localStorage.getItem('lang') || 'ar';
+    const newLang = currentLang === 'ar' ? 'en' : 'ar';
+    localStorage.setItem('lang', newLang);
+    setLanguage(newLang);
+};
+
+function setLanguage(lang) {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    
+    // Update language toggle text
+    const langBtn = document.getElementById('languageToggleBtn');
+    if (langBtn) {
+        langBtn.innerHTML = lang === 'ar' ? '🇬🇧' : '🇸🇦';
+        langBtn.title = lang === 'ar' ? 'Switch to English' : 'التحويل للعربية';
+    }
+
+    // Perform static translation
+    translateDOM(lang);
+
+    // Set up MutationObserver to translate dynamically added elements
+    startTranslationObserver(lang);
+}
+
+function translateDOM(lang) {
+    const dict = translations[lang] || {};
+    
+    function walk(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const trimmed = node.nodeValue.trim();
+            if (trimmed) {
+                if (dict[trimmed]) {
+                    if (!node.parentElement.hasAttribute('data-orig-text')) {
+                        node.parentElement.setAttribute('data-orig-text', trimmed);
+                    }
+                    node.nodeValue = node.nodeValue.replace(trimmed, dict[trimmed]);
+                } else if (lang === 'ar' && node.parentElement.hasAttribute('data-orig-text')) {
+                    const orig = node.parentElement.getAttribute('data-orig-text');
+                    node.nodeValue = node.nodeValue.replace(trimmed, orig);
+                }
+            }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            // Placeholder translation
+            if (node.placeholder) {
+                const trimmedPlaceholder = node.placeholder.trim();
+                if (dict[trimmedPlaceholder]) {
+                    if (!node.hasAttribute('data-orig-placeholder')) {
+                        node.setAttribute('data-orig-placeholder', trimmedPlaceholder);
+                    }
+                    node.placeholder = dict[trimmedPlaceholder];
+                } else if (lang === 'ar' && node.hasAttribute('data-orig-placeholder')) {
+                    node.placeholder = node.getAttribute('data-orig-placeholder');
+                }
+            }
+            
+            // Title translation
+            if (node.title) {
+                const trimmedTitle = node.title.trim();
+                if (dict[trimmedTitle]) {
+                    if (!node.hasAttribute('data-orig-title')) {
+                        node.setAttribute('data-orig-title', trimmedTitle);
+                    }
+                    node.title = dict[trimmedTitle];
+                } else if (lang === 'ar' && node.hasAttribute('data-orig-title')) {
+                    node.title = node.getAttribute('data-orig-title');
+                }
+            }
+
+            // Select elements special handling
+            if (node.tagName === 'SELECT') {
+                Array.from(node.options).forEach(opt => {
+                    const trimmedOpt = opt.textContent.trim();
+                    if (dict[trimmedOpt]) {
+                        if (!opt.hasAttribute('data-orig-text')) {
+                            opt.setAttribute('data-orig-text', trimmedOpt);
+                        }
+                        opt.textContent = dict[trimmedOpt];
+                    } else if (lang === 'ar' && opt.hasAttribute('data-orig-text')) {
+                        opt.textContent = opt.getAttribute('data-orig-text');
+                    }
+                });
+            }
+
+            if (!['SCRIPT', 'STYLE', 'VIDEO', 'SOURCE'].includes(node.tagName)) {
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    walk(node.childNodes[i]);
+                }
+            }
+        }
+    }
+    
+    walk(document.body);
+    
+    // Page Title
+    const docTitle = document.title.trim();
+    if (dict[docTitle]) {
+        if (!document.documentElement.hasAttribute('data-orig-title')) {
+            document.documentElement.setAttribute('data-orig-title', docTitle);
+        }
+        document.title = dict[docTitle];
+    } else if (lang === 'ar' && document.documentElement.hasAttribute('data-orig-title')) {
+        document.title = document.documentElement.getAttribute('data-orig-title');
+    }
+}
+
+function startTranslationObserver(lang) {
+    if (translationObserver) translationObserver.disconnect();
+    
+    translationObserver = new MutationObserver((mutations) => {
+        translationObserver.disconnect();
+        
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                translateSubtree(node, lang);
+            });
+            if (mutation.type === 'characterData') {
+                translateSubtree(mutation.target, lang);
+            }
+        });
+        
+        translationObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+    });
+    
+    translationObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+}
+
+function translateSubtree(node, lang) {
+    const dict = translations[lang] || {};
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+        const trimmed = node.nodeValue.trim();
+        if (trimmed && dict[trimmed]) {
+            if (!node.parentElement.hasAttribute('data-orig-text')) {
+                node.parentElement.setAttribute('data-orig-text', trimmed);
+            }
+            node.nodeValue = node.nodeValue.replace(trimmed, dict[trimmed]);
+        }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.placeholder && dict[node.placeholder.trim()]) {
+            const tr = node.placeholder.trim();
+            node.setAttribute('data-orig-placeholder', tr);
+            node.placeholder = dict[tr];
+        }
+        
+        if (node.title && dict[node.title.trim()]) {
+            const tr = node.title.trim();
+            node.setAttribute('data-orig-title', tr);
+            node.title = dict[tr];
+        }
+
+        if (node.tagName === 'SELECT') {
+            Array.from(node.options).forEach(opt => {
+                const trimmedOpt = opt.textContent.trim();
+                if (dict[trimmedOpt]) {
+                    opt.setAttribute('data-orig-text', trimmedOpt);
+                    opt.textContent = dict[trimmedOpt];
+                }
+            });
+        }
+
+        if (!['SCRIPT', 'STYLE', 'VIDEO', 'SOURCE'].includes(node.tagName)) {
+            node.childNodes.forEach(child => translateSubtree(child, lang));
+        }
+    }
+}
+
+function injectLanguageToggle() {
+    if (document.getElementById('languageToggleBtn')) return;
+
+    const darkToggle = document.getElementById('darkModeToggle') || document.getElementById('empDarkModeToggle');
+    const langBtn = document.createElement('button');
+    langBtn.id = 'languageToggleBtn';
+    langBtn.onclick = window.toggleLanguage;
+    
+    // Unified Styling
+    langBtn.style.cursor = 'pointer';
+    langBtn.style.border = 'none';
+    langBtn.style.borderRadius = '50%';
+    langBtn.style.width = '45px';
+    langBtn.style.height = '45px';
+    langBtn.style.display = 'flex';
+    langBtn.style.alignItems = 'center';
+    langBtn.style.justifyContent = 'center';
+    langBtn.style.fontSize = '1.3rem';
+    langBtn.style.transition = 'var(--trans-spring, 0.3s)';
+    langBtn.style.boxShadow = 'var(--shadow-sm, 0 4px 15px rgba(0,0,0,0.1))';
+    langBtn.style.backdropFilter = 'blur(5px)';
+    langBtn.style.zIndex = '1001';
+
+    if (darkToggle) {
+        const style = window.getComputedStyle(darkToggle);
+        if (style.position === 'absolute' || style.position === 'fixed') {
+            langBtn.style.position = style.position;
+            langBtn.style.top = style.top;
+            
+            // Adjust coordinates based on design systems
+            const currentRight = parseFloat(style.right);
+            const currentLeft = parseFloat(style.left);
+            if (!isNaN(currentRight)) {
+                langBtn.style.right = (currentRight + 55) + 'px';
+            } else if (!isNaN(currentLeft)) {
+                langBtn.style.left = (currentLeft + 55) + 'px';
+            } else {
+                langBtn.style.right = '75px';
+            }
+        } else {
+            // Inline alignment (e.g. employee top bar)
+            langBtn.style.margin = '0 10px';
+        }
+        
+        const currentLang = localStorage.getItem('lang') || 'ar';
+        langBtn.innerHTML = currentLang === 'ar' ? '🇬🇧' : '🇸🇦';
+        darkToggle.parentNode.insertBefore(langBtn, darkToggle.nextSibling);
+    } else {
+        // Floating fallback
+        langBtn.style.position = 'fixed';
+        langBtn.style.top = '15px';
+        langBtn.style.right = '75px';
+        
+        const currentLang = localStorage.getItem('lang') || 'ar';
+        langBtn.innerHTML = currentLang === 'ar' ? '🇬🇧' : '🇸🇦';
+        document.body.appendChild(langBtn);
+    }
+}
+
+function applyEnglishStyles() {
+    let styleEl = document.getElementById('en-layout-styles');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'en-layout-styles';
+        styleEl.innerHTML = `
+            html[lang="en"] body {
+                font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
+            }
+            html[lang="en"] .card label {
+                text-align: left !important;
+            }
+            html[lang="en"] input, html[lang="en"] select, html[lang="en"] textarea {
+                text-align: left !important;
+            }
+            html[lang="en"] .excel-table input, html[lang="en"] .excel-table td input {
+                text-align: center !important; /* Keep center alignment for tables */
+            }
+            html[lang="en"] .nav-links {
+                flex-direction: row;
+            }
+            html[lang="en"] #languageToggleBtn:hover {
+                transform: scale(1.1) rotate(10deg);
+            }
+            html[lang="en"] .user-badge {
+                left: 1.5rem !important;
+                right: auto !important;
+            }
+            html[lang="en"] .btn-delete {
+                margin-left: 5px;
+            }
+        `;
+        document.head.appendChild(styleEl);
+    }
+}
