@@ -173,9 +173,11 @@
     </video>
 
 <!-- Intro Video Splash Screen -->
-    <div id="introContainer" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center;">
-        
-        <button id="skipIntroBtn" style="position: absolute; bottom: 30px; right: 30px; background: rgba(0,0,0,0.5); color: white; border: 1px solid white; padding: 10px 20px; border-radius: 20px; cursor: pointer; z-index: 10000; font-family: Cairo;">تخطي (Skip)</button>
+    <div id="introContainer" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0a0a1a; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+        <video id="introVideo" autoplay muted playsinline style="max-width: 80%; max-height: 80vh; border-radius: 12px;">
+            <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+        </video>
+        <button id="skipIntroBtn" style="position: absolute; bottom: 30px; right: 30px; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 10px 24px; border-radius: 20px; cursor: pointer; z-index: 10000; font-family: Cairo; font-size: 15px; backdrop-filter: blur(4px); transition: 0.2s;">تخطي ▶</button>
     </div>
 
     <script>
@@ -184,27 +186,37 @@
         const skipBtn = document.getElementById('skipIntroBtn');
 
         function endIntro() {
-            introContainer.style.transition = "opacity 1s ease";
+            if (!introContainer) return;
+            introContainer.style.transition = "opacity 0.8s ease";
             introContainer.style.opacity = "0";
             setTimeout(() => {
                 introContainer.style.display = "none";
-                introVideo.pause();
-            }, 1000);
+                if (introVideo) introVideo.pause();
+            }, 800);
         }
 
-        introVideo.onended = endIntro;
-        skipBtn.onclick = endIntro;
-        
-        // Browsers might block autoplay if not muted. 
-        // We try playing it, if it's blocked, we just end the intro or ask user to click.
-        let playPromise = introVideo.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                // Auto-play was prevented.
-                introVideo.muted = true;
-                introVideo.play().catch(e => endIntro());
-            });
+        if (introVideo) {
+            introVideo.onended = endIntro;
+            let playPromise = introVideo.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    // Auto-play was prevented — skip intro immediately
+                    endIntro();
+                });
+            }
+        } else {
+            // No video found — skip intro after brief delay
+            setTimeout(endIntro, 500);
         }
+
+        if (skipBtn) {
+            skipBtn.onclick = endIntro;
+            skipBtn.onmouseover = () => skipBtn.style.background = "rgba(255,255,255,0.3)";
+            skipBtn.onmouseout = () => skipBtn.style.background = "rgba(255,255,255,0.15)";
+        }
+
+        // Safety fallback: always dismiss intro after 8 seconds
+        setTimeout(endIntro, 8000);
     </script>
     
 
