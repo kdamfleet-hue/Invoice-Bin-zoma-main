@@ -396,6 +396,7 @@
                     <input type="text" id="newCar" placeholder="نوع السيارة وموديلها">
                     <input type="text" id="newIqama" placeholder="رقم الإقامة">
                     <input type="text" id="newPhone" placeholder="رقم الجوال">
+                    <input type="text" id="newDriverCard" placeholder="تاريخ انتهاء بطاقة السائق">
                     <button class="btn-add" onclick="addDriver()">إضافة إلى قاعدة البيانات ➕</button>
                 </div>
 
@@ -408,15 +409,16 @@
                                 <th>السيارة</th>
                                 <th>اللوحة</th>
                                 <th>الإقامة</th>
+                                <th>بطاقة السائق</th>
                                 <th>الجوال</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody id="driversTableBody">
                             <!-- Data here -->
-                            <tr class="skeleton"><td colspan="7">تحميل البيانات...</td></tr>
-                            <tr class="skeleton"><td colspan="7">تحميل البيانات...</td></tr>
-                            <tr class="skeleton"><td colspan="7">تحميل البيانات...</td></tr>
+                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
+                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
+                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -461,7 +463,7 @@
             if (driversData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7">
+                        <td colspan="8">
                             <div class="empty-state">
                                 <div class="empty-state-icon">📭</div>
                                 <h3>لا يوجد بيانات</h3>
@@ -481,6 +483,7 @@
                     <td>${d.car || '-'}</td>
                     <td>${d.plate || '-'}</td>
                     <td>${d.iqama || '-'}</td>
+                    <td>${d.drivercard || '-'}</td>
                     <td>${d.phone || '-'}</td>
                     <td>
                         <button class="btn-outline" style="padding:4px 8px;font-size:0.8rem;border-color:#3498db;color:#3498db;" onclick="editDriver(${d.id})">تعديل</button>
@@ -498,6 +501,7 @@
             const car = document.getElementById('newCar').value;
             const iqama = document.getElementById('newIqama').value;
             const phone = document.getElementById('newPhone').value;
+            const drivercard = document.getElementById('newDriverCard').value;
             
             if(!name) {
                 showToast('الاسم مطلوب!', 'error');
@@ -508,7 +512,7 @@
                 const res = await fetch('/api/drivers', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({name, empid, plate, car, iqama, phone})
+                    body: JSON.stringify({name, empid, plate, car, iqama, phone, drivercard})
                 });
                 if(res.ok) {
                     document.getElementById('newName').value = '';
@@ -517,6 +521,7 @@
                     document.getElementById('newCar').value = '';
                     document.getElementById('newIqama').value = '';
                     document.getElementById('newPhone').value = '';
+                    document.getElementById('newDriverCard').value = '';
                     showToast('تم إضافة السائق بنجاح!', 'success');
                     await fetchDrivers();
                 } else {
@@ -534,6 +539,7 @@
             const newCar = prompt('تعديل نوع السيارة:', d.car || '');
             const newPlate = prompt('تعديل رقم اللوحة:', d.plate || '');
             const newIqama = prompt('تعديل رقم الإقامة:', d.iqama || '');
+            const newDriverCard = prompt('تعديل تاريخ انتهاء بطاقة السائق:', d.drivercard || '');
             const newPhone = prompt('تعديل رقم الجوال:', d.phone || '');
             if (!newName) {
                 showToast('الاسم مطلوب!', 'error');
@@ -544,7 +550,7 @@
                 const res = await fetch(`/api/drivers/${id}`, {
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({name: newName, empid: newEmpid, car: newCar, plate: newPlate, iqama: newIqama, phone: newPhone})
+                    body: JSON.stringify({name: newName, empid: newEmpid, car: newCar, plate: newPlate, iqama: newIqama, phone: newPhone, drivercard: newDriverCard})
                 });
                 if(res.ok) {
                     showToast('تم تعديل السائق بنجاح', 'success');

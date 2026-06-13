@@ -1148,20 +1148,43 @@
                 //                7=pallets, 8=capacity, 9=serial, 10=inspect, 11=license,
                 //                12=drivercard, 13=opcard, 14=notes, 15=phone
 
-                if (driver.empid && driver.empid !== 'None') inputs[0].value = driver.empid;
-                inputs[1].value = driver.name;
-                if (driver.iqama && driver.iqama !== 'None') inputs[2].value = driver.iqama;
-                if (driver.plate && driver.plate !== 'None') inputs[4].value = driver.plate;
-                if (driver.phone && driver.phone !== 'None') {
-                    let phone = driver.phone;
-                    if (!phone.startsWith('0') && phone.length === 9) phone = '0' + phone;
-                    inputs[15].value = phone;
-                }
-                if (driver.car && driver.car !== 'None') {
-                    inputs[6].value = driver.car;
-                    const match = driver.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
-                    if (match) {
-                        inputs[5].value = match[1];
+                // If triggered by Driver Name change, only autofill driver-specific details:
+                if (listAttr === 'scheduleDriversList') {
+                    if (driver.empid && driver.empid !== 'None') inputs[0].value = driver.empid;
+                    inputs[1].value = driver.name;
+                    if (driver.iqama && driver.iqama !== 'None') inputs[2].value = driver.iqama;
+                    if (driver.drivercard && driver.drivercard !== 'None') {
+                        inputs[12].value = driver.drivercard;
+                    } else {
+                        inputs[12].value = '';
+                    }
+                    if (driver.phone && driver.phone !== 'None') {
+                        let phone = driver.phone;
+                        if (!phone.startsWith('0') && phone.length === 9) phone = '0' + phone;
+                        inputs[15].value = phone;
+                    } else {
+                        inputs[15].value = '';
+                    }
+                } else {
+                    // Full autofill when plate is selected
+                    if (driver.empid && driver.empid !== 'None') inputs[0].value = driver.empid;
+                    inputs[1].value = driver.name;
+                    if (driver.iqama && driver.iqama !== 'None') inputs[2].value = driver.iqama;
+                    if (driver.plate && driver.plate !== 'None') inputs[4].value = driver.plate;
+                    if (driver.phone && driver.phone !== 'None') {
+                        let phone = driver.phone;
+                        if (!phone.startsWith('0') && phone.length === 9) phone = '0' + phone;
+                        inputs[15].value = phone;
+                    }
+                    if (driver.drivercard && driver.drivercard !== 'None') {
+                        inputs[12].value = driver.drivercard;
+                    }
+                    if (driver.car && driver.car !== 'None') {
+                        inputs[6].value = driver.car;
+                        const match = driver.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+                        if (match) {
+                            inputs[5].value = match[1];
+                        }
                     }
                 }
 

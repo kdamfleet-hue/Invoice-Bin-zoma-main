@@ -192,9 +192,19 @@ def init_db():
                     plate TEXT,
                     car TEXT,
                     iqama TEXT,
-                    phone TEXT
+                    phone TEXT,
+                    drivercard TEXT
                 )
             """)
+            
+            # Migration to add drivercard column if missing
+            try:
+                db.execute("SELECT drivercard FROM drivers LIMIT 1")
+            except sqlite3.OperationalError:
+                db.execute("ALTER TABLE drivers ADD COLUMN drivercard TEXT")
+                db.commit()
+                logger.info("Database Migration: Added drivercard column to drivers table")
+
             db.execute("""
                 CREATE TABLE IF NOT EXISTS washing_schedule (
                     id INTEGER PRIMARY KEY,
@@ -215,11 +225,48 @@ def init_db():
                             data = json.loads(content)
                             db.execute("DELETE FROM drivers") # Clear old incomplete data
                             for d in data:
-                                db.execute("INSERT INTO drivers (name, empid, plate, car, iqama, phone) VALUES (?, ?, ?, ?, ?, ?)",
-                                           (d.get("name", ""), d.get("empid", ""), d.get("plate", ""), d.get("car", ""), d.get("iqama", ""), d.get("phone", "")))
+                                db.execute("INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                           (d.get("name", ""), d.get("empid", ""), d.get("plate", ""), d.get("car", ""), d.get("iqama", ""), d.get("phone", ""), d.get("drivercard", "")))
                         logger.info("Database re-seeded with %d drivers from drivers_data.js", len(data))
                     except Exception as e:
                         logger.error("Error seeding DB: %s", e)
+            
+            # Import drivercard dates from تحديث الاسبوعي2026-6-03.xlsx if not already done
+            card_count = db.execute("SELECT COUNT(*) FROM drivers WHERE drivercard IS NOT NULL AND drivercard != ''").fetchone()[0]
+            if card_count == 0:
+                excel_file = os.path.join(app.root_path, "تحديث الاسبوعي2026-6-03.xlsx")
+                if os.path.exists(excel_file):
+                    try:
+                        import datetime
+                        import sys
+                        if app.root_path not in sys.path:
+                            sys.path.insert(0, app.root_path)
+                        from import_weekly_schedule import repair_xlsx_to
+                        temp_rep = os.path.join(app.root_path, "temp_repaired_import.xlsx")
+                        repair_xlsx_to(excel_file, temp_rep)
+                        wb = openpyxl.load_workbook(temp_rep, data_only=True)
+                        ws = wb.active
+                        updated = 0
+                        for r in range(14, ws.max_row + 1):
+                            name_val = ws.cell(row=r, column=10).value
+                            card_val = ws.cell(row=r, column=21).value
+                            if name_val and str(name_val).strip():
+                                name_clean = str(name_val).strip()
+                                card_str = ""
+                                if card_val:
+                                    if isinstance(card_val, (datetime.datetime, datetime.date)):
+                                        card_str = card_val.strftime('%Y-%m-%d')
+                                    else:
+                                        card_str = str(card_val).strip()
+                                if card_str and card_str.lower() != 'none':
+                                    db.execute("UPDATE drivers SET drivercard = ? WHERE name = ? OR TRIM(name) = ?", (card_str, name_clean, name_clean))
+                                    updated += 1
+                        db.commit()
+                        logger.info("Imported %d driver card dates from excel", updated)
+                        if os.path.exists(temp_rep):
+                            os.remove(temp_rep)
+                    except Exception as ex:
+                        logger.error("Failed to import driver card dates: %s", ex)
             
             db.commit()
     logger.info("Database initialized successfully.")
@@ -985,13 +1032,14 @@ def add_driver():
     car = data.get("car", "").strip()
     iqama = data.get("iqama", "").strip()
     phone = data.get("phone", "").strip()
+    drivercard = data.get("drivercard", "").strip()
     if not name:
         return jsonify({"error": "Name is required"}), 400
     with db_connection() as conn:
         c = conn.cursor()
         c.execute(
-            "INSERT INTO drivers (name, empid, plate, car, iqama, phone) VALUES (?, ?, ?, ?, ?, ?)",
-            (name, empid, plate, car, iqama, phone),
+            "INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (name, empid, plate, car, iqama, phone, drivercard),
         )
         conn.commit()
         new_id = c.lastrowid
@@ -1005,6 +1053,7 @@ def add_driver():
             "car": car,
             "iqama": iqama,
             "phone": phone,
+            "drivercard": drivercard,
         }
     )
 
@@ -1029,6 +1078,7 @@ def update_driver(driver_id):
     car = data.get("car", "").strip()
     iqama = data.get("iqama", "").strip()
     phone = data.get("phone", "").strip()
+    drivercard = data.get("drivercard", "").strip()
 
     if not name:
         return jsonify({"error": "Name is required"}), 400
@@ -1038,10 +1088,10 @@ def update_driver(driver_id):
         c.execute(
             """
             UPDATE drivers 
-            SET name=?, empid=?, plate=?, car=?, iqama=?, phone=?
+            SET name=?, empid=?, plate=?, car=?, iqama=?, phone=?, drivercard=?
             WHERE id=?
         """,
-            (name, empid, plate, car, iqama, phone, driver_id),
+            (name, empid, plate, car, iqama, phone, drivercard, driver_id),
         )
         conn.commit()
 
@@ -1055,6 +1105,7 @@ def update_driver(driver_id):
             "car": car,
             "iqama": iqama,
             "phone": phone,
+            "drivercard": drivercard,
         }
     )
 
