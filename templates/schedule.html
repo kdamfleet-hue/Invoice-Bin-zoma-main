@@ -1127,18 +1127,16 @@
 
             let driver = null;
             if (listAttr === 'scheduleDriversList') {
+                // بحث بالاسم فقط — لا نطابق اللوحة هنا أبداً
                 driver = driversData.find(d => d.name === val || d.name?.trim() === val);
+                if (!driver) {
+                    driver = driversData.find(d => d.name && (d.name.includes(val) || val.includes(d.name)));
+                }
             } else if (listAttr === 'schedulePlatesList') {
                 driver = driversData.find(d => d.plate === val || d.plate?.trim() === val);
-            }
-
-            if (!driver) {
-                // Try fuzzy match
-                driver = driversData.find(d => {
-                    if (!d.name) return false;
-                    return d.name.includes(val) || val.includes(d.name) ||
-                           (d.plate && (d.plate.includes(val) || val.includes(d.plate)));
-                });
+                if (!driver) {
+                    driver = driversData.find(d => d.plate && (d.plate.includes(val) || val.includes(d.plate)));
+                }
             }
 
             if (driver) {
