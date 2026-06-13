@@ -713,6 +713,10 @@
             تحميل كملف Excel</button>
         <button class="btn-outline" onclick="window.print()" style="border-color: #e67e22; color: #e67e22;">🖨 طباعة
             الجدول</button>
+        <button id="btnUndo" class="btn-outline" onclick="undoHistory()" disabled
+            style="border-color:#8e44ad; color:#8e44ad;" title="العودة للتعديل السابق">↩ تراجع <span id="undoCount"></span></button>
+        <button id="btnRedo" class="btn-outline" onclick="redoHistory()" disabled
+            style="border-color:#2980b9; color:#2980b9;" title="الإعادة للتعديل التالي">↪ إعادة <span id="redoCount"></span></button>
     </div>
 
     <!-- ════════ ملخص الأعداد ════════ -->
@@ -866,6 +870,112 @@
         const LS_SPARE_KEY = 'excel_spare_data_v2';
         const LS_DATE_KEY = 'excel_schedule_date';
 
+        // ──── History (Undo / Redo) ────
+        const MAX_HISTORY = 50;
+        let _history = [];   // stack of snapshots [{main, spare, date}, ...]
+        let _histIdx = -1;   // pointer into _history
+        let _isRestoring = false; // guard: don't push while restoring
+
+        function _captureSnapshot() {
+            const main = [];
+            document.querySelectorAll('#scheduleBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 0) main.push(Array.from(inputs).map(i => i.value));
+            });
+            const spare = [];
+            document.querySelectorAll('#spareBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 0) spare.push(Array.from(inputs).map(i => i.value));
+            });
+            const date = document.getElementById('scheduleDate').value;
+            return { main, spare, date };
+        }
+
+        function pushHistory() {
+            if (_isRestoring) return;
+            const snap = _captureSnapshot();
+            // Discard any redo states above current pointer
+            _history = _history.slice(0, _histIdx + 1);
+            _history.push(snap);
+            if (_history.length > MAX_HISTORY) _history.shift();
+            _histIdx = _history.length - 1;
+            updateHistoryButtons();
+        }
+
+        function _restoreSnapshot(snap) {
+            _isRestoring = true;
+            // Restore main table
+            const mainBody = document.getElementById('scheduleBody');
+            mainBody.innerHTML = '';
+            snap.main.forEach((r, idx) => {
+                const tr = document.createElement('tr');
+                let html = `<td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">${idx + 1}</td>`;
+                for (let i = 0; i < MAIN_COLS; i++) {
+                    const val = (r[i] || '').replace(/"/g, '&quot;');
+                    const isList2 = (i === 1) ? ' list="scheduleDriversList"' : '';
+                    const isList4 = (i === 4) ? ' list="schedulePlatesList"' : '';
+                    const notesCls = (i === 15) ? ' notes-cell' : '';
+                    html += `<td class="excel-input${notesCls}"><input type="text"${isList2}${isList4} value="${val}"></td>`;
+                }
+                html += `<td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td>`;
+                tr.innerHTML = html;
+                mainBody.appendChild(tr);
+            });
+            // Restore spare table
+            const spareBody = document.getElementById('spareBody');
+            spareBody.innerHTML = '';
+            snap.spare.forEach((r, idx) => {
+                const tr = document.createElement('tr');
+                let html = `<td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#fff3f3;">${idx + 1}</td>`;
+                for (let i = 0; i < MAIN_COLS; i++) {
+                    const val = (r[i] || '').replace(/"/g, '&quot;');
+                    const isList2 = (i === 1) ? ' list="scheduleDriversList"' : '';
+                    const isList4 = (i === 4) ? ' list="schedulePlatesList"' : '';
+                    const notesCls = (i === 15) ? ' notes-cell' : '';
+                    html += `<td class="excel-input${notesCls}"><input type="text"${isList2}${isList4} value="${val}"></td>`;
+                }
+                html += `<td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'spareBody')">✕</button></td>`;
+                tr.innerHTML = html;
+                spareBody.appendChild(tr);
+            });
+            // Restore date
+            document.getElementById('scheduleDate').value = snap.date;
+            updateStats();
+            _isRestoring = false;
+        }
+
+        function undoHistory() {
+            if (_histIdx <= 0) return;
+            _histIdx--;
+            _restoreSnapshot(_history[_histIdx]);
+            saveToLocalStorage();
+            updateHistoryButtons();
+        }
+
+        function redoHistory() {
+            if (_histIdx >= _history.length - 1) return;
+            _histIdx++;
+            _restoreSnapshot(_history[_histIdx]);
+            saveToLocalStorage();
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            const undoBtn = document.getElementById('btnUndo');
+            const redoBtn = document.getElementById('btnRedo');
+            const undoCnt = document.getElementById('undoCount');
+            const redoCnt = document.getElementById('redoCount');
+            if (!undoBtn) return;
+            const canUndo = _histIdx > 0;
+            const canRedo = _histIdx < _history.length - 1;
+            undoBtn.disabled = !canUndo;
+            undoBtn.style.opacity = canUndo ? '1' : '0.4';
+            redoBtn.disabled = !canRedo;
+            redoBtn.style.opacity = canRedo ? '1' : '0.4';
+            undoCnt.textContent = canUndo ? `(${_histIdx})` : '';
+            redoCnt.textContent = canRedo ? `(${_history.length - 1 - _histIdx})` : '';
+        }
+
         // ──── Add Row ────
         function addScheduleRow(tbodyId) {
             const tbody = document.getElementById(tbodyId);
@@ -899,6 +1009,8 @@
 
         // ──── Save to LocalStorage ────
         function saveToLocalStorage() {
+            // Save a history snapshot before writing (skip while restoring)
+            if (!_isRestoring) pushHistory();
             // Main table
             const mainRows = [];
             document.querySelectorAll('#scheduleBody tr').forEach(tr => {
@@ -933,6 +1045,8 @@
 
         // ──── Delete Row ────
         function deleteScheduleRow(btn, tbodyId) {
+            // Capture before deletion so Undo can restore the deleted row
+            pushHistory();
             if (!confirm('هل أنت متأكد من حذف هذا الصف؟')) return;
             const tr = btn.closest('tr');
             tr.remove();
