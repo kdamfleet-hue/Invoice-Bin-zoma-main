@@ -46,12 +46,13 @@ if os.name == "posix":
 LOGO_PATH = os.path.join(os.path.dirname(__file__), "static", "excel_logo.png")
 
 # Valid tab names for template upload
-VALID_TABS = {"invoice", "oils", "purchase", "schedule"}
+VALID_TABS = {"invoice", "oils", "purchase", "schedule", "workshop"}
 # Default template filenames (fallback)
 DEFAULT_TEMPLATES = {
     "oils": "oils_template.xlsx",
     "purchase": "po_template.xlsx",
     "schedule": "schedule_base.xlsx",
+    "workshop": "تقرير الورشة.xlsx",
 }
 
 # Logo for email headers (120x80px PNG, white bg)
@@ -392,6 +393,25 @@ def gps_sync():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("gps_sync.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/workshop")
+@login_required
+def workshop():
+    google_user = session.get("google_user")
+    b64_en = load_logo()
+    return render_template("workshop.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/api/download_workshop_template")
+@login_required
+def download_workshop_template():
+    """Download the workshop report Excel template."""
+    from flask import send_file
+    template_path = os.path.join(os.path.dirname(__file__), "تقرير الورشة.xlsx")
+    if not os.path.exists(template_path):
+        return jsonify({"error": "قالب تقرير الورشة غير موجود"}), 404
+    return send_file(template_path, as_attachment=True, download_name="تقرير_الورشة.xlsx")
 
 
 # ─── Template Upload & Management ─────────────────────────────
