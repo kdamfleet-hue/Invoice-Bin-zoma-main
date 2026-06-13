@@ -378,6 +378,13 @@ def washing():
     b64_en = load_logo()
     return render_template("washing.html", google_user=google_user, b64_en=b64_en)
 
+@app.route("/employees")
+@login_required
+def employees():
+    google_user = session.get("google_user")
+    b64_en = load_logo()
+    return render_template("employees.html", google_user=google_user, b64_en=b64_en)
+
 
 @app.route("/gps_sync")
 @login_required
