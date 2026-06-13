@@ -9,13 +9,29 @@
             --bg-color: #f0f2f5;
             --text-color: #2c3e50;
         }
+        body.dark-mode {
+            --bg-color: #1a202c;
+            --text-color: #e2e8f0;
+        }
+        body.dark-mode .excel-table-container { background: #2d3748; box-shadow: none; }
+        body.dark-mode th { background-color: #4a5568; border-color: #718096; }
+        body.dark-mode td { border-color: #4a5568; }
+        body.dark-mode input, body.dark-mode select { background: #4a5568; color: #fff; border-color: #718096; }
+        body.dark-mode .top-bar { background: #2d3748; }
         body {
             font-family: 'Cairo', sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
             padding: 20px;
+            gap: 10px;
         }
+        .theme-toggle-btn {
+            background: none; border: none; font-size: 1.5rem; cursor: pointer; border-radius: 50%;
+            width: 45px; height: 45px; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); background-color: #fff; transition: 0.3s;
+        }
+        body.dark-mode .theme-toggle-btn { background-color: #4a5568; color: #fff; }
         .excel-table-container {
             width: 100%;
             overflow-x: auto;
@@ -80,7 +96,8 @@
     </style>
 </head>
 <body>
-    <div class="nav-buttons">
+    <div class="nav-buttons" style="align-items: center;">
+        <button class="theme-toggle-btn" id="empDarkModeToggle" onclick="toggleEmpDarkMode()" style="margin-left:auto;margin-right:0;">🌙</button>
         <a href="/" class="btn-outline">العودة للرئيسية</a>
         <a href="/schedule" class="btn-outline">الجدول الأسبوعي</a>
         <button class="btn-outline" onclick="addEmployeeRow()" style="border-color: #27ae60; color: #27ae60;">+ إضافة صف جديد</button>
@@ -331,6 +348,20 @@
             sheet.views = [{ rightToLeft: true }];
             const buffer = await workbook.xlsx.writeBuffer();
             saveAs(new Blob([buffer]), `بيانات_الموظفين_الفرع.xlsx`);
+        }
+
+        // Dark mode logic
+        function toggleEmpDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            document.getElementById('empDarkModeToggle').textContent = isDark ? '☀️' : '🌙';
+        }
+        
+        // Auto-load theme
+        if(localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('empDarkModeToggle').textContent = '☀️';
         }
     </script>
 </body>

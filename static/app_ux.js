@@ -15,22 +15,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- Theme Management ---
 function initThemeToggle() {
-    // تم إيقاف الوضع الليلي وإزالته بالكامل
-    document.body.classList.remove('dark-mode');
-    localStorage.removeItem('darkMode');
-    
-    // إخفاء أي زر قديم لو تبقّى في الصفحة
-    document.querySelectorAll('#darkModeToggle').forEach(btn => {
-        btn.style.display = 'none';
-    });
+    const savedTheme = localStorage.getItem('darkMode');
+    if (savedTheme === 'true') {
+        document.body.classList.add('dark-mode');
+        updateToggleButtons(true);
+    } else {
+        document.body.classList.remove('dark-mode');
+        updateToggleButtons(false);
+    }
 }
 
 window.toggleDarkMode = function() {
-    // معطل
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('darkMode', isDark);
+    updateToggleButtons(isDark);
 };
 
 function updateToggleButtons(isDark) {
-    // معطل
+    document.querySelectorAll('#darkModeToggle').forEach(btn => {
+        btn.innerHTML = isDark ? '☀️' : '🌙';
+        btn.style.display = 'flex'; // Ensure it's visible
+        
+        // Dynamic styling for the button
+        if (isDark) {
+            btn.style.background = 'rgba(255, 255, 255, 0.1)';
+            btn.style.color = '#fff';
+            btn.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+        } else {
+            btn.style.background = 'rgba(15, 23, 42, 0.05)';
+            btn.style.color = '#0f172a';
+            btn.style.border = '1px solid rgba(15, 23, 42, 0.1)';
+        }
+    });
 }
 
 // --- Topographic Texture ---
