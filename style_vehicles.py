@@ -294,7 +294,7 @@ for i in range(8):
         cell.border = Border(left=ts,right=ts,bottom=Side(style='thin',color='CCCCCC'))
         ws.cell(row=row,column=c+1).border = Border(left=ts,right=ts,bottom=Side(style='thin',color='CCCCCC'))
         if i == 3:
-            cell.value = "خالد الغامدي"
+            cell.value = "خالد بن محمد الغامدي"
             cell.font = Font(name='Cairo',size=9,color=TS)
             cell.alignment = Alignment(horizontal='center',vertical='top')
 row += 1; ws.row_dimensions[row].height = 15; row += 1

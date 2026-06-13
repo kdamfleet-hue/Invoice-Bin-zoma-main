@@ -1560,7 +1560,7 @@ def _build_html_email(subject, filename):
 <tr>
 <td style="padding-left:16px;border-left:3px solid #0C2340;">
 <p style="margin:0;font-size:14px;font-weight:700;color:#0C2340;">KHALED AL-GHAMDI</p>
-<p style="margin:3px 0 0;font-size:12px;color:#666;">خالد الغامدي</p>
+<p style="margin:3px 0 0;font-size:12px;color:#666;">خالد بن محمد الغامدي</p>
 <p style="margin:8px 0 0;font-size:12px;color:#888;line-height:1.6;">
 Fleet Management Department<br>
 BIN ZOMAH INTL. Trading & Development Co., Ltd.
@@ -1619,7 +1619,7 @@ def _build_html_compose(subject, body_text):
 <tr>
 <td style="padding-left:16px;border-left:3px solid #0C2340;">
 <p style="margin:0;font-size:14px;font-weight:700;color:#0C2340;">KHALED AL-GHAMDI</p>
-<p style="margin:3px 0 0;font-size:12px;color:#666;">خالد الغامدي</p>
+<p style="margin:3px 0 0;font-size:12px;color:#666;">خالد بن محمد الغامدي</p>
 <p style="margin:8px 0 0;font-size:12px;color:#888;line-height:1.6;">
 Fleet Management Department<br>
 BIN ZOMAH INTL. Trading & Development Co., Ltd.

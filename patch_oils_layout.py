@@ -192,7 +192,7 @@ js_excel_replacement = """
             tEmpty.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
 
             ws.addRow([]);
-            const footerRow = ws.addRow(['تم الإعداد بواسطة قسم الحركة (خالد الغامدي)']);
+            const footerRow = ws.addRow(['تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)']);
             ws.mergeCells(`A${footerRow.number}:G${footerRow.number}`);
             footerRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
             footerRow.getCell(1).font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF5A6A7A' } };
