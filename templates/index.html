@@ -25,31 +25,25 @@
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: rgba(255, 255, 255, 0.2);
-          backdrop-filter: blur(8px);
+          background: rgba(13, 17, 23, 0.6); /* خلفية داكنة وزجاجية */
+          backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(255,255,255,0.05);
           z-index: 1000;
         }
 
-        /* الشعار في الهيدر */
+        /* الشعار */
         header .logo {
           position: absolute;
           left: 50%;
           transform: translateX(-50%);
-          width: 100%;
-          max-width: 600px;
-          text-align: center;
         }
         header .logo img {
-          width: 100%;
-          height: auto;
-          margin-top: 50px; /* يدفع الشعار للأسفل ليبرز خارج الهيدر بفخامة */
-          mix-blend-mode: multiply; /* يجعل الخلفية البيضاء شفافة تماماً */
-          filter: contrast(1.2) saturate(1.3); 
-          transition: all 0.3s ease;
+          height: 260px;
+          margin-top: 100px; /* يدفع الشعار للأسفل ليبرز خارج الهيدر بفخامة */
+          filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)) contrast(1.2) saturate(1.3) brightness(1.05); /* زيادة تباين وتشبع الألوان لجودة أفضل */
         }
         body.dark-mode header .logo img {
-          mix-blend-mode: screen; /* يجعل الخلفية البيضاء شفافة في الوضع الداكن */
-          filter: invert(1) hue-rotate(180deg) brightness(1.5) contrast(1.2); 
+          filter: drop-shadow(0 8px 12px rgba(255,255,255,0.15)) contrast(1.2) saturate(1.3) brightness(1.15); /* إضاءة الشعار في الوضع الليلي */
         }
 
         /* روابط الديسكتوب */
@@ -61,20 +55,20 @@
         .nav-links a {
           text-decoration: none;
           font-size: 18px;
-          color: #1A3A5C;
+          color: #f0f6fc; /* أبيض ناعم للوضع الداكن */
           font-weight: 600;
           transition: 0.3s;
         }
 
         .nav-links a:hover {
-          color: #00c3ff;
+          color: #c9a25b; /* ذهبي فاخر */
           transform: translateY(-2px);
         }
 
         /* زر القائمة للجوال */
         .menu-icon {
           font-size: 32px;
-          color: #1A3A5C;
+          color: #f0f6fc;
           cursor: pointer;
           display: none;
         }
@@ -119,8 +113,8 @@
             padding: 12px 15px; /* تصغير حواف الهيدر في الجوال */
           }
           header .logo img {
-            width: 85% !important; /* تصغير الشعار ليتناسب مع شاشة الجوال */
-            margin-top: 60px !important;
+            height: 110px !important; /* تصغير الشعار العملاق ليتناسب مع شاشة الجوال */
+            margin-top: 50px !important;
           }
           body {
             padding-top: 120px !important; /* تقليل المساحة العلوية في الجوال */
@@ -146,17 +140,13 @@
         }
 
         .site-logo {
-            max-width: 750px; /* أعرض */
-            width: 95%;
-            height: auto;
+            max-width: 650px; width: 90%;
             margin-bottom: 1rem;
-            mix-blend-mode: multiply; /* خلفية شفافة سحرية */
-            filter: contrast(1.2) saturate(1.2);
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
             transition: var(--trans);
         }
         body.dark-mode .site-logo {
-            mix-blend-mode: screen;
-            filter: invert(1) hue-rotate(180deg) brightness(1.5) contrast(1.2);
+            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.2));
         }
 
         .header-title {
@@ -226,44 +216,34 @@
 </head>
 <body>
 
-    <!-- Mobile Toggle -->
-    <button class="mobile-toggle" onclick="document.getElementById('dashboardSidebar').classList.toggle('open')">☰</button>
-
-    <!-- Dashboard Sidebar -->
-    <aside class="dashboard-sidebar" id="dashboardSidebar">
-        <div class="sidebar-logo">
-            <img src="{{ url_for('static', filename='site_logo.png') }}" alt="Bin Zomah Intl Logo">
-        </div>
-        <nav class="sidebar-menu">
-            <a href="/" class="sidebar-item">🏠 الرئيسية</a>
-            <a href="/oils" class="sidebar-item">📄 بيان زيوت وفلاتر</a>
-            <a href="/purchase" class="sidebar-item">🛒 طلبات الشراء</a>
-            <a href="/schedule" class="sidebar-item">📋 الجدول الأسبوعي</a>
-            <a href="/employees" class="sidebar-item">👥 بيانات الموظفين</a>
-            <a href="/washing" class="sidebar-item">🚿 جدول الغسيل</a>
-            <a href="/workshop" class="sidebar-item">🔧 صيانة الورشة</a>
-            <a href="/gps_sync" class="sidebar-item">📡 مزامنة GPS</a>
-            <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="sidebar-item">🛰️ التتبع المباشر</a>
-            <a href="/logout" class="sidebar-item" style="color: #ef4444; margin-top: auto;">🚪 تسجيل الخروج</a>
-        </nav>
-    </aside>
-
-    <!-- Main Content Wrapper -->
-    <main class="main-content">
-
-
-    <video autoplay muted loop playsinline style="display: none;">
-        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
-    </video>
-
-
-{% if not google_user %}<a href="/logout" style="position: absolute; top: 1.5rem; left: 1.5rem; z-index: 9999; background: #e74c3c; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 0.95rem; text-decoration: none; font-family: Cairo;">🚪 تسجيل الخروج</a>{% endif %}
 
 
 
+    <header>
+      <nav class="nav-links">
+        <a href="#home">الرئيسية</a>
+        <a href="#services">الخدمات</a>
+        <a href="#about">من نحن</a>
+        <a href="https://bz.sa" target="_blank">موقعنا الرسمي</a>
+        <a href="#contact">تواصل معنا</a>
+      </nav>
 
+      <div class="logo">
+        <img src="{{ url_for('static', filename='gemini_logo_header_v223.png', v=4) }}" alt="Bin Zomah Intl Logo">
+      </div>
 
-    
+      <div class="menu-icon" onclick="toggleMenu()">
+        ☰
+      </div>
+
+      <nav class="mobile-menu" id="mobileMenu">
+        <a href="#home">الرئيسية</a>
+        <a href="#services">الخدمات</a>
+        <a href="#about">من نحن</a>
+        <a href="https://bz.sa" target="_blank">موقعنا الرسمي</a>
+        <a href="#contact">تواصل معنا</a>
+      </nav>
+    </header>
 
     <script>
     function toggleMenu() {
@@ -274,17 +254,24 @@
 
     <div class="header-container">
     {% if google_user %}
-    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1001; backdrop-filter: blur(5px);">
+    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(22, 27, 34, 0.9); padding: 5px 15px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1001; backdrop-filter: blur(5px);">
         <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
-        <span style="font-weight: bold; color: #1A3A5C; font-size: 0.9rem;">{{ google_user.name }}</span>
-        <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">🚪 تسجيل خروج</a>
+        <span style="font-weight: bold; color: #f0f6fc; font-size: 0.9rem;">{{ google_user.name }}</span>
+        <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">تسجيل خروج</a>
     </div>
     {% endif %}
 
     <h1 class="header-title">نظام الفواتير الذكي</h1>
         <p class="header-subtitle">اختر السائق وسيتم تعبئة البيانات تلقائياً</p>
-        
-
+        <div class="nav-buttons">
+            <button class="btn-outline" onclick="openModal()">⚙️ إدارة السائقين وقاعدة البيانات</button>
+            <a href="/oils" class="btn-outline" style="text-decoration:none;">📄 إنشاء بيان زيوت وفلاتر</a>
+            <a href="/purchase" class="btn-outline" style="text-decoration:none;">🛒 طلبات الشراء</a>
+            <a href="/schedule" class="btn-outline" style="text-decoration:none;">📋 الجدول الأسبوعي</a>
+            <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
+            <a href="/tracking" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
+            <a href="/gps_sync" class="btn-outline" style="text-decoration:none;">📡 مزامنة كشف GPS</a>
+        </div>
     </div>
 
     <div class="grid-container">
@@ -407,7 +394,6 @@
                     <input type="text" id="newCar" placeholder="نوع السيارة وموديلها">
                     <input type="text" id="newIqama" placeholder="رقم الإقامة">
                     <input type="text" id="newPhone" placeholder="رقم الجوال">
-                    <input type="text" id="newDriverCard" placeholder="تاريخ انتهاء بطاقة السائق">
                     <button class="btn-add" onclick="addDriver()">إضافة إلى قاعدة البيانات ➕</button>
                 </div>
 
@@ -420,16 +406,15 @@
                                 <th>السيارة</th>
                                 <th>اللوحة</th>
                                 <th>الإقامة</th>
-                                <th>بطاقة السائق</th>
                                 <th>الجوال</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody id="driversTableBody">
                             <!-- Data here -->
-                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
-                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
-                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
+                            <tr class="skeleton"><td colspan="7">تحميل البيانات...</td></tr>
+                            <tr class="skeleton"><td colspan="7">تحميل البيانات...</td></tr>
+                            <tr class="skeleton"><td colspan="7">تحميل البيانات...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -474,7 +459,7 @@
             if (driversData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8">
+                        <td colspan="7">
                             <div class="empty-state">
                                 <div class="empty-state-icon">📭</div>
                                 <h3>لا يوجد بيانات</h3>
@@ -494,7 +479,6 @@
                     <td>${d.car || '-'}</td>
                     <td>${d.plate || '-'}</td>
                     <td>${d.iqama || '-'}</td>
-                    <td>${d.drivercard || '-'}</td>
                     <td>${d.phone || '-'}</td>
                     <td>
                         <button class="btn-outline" style="padding:4px 8px;font-size:0.8rem;border-color:#3498db;color:#3498db;" onclick="editDriver(${d.id})">تعديل</button>
@@ -512,7 +496,6 @@
             const car = document.getElementById('newCar').value;
             const iqama = document.getElementById('newIqama').value;
             const phone = document.getElementById('newPhone').value;
-            const drivercard = document.getElementById('newDriverCard').value;
             
             if(!name) {
                 showToast('الاسم مطلوب!', 'error');
@@ -523,7 +506,7 @@
                 const res = await fetch('/api/drivers', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({name, empid, plate, car, iqama, phone, drivercard})
+                    body: JSON.stringify({name, empid, plate, car, iqama, phone})
                 });
                 if(res.ok) {
                     document.getElementById('newName').value = '';
@@ -532,7 +515,6 @@
                     document.getElementById('newCar').value = '';
                     document.getElementById('newIqama').value = '';
                     document.getElementById('newPhone').value = '';
-                    document.getElementById('newDriverCard').value = '';
                     showToast('تم إضافة السائق بنجاح!', 'success');
                     await fetchDrivers();
                 } else {
@@ -550,7 +532,6 @@
             const newCar = prompt('تعديل نوع السيارة:', d.car || '');
             const newPlate = prompt('تعديل رقم اللوحة:', d.plate || '');
             const newIqama = prompt('تعديل رقم الإقامة:', d.iqama || '');
-            const newDriverCard = prompt('تعديل تاريخ انتهاء بطاقة السائق:', d.drivercard || '');
             const newPhone = prompt('تعديل رقم الجوال:', d.phone || '');
             if (!newName) {
                 showToast('الاسم مطلوب!', 'error');
@@ -561,7 +542,7 @@
                 const res = await fetch(`/api/drivers/${id}`, {
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({name: newName, empid: newEmpid, car: newCar, plate: newPlate, iqama: newIqama, phone: newPhone, drivercard: newDriverCard})
+                    body: JSON.stringify({name: newName, empid: newEmpid, car: newCar, plate: newPlate, iqama: newIqama, phone: newPhone})
                 });
                 if(res.ok) {
                     showToast('تم تعديل السائق بنجاح', 'success');
@@ -787,7 +768,7 @@
 
             
         ws.addRow([]);
-        const footerRow = ws.addRow(['تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)']);
+        const footerRow = ws.addRow(['تم الإعداد بواسطة قسم الحركة (خالد الغامدي)']);
         ws.mergeCells(`A${footerRow.number}:G${footerRow.number}`);
         footerRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
         footerRow.getCell(1).font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF5A6A7A' } };
@@ -882,7 +863,7 @@
                 <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">متابعة جداول غسيل المركبات الشهرية</p>
             </div>
         </a>
-        <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" style="text-decoration:none;">
+        <a href="/tracking" target="_blank" style="text-decoration:none;">
             <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
                 <div style="font-size:2rem; margin-bottom:0.5rem;">🛰️</div>
                 <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">التتبع المباشر</h3>
@@ -945,7 +926,7 @@
     </div>
 </section>
 
-<footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
+<footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
 
 
     <div class="modal-backdrop" id="emailModal">
@@ -1129,20 +1110,26 @@ document.getElementById('composeForm').addEventListener('submit', async function
         }
 </script>
 
-    <section id="contact" style="max-width: 800px; margin: 40px auto; text-align: center; padding: 30px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-sm);">
-        <h2 style="color: var(--accent); margin-bottom: 15px;">📞 تواصل معنا</h2>
-        <p style="font-size: 1.1rem; color: var(--text-primary);">لأي استفسارات أو دعم فني، لا تتردد بالتواصل مع مسؤول الحركة:</p>
-        <div style="margin-top: 20px; font-size: 1.3rem; font-weight: bold;">
-            <div style="margin-bottom: 10px;">👤 خالد بن محمد الغامدي</div>
-            <div style="color: #25d366; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
-                📱 0570310909
-                <a href="https://wa.me/966570310909?text=مرحباً" target="_blank" class="btn-primary" style="font-size: 0.9rem; padding: 6px 15px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">مراسلة واتساب</a>
-            </div>
-        </div>
-    </section>
-
-<a href="https://wa.me/966570310909?text=مرحباً" target="_blank" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; font-family: Cairo;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل معنا - خالد بن محمد الغامدي</a>
-</main>
+<!-- GPS Session Monitor -->
+<script>
+(function () {
+    const originalFetch = window.fetch;
+    window.fetch = async function (...args) {
+        const response = await originalFetch(...args);
+        if (response.status === 401 || response.status === 440) {
+            window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
+        }
+        try {
+            const clone = response.clone();
+            const text = await clone.text();
+            if (text.includes("ERROR-100") || text.includes("Session timed out")) {
+                window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
+            }
+        } catch (e) {}
+        return response;
+    };
+})();
+</script>
 </body>
 </html>
 
