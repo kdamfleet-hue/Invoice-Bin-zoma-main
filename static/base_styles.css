@@ -181,10 +181,11 @@ body::after {
     font-weight: 700;
     font-size: 1.05rem;
     transition: var(--trans);
-    gap: 12px;
+    gap: 15px; /* زيادة المسافة بين الأيقونة والنص لمنع التداخل */
     border: 1px solid transparent;
     position: relative;
     overflow: hidden;
+    white-space: nowrap; /* منع النص من النزول لسطر جديد وتشويه الأيقونة */
 }
 
 .sidebar-item::before {
@@ -566,12 +567,65 @@ tr:hover td { background: rgba(0, 240, 255, 0.05); }
 
 .header-container { animation: fadeInUp 0.8s cubic-bezier(0.25, 1, 0.5, 1); }
 
+/* Mobile Sidebar toggle */
+.mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    background: rgba(20, 20, 35, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    z-index: 2000;
+    box-shadow: 0 0 15px var(--accent-glow);
+    color: var(--accent);
+    transition: var(--trans);
+}
+
+.mobile-toggle:hover {
+    background: var(--accent);
+    color: #000;
+    transform: scale(1.05);
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
     .dashboard-sidebar {
-        background: rgba(10, 10, 15, 0.95);
+        position: fixed;
+        right: -100%; /* مخفية افتراضياً في الجوال */
+        top: 0;
+        width: 280px;
+        height: 100vh;
+        background: rgba(10, 10, 15, 0.98);
+        backdrop-filter: blur(30px);
+        transition: right 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        z-index: 1500;
+        box-shadow: -5px 0 30px rgba(0,0,0,0.8);
     }
+    
+    .dashboard-sidebar.open {
+        right: 0; /* تظهر عند الضغط */
+    }
+    
     .main-content {
+        width: 100%;
         padding: 1.5rem;
+        padding-top: 5rem; /* مساحة لزر القائمة */
+    }
+    
+    .mobile-toggle {
+        display: block;
+    }
+
+    /* تحسين أزرار الإجراءات في الجوال لمنع التداخل */
+    .btn-primary, .btn-submit-gold, .btn-submit-orange, .btn-submit-green, .btn-outline {
+        width: 100%;
+        margin-bottom: 10px;
+        min-width: 100% !important;
     }
 }
+
