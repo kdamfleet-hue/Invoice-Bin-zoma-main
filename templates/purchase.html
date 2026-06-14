@@ -1,678 +1,783 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>طلب شراء وإصلاح سيارة | شركة بن زومة</title>
+    <title>طلبات الشراء | شركة بن زومة فرع الدمام</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <style>
-        body { padding-top: 0 !important; background-color: var(--bg); }
-        .page-wrapper {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 1.5rem 1.2rem 3rem;
-        }
-
-        /* Top Nav */
-        .top-bar {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0.6rem 1.2rem; background: var(--surface);
-            border-bottom: 2px solid var(--accent); position: sticky; top: 0; z-index: 100;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-        }
-        .top-bar-logo { height: 48px; }
-        .top-nav-links { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .top-nav-links a {
-            text-decoration: none; font-size: 0.8rem; color: var(--text-primary);
-            padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px;
-            transition: 0.2s; font-weight: 600;
-        }
-        .top-nav-links a:hover { border-color: var(--accent); color: var(--accent); }
-
-        /* Action bar */
-        .action-bar {
-            display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 1rem;
-        }
-        .btn {
-            background: var(--accent); color: #fff; padding: 10px 20px;
-            border: none; border-radius: 8px; font-family: 'Cairo', sans-serif;
-            font-weight: 700; cursor: pointer; transition: 0.2s;
-            display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(13,71,161,0.2);
-        }
-        .btn:hover { background: var(--accent-hover); transform: translateY(-2px); }
-        .btn-print { background: #E65100; box-shadow: 0 4px 12px rgba(230,81,0,0.2); }
-        .btn-print:hover { background: #FF6D00; }
-        .btn-clear { background: #C62828; box-shadow: 0 4px 12px rgba(198,40,40,0.2); }
-        .btn-clear:hover { background: #E53935; }
-
-        /* Report Paper */
-        .report-paper {
-            background: #ffffff;
-            border: 2px solid #000;
-            padding: 2rem;
-            color: #000;
-            position: relative;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-        }
-
-        /* Header */
-        .report-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-        }
-        .header-title {
-            text-align: center;
-            flex-grow: 1;
-        }
-        .header-title h1 {
-            font-size: 24px; font-weight: 800; margin: 0; color: #000;
-            text-decoration: underline;
-        }
-        .header-info {
+        .header-container {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            font-weight: 700;
-            font-size: 16px;
+            align-items: center;
+            margin: 0 auto 1rem auto;
+            width: 100%;
+            max-width: 1200px;
+            z-index: 2;
         }
-        .header-info div { display: flex; align-items: center; gap: 10px; }
-        .header-input {
-            border: none; border-bottom: 2px dashed #888;
-            font-family: 'Cairo', sans-serif; font-size: 16px; font-weight: 700;
-            color: #000; background: transparent; outline: none; width: 120px; text-align: center;
-        }
-        .report-logo { width: 150px; object-fit: contain; }
 
-        /* Sections */
-        .section-title {
-            background: #f0f0f0;
-            border: 2px solid #000;
-            padding: 5px 15px;
+        .site-logo {
+            max-width: 650px;
+            width: 90%;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
+            transition: var(--trans);
+        }
+
+        body.dark-mode .site-logo {
+            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 20px rgba(255, 255, 255, 0.4));
+        }
+
+        .header-title {
+            font-size: 2.2rem;
             font-weight: 800;
-            font-size: 18px;
-            margin: 20px 0 10px 0;
-            display: inline-block;
+            color: var(--accent);
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        /* Grids and Inputs */
+        body.dark-mode .header-title {
+            color: #82aaff !important;
+            text-shadow: 0 0 10px rgba(130, 170, 255, 0.4);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .table-container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 1.5rem;
+            margin: 1.5rem auto 0 auto;
+            z-index: 2;
+        }
+
+        .section-title {
+            background: linear-gradient(135deg, var(--accent), #2C6FAC);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 15px 0 10px;
+            box-shadow: var(--shadow-md);
+        }
+
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .info-item { display: flex; align-items: center; gap: 10px; font-weight: 700; }
-        .info-item input {
-            flex-grow: 1;
-            border: none; border-bottom: 2px dashed #888;
-            font-family: 'Cairo', sans-serif; font-size: 16px; font-weight: 700;
-            color: #000; background: transparent; outline: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
         }
 
-        /* Tables */
+        .info-grid label {
+            font-weight: bold;
+            color: var(--accent);
+            font-size: 0.9rem;
+        }
+
+        body.dark-mode .info-grid label {
+            color: #82aaff;
+        }
+
         table {
-            width: 100%; border-collapse: collapse; margin-bottom: 20px;
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+            border-radius: 8px;
+            overflow: hidden;
         }
-        th, td {
-            border: 2px solid #000;
-            padding: 8px;
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            padding: 10px;
             text-align: center;
-            font-weight: 700;
-            color: #000;
-        }
-        th { background-color: #f0f0f0; font-weight: 800; }
-        input.table-input {
-            width: 100%; border: none; background: transparent;
-            font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 700;
-            text-align: center; outline: none; color: #000;
-        }
-        .col-num { width: 40px; }
-        .col-desc { width: 40%; }
-        .col-qty, .col-price { width: 80px; }
-        .col-total { width: 100px; background-color: #f9f9f9; }
-        .col-notes { width: 25%; }
-
-        /* Signatures */
-        .signatures {
-            display: grid; grid-template-columns: repeat(4, 1fr);
-            gap: 20px; margin-top: 40px; text-align: center;
-        }
-        .sig-box { display: flex; flex-direction: column; align-items: center; gap: 40px; }
-        .sig-title { font-weight: 800; font-size: 16px; border-bottom: 1px solid #000; padding-bottom: 5px; width: 100%; }
-        .sig-input {
-            border: none; border-bottom: 2px dashed #888; text-align: center;
-            font-family: 'Cairo', sans-serif; font-size: 16px; width: 80%; background: transparent; color: #000; font-weight: 700; outline: none;
         }
 
-        /* Autocomplete */
-        .autocomplete-suggestions {
-            position: absolute; border: 1px solid #ccc; background: #fff;
-            max-height: 150px; overflow-y: auto; z-index: 1000; width: 100%;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 4px;
+        th {
+            background: linear-gradient(135deg, var(--accent), #2C6FAC);
+            color: white;
+            font-weight: bold;
+            font-size: 0.95rem;
         }
-        .autocomplete-suggestion {
-            padding: 8px; cursor: pointer; color: #000; font-family: 'Cairo', sans-serif; font-size: 14px;
-        }
-        .autocomplete-suggestion:hover { background-color: #f0f0f0; }
 
-        /* Print styles */
-        @media print {
-            @page { size: A4 portrait; margin: 15mm; }
-            .top-bar, .action-bar, video, button { display: none !important; }
-            body { background: white !important; padding: 0 !important; }
-            .page-wrapper { max-width: 100%; padding: 0; margin: 0; }
-            .report-paper { 
-                border: 2px solid #000 !important; box-shadow: none; padding: 20px !important; 
-                width: 100%; box-sizing: border-box;
+        td {
+            background: var(--surface);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            width: 100%;
+            min-width: 80px;
+            padding: 10px;
+            border: 1px solid var(--border-strong);
+            border-radius: 6px;
+            font-family: 'Cairo';
+            font-size: 0.95rem;
+            font-weight: 600;
+            outline: none;
+            transition: var(--trans);
+            background: var(--surface);
+            color: var(--text-primary);
+            box-sizing: border-box;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .btn-remove {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: var(--trans);
+        }
+
+        .btn-remove:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+                padding-top: 4rem;
             }
-            table, th, td { border: 2px solid #000 !important; }
-            th { background-color: #f0f0f0 !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            input.table-input, .sig-input, .header-input, .info-item input { color: #000 !important; font-family: 'Cairo', sans-serif !important; }
-            input::placeholder { color: transparent !important; }
-            body.dark-mode .report-logo { filter: none; }
+
+            .header-title {
+                font-size: 1.6rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Floating Action Button */
+        .fab-btn {
+            position: fixed;
+            bottom: 25px;
+            left: 25px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), #2C6FAC);
+            color: #fff;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--trans-spring);
+        }
+
+        .fab-btn:hover {
+            transform: scale(1.1) rotate(10deg);
         }
     </style>
 </head>
-<body>
-    <video autoplay muted loop playsinline style="display: none;">
-        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
-    </video>
 
-    <div class="top-bar">
-        <img src="{{ url_for('static', filename='site_logo.png') }}" alt="شركة بن زومة" class="top-bar-logo">
-        <div class="top-nav-links">
-            <a href="/">🏠 الرئيسية</a>
-            <a href="/workshop">🛠 الورشة</a>
-            <a href="/schedule">📋 جدول</a>
+<body>
+    <datalist id="driversList"></datalist>
+
+
+    <div class="header-container">
+        {% if b64_en %}<img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">{% endif %}
+                {% if google_user %}
+        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
+            <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
+            <span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
+            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
+        </div>
+        {% endif %}
+        <h1 class="header-title">نموذج طلب شراء وإصلاح سيارة</h1>
+        <div class="nav-buttons">
+            <a href="/" class="btn-outline">🔙 العودة للفواتير</a>
+            <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
+            <a href="/tracking" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
         </div>
     </div>
 
-    <div class="page-wrapper">
-        <div class="action-bar">
-            <button class="btn btn-clear" onclick="clearData()">🗑 تفريغ الحقول</button>
-            <button class="btn btn-print" onclick="window.print()">🖨 طباعة A4</button>
-            <button class="btn" onclick="exportToExcel()">📥 تصدير Excel</button>
+    <!-- Vehicle Info -->
+    <div class="table-container glass-surface">
+        <div class="section-title">🚗 بيانات السيارة والسائق</div>
+
+        <!-- Universal Search -->
+        <div style="position:relative;margin-bottom:15px;">
+            <label style="font-weight:bold;color:var(--accent);font-size:1rem;display:block;margin-bottom:6px;">🔍 بحث شامل (اسم / رقم إقامة / رقم لوحة / جوال):</label>
+            <input type="text" id="universalSearch" placeholder="ابحث هنا... مثال: خالد أو 7775 أو 2487345031" oninput="universalSearchFn()" style="width:100%;padding:14px 16px;border:2px solid var(--accent);border-radius:10px;font-size:1.05rem;font-family:'Cairo';font-weight:700;background:var(--surface);color:var(--text-primary);box-sizing:border-box;transition:var(--trans);">
+            <div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:0 0 10px 10px;max-height:300px;overflow-y:auto;z-index:100;box-shadow:var(--shadow-md);"></div>
         </div>
 
-        <div class="report-paper" id="purchase-form">
-            <!-- Header -->
-            <div class="report-header">
-                <div class="header-info">
-                    <div>
-                        <span>NO.</span>
-                        <input type="text" class="header-input" id="po-no" value="0144" style="color: #d32f2f;">
+        <div class="info-grid">
+            <div><label>الرقم التسلسلي (سيريال):</label><input type="text" id="poSerial" readonly style="background: rgba(0,0,0,0.05); color: var(--accent); font-weight: bold; border-color: var(--accent);"></div>
+            <div><label>اسم السائق:</label><input type="text" id="poDriver" list="driversList" onchange="poAutofill()">
+            </div>
+            <div><label>رقم الإقامة:</label><input type="text" id="poIqama"></div>
+            <div><label>الفرع:</label><input type="text" id="poBranch" value="الدمام"></div>
+            <div><label>الوظيفة:</label><input type="text" id="poJob" value="سائق"></div>
+            <div><label>نوع السيارة:</label><input type="text" id="poCar"></div>
+            <div><label>رقم اللوحة:</label><input type="text" id="poPlate"></div>
+            <div><label>الموديل:</label><input type="text" id="poModel"></div>
+            <div><label>رقم الجوال:</label><input type="text" id="poPhone"></div>
+            <div><label>التاريخ:</label><input type="date" id="poDate"></div>
+        </div>
+
+        <!-- Parts -->
+        <div class="section-title">⚙️ قطع الغيار <button class="btn-remove"
+                style="background:#27ae60;margin-right:10px;padding:3px 10px" onclick="addPartRow()">+ صف</button></div>
+        <table id="partsTable">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>البيان</th>
+                    <th>الكمية</th>
+                    <th>السعر</th>
+                    <th>القيمة</th>
+                    <th>ملاحظات</th>
+                    <th>حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Repairs -->
+        <div class="section-title">🔧 الإصلاح <button class="btn-remove"
+                style="background:#27ae60;margin-right:10px;padding:3px 10px" onclick="addRepairRow()">+ صف</button>
+        </div>
+        <table id="repairsTable">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>الوصف</th>
+                    <th>القيمة</th>
+                    <th>ملاحظات</th>
+                    <th>حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Tires -->
+        <div class="section-title">🛞 الكفرات <button class="btn-remove"
+                style="background:#27ae60;margin-right:10px;padding:3px 10px" onclick="addTireRow()">+ صف</button></div>
+        <table id="tiresTable">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>تاريخ التغيير</th>
+                    <th>العدد</th>
+                    <th>أمامية</th>
+                    <th>خلفية</th>
+                    <th>قراءة سابقة</th>
+                    <th>قراءة حالية</th>
+                    <th>المسافة</th>
+                    <th>حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Batteries -->
+        <div class="section-title">🔋 البطاريات <button class="btn-remove"
+                style="background:#27ae60;margin-right:10px;padding:3px 10px" onclick="addBatteryRow()">+ صف</button>
+        </div>
+        <table id="batteriesTable">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>الوصف</th>
+                    <th>العدد</th>
+                    <th>المقاس</th>
+                    <th>أمبير</th>
+                    <th>السعر للوحدة</th>
+                    <th>التاريخ</th>
+                    <th>حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Summary Totals -->
+        <div class="section-title">📊 ملخص الإجماليات</div>
+        <table id="summaryTable">
+            <thead>
+                <tr>
+                    <th>قطع الغيار</th>
+                    <th>الإصلاح</th>
+                    <th>الكفرات</th>
+                    <th>البطاريات</th>
+                    <th>الإجمالي (قبل الضريبة)</th>
+                    <th>ضريبة 15%</th>
+                    <th>الإجمالي شامل الضريبة</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input type="number" id="sumParts" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;"></td>
+                    <td><input type="number" id="sumRepairs" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;"></td>
+                    <td><input type="number" id="sumTires" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;" placeholder="أدخل يدوياً"></td>
+                    <td><input type="number" id="sumBatteries" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;"></td>
+                    <td><input type="number" id="sumSubtotal" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:var(--accent);"></td>
+                    <td><input type="number" id="sumVat" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:#e67e22;"></td>
+                    <td><input type="number" id="sumGrandTotal" readonly style="background:rgba(0,0,0,0.05);font-weight:bold;text-align:center;color:#27ae60;font-size:1.1rem;"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- General Notes -->
+        <div class="section-title">📝 ملاحظات عامة</div>
+        <textarea id="poNotes" rows="3" placeholder="أدخل أي ملاحظات إضافية هنا..." style="width:100%;padding:12px;border:1px solid var(--border-strong);border-radius:8px;font-family:'Cairo';font-size:0.95rem;font-weight:600;outline:none;transition:var(--trans);background:var(--surface);color:var(--text-primary);box-sizing:border-box;resize:vertical;"></textarea>
+
+        <div style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
+            <button class="btn-primary" onclick="downloadPO()">📥 استخراج الطلب (Excel)</button>
+            <button class="btn-primary" style="background:#e67e22" onclick="openCustomModal('emailModal')">📧 إرسال عبر
+                الإيميل</button>
+        </div>
+    </div>
+    <footer
+        style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;width:100%">
+        تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
+
+
+
+    <script>
+        let driversData = [];
+        async function fetchDrivers() { try { driversData = await (await fetch('/api/drivers')).json(); const dl = document.getElementById('driversList'); dl.innerHTML = ''; driversData.forEach(d => { const o = document.createElement('option'); o.value = d.name; dl.appendChild(o); }) } catch (e) { } }
+        function poAutofill() {
+            const val = document.getElementById('poDriver').value;
+            const d = driversData.find(x => x.name === val);
+            if (d) { fillDriverFields(d); }
+        }
+
+        function fillDriverFields(d) {
+            if (d.name) document.getElementById('poDriver').value = d.name;
+            if (d.car && d.car !== 'None') document.getElementById('poCar').value = d.car;
+            if (d.plate && d.plate !== 'None') document.getElementById('poPlate').value = d.plate;
+            if (d.iqama && d.iqama !== 'None') document.getElementById('poIqama').value = d.iqama;
+            if (d.phone && d.phone !== 'None') document.getElementById('poPhone').value = d.phone;
+        }
+
+        // Universal search: searches name, iqama, plate, phone
+        function universalSearchFn() {
+            const q = document.getElementById('universalSearch').value.trim().toLowerCase();
+            const resultsDiv = document.getElementById('searchResults');
+            if (!q || q.length < 2) { resultsDiv.style.display = 'none'; return; }
+
+            const matches = driversData.filter(d => {
+                return (d.name && d.name.toLowerCase().includes(q)) ||
+                       (d.iqama && d.iqama.includes(q)) ||
+                       (d.plate && d.plate.replace(/\s/g,'').includes(q.replace(/\s/g,''))) ||
+                       (d.phone && d.phone.includes(q)) ||
+                       (d.empid && d.empid.includes(q));
+            });
+
+            if (matches.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding:12px;color:var(--text-muted);text-align:center;">لا توجد نتائج</div>';
+            } else {
+                resultsDiv.innerHTML = matches.slice(0, 10).map(d => {
+                    const parts = [];
+                    if (d.iqama) parts.push('🪪 ' + d.iqama);
+                    if (d.plate) parts.push('🚗 ' + d.plate);
+                    if (d.car) parts.push('🚛 ' + d.car);
+                    if (d.phone) parts.push('📱 ' + d.phone);
+                    return `<div onclick="selectSearchResult('${d.name.replace(/'/g, "\\'")}')"
+                        style="padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:var(--trans);"
+                        onmouseover="this.style.background='var(--surface-hover)'"
+                        onmouseout="this.style.background='transparent'">
+                        <div style="font-weight:bold;color:var(--text-primary);font-size:1rem;">👤 ${d.name}</div>
+                        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:3px;">${parts.join(' | ')}</div>
+                    </div>`;
+                }).join('');
+            }
+            resultsDiv.style.display = 'block';
+        }
+
+        function selectSearchResult(name) {
+            const d = driversData.find(x => x.name === name);
+            if (d) {
+                fillDriverFields(d);
+                document.getElementById('universalSearch').value = d.name;
+                document.getElementById('searchResults').style.display = 'none';
+            }
+        }
+
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#universalSearch') && !e.target.closest('#searchResults')) {
+                document.getElementById('searchResults').style.display = 'none';
+            }
+        });
+
+        // ── Auto-calculate summary totals ──
+        function recalcSummary() {
+            // Parts total
+            let partsTotal = 0;
+            document.querySelectorAll('#partsTable tbody tr:not(.empty-row)').forEach(tr => {
+                partsTotal += parseFloat(tr.querySelector('.p-val')?.value) || 0;
+            });
+            // Repairs total
+            let repairsTotal = 0;
+            document.querySelectorAll('#repairsTable tbody tr:not(.empty-row)').forEach(tr => {
+                repairsTotal += parseFloat(tr.querySelector('.r-val')?.value) || 0;
+            });
+            // Tires total (no price column in tires, user enters manually if needed)
+            let tiresTotal = parseFloat(document.getElementById('sumTires').value) || 0;
+            // Batteries total
+            let batteriesTotal = 0;
+            document.querySelectorAll('#batteriesTable tbody tr:not(.empty-row)').forEach(tr => {
+                const count = parseFloat(tr.querySelector('.b-count')?.value) || 0;
+                const price = parseFloat(tr.querySelector('.b-price')?.value) || 0;
+                batteriesTotal += count * price;
+            });
+
+            document.getElementById('sumParts').value = partsTotal ? partsTotal.toFixed(2) : '';
+            document.getElementById('sumRepairs').value = repairsTotal ? repairsTotal.toFixed(2) : '';
+            document.getElementById('sumBatteries').value = batteriesTotal ? batteriesTotal.toFixed(2) : '';
+
+            const subtotal = partsTotal + repairsTotal + tiresTotal + batteriesTotal;
+            const vat = subtotal * 0.15;
+            const grandTotal = subtotal + vat;
+
+            document.getElementById('sumSubtotal').value = subtotal ? subtotal.toFixed(2) : '';
+            document.getElementById('sumVat').value = vat ? vat.toFixed(2) : '';
+            document.getElementById('sumGrandTotal').value = grandTotal ? grandTotal.toFixed(2) : '';
+        }
+
+        // Recalc on any input change within tables
+        document.addEventListener('input', function(e) {
+            if (e.target.closest('#partsTable') || e.target.closest('#repairsTable') || e.target.closest('#batteriesTable') || e.target.id === 'sumTires') {
+                recalcSummary();
+            }
+        });
+
+        let pc = 0;
+        function addPartRow() {
+            pc++;
+            const t = document.querySelector('#partsTable tbody');
+            const empty = t.querySelector('.empty-row');
+            if (empty) empty.remove();
+            const r = document.createElement('tr');
+            r.innerHTML = `<td>${pc}</td><td><input class="p-desc"></td><td><input type="number" class="p-qty" oninput="calcPartVal(this)"></td><td><input type="number" class="p-price" oninput="calcPartVal(this)"></td><td><input type="number" class="p-val" readonly></td><td><input class="p-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updatePartIds();recalcSummary()">✕</button></td>`;
+            t.appendChild(r);
+        }
+        function updatePartIds() {
+            const tb = document.querySelector('#partsTable tbody');
+            pc = 0;
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r => { pc++; r.cells[0].innerText = pc; });
+            if (pc === 0) tb.innerHTML = '<tr class="empty-row"><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد بيانات</h3></div></td></tr>';
+        }
+        function calcPartVal(el) { const tr = el.closest('tr'); const q = parseFloat(tr.querySelector('.p-qty').value) || 0; const p = parseFloat(tr.querySelector('.p-price').value) || 0; tr.querySelector('.p-val').value = (q * p).toFixed(2); recalcSummary(); }
+
+        let rc = 0;
+        function addRepairRow() {
+            rc++;
+            const t = document.querySelector('#repairsTable tbody');
+            const empty = t.querySelector('.empty-row');
+            if (empty) empty.remove();
+            const r = document.createElement('tr');
+            r.innerHTML = `<td>${rc}</td><td><input class="r-desc"></td><td><input type="number" class="r-val" oninput="recalcSummary()"></td><td><input class="r-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateRepairIds();recalcSummary()">✕</button></td>`;
+            t.appendChild(r);
+        }
+        function updateRepairIds() {
+            const tb = document.querySelector('#repairsTable tbody');
+            rc = 0;
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r => { rc++; r.cells[0].innerText = rc; });
+            if (rc === 0) tb.innerHTML = '<tr class="empty-row"><td colspan="5"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد بيانات</h3></div></td></tr>';
+        }
+        let tc = 0;
+        function addTireRow() {
+            tc++;
+            const t = document.querySelector('#tiresTable tbody');
+            const empty = t.querySelector('.empty-row');
+            if (empty) empty.remove();
+            const r = document.createElement('tr');
+            r.innerHTML = `<td>${tc}</td><td><input type="date" class="ti-date" value="${new Date().toISOString().split('T')[0]}"></td><td><input type="number" class="ti-count"></td><td><input type="number" class="ti-front"></td><td><input type="number" class="ti-back"></td><td><input type="number" class="ti-prev" oninput="calcTireDist(this)"></td><td><input type="number" class="ti-curr" oninput="calcTireDist(this)"></td><td><input type="number" class="ti-dist" readonly></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateTireIds()">✕</button></td>`;
+            t.appendChild(r);
+        }
+        function calcTireDist(el) { const tr = el.closest('tr'); const prev = parseInt(tr.querySelector('.ti-prev').value) || 0; const curr = parseInt(tr.querySelector('.ti-curr').value) || 0; tr.querySelector('.ti-dist').value = curr - prev; }
+        function updateTireIds() {
+            const tb = document.querySelector('#tiresTable tbody');
+            tc = 0;
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r => { tc++; r.cells[0].innerText = tc; });
+            if (tc === 0) tb.innerHTML = '<tr class="empty-row"><td colspan="9"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد بيانات</h3></div></td></tr>';
+        }
+        let bc = 0;
+        function addBatteryRow() {
+            bc++;
+            const t = document.querySelector('#batteriesTable tbody');
+            const empty = t.querySelector('.empty-row');
+            if (empty) empty.remove();
+            const r = document.createElement('tr');
+            r.innerHTML = `<td>${bc}</td><td><input class="b-desc"></td><td><input type="number" class="b-count" oninput="recalcSummary()"></td><td><input class="b-size"></td><td><input class="b-amp"></td><td><input type="number" class="b-price" oninput="recalcSummary()"></td><td><input type="date" class="b-date" value="${new Date().toISOString().split('T')[0]}"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateBatteryIds();recalcSummary()">✕</button></td>`;
+            t.appendChild(r);
+        }
+        function updateBatteryIds() {
+            const tb = document.querySelector('#batteriesTable tbody');
+            bc = 0;
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r => { bc++; r.cells[0].innerText = bc; });
+            if (bc === 0) tb.innerHTML = '<tr class="empty-row"><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد بيانات</h3></div></td></tr>';
+        }
+
+        function collectPOData() {
+            const parts = [];
+            document.querySelectorAll('#partsTable tbody tr:not(.empty-row)').forEach(tr => {
+                parts.push({ desc: tr.querySelector('.p-desc').value, qty: parseFloat(tr.querySelector('.p-qty').value) || 0, price: parseFloat(tr.querySelector('.p-price').value) || 0, val: parseFloat(tr.querySelector('.p-val').value) || 0, notes: tr.querySelector('.p-notes').value });
+            });
+            const repairs = [];
+            document.querySelectorAll('#repairsTable tbody tr:not(.empty-row)').forEach(tr => {
+                repairs.push({ desc: tr.querySelector('.r-desc').value, val: parseFloat(tr.querySelector('.r-val').value) || 0, notes: tr.querySelector('.r-notes').value });
+            });
+            const tires = [];
+            document.querySelectorAll('#tiresTable tbody tr:not(.empty-row)').forEach(tr => {
+                const prev = parseInt(tr.querySelector('.ti-prev').value) || 0, curr = parseInt(tr.querySelector('.ti-curr').value) || 0;
+                tires.push({ date: tr.querySelector('.ti-date').value, count: parseInt(tr.querySelector('.ti-count').value) || 0, front: parseInt(tr.querySelector('.ti-front').value) || 0, back: parseInt(tr.querySelector('.ti-back').value) || 0, prev, curr, dist: curr - prev });
+            });
+            const batteries = [];
+            document.querySelectorAll('#batteriesTable tbody tr:not(.empty-row)').forEach(tr => {
+                batteries.push({ desc: tr.querySelector('.b-desc').value, count: parseInt(tr.querySelector('.b-count').value) || 0, size: tr.querySelector('.b-size').value, amp: tr.querySelector('.b-amp').value, price: parseFloat(tr.querySelector('.b-price').value) || 0, date: tr.querySelector('.b-date').value });
+            });
+
+            // Summary totals
+            const summary = {
+                parts_total: parseFloat(document.getElementById('sumParts').value) || 0,
+                repairs_total: parseFloat(document.getElementById('sumRepairs').value) || 0,
+                tires_total: parseFloat(document.getElementById('sumTires').value) || 0,
+                batteries_total: parseFloat(document.getElementById('sumBatteries').value) || 0,
+                subtotal: parseFloat(document.getElementById('sumSubtotal').value) || 0,
+                vat: parseFloat(document.getElementById('sumVat').value) || 0,
+                grand_total: parseFloat(document.getElementById('sumGrandTotal').value) || 0
+            };
+
+            return {
+                serial: document.getElementById('poSerial').value,
+                driver: document.getElementById('poDriver').value,
+                branch: document.getElementById('poBranch').value,
+                job: document.getElementById('poJob').value,
+                car: document.getElementById('poCar').value,
+                plate: document.getElementById('poPlate').value,
+                model: document.getElementById('poModel').value,
+                date: document.getElementById('poDate').value,
+                notes: document.getElementById('poNotes').value,
+                summary,
+                parts, repairs, tires, batteries
+            };
+        }
+
+        async function downloadPO() {
+            const btn = event.target; btn.innerText = 'جاري التحميل... ⏳';
+            try {
+                const res = await fetch('/api/generate_po', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(collectPOData()) });
+                const data = await res.json();
+                if (data.success) {
+                    const bin = atob(data.file_b64);
+                    const bytes = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                    saveAs(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), 'طلب_شراء_' + (document.getElementById('poSerial').value) + '_' + (document.getElementById('poDriver').value || 'سائق') + '.xlsx');
+                } else showToast('خطأ: ' + data.error, 'error');
+            } catch (e) { showToast('خطأ: ' + e, 'error'); }
+            btn.innerText = '📥 استخراج الطلب (Excel)';
+        }
+
+        async function sendPOEmail() {
+            const email = document.getElementById('targetEmail').value; if (!email) return showToast('يرجى إدخال الإيميل', 'error');
+            const btn = document.getElementById('btnSendEmail'); btn.innerText = 'جاري الإرسال... ⏳';
+            try {
+                const poRes = await fetch('/api/generate_po', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(collectPOData()) });
+                const poData = await poRes.json();
+                if (poData.success) {
+                    const filename = 'طلب_شراء_' + (document.getElementById('poSerial').value) + '_' + (document.getElementById('poDriver').value || 'سائق') + '.xlsx';
+                    const res = await fetch('/api/send_email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, filename, file_b64: poData.file_b64, subject: document.getElementById('emailSubject').value, cc: getCcEmails() }) });
+                    const data = await res.json();
+                    if (data.success) { showToast('تم إرسال طلب الشراء بنجاح! ✅', 'success'); closeCustomModal('emailModal'); }
+                    else showToast('خطأ: ' + data.error, 'error');
+                } else showToast('خطأ: ' + poData.error, 'error');
+            } catch (e) { showToast('خطأ: ' + e, 'error'); }
+            btn.innerText = 'إرسال 🚀';
+        }
+
+
+        function addCcRow() {
+            const container = document.getElementById('ccContainer');
+            const row = document.createElement('div');
+            row.className = 'cc-row';
+            row.style.cssText = 'display:flex;gap:5px;align-items:center';
+            row.innerHTML = '<input type="email" class="cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
+            container.appendChild(row);
+        }
+        function getCcEmails() {
+            return Array.from(document.querySelectorAll('.cc-email')).map(i => i.value.trim()).filter(v => v);
+        }
+
+        // Make sumTires editable (not readonly) so user can manually enter tire costs
+        document.getElementById('sumTires').removeAttribute('readonly');
+        document.getElementById('sumTires').style.background = 'var(--surface)';
+        document.getElementById('sumTires').placeholder = 'أدخل يدوياً';
+
+        window.onload = async () => { await fetchDrivers(); document.getElementById('poDate').valueAsDate = new Date(); document.getElementById('poSerial').value = Math.floor(100000 + Math.random() * 900000).toString(); addPartRow(); addRepairRow(); addTireRow(); addBatteryRow(); };
+    </script>
+
+
+
+    <div class="modal-backdrop" id="emailModal">
+        <div class="modal-content-custom">
+            <div class="modal-header-custom">
+                <span>📧 إرسال عبر الإيميل</span>
+                <button class="close-btn" style="color:white;" onclick="closeCustomModal('emailModal')">✕</button>
+            </div>
+            <div class="modal-body-custom">
+                <div
+                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+                    <label
+                        style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
+                    <input type="email" id="targetEmail" required placeholder="example@gmail.com"
+                        style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+                </div>
+                <div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة
+                            إلى:</label>
+                        <div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
+                            <div class="cc-row" style="display:flex;gap:5px;align-items:center">
+                                <input type="email" class="cc-email" placeholder="نسخة (اختياري)"
+                                    style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);">
+                                <button type="button" onclick="addCcRow()"
+                                    style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <span>التاريخ:</span>
-                        <input type="date" class="header-input" id="po-date">
-                    </div>
                 </div>
-                <div class="header-title">
-                    <h1>نموذج طلب شراء وإصلاح سيارة</h1>
+                <div
+                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
+                    <label
+                        style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
+                    <input type="text" id="emailSubject" placeholder="موضوع الرسالة"
+                        style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
                 </div>
-                <div>
-                    <img src="{{ url_for('static', filename='site_logo.png') }}" alt="شعار الشركة" class="report-logo">
-                </div>
-            </div>
-
-            <!-- Car & Driver Info -->
-            <div class="section-title">بيانات السيارة والسائق</div>
-            <div class="info-grid">
-                <div class="info-item">
-                    <span>اسم السائق:</span>
-                    <input type="text" id="driver-name" autocomplete="off">
-                </div>
-                <div class="info-item">
-                    <span>الفرع:</span>
-                    <input type="text" id="branch" value="الدمام">
-                </div>
-                <div class="info-item">
-                    <span>الوظيفة:</span>
-                    <input type="text" id="job-title" value="سائق عام">
-                </div>
-                <div class="info-item" style="position: relative;">
-                    <span>رقم اللوحة:</span>
-                    <input type="text" id="plate-no" placeholder="ابحث برقم اللوحة..." autocomplete="off" oninput="showSuggestions(this.value, 'plate-no')">
-                    <div id="plate-no-suggestions" class="autocomplete-suggestions" style="display:none;"></div>
-                </div>
-                <div class="info-item">
-                    <span>نوع السيارة:</span>
-                    <input type="text" id="car-type">
-                </div>
-                <div class="info-item">
-                    <span>الموديل:</span>
-                    <input type="text" id="car-model">
-                </div>
-                <div class="info-item">
-                    <span>عداد السيارة:</span>
-                    <input type="text" id="car-odo">
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+                    <button type="button" onclick="if(confirm('هل تريد حفظه في سطح المكتب؟')) { downloadPO(); }"
+                        class="btn-outline">حفظ في سطح المكتب 💾</button>
+                    <button onclick="closeCustomModal('emailModal')" class="btn-outline"
+                        style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+                    <button id="btnSendEmail" onclick="sendPOEmail()" class="btn-primary">إرسال 🚀</button>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Spare Parts -->
-            <div class="section-title">قطع الغيار</div>
-            <table id="parts-table">
-                <thead>
-                    <tr>
-                        <th class="col-num">م</th>
-                        <th class="col-desc">البيان</th>
-                        <th class="col-qty">الكمية</th>
-                        <th class="col-price">السعر</th>
-                        <th class="col-total">القيمة</th>
-                        <th class="col-notes">ملاحظات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- 5 Rows -->
-                    <script>
-                        for(let i=1; i<=5; i++) {
-                            document.write(`
-                            <tr>
-                                <td>${i}</td>
-                                <td><input type="text" class="table-input part-desc" id="p-desc-${i}"></td>
-                                <td><input type="number" class="table-input part-qty" id="p-qty-${i}" oninput="calcRow(${i}, 'p')"></td>
-                                <td><input type="number" class="table-input part-price" id="p-price-${i}" oninput="calcRow(${i}, 'p')"></td>
-                                <td><input type="text" class="table-input part-total" id="p-total-${i}" readonly></td>
-                                <td><input type="text" class="table-input part-notes" id="p-notes-${i}"></td>
-                            </tr>`);
-                        }
-                    </script>
-                </tbody>
-            </table>
+    <!-- Compose Email FAB -->
+    <button id="composeFab" onclick="openCustomModal('composeModal')" class="fab-btn" title="إنشاء رسالة">✉️</button>
 
-            <!-- Labor / Repair -->
-            <div class="section-title">الإصلاح</div>
-            <table id="labor-table">
-                <thead>
-                    <tr>
-                        <th class="col-num">م</th>
-                        <th style="width: 50%;">الوصف</th>
-                        <th class="col-total">القيمة</th>
-                        <th class="col-notes">ملاحظات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- 3 Rows -->
-                    <script>
-                        for(let i=1; i<=3; i++) {
-                            document.write(`
-                            <tr>
-                                <td>${i}</td>
-                                <td><input type="text" class="table-input labor-desc" id="l-desc-${i}"></td>
-                                <td><input type="number" class="table-input labor-total" id="l-total-${i}"></td>
-                                <td><input type="text" class="table-input labor-notes" id="l-notes-${i}"></td>
-                            </tr>`);
-                        }
-                    </script>
-                </tbody>
-            </table>
-
-            <!-- Tires -->
-            <div class="section-title">الكفرات</div>
-            <table id="tires-table">
-                <thead>
-                    <tr>
-                        <th class="col-num">م</th>
-                        <th>تاريخ التغيير</th>
-                        <th class="col-qty">العدد</th>
-                        <th>أمامية</th>
-                        <th>خلفية</th>
-                        <th>قراءة سابقة</th>
-                        <th>قراءة حالية</th>
-                        <th>المسافة</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- 3 Rows -->
-                    <script>
-                        for(let i=1; i<=3; i++) {
-                            document.write(`
-                            <tr>
-                                <td>${i}</td>
-                                <td><input type="date" class="table-input tire-date" id="t-date-${i}"></td>
-                                <td><input type="number" class="table-input tire-qty" id="t-qty-${i}"></td>
-                                <td><input type="text" class="table-input tire-front" id="t-front-${i}"></td>
-                                <td><input type="text" class="table-input tire-rear" id="t-rear-${i}"></td>
-                                <td><input type="number" class="table-input tire-prev" id="t-prev-${i}" oninput="calcDist(${i})"></td>
-                                <td><input type="number" class="table-input tire-curr" id="t-curr-${i}" oninput="calcDist(${i})"></td>
-                                <td><input type="text" class="table-input tire-dist" id="t-dist-${i}" readonly></td>
-                            </tr>`);
-                        }
-                    </script>
-                </tbody>
-            </table>
-
-            <!-- Batteries -->
-            <div class="section-title">البطاريات</div>
-            <table id="battery-table">
-                <thead>
-                    <tr>
-                        <th class="col-num">م</th>
-                        <th class="col-desc">الوصف</th>
-                        <th class="col-qty">العدد</th>
-                        <th>المقاس</th>
-                        <th>أمبير</th>
-                        <th class="col-price">السعر للوحدة</th>
-                        <th>التاريخ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- 2 Rows -->
-                    <script>
-                        for(let i=1; i<=2; i++) {
-                            document.write(`
-                            <tr>
-                                <td>${i}</td>
-                                <td><input type="text" class="table-input b-desc" id="b-desc-${i}"></td>
-                                <td><input type="number" class="table-input b-qty" id="b-qty-${i}"></td>
-                                <td><input type="text" class="table-input b-size" id="b-size-${i}"></td>
-                                <td><input type="text" class="table-input b-amp" id="b-amp-${i}"></td>
-                                <td><input type="number" class="table-input b-price" id="b-price-${i}"></td>
-                                <td><input type="date" class="table-input b-date" id="b-date-${i}"></td>
-                            </tr>`);
-                        }
-                    </script>
-                </tbody>
-            </table>
-
-            <!-- Signatures -->
-            <div class="signatures">
-                <div class="sig-box">
-                    <div class="sig-title">الفني / الورشة</div>
-                    <input type="text" class="sig-input" id="sig-tech">
-                </div>
-                <div class="sig-box">
-                    <div class="sig-title">مسئول الحركة</div>
-                    <input type="text" class="sig-input" id="sig-fleet">
-                </div>
-                <div class="sig-box">
-                    <div class="sig-title">مدير الفرع</div>
-                    <input type="text" class="sig-input" id="sig-manager">
-                </div>
-                <div class="sig-box">
-                    <div class="sig-title">المدير العام</div>
-                    <input type="text" class="sig-input" id="sig-gm">
-                </div>
+    <div class="modal-backdrop" id="composeModal">
+        <div class="modal-content-custom">
+            <div class="modal-header-custom">
+                <span>✉️ إنشاء رسالة جديدة</span>
+                <button class="close-btn" style="color:white;" onclick="closeCustomModal('composeModal')">✕</button>
             </div>
-
+            <form id="composeForm" class="modal-body-custom" style="display:flex;flex-direction:column;gap:12px">
+                <div
+                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+                    <label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
+                    <input type="email" name="email" required placeholder="example@gmail.com"
+                        style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+                </div>
+                <div
+                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+                    <label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
+                    <input type="text" name="subject" placeholder="موضوع الرسالة"
+                        style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+                </div>
+                <textarea name="body" rows="5" placeholder="اكتب رسالتك هنا..."
+                    style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:Cairo;font-size:1rem;resize:vertical;outline:none"></textarea>
+                <div style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer"
+                    onclick="document.getElementById('composeFile').click()">
+                    <span style="font-size:1.3rem">📎</span>
+                    <span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو
+                        أي ملف آخر</span>
+                    <input type="file" id="composeFile" name="attachment" style="display:none"
+                        onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'">
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
+                    <button type="button" onclick="closeCustomModal('composeModal')" class="btn-outline"
+                        style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+                    <button type="submit" id="composeSendBtn" class="btn-primary">إرسال 🚀</button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
-        // Set today's date
-        document.getElementById('po-date').valueAsDate = new Date();
-
-        // Autocomplete
-        const vehicles = [
-            {% for v in vehicles %}
-            {
-                plate: "{{ v['رقم اللوحة'] }}",
-                type: "{{ v['النوع'] }}",
-                driver: "{{ v['السائق'] }}"
-            }{% if not loop.last %},{% endif %}
-            {% endfor %}
-        ];
-
-        function showSuggestions(val, inputId) {
-            const suggBox = document.getElementById(inputId + '-suggestions');
-            suggBox.innerHTML = '';
-            if (!val) { suggBox.style.display = 'none'; return; }
-            
-            const matches = vehicles.filter(v => v.plate && v.plate.includes(val));
-            if (matches.length === 0) { suggBox.style.display = 'none'; return; }
-            
-            matches.forEach(v => {
-                const div = document.createElement('div');
-                div.className = 'autocomplete-suggestion';
-                div.innerText = v.plate + (v.driver ? ` - ${v.driver}` : '');
-                div.onclick = function() {
-                    document.getElementById('plate-no').value = v.plate;
-                    document.getElementById('driver-name').value = v.driver || '';
-                    document.getElementById('car-type').value = v.type || '';
-                    suggBox.style.display = 'none';
-                    saveData();
-                };
-                suggBox.appendChild(div);
-            });
-            suggBox.style.display = 'block';
-        }
-
-        document.addEventListener('click', function(e) {
-            if(e.target.id !== 'plate-no') document.getElementById('plate-no-suggestions').style.display = 'none';
-        });
-
-        // Calculations
-        function calcRow(i, prefix) {
-            const qty = parseFloat(document.getElementById(`${prefix}-qty-${i}`).value) || 0;
-            const price = parseFloat(document.getElementById(`${prefix}-price-${i}`).value) || 0;
-            if(qty > 0 && price > 0) {
-                document.getElementById(`${prefix}-total-${i}`).value = (qty * price).toFixed(2);
-            } else {
-                document.getElementById(`${prefix}-total-${i}`).value = '';
-            }
-            saveData();
-        }
-
-        function calcDist(i) {
-            const prev = parseFloat(document.getElementById(`t-prev-${i}`).value) || 0;
-            const curr = parseFloat(document.getElementById(`t-curr-${i}`).value) || 0;
-            if(prev > 0 && curr >= prev) {
-                document.getElementById(`t-dist-${i}`).value = curr - prev;
-            } else {
-                document.getElementById(`t-dist-${i}`).value = '';
-            }
-            saveData();
-        }
-
-        // Save & Load Data
-        const inputs = document.querySelectorAll('input');
-        inputs.forEach(input => {
-            input.addEventListener('input', saveData);
-        });
-
-        function saveData() {
-            const data = {};
-            inputs.forEach(input => {
-                if(input.id) data[input.id] = input.value;
-            });
-            localStorage.setItem('po_data', JSON.stringify(data));
-        }
-
-        function loadData() {
-            const data = JSON.parse(localStorage.getItem('po_data'));
-            if(data) {
-                inputs.forEach(input => {
-                    if(data[input.id] !== undefined) input.value = data[input.id];
-                });
-            }
-        }
-
-        function clearData() {
-            if(confirm('هل أنت متأكد من تفريغ جميع الحقول؟')) {
-                inputs.forEach(input => input.value = '');
-                document.getElementById('po-no').value = '0144';
-                document.getElementById('po-date').valueAsDate = new Date();
-                document.getElementById('branch').value = 'الدمام';
-                document.getElementById('job-title').value = 'سائق عام';
-                saveData();
-            }
-        }
-
-        window.onload = loadData;
-
-        // Export to Excel using exactly the requested layout
-        async function exportToExcel() {
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('طلب الشراء', { views: [{ rightToLeft: true }] });
-            
-            // Set Columns Width
-            worksheet.columns = [
-                { width: 5 }, { width: 35 }, { width: 10 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }
-            ];
-
-            // Styles
-            const borderStyle = {
-                top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}
-            };
-            const fontBold = { name: 'Arial', size: 12, bold: true };
-            const fontTitle = { name: 'Arial', size: 16, bold: true };
-            const alignCenter = { vertical: 'middle', horizontal: 'center' };
-            const fillGray = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
-
-            // Row 2: PO No
-            worksheet.mergeCells('A2:H2');
-            worksheet.getCell('A2').value = 'NO. ' + document.getElementById('po-no').value;
-            worksheet.getCell('A2').font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFF0000' } };
-
-            // Row 3: Date & Title
-            worksheet.getCell('A3').value = document.getElementById('po-date').value;
-            worksheet.mergeCells('B3:H3');
-            worksheet.getCell('B3').value = 'نموذج طلب شراء وإصلاح سيارة';
-            worksheet.getCell('B3').font = fontTitle;
-            worksheet.getCell('B3').alignment = alignCenter;
-
-            // Row 5: Section 1
-            worksheet.mergeCells('A5:H5');
-            worksheet.getCell('A5').value = 'بيانات السيارة والسائق';
-            worksheet.getCell('A5').font = fontBold;
-            worksheet.getCell('A5').fill = fillGray;
-            worksheet.getCell('A5').border = borderStyle;
-
-            // Row 6
-            worksheet.getCell('A6').value = 'اسم السائق:';
-            worksheet.getCell('B6').value = document.getElementById('driver-name').value;
-            worksheet.getCell('C6').value = 'الفرع:';
-            worksheet.getCell('D6').value = document.getElementById('branch').value;
-            worksheet.getCell('E6').value = 'الوظيفة:';
-            worksheet.mergeCells('F6:H6');
-            worksheet.getCell('F6').value = document.getElementById('job-title').value;
-
-            // Row 7
-            worksheet.getCell('A7').value = 'نوع السيارة:';
-            worksheet.getCell('B7').value = document.getElementById('car-type').value;
-            worksheet.getCell('C7').value = 'رقم اللوحة:';
-            worksheet.getCell('D7').value = document.getElementById('plate-no').value;
-            worksheet.getCell('E7').value = 'الموديل:';
-            worksheet.mergeCells('F7:H7');
-            worksheet.getCell('F7').value = document.getElementById('car-model').value;
-
-            // Row 8
-            worksheet.getCell('A8').value = 'عداد السيارة:';
-            worksheet.mergeCells('B8:H8');
-            worksheet.getCell('B8').value = document.getElementById('car-odo').value;
-
-            // Parts Section
-            worksheet.mergeCells('A10:H10');
-            worksheet.getCell('A10').value = 'قطع الغيار';
-            worksheet.getCell('A10').font = fontBold; worksheet.getCell('A10').fill = fillGray;
-            
-            const partsHeaders = ['م', 'البيان', 'الكمية', 'السعر', 'القيمة', 'ملاحظات'];
-            for(let i=0; i<partsHeaders.length; i++) {
-                const cell = worksheet.getCell(11, i+1);
-                cell.value = partsHeaders[i];
-                cell.font = fontBold; cell.border = borderStyle; cell.alignment = alignCenter;
-            }
-            worksheet.mergeCells('F11:H11');
-
-            for(let i=1; i<=5; i++) {
-                worksheet.getCell(11+i, 1).value = i;
-                worksheet.getCell(11+i, 2).value = document.getElementById(`p-desc-${i}`).value;
-                worksheet.getCell(11+i, 3).value = document.getElementById(`p-qty-${i}`).value;
-                worksheet.getCell(11+i, 4).value = document.getElementById(`p-price-${i}`).value;
-                worksheet.getCell(11+i, 5).value = document.getElementById(`p-total-${i}`).value;
-                worksheet.mergeCells(`F${11+i}:H${11+i}`);
-                worksheet.getCell(11+i, 6).value = document.getElementById(`p-notes-${i}`).value;
-            }
-
-            // Labor Section
-            const lRow = 18;
-            worksheet.mergeCells(`A${lRow}:H${lRow}`);
-            worksheet.getCell(`A${lRow}`).value = 'الإصلاح';
-            worksheet.getCell(`A${lRow}`).font = fontBold; worksheet.getCell(`A${lRow}`).fill = fillGray;
-
-            worksheet.getCell(`A${lRow+1}`).value = 'م';
-            worksheet.mergeCells(`B${lRow+1}:C${lRow+1}`);
-            worksheet.getCell(`B${lRow+1}`).value = 'الوصف';
-            worksheet.getCell(`D${lRow+1}`).value = 'القيمة';
-            worksheet.mergeCells(`E${lRow+1}:H${lRow+1}`);
-            worksheet.getCell(`E${lRow+1}`).value = 'ملاحظات';
-
-            for(let i=1; i<=3; i++) {
-                worksheet.getCell(lRow+1+i, 1).value = i;
-                worksheet.mergeCells(`B${lRow+1+i}:C${lRow+1+i}`);
-                worksheet.getCell(lRow+1+i, 2).value = document.getElementById(`l-desc-${i}`).value;
-                worksheet.getCell(lRow+1+i, 4).value = document.getElementById(`l-total-${i}`).value;
-                worksheet.mergeCells(`E${lRow+1+i}:H${lRow+1+i}`);
-                worksheet.getCell(lRow+1+i, 5).value = document.getElementById(`l-notes-${i}`).value;
-            }
-
-            // Tires
-            const tRow = 24;
-            worksheet.mergeCells(`A${tRow}:H${tRow}`);
-            worksheet.getCell(`A${tRow}`).value = 'الكفرات';
-            worksheet.getCell(`A${tRow}`).font = fontBold; worksheet.getCell(`A${tRow}`).fill = fillGray;
-
-            const tireHeaders = ['م', 'تاريخ التغيير', 'العدد', 'أمامية', 'خلفية', 'قراءة سابقة', 'قراءة حالية', 'المسافة'];
-            for(let i=0; i<tireHeaders.length; i++) {
-                worksheet.getCell(tRow+1, i+1).value = tireHeaders[i];
-            }
-
-            for(let i=1; i<=3; i++) {
-                worksheet.getCell(tRow+1+i, 1).value = i;
-                worksheet.getCell(tRow+1+i, 2).value = document.getElementById(`t-date-${i}`).value;
-                worksheet.getCell(tRow+1+i, 3).value = document.getElementById(`t-qty-${i}`).value;
-                worksheet.getCell(tRow+1+i, 4).value = document.getElementById(`t-front-${i}`).value;
-                worksheet.getCell(tRow+1+i, 5).value = document.getElementById(`t-rear-${i}`).value;
-                worksheet.getCell(tRow+1+i, 6).value = document.getElementById(`t-prev-${i}`).value;
-                worksheet.getCell(tRow+1+i, 7).value = document.getElementById(`t-curr-${i}`).value;
-                worksheet.getCell(tRow+1+i, 8).value = document.getElementById(`t-dist-${i}`).value;
-            }
-
-            // Batteries
-            const bRow = 30;
-            worksheet.mergeCells(`A${bRow}:H${bRow}`);
-            worksheet.getCell(`A${bRow}`).value = 'البطاريات';
-            worksheet.getCell(`A${bRow}`).font = fontBold; worksheet.getCell(`A${bRow}`).fill = fillGray;
-
-            const batHeaders = ['م', 'الوصف', 'العدد', 'المقاس', 'أمبير', 'السعر للوحدة', 'التاريخ'];
-            for(let i=0; i<batHeaders.length; i++) {
-                worksheet.getCell(bRow+1, i+1).value = batHeaders[i];
-            }
-            worksheet.mergeCells(`G${bRow+1}:H${bRow+1}`);
-
-            for(let i=1; i<=2; i++) {
-                worksheet.getCell(bRow+1+i, 1).value = i;
-                worksheet.getCell(bRow+1+i, 2).value = document.getElementById(`b-desc-${i}`).value;
-                worksheet.getCell(bRow+1+i, 3).value = document.getElementById(`b-qty-${i}`).value;
-                worksheet.getCell(bRow+1+i, 4).value = document.getElementById(`b-size-${i}`).value;
-                worksheet.getCell(bRow+1+i, 5).value = document.getElementById(`b-amp-${i}`).value;
-                worksheet.getCell(bRow+1+i, 6).value = document.getElementById(`b-price-${i}`).value;
-                worksheet.mergeCells(`G${bRow+1+i}:H${bRow+1+i}`);
-                worksheet.getCell(bRow+1+i, 7).value = document.getElementById(`b-date-${i}`).value;
-            }
-
-            // Borders to all used cells
-            worksheet.eachRow((row, rowNumber) => {
-                if(rowNumber >= 5) {
-                    row.eachCell((cell) => {
-                        cell.border = borderStyle;
-                        cell.alignment = alignCenter;
-                        cell.font = { name: 'Arial', size: 12 };
-                    });
+        document.getElementById('composeForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('composeSendBtn');
+            btn.innerText = 'جاري الإرسال... ⏳';
+            btn.disabled = true;
+            try {
+                const formData = new FormData(this);
+                const res = await fetch('/api/compose_email', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('تم إرسال الرسالة بنجاح! ✅', 'success');
+                    closeCustomModal('composeModal');
+                    this.reset();
+                    document.getElementById('composeFileName').innerText = 'اضغط لإرفاق ملف';
+                } else {
+                    showToast('خطأ: ' + data.error, 'error');
                 }
-            });
-
-            const buffer = await workbook.xlsx.writeBuffer();
-            saveAs(new Blob([buffer]), 'طلب_شراء_' + document.getElementById('po-no').value + '.xlsx');
-        }
+            } catch (err) { showToast('خطأ في الاتصال: ' + err, 'error'); }
+            btn.innerText = 'إرسال 🚀';
+            btn.disabled = false;
+        });
     </script>
+
+<!-- GPS Session Monitor -->
+<script>
+(function () {
+    const originalFetch = window.fetch;
+    window.fetch = async function (...args) {
+        const response = await originalFetch(...args);
+        if (response.status === 401 || response.status === 440) {
+            window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
+        }
+        try {
+            const clone = response.clone();
+            const text = await clone.text();
+            if (text.includes("ERROR-100") || text.includes("Session timed out")) {
+                window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
+            }
+        } catch (e) {}
+        return response;
+    };
+})();
+</script>
 </body>
+
 </html>
