@@ -233,17 +233,21 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- Theme Management ---
 function initThemeToggle() {
     const savedTheme = localStorage.getItem('darkMode');
-    if (savedTheme === 'true') {
-        document.body.classList.add('dark-mode');
-        updateToggleButtons(true);
-    } else {
+    // Default to dark mode for a professional look
+    if (savedTheme === 'false') {
         document.body.classList.remove('dark-mode');
+        document.documentElement.classList.remove('dark-mode');
         updateToggleButtons(false);
+    } else {
+        document.body.classList.add('dark-mode');
+        document.documentElement.classList.add('dark-mode');
+        updateToggleButtons(true);
     }
 }
 
 window.toggleDarkMode = function() {
     document.body.classList.toggle('dark-mode');
+    document.documentElement.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
     localStorage.setItem('darkMode', isDark);
     updateToggleButtons(isDark);
