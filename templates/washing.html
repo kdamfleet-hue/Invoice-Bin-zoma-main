@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحضير جدول الغسيل | شركة بن زومة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+    <style>
+        .header-container {
+            display: flex; flex-direction: column; align-items: center;
+            margin: 0 auto 2rem auto; width: 100%; max-width: 1500px; z-index: 2;
+        }
+        .site-logo {
+            max-width: 650px; width: 90%; margin-bottom: 1rem;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); transition: var(--trans);
+        }
+        body.dark-mode .site-logo {
+            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.8)) drop-shadow(0 0 20px rgba(255,255,255,0.4));
+        }
+        .header-title { color: var(--accent); text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        body.dark-mode .header-title { color: #82aaff !important; text-shadow: 0 0 10px rgba(130,170,255,0.4); }
+        .header-subtitle { text-align: center; margin-bottom: 1.5rem; }
+        .nav-buttons { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem; width: 100%; max-width: 1500px; margin: 0 auto 2rem auto; z-index: 2;
+        }
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+            padding: 1.2rem 1.5rem; text-align: center; box-shadow: var(--shadow-sm);
+            transition: var(--trans-spring);
+        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+        .stat-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+        .stat-value { font-size: 2.2rem; font-weight: 800; }
+        .stat-green { color: #27ae60; }
+        .stat-blue { color: #3498db; }
+        .stat-amber { color: #f39c12; }
+        .stat-red { color: #e74c3c; }
+
+        /* Washing Table */
+        .wash-table-wrap {
+            width: 100%; max-width: 1500px; margin: 0 auto; overflow-x: auto; border-radius: 16px;
+            border: 1px solid var(--border); background: var(--surface);
+            box-shadow: var(--shadow-lg); z-index: 2; position: relative;
+        }
+        #washTable { min-width: 1200px; border-collapse: collapse; width: 100%; }
+        #washTable thead { position: sticky; top: 0; z-index: 5; }
+        #washTable thead th {
+            background: linear-gradient(135deg, #0C2340, #1A3A5C);
+            color: #fff; padding: 12px 8px; font-size: 0.8rem; font-weight: 700;
+            text-align: center; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1);
+        }
+        body.dark-mode #washTable thead th {
+            background: linear-gradient(135deg, #111, #1a1a2e);
+            border-color: rgba(255,255,255,0.05);
+        }
+        #washTable thead th.col-id { width: 40px; }
+        #washTable thead th.col-plate { text-align: right; min-width: 120px; }
+        #washTable thead th.col-type { text-align: right; min-width: 160px; }
+        #washTable thead th.col-driver { text-align: right; min-width: 180px; }
+        #washTable thead th.col-month { width: 52px; }
+        #washTable thead th.col-total { width: 60px; background: linear-gradient(135deg, #C8A45A, #a88540); }
+
+        #washTable tbody td {
+            padding: 8px 10px; font-size: 0.85rem; text-align: center;
+            border: 1px solid var(--border); transition: background 0.15s ease;
+        }
+        #washTable tbody td.cell-plate { text-align: right; font-weight: 700; font-family: monospace; font-size: 0.9rem; }
+        #washTable tbody td.cell-type { text-align: right; font-size: 0.8rem; color: var(--text-secondary); }
+        #washTable tbody td.cell-driver { text-align: right; font-size: 0.8rem; max-width: 200px; }
+        .driver-edit-input { width: 100%; border: none; background: transparent; color: var(--text-primary); font-family: 'Cairo', sans-serif; font-size: 0.85rem; font-weight: bold; text-align: right; outline: none; padding: 4px; transition: var(--trans); border-radius: 4px; }
+        .driver-edit-input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
+        #washTable tbody td.cell-total { font-weight: 800; font-size: 1rem; background: var(--surface-hover); }
+
+        #washTable tbody tr:hover td { background: rgba(130,170,255,0.08); }
+        body.dark-mode #washTable tbody tr:hover td { background: rgba(130,170,255,0.05); }
+        #washTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
+        #washTable tbody tr:nth-child(even):hover td { background: rgba(130,170,255,0.08); }
+
+        /* Wash status cells */
+        .cell-wash { cursor: pointer; font-size: 1.1rem; font-weight: 700; min-width: 44px; user-select: none; }
+        .cell-wash.washed {
+            background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
+            color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .cell-wash.not-washed { color: var(--text-muted); }
+        .cell-wash:hover { opacity: 0.85; transform: scale(1.05); }
+
+        /* Action Buttons */
+        .actions-bar {
+            display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+            margin: 2rem auto 0 auto; width: 100%; max-width: 1500px; z-index: 2;
+        }
+        .btn-action {
+            padding: 12px 28px; border-radius: 12px; border: none; font-weight: 700;
+            font-size: 1rem; cursor: pointer; display: inline-flex; align-items: center;
+            gap: 8px; transition: var(--trans-spring); font-family: 'Cairo', sans-serif;
+        }
+        .btn-export {
+            background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff;
+            box-shadow: 0 6px 20px rgba(39,174,96,0.3);
+        }
+        .btn-export:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(39,174,96,0.4); }
+        .btn-save {
+            background: linear-gradient(135deg, #3498db, #2980b9); color: #fff;
+            box-shadow: 0 6px 20px rgba(52,152,219,0.3);
+        }
+        .btn-save:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(52,152,219,0.4); }
+
+        /* Legend */
+        .legend {
+            display: flex; gap: 2rem; justify-content: center; margin-top: 1.5rem;
+            flex-wrap: wrap; z-index: 2;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-secondary); }
+        .legend-dot {
+            width: 24px; height: 24px; border-radius: 6px; display: flex;
+            align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;
+        }
+        .legend-dot.green { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
+        .legend-dot.gray { background: var(--surface-hover); border: 1px solid var(--border-strong); color: var(--text-muted); }
+
+        /* Search */
+        .search-bar {
+            width: 100%; max-width: 500px; margin: 0 auto 1.5rem; position: relative; z-index: 2;
+        }
+        .search-bar input {
+            width: 100%; padding: 12px 20px 12px 44px; border-radius: 50px;
+            font-size: 1rem; background: var(--surface); border: 2px solid var(--border-strong);
+        }
+        .search-bar input:focus { border-color: var(--accent); }
+        .search-bar::before {
+            content: '🔍'; position: absolute; left: 16px; top: 50%;
+            transform: translateY(-50%); font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 1rem; padding-top: 4rem; }
+            .header-title { font-size: 1.8rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+{% if not google_user %}<a href="/logout" style="position: absolute; top: 1.5rem; left: 1.5rem; z-index: 9999; background: #e74c3c; color: white; padding: 8px 20px; border-radius: 50px; font-weight: bold; font-size: 0.95rem; text-decoration: none; font-family: Cairo; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">تسجيل الخروج</a>{% endif %}
+    <datalist id="driversList"></datalist>
+    <button id="darkModeToggle" onclick="toggleDarkMode()" style="position:absolute;top:20px;right:20px;border:none;font-size:1.5rem;cursor:pointer;border-radius:50%;width:45px;height:45px;display:flex;align-items:center;justify-content:center;transition:var(--trans-spring);z-index:1000;box-shadow:var(--shadow-sm);backdrop-filter:blur(5px);">🌙</button>
+
+    <div class="header-container">
+        <img src="{{ url_for('static', filename='site_logo.png') }}" alt="Logo" class="site-logo" style="width: 300px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+
+                {% if google_user %}
+        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
+            <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
+            <span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
+            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
+        </div>
+        {% endif %}
+
+        <h1 class="header-title">🚿 تحضير جدول الغسيل</h1>
+        <p class="header-subtitle">جدول غسيل المركبات الشهري - فرع الدمام 2026</p>
+        <div class="nav-buttons">
+            <a href="/" class="btn-outline" style="text-decoration:none;">🏠 الرئيسية</a>
+            <a href="/oils" class="btn-outline" style="text-decoration:none;">📄 بيان الزيوت</a>
+            <a href="/purchase" class="btn-outline" style="text-decoration:none;">🛒 طلبات الشراء</a>
+            <a href="/schedule" class="btn-outline" style="text-decoration:none;">📋 الجدول الأسبوعي</a>
+            <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">إجمالي المركبات</div><div class="stat-value stat-blue" id="statTotal">0</div></div>
+        <div class="stat-card"><div class="stat-label">إجمالي الغسلات</div><div class="stat-value stat-green" id="statWashes">0</div></div>
+        <div class="stat-card"><div class="stat-label">غسلات الشهر الحالي</div><div class="stat-value stat-amber" id="statCurrent">0</div></div>
+        <div class="stat-card"><div class="stat-label">لم تُغسل هذا الشهر</div><div class="stat-value stat-red" id="statPending">0</div></div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." oninput="filterTable()">
+    </div>
+
+    <!-- Table -->
+    <div class="wash-table-wrap">
+        <table id="washTable">
+            <thead>
+                <tr>
+                    <th class="col-id">#</th>
+                    <th class="col-plate">رقم اللوحة</th>
+                    <th class="col-type">نوع السيارة</th>
+                    <th class="col-driver">اسم السائق</th>
+                    <th class="col-month">1</th><th class="col-month">2</th>
+                    <th class="col-month">3</th><th class="col-month">4</th>
+                    <th class="col-month">5</th><th class="col-month">6</th>
+                    <th class="col-month">7</th><th class="col-month">8</th>
+                    <th class="col-month">9</th><th class="col-month">10</th>
+                    <th class="col-month">11</th><th class="col-month">12</th>
+                    <th class="col-total">المجموع</th>
+                </tr>
+            </thead>
+            <tbody id="washBody"></tbody>
+        </table>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item"><div class="legend-dot green">✓</div><span>تم الغسيل (استلم)</span></div>
+        <div class="legend-item"><div class="legend-dot gray">✕</div><span>لم يتم الغسيل</span></div>
+        <div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">انقر على أي خلية شهر لتغيير الحالة</div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-bar">
+        <button class="btn-action btn-export" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+        <button class="btn-action btn-save" onclick="saveState()">💾 حفظ التغييرات محلياً</button>
+    </div>
+
+    <footer style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
+
+<script>
+    const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    let vehicles = [];
+    let driversData = [];
+
+    async function fetchDrivers() {
+        try {
+            const res = await fetch('/api/drivers');
+            driversData = await res.json();
+            const dl = document.getElementById('driversList');
+            dl.innerHTML = '';
+            driversData.forEach(d => {
+                const o = document.createElement('option');
+                o.value = d.name;
+                dl.appendChild(o);
+            });
+        } catch (err) {
+            console.error('Failed to fetch drivers', err);
+        }
+    }
+
+    function init() {
+        fetchDrivers();
+        // Fetch from server first, fallback to local or default
+        fetch('/api/washing_data')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    vehicles = data.vehicles;
+                } else {
+                    const saved = localStorage.getItem('washingSchedule2026');
+                    if (saved) {
+                        try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                    } else {
+                        vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                    }
+                }
+                renderTable();
+                updateStats();
+            })
+            .catch(err => {
+                console.error('Failed to load from server', err);
+                const saved = localStorage.getItem('washingSchedule2026');
+                if (saved) {
+                    try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                } else {
+                    vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                }
+                renderTable();
+                updateStats();
+            });
+    }
+
+    function getTotal(v) { return v.m.reduce((a, b) => a + b, 0); }
+
+    function renderTable(filter) {
+        const tbody = document.getElementById('washBody');
+        tbody.innerHTML = '';
+        const q = (filter || '').toLowerCase();
+
+        let allHtml = '';
+        vehicles.forEach((v, idx) => {
+            if (q && !v.plate.toLowerCase().includes(q) && !v.driver.toLowerCase().includes(q) && !v.type.toLowerCase().includes(q)) return;
+
+            const total = getTotal(v);
+            let html = `<tr>
+                <td>${v.id}</td>
+                <td class="cell-plate">${v.plate}</td>
+                <td class="cell-type">${v.type || '-'}</td>
+                <td class="cell-driver"><input type="text" class="driver-edit-input" list="driversList" value="${v.driver || ''}" onchange="autofillWashingDriver(this, ${idx})" title="${v.driver || ''}"></td>`;
+
+            for (let mi = 0; mi < 12; mi++) {
+                const w = v.m[mi];
+                html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}" onclick="toggle(${idx},${mi})">${w ? '✓' : ''}</td>`;
+            }
+            html += `<td class="cell-total">${total}</td></tr>`;
+            allHtml += html;
+        });
+        tbody.innerHTML = allHtml;
+    }
+
+    function updateDriver(idx, val) {
+        vehicles[idx].driver = val;
+        saveState(false); // background save
+    }
+
+    function autofillWashingDriver(elem, idx) {
+        const val = elem.value.trim();
+        updateDriver(idx, val);
+        const driver = driversData.find(d => d.name === val);
+        if (driver) {
+            let changed = false;
+            if (driver.plate && driver.plate !== 'None' && vehicles[idx].plate !== driver.plate) {
+                vehicles[idx].plate = driver.plate;
+                changed = true;
+            }
+            if (driver.car && driver.car !== 'None' && vehicles[idx].type !== driver.car) {
+                vehicles[idx].type = driver.car;
+                changed = true;
+            }
+            if (changed) {
+                renderTable(document.getElementById('searchInput').value);
+                saveState(false);
+            }
+        }
+    }
+
+    function toggle(vi, mi) {
+        vehicles[vi].m[mi] = vehicles[vi].m[mi] ? 0 : 1;
+        renderTable(document.getElementById('searchInput').value);
+        updateStats();
+    }
+
+    function filterTable() {
+        renderTable(document.getElementById('searchInput').value);
+    }
+
+    function updateStats() {
+        const now = new Date();
+        const cm = now.getMonth(); // 0-based
+        const totalV = vehicles.length;
+        const totalW = vehicles.reduce((s, v) => s + getTotal(v), 0);
+        const currentM = vehicles.filter(v => v.m[cm] === 1).length;
+        const pending = totalV - currentM;
+
+        document.getElementById('statTotal').textContent = totalV;
+        document.getElementById('statWashes').textContent = totalW;
+        document.getElementById('statCurrent').textContent = currentM;
+        document.getElementById('statPending').textContent = pending;
+    }
+
+    function saveState(showMsg = true) {
+        localStorage.setItem('washingSchedule2026', JSON.stringify(vehicles)); // Keep local backup
+        fetch('/api/washing_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vehicles: vehicles })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && showMsg) {
+                showToast('تم حفظ التغييرات بنجاح في الموقع! ✅', 'success');
+            } else if (!data.success && showMsg) {
+                showToast('تم الحفظ محلياً فقط. فشل الحفظ في السيرفر', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            if (showMsg) showToast('حدث خطأ في الاتصال، تم الحفظ محلياً فقط', 'error');
+        });
+    }
+
+    async function exportXlsx() {
+        if(typeof ExcelJS === 'undefined') {
+            alert("يرجى الانتظار، جاري تحميل مكتبة التصدير...");
+            return;
+        }
+
+        const btn = document.querySelector('.btn-export');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = 'جاري التصدير... ⏳';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/static/washing_template.xlsx');
+            if(!response.ok) throw new Error("لم يتم العثور على قالب الإكسل الأساسي.");
+            const buffer = await response.arrayBuffer();
+
+            const wb = new ExcelJS.Workbook();
+            await wb.xlsx.load(buffer);
+            const ws = wb.worksheets[0];
+
+            // Vehicles data starts at row 5 in template
+            const startRow = 5;
+            
+            // The template has 28 data rows by default (row 5 to 32)
+            // Row 34 is the Total footer, Row 36 is the bottom footer
+            if(vehicles.length > 28) {
+                // Insert extra rows to push footers down
+                const extra = vehicles.length - 28;
+                ws.spliceRows(33, 0, ...Array.from({length: extra}).map(() => []));
+            }
+
+            vehicles.forEach((v, idx) => {
+                const r = startRow + idx;
+                const row = ws.getRow(r);
+                row.getCell(1).value = v.id || (idx + 1);
+                row.getCell(2).value = v.plate || '';
+                row.getCell(3).value = v.type || '';
+                row.getCell(4).value = v.driver || '';
+                
+                let total = 0;
+                for(let m = 0; m < 12; m++) {
+                    const isWashed = v.m && v.m[m] === 1;
+                    if(isWashed) total++;
+                    row.getCell(5 + m).value = isWashed ? 'استلم' : '';
+                }
+                
+                row.getCell(17).value = total;
+
+                // Copy styling from row 5 if we are creating new rows
+                if(r > 5) {
+                    for(let c = 1; c <= 17; c++) {
+                        const styleCell = ws.getCell(5, c);
+                        const targetCell = row.getCell(c);
+                        targetCell.font = Object.assign({}, styleCell.font);
+                        targetCell.alignment = Object.assign({}, styleCell.alignment);
+                        targetCell.border = Object.assign({}, styleCell.border);
+                        targetCell.fill = Object.assign({}, styleCell.fill);
+                    }
+                }
+            });
+
+            // Make sure the total label (Row 34 or shifted) has correct styling if shifted
+            // Actually, ExcelJS spliceRows maintains the relative positions and styles of merged cells!
+            // But just in case, we don't need to touch it.
+
+            const outBuffer = await wb.xlsx.writeBuffer();
+            saveAs(new Blob([outBuffer]), 'جدول_غسيل_السيارات.xlsx');
+
+        } catch (e) {
+            console.error(e);
+            alert("حدث خطأ أثناء التصدير: " + e.message);
+        } finally {
+            btn.innerHTML = oldText;
+            btn.disabled = false;
+        }
+    }
+
+    window.addEventListener('load', init);
+</script>
+<a href="https://wa.me/966570310909?text=مرحباً" target="_blank" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; font-family: Cairo;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل معنا - خالد بن محمد الغامدي</a>
+</body>
+</html>
+

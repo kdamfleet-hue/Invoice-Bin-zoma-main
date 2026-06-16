@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقرير صيانة الورشة | شركة بن زومة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <style>
+        /* ══════════ Layout ══════════ */
+        body { padding-top: 0 !important; }
+
+        .page-wrapper {
+            max-width: 1420px;
+            margin: 0 auto;
+            padding: 1rem 1.2rem 3rem;
+        }
+
+        /* ══════════ Top Nav ══════════ */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 1.2rem;
+            background: var(--surface);
+            border-bottom: 2px solid var(--accent);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+        .top-bar-logo { height: 48px; }
+        .top-bar-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--accent);
+            text-align: center;
+        }
+        .top-bar-title span { font-size: 0.85rem; color: var(--text-secondary); display: block; font-weight: 500; }
+        .top-nav-links { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .top-nav-links a {
+            text-decoration: none;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+        .top-nav-links a:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* ══════════ Report Header (matches Excel rows 1–4) ══════════ */
+        .report-header {
+            background: linear-gradient(135deg, #1A3A5C 0%, #2C6FAC 100%);
+            border-radius: 12px 12px 0 0;
+            padding: 1rem 1.5rem 0.8rem;
+            margin-top: 1.2rem;
+            color: white;
+            text-align: center;
+        }
+        .report-header h1 {
+            margin: 0 0 0.4rem;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+        .report-header .company-info {
+            font-size: 0.88rem;
+            opacity: 0.88;
+        }
+
+        /* Meta row — matches Excel row 4 */
+        .meta-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 2fr 1fr;
+            gap: 0;
+            background: #DCE6F1;
+            border: 2px solid #1A3A5C;
+            border-top: none;
+        }
+        .meta-cell {
+            padding: 0.55rem 1rem;
+            border-left: 1px solid #9BB5D6;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .meta-cell:last-child { border-left: none; }
+        .meta-cell label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #1A3A5C;
+            white-space: nowrap;
+        }
+        .meta-cell input[type="text"],
+        .meta-cell input[type="date"] {
+            flex: 1;
+            min-width: 80px;
+            border: 1px solid #9BB5D6;
+            border-radius: 5px;
+            padding: 4px 8px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: white;
+            color: #1A3A5C;
+            outline: none;
+        }
+        .meta-cell input:focus { border-color: #2C6FAC; box-shadow: 0 0 0 2px rgba(44,111,172,0.2); }
+        @media (max-width: 768px) {
+            .meta-row { grid-template-columns: 1fr 1fr; }
+            .meta-cell { border-bottom: 1px solid #9BB5D6; }
+        }
+
+        /* ══════════ KPI Summary row (matches Excel rows 6–8) ══════════ */
+        .kpi-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+            border: 2px solid #1A3A5C;
+            border-top: none;
+            margin-bottom: 0;
+        }
+        .kpi-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.7rem 0.5rem;
+            border-left: 1px solid #9BB5D6;
+            background: white;
+            min-height: 72px;
+        }
+        .kpi-cell:last-child { border-left: none; }
+        .kpi-cell:nth-child(1) { background: #EBF5FF; }
+        .kpi-cell:nth-child(2) { background: #FFF5EB; }
+        .kpi-cell:nth-child(3) { background: #EBFAF0; }
+        .kpi-cell:nth-child(4) { background: #F5EBFF; }
+        .kpi-cell .kpi-lbl {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #666;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+        .kpi-cell .kpi-val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .kpi-cell:nth-child(1) .kpi-val { color: #2980b9; }
+        .kpi-cell:nth-child(2) .kpi-val { color: #e67e22; }
+        .kpi-cell:nth-child(3) .kpi-val { color: #27ae60; }
+        .kpi-cell:nth-child(4) .kpi-val { color: #8e44ad; }
+
+        /* ══════════ Action bar ══════════ */
+        .action-bar {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 0;
+        }
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 7px 16px;
+            border-radius: 7px;
+            border: none;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-action:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-green  { background: #27ae60; color: white; }
+        .btn-blue   { background: #2980b9; color: white; }
+        .btn-purple { background: #8e44ad; color: white; }
+        .btn-orange { background: #e67e22; color: white; }
+        .btn-red    { background: #e74c3c; color: white; }
+        .btn-teal   { background: #16a085; color: white; }
+
+        /* ══════════ Main Table (matches Excel row 10 headers) ══════════ */
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            border: 2px solid #1A3A5C;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .workshop-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+            font-family: 'Cairo', sans-serif;
+        }
+        .workshop-table thead tr th {
+            background: linear-gradient(180deg, #2C6FAC 0%, #1A3A5C 100%);
+            color: white;
+            padding: 9px 5px;
+            text-align: center;
+            font-size: 0.82rem;
+            font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.2);
+            white-space: nowrap;
+            user-select: none;
+        }
+        .workshop-table tbody tr { transition: background 0.15s; }
+        .workshop-table tbody tr:hover td { background: rgba(44,111,172,0.06) !important; }
+        .workshop-table tbody td {
+            border: 1px solid #D0D5DD;
+            padding: 0;
+            background: white;
+            color: #1A3A5C;
+        }
+        .workshop-table tbody tr:nth-child(even) td { background: #F4F7FA; }
+        .workshop-table tbody td input,
+        .workshop-table tbody td select {
+            width: 100%;
+            padding: 7px 5px;
+            border: none;
+            background: transparent;
+            color: inherit;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.83rem;
+            font-weight: 600;
+            text-align: center;
+            outline: none;
+            min-height: 34px;
+            box-sizing: border-box;
+        }
+        .workshop-table tbody td input:focus {
+            background: rgba(44,111,172,0.08);
+            box-shadow: inset 0 0 0 2px rgba(44,111,172,0.3);
+        }
+        .workshop-table tbody td select:focus {
+            background: rgba(44,111,172,0.08);
+        }
+        /* Number columns — right align for amounts */
+        .col-num input, .col-cost input, .col-labor input, .col-total input {
+            font-size: 0.88rem;
+        }
+
+        /* Row number cell */
+        .col-idx {
+            width: 36px;
+            font-weight: 800;
+            color: #888;
+            font-size: 0.82rem;
+            text-align: center;
+        }
+        .col-date  { min-width: 120px; }
+        .col-plate { min-width: 100px; }
+        .col-driver { min-width: 140px; }
+        .col-car   { min-width: 120px; }
+        .col-desc  { min-width: 200px; }
+        .col-parts { min-width: 150px; }
+        .col-cost  { min-width: 100px; }
+        .col-labor { min-width: 90px; }
+        .col-total { min-width: 100px; }
+        .col-status { min-width: 120px; }
+        .col-notes { min-width: 140px; }
+        .col-del   { width: 40px; }
+
+        /* Status colors */
+        .status-complete   { color: #27ae60; font-weight: 700; }
+        .status-inprogress { color: #e67e22; font-weight: 700; }
+        .status-waiting    { color: #c0392b; font-weight: 700; }
+        .status-external   { color: #8e44ad; font-weight: 700; }
+        select.inp-status { cursor: pointer; font-weight: 700; }
+
+        /* Total row */
+        .total-row td {
+            background: linear-gradient(135deg, #1A3A5C, #2C6FAC) !important;
+            color: white !important;
+            font-weight: 800 !important;
+            font-size: 0.9rem;
+        }
+        .total-row td input {
+            color: white !important;
+            font-weight: 800 !important;
+            font-size: 0.9rem !important;
+        }
+
+        /* Delete button */
+        .btn-del-row {
+            background: none;
+            border: none;
+            color: #c0392b;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            height: 34px;
+            transition: 0.2s;
+        }
+        .btn-del-row:hover { background: #ffeaea; border-radius: 4px; }
+
+        /* ══════════ Signature block (matches Excel rows 39–41) ══════════ */
+        .sig-section {
+            margin-top: 1.5rem;
+            border: 2px solid #1A3A5C;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .sig-section-title {
+            background: #1A3A5C;
+            color: white;
+            text-align: center;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+        .sig-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+        }
+        .sig-item {
+            padding: 1rem 1.5rem;
+            border-left: 1px solid #9BB5D6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.8rem;
+            background: #F4F7FA;
+        }
+        .sig-item:last-child { border-left: none; }
+        .sig-item .sig-title {
+            font-size: 0.88rem;
+            font-weight: 800;
+            color: #1A3A5C;
+            text-align: center;
+        }
+        .sig-item .sig-name-input {
+            width: 100%;
+            border: none;
+            border-bottom: 2px solid #9BB5D6;
+            background: transparent;
+            text-align: center;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.82rem;
+            color: #444;
+            padding: 4px 0;
+            outline: none;
+            transition: 0.2s;
+        }
+        .sig-item .sig-name-input:focus { border-bottom-color: #2C6FAC; }
+        .sig-item .sig-line-label {
+            font-size: 0.78rem;
+            color: #888;
+            text-align: center;
+        }
+        @media (max-width: 600px) {
+            .sig-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* ══════════ Print styles ══════════ */
+        @media print {
+            .top-bar, .action-bar, .btn-del-row, .top-nav-links, video, button { display: none !important; }
+            .page-wrapper { padding: 0; }
+            .report-header { border-radius: 0; }
+            .table-wrapper { border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.15;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+    <!-- Top Navigation Bar -->
+    <div class="top-bar">
+        <img src="{{ url_for('static', filename='site_logo.png') }}" alt="شركة بن زومة" class="top-bar-logo">
+        <div class="top-bar-title">
+            🔧 تقرير صيانة الورشة
+            <span>فرع الدمام — شركة بن زومة للتجارة والإنماء</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+            <div class="top-nav-links">
+                <a href="/">🏠</a>
+                <a href="/purchase">🛒 شراء</a>
+                <a href="/schedule">📋 جدول</a>
+                <a href="/oils">🛢 زيوت</a>
+                <a href="/employees">👥 موظفين</a>
+                <a href="/washing">🚿 غسيل</a>
+            </div>
+            <button id="darkModeToggle" onclick="toggleDarkMode()" style="border:none;font-size:1.1rem;cursor:pointer;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);background:var(--surface-hover);">🌙</button>
+            <a href="/logout" style="background:#e74c3c;color:white;padding:5px 14px;border-radius:20px;font-weight:bold;font-size:0.8rem;text-decoration:none;">خروج</a>
+        </div>
+    </div>
+
+    <div class="page-wrapper">
+
+        <!-- ═══════════════════════════════════════════════════════
+             REPORT HEADER  (Excel row 1: Title, rows 2-3: logo)
+             ═══════════════════════════════════════════════════════ -->
+        <div class="report-header">
+            <h1>📋 تقرير صيانة الورشة الدوري للمركبات</h1>
+            <div class="company-info">شركة بن زومة للتجارة والإنماء المحدودة — قسم الحركة والصيانة</div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             META INFO ROW  (Excel row 4)
+             الشركة | الفرع | التاريخ | الفترة
+             ═══════════════════════════════════════════════════════ -->
+        <div class="meta-row">
+            <div class="meta-cell">
+                <label>🏢 الشركة:</label>
+                <input type="text" id="companyName" value="شركة بن زومة (قسم الحركة والصيانة)" style="font-size:0.8rem;">
+            </div>
+            <div class="meta-cell">
+                <label>📍 الفرع:</label>
+                <input type="text" id="branchName" value="الدمام">
+            </div>
+            <div class="meta-cell" style="gap:0.3rem;">
+                <label>📅 التاريخ:</label>
+                <input type="date" id="reportDate" style="max-width:150px;">
+                <label style="margin-right:0.5rem;">الفترة:</label>
+                <input type="date" id="periodFrom" style="max-width:140px;">
+                <span style="color:#1A3A5C;font-weight:700;">←</span>
+                <input type="date" id="periodTo" style="max-width:140px;">
+            </div>
+            <div class="meta-cell">
+                <label>👤 معد التقرير:</label>
+                <input type="text" id="reportPreparedBy" value="قسم الحركة">
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             KPI SUMMARY BAR  (Excel rows 6–8)
+             عدد المركبات | قطع الغيار | أجور اليد | التكلفة الكلية
+             ═══════════════════════════════════════════════════════ -->
+        <div class="kpi-bar">
+            <div class="kpi-cell">
+                <div class="kpi-lbl">🚗 عدد المركبات المصانة</div>
+                <div class="kpi-val" id="kpiCount">0</div>
+            </div>
+            <div class="kpi-cell">
+                <div class="kpi-lbl">🔩 إجمالي قطع الغيار (ريال)</div>
+                <div class="kpi-val" id="kpiParts">0.00</div>
+            </div>
+            <div class="kpi-cell">
+                <div class="kpi-lbl">🛠 إجمالي أجور اليد (ريال)</div>
+                <div class="kpi-val" id="kpiLabor">0.00</div>
+            </div>
+            <div class="kpi-cell">
+                <div class="kpi-lbl">💰 التكلفة الإجمالية (ريال)</div>
+                <div class="kpi-val" id="kpiTotal">0.00</div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             ACTION BAR
+             ═══════════════════════════════════════════════════════ -->
+        <div class="action-bar">
+            <button class="btn-action btn-green" onclick="addWorkshopRow()">➕ إضافة صف</button>
+            <button class="btn-action btn-teal" onclick="addBulkRows(5)">➕ إضافة 5 صفوف</button>
+            <button class="btn-action btn-blue" onclick="exportWorkshopExcel()">📥 تصدير Excel</button>
+            <a href="/api/download_workshop_template" class="btn-action btn-purple" style="text-decoration:none;">📄 تحميل القالب</a>
+            <button class="btn-action btn-orange" onclick="window.print()">🖨 طباعة</button>
+            <button class="btn-action btn-red" onclick="clearAll()">🗑 مسح الكل</button>
+            <span style="margin-right:auto;font-size:0.8rem;color:var(--text-secondary);">💾 يتم الحفظ تلقائياً</span>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             MAIN TABLE  (Excel row 10 = headers, rows 11–35 = data, row 36 = total)
+             م | تاريخ الصيانة | رقم اللوحة | اسم السائق | نوع المركبة |
+             وصف العطل | قطع الغيار | تكلفة القطع | أجور اليد | الإجمالي | الحالة | ملاحظات
+             ═══════════════════════════════════════════════════════ -->
+        <div class="table-wrapper">
+            <table class="workshop-table" id="workshopTable">
+                <thead>
+                    <tr>
+                        <th class="col-idx">م</th>
+                        <th class="col-date">تاريخ الصيانة</th>
+                        <th class="col-plate">رقم اللوحة</th>
+                        <th class="col-driver">اسم السائق</th>
+                        <th class="col-car">نوع المركبة</th>
+                        <th class="col-desc">وصف العطل / أعمال الصيانة</th>
+                        <th class="col-parts">قطع الغيار المستخدمة</th>
+                        <th class="col-cost">تكلفة قطع الغيار<br><small style="font-weight:400;opacity:0.8;">(ريال)</small></th>
+                        <th class="col-labor">أجور اليد<br><small style="font-weight:400;opacity:0.8;">(ريال)</small></th>
+                        <th class="col-total">إجمالي التكلفة<br><small style="font-weight:400;opacity:0.8;">(ريال)</small></th>
+                        <th class="col-status">حالة الصيانة</th>
+                        <th class="col-notes">ملاحظات</th>
+                        <th class="col-del">حذف</th>
+                    </tr>
+                </thead>
+                <tbody id="workshopBody">
+                    <!-- Rows injected by JS -->
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="7" style="text-align:center;padding:10px 12px;font-size:0.95rem;">الإجمالي الكلي</td>
+                        <td class="col-cost"><input type="text" id="footerParts" readonly placeholder="0.00"></td>
+                        <td class="col-labor"><input type="text" id="footerLabor" readonly placeholder="0.00"></td>
+                        <td class="col-total"><input type="text" id="footerTotal" readonly placeholder="0.00"></td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SIGNATURE BLOCK  (Excel rows 39–41)
+             فني الورشة | مسؤول الورشة | مسؤول قسم الحركة | مدير الفرع
+             ═══════════════════════════════════════════════════════ -->
+        <div class="sig-section">
+            <div class="sig-section-title">✍️ التوقيعات والاعتمادات</div>
+            <div class="sig-grid">
+                <div class="sig-item">
+                    <div class="sig-title">فني الورشة / الميكانيكي</div>
+                    <input type="text" class="sig-name-input" placeholder="الاسم">
+                    <div class="sig-line-label">التوقيع: ........................</div>
+                </div>
+                <div class="sig-item">
+                    <div class="sig-title">مسؤول الورشة</div>
+                    <input type="text" class="sig-name-input" placeholder="الاسم">
+                    <div class="sig-line-label">التوقيع: ........................</div>
+                </div>
+                <div class="sig-item">
+                    <div class="sig-title">مسؤول قسم الحركة</div>
+                    <input type="text" class="sig-name-input" placeholder="الاسم">
+                    <div class="sig-line-label">التوقيع: ........................</div>
+                </div>
+                <div class="sig-item">
+                    <div class="sig-title">مدير الفرع</div>
+                    <input type="text" class="sig-name-input" placeholder="الاسم">
+                    <div class="sig-line-label">التوقيع: ........................</div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end page-wrapper -->
+
+    <!-- Datalist for driver autocomplete -->
+    <datalist id="drvList"></datalist>
+    <datalist id="plateList"></datalist>
+
+    <script>
+    const LS_KEY = 'workshop_report_v2';
+    let driversData = [];
+
+    // ─── Fetch Drivers ────────────────────────────────────────────
+    async function fetchDrivers() {
+        try {
+            const res = await fetch('/api/drivers');
+            driversData = await res.json();
+            const dl  = document.getElementById('drvList');
+            const pl  = document.getElementById('plateList');
+            driversData.forEach(d => {
+                const o1 = document.createElement('option');
+                o1.value = d.name || '';
+                dl.appendChild(o1);
+                if (d.plate) {
+                    const o2 = document.createElement('option');
+                    o2.value = d.plate;
+                    pl.appendChild(o2);
+                }
+            });
+        } catch(e) { console.error('Could not load drivers:', e); }
+    }
+
+    // ─── Add Row ──────────────────────────────────────────────────
+    function addWorkshopRow(data = {}) {
+        const tbody = document.getElementById('workshopBody');
+        const idx   = tbody.children.length + 1;
+        const today = new Date().toISOString().split('T')[0];
+        const tr    = document.createElement('tr');
+
+        // Status colour mapping
+        const statusOpts = [
+            ['مكتملة',        '✅ مكتملة',        'status-complete'],
+            ['تحت الصيانة',   '🔄 تحت الصيانة',   'status-inprogress'],
+            ['بانتظار القطع', '⏳ بانتظار القطع', 'status-waiting'],
+            ['خارجي',         '🏭 خارجي',          'status-external'],
+        ];
+        const selOpts = statusOpts.map(([v, l, cls]) =>
+            `<option value="${v}" ${(data.status||'مكتملة')===v?'selected':''}>${l}</option>`
+        ).join('');
+
+        tr.innerHTML = `
+            <td class="col-idx">${idx}</td>
+            <td class="col-date">
+                <input type="date" class="inp-date" value="${data.date || today}" title="تاريخ الصيانة">
+            </td>
+            <td class="col-plate">
+                <input type="text" class="inp-plate" list="plateList"
+                    placeholder="رقم اللوحة"
+                    value="${data.plate || ''}"
+                    oninput="autofillFromPlate(this)"
+                    title="رقم اللوحة">
+            </td>
+            <td class="col-driver">
+                <input type="text" class="inp-driver" list="drvList"
+                    placeholder="اسم السائق"
+                    value="${data.driver || ''}"
+                    oninput="autofillFromName(this)"
+                    title="اسم السائق">
+            </td>
+            <td class="col-car">
+                <input type="text" class="inp-car"
+                    placeholder="نوع المركبة"
+                    value="${data.car || ''}"
+                    title="نوع المركبة">
+            </td>
+            <td class="col-desc">
+                <input type="text" class="inp-desc"
+                    placeholder="وصف العطل / أعمال الصيانة"
+                    value="${data.desc || ''}"
+                    title="وصف العطل">
+            </td>
+            <td class="col-parts">
+                <input type="text" class="inp-parts-desc"
+                    placeholder="قطع الغيار المستخدمة"
+                    value="${data.parts_desc || ''}"
+                    title="قطع الغيار">
+            </td>
+            <td class="col-cost">
+                <input type="number" class="inp-parts-cost"
+                    placeholder="0.00"
+                    value="${data.parts_cost || ''}"
+                    min="0" step="0.01"
+                    oninput="calcRowTotal(this); recalcKPIs();"
+                    title="تكلفة قطع الغيار">
+            </td>
+            <td class="col-labor">
+                <input type="number" class="inp-labor"
+                    placeholder="0.00"
+                    value="${data.labor || ''}"
+                    min="0" step="0.01"
+                    oninput="calcRowTotal(this); recalcKPIs();"
+                    title="أجور اليد">
+            </td>
+            <td class="col-total">
+                <input type="text" class="inp-total" readonly
+                    placeholder="0.00"
+                    value="${data.total || ''}"
+                    title="الإجمالي">
+            </td>
+            <td class="col-status">
+                <select class="inp-status" onchange="updateStatusColor(this)">
+                    ${selOpts}
+                </select>
+            </td>
+            <td class="col-notes">
+                <input type="text" class="inp-notes"
+                    placeholder="ملاحظات"
+                    value="${data.notes || ''}"
+                    title="ملاحظات">
+            </td>
+            <td class="col-del">
+                <button class="btn-del-row" onclick="deleteRow(this)" title="حذف الصف">✕</button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+        // Apply status color
+        const sel = tr.querySelector('.inp-status');
+        updateStatusColor(sel);
+        // Recalc if editing loaded data
+        if (data.parts_cost || data.labor) calcRowTotal(tr.querySelector('.inp-parts-cost'));
+        return tr;
+    }
+
+    function addBulkRows(n) {
+        for (let i = 0; i < n; i++) addWorkshopRow();
+    }
+
+    // ─── Status colour ────────────────────────────────────────────
+    function updateStatusColor(sel) {
+        const map = {
+            'مكتملة':        'status-complete',
+            'تحت الصيانة':   'status-inprogress',
+            'بانتظار القطع': 'status-waiting',
+            'خارجي':         'status-external',
+        };
+        sel.className = 'inp-status ' + (map[sel.value] || '');
+    }
+
+    // ─── Row Total ────────────────────────────────────────────────
+    function calcRowTotal(inp) {
+        const tr    = inp.closest('tr');
+        const parts = parseFloat(tr.querySelector('.inp-parts-cost')?.value) || 0;
+        const labor = parseFloat(tr.querySelector('.inp-labor')?.value) || 0;
+        const tot   = tr.querySelector('.inp-total');
+        if (tot) tot.value = (parts + labor).toFixed(2);
+    }
+
+    // ─── Autofill ─────────────────────────────────────────────────
+    function autofillFromPlate(inp) {
+        const tr    = inp.closest('tr');
+        const found = driversData.find(d => d.plate === inp.value.trim());
+        if (found) {
+            tr.querySelector('.inp-driver').value = found.name  || '';
+            tr.querySelector('.inp-car').value    = found.car   || '';
+        }
+    }
+    function autofillFromName(inp) {
+        const tr    = inp.closest('tr');
+        const found = driversData.find(d => d.name === inp.value.trim());
+        if (found) {
+            tr.querySelector('.inp-plate').value  = found.plate || '';
+            tr.querySelector('.inp-car').value    = found.car   || '';
+        }
+    }
+
+    // ─── Delete ───────────────────────────────────────────────────
+    function deleteRow(btn) {
+        if (!confirm('هل أنت متأكد من حذف هذا الصف؟')) return;
+        btn.closest('tr').remove();
+        reindexRows();
+        recalcKPIs();
+        saveData();
+    }
+    function reindexRows() {
+        document.querySelectorAll('#workshopBody tr').forEach((tr, i) => {
+            tr.cells[0].textContent = i + 1;
+        });
+    }
+
+    // ─── KPIs ─────────────────────────────────────────────────────
+    function recalcKPIs() {
+        let count = 0, parts = 0, labor = 0, total = 0;
+        document.querySelectorAll('#workshopBody tr').forEach(tr => {
+            const p = parseFloat(tr.querySelector('.inp-parts-cost')?.value) || 0;
+            const l = parseFloat(tr.querySelector('.inp-labor')?.value)      || 0;
+            const hasData = tr.querySelector('.inp-plate')?.value
+                         || tr.querySelector('.inp-driver')?.value
+                         || p || l;
+            if (hasData) count++;
+            parts += p;
+            labor += l;
+            total += p + l;
+        });
+        document.getElementById('kpiCount').textContent  = count;
+        document.getElementById('kpiParts').textContent  = parts.toFixed(2);
+        document.getElementById('kpiLabor').textContent  = labor.toFixed(2);
+        document.getElementById('kpiTotal').textContent  = total.toFixed(2);
+        document.getElementById('footerParts').value     = parts.toFixed(2);
+        document.getElementById('footerLabor').value     = labor.toFixed(2);
+        document.getElementById('footerTotal').value     = total.toFixed(2);
+    }
+
+    // ─── Clear All ────────────────────────────────────────────────
+    function clearAll() {
+        if (!confirm('هل أنت متأكد من مسح جميع البيانات؟')) return;
+        document.getElementById('workshopBody').innerHTML = '';
+        recalcKPIs();
+        localStorage.removeItem(LS_KEY);
+        for (let i = 0; i < 10; i++) addWorkshopRow();
+        if (typeof showToast === 'function') showToast('تم مسح جميع البيانات', 'success');
+    }
+
+    // ─── Save / Load ──────────────────────────────────────────────
+    function saveData() {
+        const rows = [];
+        document.querySelectorAll('#workshopBody tr').forEach(tr => {
+            rows.push({
+                date:       tr.querySelector('.inp-date')?.value       || '',
+                plate:      tr.querySelector('.inp-plate')?.value      || '',
+                driver:     tr.querySelector('.inp-driver')?.value     || '',
+                car:        tr.querySelector('.inp-car')?.value        || '',
+                desc:       tr.querySelector('.inp-desc')?.value       || '',
+                parts_desc: tr.querySelector('.inp-parts-desc')?.value || '',
+                parts_cost: tr.querySelector('.inp-parts-cost')?.value || '',
+                labor:      tr.querySelector('.inp-labor')?.value      || '',
+                total:      tr.querySelector('.inp-total')?.value      || '',
+                status:     tr.querySelector('.inp-status')?.value     || 'مكتملة',
+                notes:      tr.querySelector('.inp-notes')?.value      || '',
+            });
+        });
+        const sigs = [];
+        document.querySelectorAll('.sig-name-input').forEach(i => sigs.push(i.value));
+        const meta = {
+            companyName:      document.getElementById('companyName').value,
+            branchName:       document.getElementById('branchName').value,
+            reportDate:       document.getElementById('reportDate').value,
+            periodFrom:       document.getElementById('periodFrom').value,
+            periodTo:         document.getElementById('periodTo').value,
+            reportPreparedBy: document.getElementById('reportPreparedBy').value,
+            sigs, rows
+        };
+        localStorage.setItem(LS_KEY, JSON.stringify(meta));
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return false;
+        try {
+            const data = JSON.parse(raw);
+            if (data.companyName)      document.getElementById('companyName').value      = data.companyName;
+            if (data.branchName)       document.getElementById('branchName').value       = data.branchName;
+            if (data.reportDate)       document.getElementById('reportDate').value       = data.reportDate;
+            if (data.periodFrom)       document.getElementById('periodFrom').value       = data.periodFrom;
+            if (data.periodTo)         document.getElementById('periodTo').value         = data.periodTo;
+            if (data.reportPreparedBy) document.getElementById('reportPreparedBy').value = data.reportPreparedBy;
+            if (data.sigs) {
+                document.querySelectorAll('.sig-name-input').forEach((inp, i) => {
+                    if (data.sigs[i]) inp.value = data.sigs[i];
+                });
+            }
+            if (data.rows && data.rows.length > 0) {
+                data.rows.forEach(r => addWorkshopRow(r));
+                recalcKPIs();
+                return true;
+            }
+        } catch(e) { console.error(e); }
+        return false;
+    }
+
+    // ─── Excel Export (mirrors Excel structure exactly) ───────────
+    async function exportWorkshopExcel() {
+        try {
+            if (typeof showToast === 'function') showToast('جاري إنشاء ملف Excel...', 'info');
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('تقرير صيانة الورشة', { views: [{ rightToLeft: true }] });
+
+            const primary   = 'FF1A3A5C';
+            const headerBg  = 'FF2C6FAC';
+            const lightBg   = 'FFF4F7FA';
+            const metaBg    = 'FFDCE6F1';
+            const thin = { style: 'thin', color: { argb: 'FFD0D5DD' } };
+            const border = { top: thin, bottom: thin, left: thin, right: thin };
+            const thickBorder = {
+                top: { style: 'medium', color: { argb: primary } },
+                bottom: { style: 'medium', color: { argb: primary } },
+                left: { style: 'medium', color: { argb: primary } },
+                right: { style: 'medium', color: { argb: primary } },
+            };
+
+            // Column widths (matching Excel template)
+            ws.columns = [
+                { width: 5 }, { width: 14 }, { width: 14 }, { width: 22 }, { width: 18 },
+                { width: 32 }, { width: 28 }, { width: 16 }, { width: 14 }, { width: 16 },
+                { width: 18 }, { width: 24 }
+            ];
+
+            // ── Row 1: Title ──
+            ws.mergeCells('A1:L1');
+            const t = ws.getCell('A1');
+            t.value     = 'تقرير صيانة الورشة الدوري للمركبات';
+            t.font      = { name: 'Cairo', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+            t.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: primary } };
+            t.alignment = { horizontal: 'center', vertical: 'middle' };
+            t.border    = thickBorder;
+            ws.getRow(1).height = 38;
+
+            // ── Rows 2–3: Company logo / name ──
+            ws.mergeCells('A2:C3');
+            ws.getCell('A2').value     = 'شركة بن زومة للتجارة والإنماء';
+            ws.getCell('A2').font      = { name: 'Cairo', size: 10, bold: true, color: { argb: primary } };
+            ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            ws.getCell('A2').fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: metaBg } };
+            ws.getCell('A2').border    = border;
+            ws.getRow(2).height = 20;
+            ws.getRow(3).height = 20;
+
+            // ── Row 4: Meta ──
+            const branchVal  = document.getElementById('branchName').value;
+            const dateVal    = document.getElementById('reportDate').value;
+            const fromVal    = document.getElementById('periodFrom').value;
+            const toVal      = document.getElementById('periodTo').value;
+            const preparedBy = document.getElementById('reportPreparedBy').value;
+
+            ws.mergeCells('A4:C4'); ws.getCell('A4').value = `الشركة: ${document.getElementById('companyName').value}`;
+            ws.mergeCells('D4:F4'); ws.getCell('D4').value = `الفرع: ${branchVal}`;
+            ws.mergeCells('G4:I4'); ws.getCell('G4').value = `التاريخ: ${dateVal}`;
+            ws.mergeCells('J4:L4'); ws.getCell('J4').value = `الفترة: من ${fromVal} إلى ${toVal}`;
+            ws.getRow(4).eachCell(cell => {
+                cell.font      = { name: 'Cairo', size: 10, bold: true, color: { argb: primary } };
+                cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: metaBg } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border    = border;
+            });
+            ws.getRow(4).height = 22;
+
+            // ── Rows 5–7: KPI summary ──
+            const kpiLabels = ['عدد المركبات المصانة', 'إجمالي قطع الغيار (ريال)', 'إجمالي أجور اليد (ريال)', 'التكلفة الإجمالية (ريال)'];
+            const kpiVals   = [
+                document.getElementById('kpiCount').textContent,
+                document.getElementById('kpiParts').textContent,
+                document.getElementById('kpiLabor').textContent,
+                document.getElementById('kpiTotal').textContent,
+            ];
+            const kpiCols = [[1,3],[4,6],[7,9],[10,12]];
+            ws.mergeCells('A5:L5'); ws.getCell('A5').value = '';
+            ws.getRow(5).height = 8;
+            kpiLabels.forEach((lbl, i) => {
+                const [sc, ec] = kpiCols[i];
+                ws.mergeCells(6, sc, 6, ec);
+                const lc = ws.getRow(6).getCell(sc);
+                lc.value = lbl;
+                lc.font  = { name: 'Cairo', size: 9, bold: true, color: { argb: primary } };
+                lc.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF2FF' } };
+                lc.alignment = { horizontal: 'center', vertical: 'middle' };
+                lc.border = border;
+
+                ws.mergeCells(7, sc, 7, ec);
+                const vc = ws.getRow(7).getCell(sc);
+                vc.value = parseFloat(kpiVals[i]) || parseInt(kpiVals[i]) || 0;
+                vc.font  = { name: 'Cairo', size: 14, bold: true, color: { argb: headerBg } };
+                vc.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: metaBg } };
+                vc.alignment = { horizontal: 'center', vertical: 'middle' };
+                vc.border = border;
+                if (i > 0) vc.numFmt = '#,##0.00';
+            });
+            ws.getRow(6).height = 18;
+            ws.getRow(7).height = 28;
+
+            // ── Row 8: spacer ──
+            ws.getRow(8).height = 6;
+
+            // ── Row 9: spacer ──
+            ws.getRow(9).height = 6;
+
+            // ── Row 10: Table headers ──
+            const headers = ['م', 'تاريخ الصيانة', 'رقم اللوحة', 'اسم السائق', 'نوع المركبة',
+                'وصف العطل / أعمال الصيانة', 'قطع الغيار المستخدمة',
+                'تكلفة قطع الغيار', 'أجور اليد', 'إجمالي التكلفة', 'حالة الصيانة', 'ملاحظات'];
+            const hRow = ws.getRow(10);
+            hRow.height = 28;
+            headers.forEach((h, i) => {
+                const cell = hRow.getCell(i + 1);
+                cell.value = h;
+                cell.font  = { name: 'Cairo', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerBg } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                cell.border = border;
+            });
+
+            // ── Rows 11+: Data ──
+            const trs = document.querySelectorAll('#workshopBody tr');
+            trs.forEach((tr, i) => {
+                const r = 11 + i;
+                const rowData = [
+                    i + 1,
+                    tr.querySelector('.inp-date')?.value       || '',
+                    tr.querySelector('.inp-plate')?.value      || '',
+                    tr.querySelector('.inp-driver')?.value     || '',
+                    tr.querySelector('.inp-car')?.value        || '',
+                    tr.querySelector('.inp-desc')?.value       || '',
+                    tr.querySelector('.inp-parts-desc')?.value || '',
+                    parseFloat(tr.querySelector('.inp-parts-cost')?.value) || '',
+                    parseFloat(tr.querySelector('.inp-labor')?.value)      || '',
+                    parseFloat(tr.querySelector('.inp-total')?.value)      || '',
+                    tr.querySelector('.inp-status')?.value     || '',
+                    tr.querySelector('.inp-notes')?.value      || '',
+                ];
+                const exRow = ws.getRow(r);
+                exRow.height = 20;
+                rowData.forEach((v, ci) => {
+                    const cell = exRow.getCell(ci + 1);
+                    cell.value = v;
+                    cell.font  = { name: 'Cairo', size: 10 };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 === 0 ? 'FFFFFFFF' : lightBg } };
+                    cell.border = border;
+                    if ([8, 9, 10].includes(ci + 1) && typeof v === 'number') cell.numFmt = '#,##0.00';
+                });
+            });
+
+            // ── Total row ──
+            const totR = 11 + trs.length;
+            ws.mergeCells(`A${totR}:G${totR}`);
+            const tr0 = ws.getRow(totR);
+            tr0.height = 26;
+            tr0.getCell(1).value = 'الإجمالي الكلي';
+            tr0.getCell(1).font  = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+            tr0.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: primary } };
+            tr0.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+            tr0.getCell(1).border = border;
+            [[8,'footerParts'],[9,'footerLabor'],[10,'footerTotal']].forEach(([c, id]) => {
+                const cell = tr0.getCell(c);
+                cell.value = parseFloat(document.getElementById(id)?.value) || 0;
+                cell.font  = { name: 'Cairo', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: primary } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.numFmt = '#,##0.00';
+                cell.border = border;
+            });
+
+            // ── Spacer ──
+            ws.getRow(totR + 1).height = 10;
+
+            // ── Signature rows (matches Excel rows 39–41) ──
+            const sigR = totR + 2;
+            const sigNames = [];
+            document.querySelectorAll('.sig-name-input').forEach(i => sigNames.push(i.value));
+            const sigTitles = ['فني الورشة / الميكانيكي', 'مسؤول الورشة', 'مسؤول قسم الحركة', 'مدير الفرع'];
+            const sigCols   = [[2,4],[5,7],[8,10],[11,12]];
+            ws.getRow(sigR).height = 18;
+            ws.getRow(sigR + 1).height = 28;
+            ws.getRow(sigR + 2).height = 18;
+            sigTitles.forEach((title, i) => {
+                const [sc, ec] = sigCols[i];
+                ws.mergeCells(sigR, sc, sigR, ec);
+                const tc = ws.getRow(sigR).getCell(sc);
+                tc.value = title;
+                tc.font  = { name: 'Cairo', size: 10, bold: true, color: { argb: primary } };
+                tc.alignment = { horizontal: 'center', vertical: 'middle' };
+                tc.border = { bottom: { style: 'medium', color: { argb: primary } } };
+
+                ws.mergeCells(sigR + 1, sc, sigR + 1, ec);
+                const nc = ws.getRow(sigR + 1).getCell(sc);
+                nc.value = sigNames[i] || '';
+                nc.font  = { name: 'Cairo', size: 11 };
+                nc.alignment = { horizontal: 'center', vertical: 'middle' };
+                nc.border = { bottom: { style: 'thin', color: { argb: primary } } };
+
+                ws.mergeCells(sigR + 2, sc, sigR + 2, ec);
+                const slc = ws.getRow(sigR + 2).getCell(sc);
+                slc.value = 'التوقيع: ........................';
+                slc.font  = { name: 'Cairo', size: 9, color: { argb: 'FF888888' } };
+                slc.alignment = { horizontal: 'center', vertical: 'middle' };
+            });
+
+            // ── Prepared by footer ──
+            const footR = sigR + 4;
+            ws.mergeCells(`A${footR}:L${footR}`);
+            const fc = ws.getRow(footR).getCell(1);
+            fc.value = `معد التقرير: ${preparedBy}   |   تاريخ الإعداد: ${dateVal}`;
+            fc.font  = { name: 'Cairo', size: 9, italic: true, color: { argb: 'FF888888' } };
+            fc.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            const buffer = await wb.xlsx.writeBuffer();
+            const date   = document.getElementById('reportDate').value || new Date().toISOString().split('T')[0];
+            saveAs(new Blob([buffer]), `تقرير_الورشة_${date}.xlsx`);
+            if (typeof showToast === 'function') showToast('تم تحميل ملف Excel بنجاح ✅', 'success');
+        } catch(e) {
+            if (typeof showToast === 'function') showToast('فشل في التصدير: ' + e.message, 'error');
+            console.error(e);
+        }
+    }
+
+    // ─── Auto-save on any input/change ───────────────────────────
+    document.addEventListener('input',  () => { saveData(); recalcKPIs(); });
+    document.addEventListener('change', () => { saveData(); recalcKPIs(); });
+
+    // ─── Init ─────────────────────────────────────────────────────
+    window.addEventListener('load', async () => {
+        await fetchDrivers();
+
+        // Default date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('reportDate').value = today;
+
+        const loaded = loadData();
+        if (!loaded) {
+            // Pre-fill 15 empty rows (matches Excel's 25-row template, keep it manageable)
+            for (let i = 0; i < 15; i++) addWorkshopRow();
+        }
+        recalcKPIs();
+    });
+    </script>
+</body>
+</html>

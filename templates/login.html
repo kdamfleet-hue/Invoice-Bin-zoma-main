@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تسجيل الدخول - نظام الفواتير</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            padding-top: 100px; /* حسب ارتفاع الهيدر */
+        }
+        
+        /* الهيدر الأساسي */
+        header {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          padding: 12px 40px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: transparent;
+          backdrop-filter: blur(6px);
+          z-index: 1000;
+        }
+
+        /* الشعار */
+        header .logo {
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+        }
+        header .logo img {
+          height: 60px;
+          filter: drop-shadow(0 0 4px rgba(0,0,0,0.25));
+        }
+
+        /* روابط الديسكتوب */
+        .nav-links {
+          display: flex;
+          gap: 25px;
+        }
+
+        .nav-links a {
+          text-decoration: none;
+          font-size: 18px;
+          color: white;
+          font-weight: 500;
+          transition: 0.3s;
+        }
+
+        .nav-links a:hover {
+          color: #00c3ff;
+          transform: translateY(-2px);
+        }
+
+        /* زر القائمة للجوال */
+        .menu-icon {
+          font-size: 32px;
+          color: white;
+          cursor: pointer;
+          display: none;
+        }
+
+        /* القائمة الجانبية للجوال */
+        .mobile-menu {
+          position: fixed;
+          top: 0;
+          right: -250px;
+          width: 250px;
+          height: 100%;
+          background: rgba(0,0,0,0.85);
+          backdrop-filter: blur(6px);
+          display: flex;
+          flex-direction: column;
+          padding-top: 100px;
+          transition: 0.4s;
+          z-index: 999;
+        }
+
+        .mobile-menu a {
+          padding: 15px 25px;
+          text-decoration: none;
+          color: white;
+          font-size: 20px;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .mobile-menu a:hover {
+          background: rgba(255,255,255,0.1);
+        }
+
+        /* إخفاء وإظهار حسب حجم الشاشة */
+        @media (max-width: 768px) {
+          .nav-links {
+            display: none;
+          }
+          .menu-icon {
+            display: block;
+          }
+        }
+        .login-card {
+            padding: 3rem;
+            border-radius: 24px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            z-index: 2;
+            position: relative;
+        }
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 1.5rem;
+            }
+        }
+        .login-card h2 {
+            margin-top: 0;
+            color: var(--accent);
+            font-size: 2.2rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        body.dark-mode .login-card h2 {
+            color: #82aaff;
+            text-shadow: 0 0 10px rgba(130, 170, 255, 0.4);
+        }
+        .login-card p {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+        }
+        .google-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border-strong);
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: var(--trans-spring);
+            box-shadow: var(--shadow-sm);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .google-btn img {
+            width: 24px;
+            height: 24px;
+            margin-left: 12px;
+        }
+        .google-btn:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-3px);
+            border-color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+<!-- Intro Video Splash Screen -->
+    <div id="introContainer" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0a0a1a; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+        <video id="introVideo" autoplay muted playsinline style="max-width: 80%; max-height: 80vh; border-radius: 12px;">
+            <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+        </video>
+        <button id="skipIntroBtn" style="position: absolute; bottom: 30px; right: 30px; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 10px 24px; border-radius: 20px; cursor: pointer; z-index: 10000; font-family: Cairo; font-size: 15px; backdrop-filter: blur(4px); transition: 0.2s;">تخطي ▶</button>
+    </div>
+
+    <script>
+        const introContainer = document.getElementById('introContainer');
+        const introVideo = document.getElementById('introVideo');
+        const skipBtn = document.getElementById('skipIntroBtn');
+
+        function endIntro() {
+            if (!introContainer) return;
+            introContainer.style.transition = "opacity 0.8s ease";
+            introContainer.style.opacity = "0";
+            setTimeout(() => {
+                introContainer.style.display = "none";
+                if (introVideo) introVideo.pause();
+            }, 800);
+        }
+
+        if (introVideo) {
+            introVideo.onended = endIntro;
+            let playPromise = introVideo.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    // Auto-play was prevented — skip intro immediately
+                    endIntro();
+                });
+            }
+        } else {
+            // No video found — skip intro after brief delay
+            setTimeout(endIntro, 500);
+        }
+
+        if (skipBtn) {
+            skipBtn.onclick = endIntro;
+            skipBtn.onmouseover = () => skipBtn.style.background = "rgba(255,255,255,0.3)";
+            skipBtn.onmouseout = () => skipBtn.style.background = "rgba(255,255,255,0.15)";
+        }
+
+        // Safety fallback: always dismiss intro after 8 seconds
+        setTimeout(endIntro, 8000);
+    </script>
+    
+
+
+
+    <div class="login-card glass-surface">
+        <img src="{{ url_for('static', filename='site_logo.png') }}" alt="Bin Zomah Logo" class="site-logo" style="max-width: 320px; margin-bottom: 20px;">
+        <h2>أهلاً بك</h2>
+        <p>نظام الفواتير الذكي لشركة بن زومة فرع الدمام. الرجاء تسجيل الدخول للمتابعة.</p>
+        <form method="POST" action="/login" style="display: flex; flex-direction: column; gap: 15px; text-align: right;">
+            <label style="color: var(--text-primary); font-weight: bold;">اسم المستخدم:</label>
+            <input type="text" name="username" placeholder="مثال: Khaled@fleetadmin" required style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-primary); font-family: 'Cairo'; font-size: 1rem;">
+            
+            <label style="color: var(--text-primary); font-weight: bold;">كلمة المرور:</label>
+            <input type="password" name="password" placeholder="أدخل كلمة المرور" required style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-primary); font-family: 'Cairo'; font-size: 1rem;">
+            
+            <button type="submit" style="background: var(--accent); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; font-family: 'Cairo'; font-size: 1.1rem; cursor: pointer; transition: 0.3s; margin-top: 10px;">تسجيل الدخول</button>
+            
+            {% if error %}
+            <div style="color: #ff4757; margin-top: 10px; text-align: center; font-weight: bold;">{{ error }}</div>
+            {% endif %}
+        </form>
+    </div>
+</body>
+</html>
+

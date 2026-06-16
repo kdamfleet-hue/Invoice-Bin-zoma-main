@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>بيانات موظفين الفرع</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+
+    <style>
+        :root {
+            --bg-color: transparent;
+            --text-color: #2c3e50;
+        }
+        body.dark-mode {
+            --bg-color: transparent;
+            --text-color: #e2e8f0;
+        }
+        body.dark-mode .excel-table-container { background: rgba(45, 55, 72, 0.7); backdrop-filter: blur(10px); box-shadow: none; }
+        body.dark-mode th { background-color: #4a5568; border-color: #718096; }
+        body.dark-mode td { border-color: #4a5568; }
+        body.dark-mode input, body.dark-mode select { background: #4a5568; color: #fff; border-color: #718096; }
+        body.dark-mode .top-bar { background: #2d3748; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            gap: 10px;
+        }
+        .theme-toggle-btn {
+            background: none; border: none; font-size: 1.5rem; cursor: pointer; border-radius: 50%;
+            width: 45px; height: 45px; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); background-color: #fff; transition: 0.3s;
+        }
+        body.dark-mode .theme-toggle-btn { background-color: #4a5568; color: #fff; }
+        .excel-table-container {
+            width: 100%;
+            overflow-x: auto;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        table {
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+            font-size: 0.95rem;
+        }
+        .group-header {
+            background-color: #2c3e50;
+            font-size: 1.05rem;
+        }
+        input {
+            width: 100%;
+            min-width: 100px;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-family: 'Cairo', sans-serif;
+            text-align: center;
+        }
+        .nav-buttons {
+            display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px;
+        }
+        .btn-outline {
+            padding: 10px 25px;
+            border: 2px solid #34495e;
+            border-radius: 50px;
+            background: transparent;
+            color: #34495e;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        .btn-outline:hover {
+            background: #34495e;
+            color: #fff;
+        }
+        .actions-column button {
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: none;
+            font-weight: bold;
+        }
+        .btn-delete { background: #e74c3c; color: white; }
+    </style>
+</head>
+<body>
+
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+    <div class="nav-buttons" style="align-items: center;">
+        <button class="theme-toggle-btn" id="empDarkModeToggle" onclick="toggleEmpDarkMode()" style="margin-left:auto;margin-right:0;">🌙</button>
+        <a href="/" class="btn-outline">العودة للرئيسية</a>
+        <a href="/schedule" class="btn-outline">الجدول الأسبوعي</a>
+        <button class="btn-outline" onclick="addEmployeeRow()" style="border-color: #27ae60; color: #27ae60;">+ إضافة صف جديد</button>
+        <button class="btn-outline" onclick="exportToExcel()" style="border-color: #3498db; color: #3498db;">📥 تحميل كملف Excel</button>
+    </div>
+
+    <div class="excel-table-container">
+        <h2 style="text-align: center; margin-bottom: 20px;">بيانات جميع الموظفين في الفرع</h2>
+        <table id="employeesTable">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="background-color: #2c3e50;">م</th>
+                    <th class="group-header" colspan="10">بيانات الموظف العامة</th>
+                    <th class="group-header" colspan="6">مقيم</th>
+                    <th class="group-header" colspan="9">قوى</th>
+                    <th class="group-header" colspan="5">مسيرات الشركة</th>
+                    <th class="group-header" colspan="2">البصمة</th>
+                    <th class="group-header" colspan="8">المركبة</th>
+                    <th class="group-header" colspan="6">السكن والسند والتامين</th>
+                    <th rowspan="2" style="background-color: #2c3e50;">إجراءات</th>
+                </tr>
+                <tr>
+                    <th>الرقم الوظيفي</th>
+                    <th>الإقامة - البطاقة</th>
+                    <th>اسم العامل </th>
+                    <th>الاسم بالانجليزي</th>
+                    <th>الفرع</th>
+                    <th>الجنسية</th>
+                    <th>المسمئ الوظيفي</th>
+                    <th>رقم الجوال</th>
+                    <th>الايميل</th>
+                    <th>رقم اللوحة</th>
+                    <th>تاريخ انتهاء الاقامة</th>
+                    <th>تاريخ انتهاء الجواز</th>
+                    <th>تاريح الميلاد</th>
+                    <th>العمر</th>
+                    <th>المهنة</th>
+                    <th>رقم صاحب العمل</th>
+                    <th>تاريخ التعين </th>
+                    <th>تاريخ انتهاء العقد</th>
+                    <th>التامينات</th>
+                    <th>الاساسي في قوى</th>
+                    <th>بدل السكن في قوى</th>
+                    <th>النقل في قوى</th>
+                    <th>اخرى في قوى</th>
+                    <th>المنشئة</th>
+                    <th>التنبيه بتجديد العقد</th>
+                    <th>في الشركة الاساسي</th>
+                    <th>في الشركة بدل السكن</th>
+                    <th>بدل نقل</th>
+                    <th>بدل اتصال</th>
+                    <th>ملاحظات الرواتب</th>
+                    <th>رقم البصمة</th>
+                    <th>الدخول</th>
+                    <th>الرخصة</th>
+                    <th>الايبان</th>
+                    <th>نوع النقل</th>
+                    <th>حمولة المركبة(عدد الركاب)</th>
+                    <th>الماركة</th>
+                    <th>الطراز</th>
+                    <th>الموديل</th>
+                    <th>رقم الهيكل</th>
+                    <th>السكن</th>
+                    <th>سند امر</th>
+                    <th>كرت البلدية</th>
+                    <th>الكرت الوظيفي</th>
+                    <th>حالة التامين</th>
+                    <th>الاستحقاقات السنوية</th>
+                </tr>
+            </thead>
+            <tbody id="employeesBody">
+                <!-- Rows will be populated by JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        const TOTAL_COLS = 46;
+        const LS_EMPLOYEES_KEY = 'excel_employees_data_v6';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadFromLocalStorage();
+            if (document.getElementById('employeesBody').children.length === 0) {
+                for (let i = 0; i < 50; i++) {
+                    addEmployeeRow(false);
+                }
+                saveToLocalStorage();
+            }
+        });
+
+        function addEmployeeRow(save = true) {
+            const tbody = document.getElementById('employeesBody');
+            const tr = document.createElement('tr');
+            const idx = tbody.children.length + 1;
+            
+            let html = `<td style="font-weight:bold; background:#f8f9fa;">${idx}</td>`;
+            for (let i = 0; i < TOTAL_COLS; i++) {
+                html += `<td><input type="text" value=""></td>`;
+            }
+            html += `<td><button class="btn-delete" onclick="deleteRow(this)">✕</button></td>`;
+            
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+            if (save) saveToLocalStorage();
+        }
+
+        function deleteRow(btn) {
+            if (!confirm('هل أنت متأكد من حذف هذا الصف؟')) return;
+            const tr = btn.closest('tr');
+            tr.remove();
+            
+            // Re-index
+            const rows = document.querySelectorAll('#employeesBody tr');
+            rows.forEach((row, i) => {
+                row.cells[0].textContent = i + 1;
+            });
+            saveToLocalStorage();
+        }
+
+        function saveToLocalStorage() {
+            const data = [];
+            document.querySelectorAll('#employeesBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 0) {
+                    const rowData = Array.from(inputs).map(inp => inp.value);
+                    // Only save if row is not completely empty
+                    if (rowData.some(v => v.trim() !== '')) {
+                        data.push(rowData);
+                    }
+                }
+            });
+            localStorage.setItem(LS_EMPLOYEES_KEY, JSON.stringify(data));
+        }
+
+        async function loadFromLocalStorage() {
+            let saved = localStorage.getItem(LS_EMPLOYEES_KEY);
+            let rows = [];
+            
+            if (!saved || saved === '[]') {
+                try {
+                    const response = await fetch('/static/employees_default.json');
+                    if (response.ok) {
+                        rows = await response.json();
+                        // Save it so it doesn't fetch every time
+                        localStorage.setItem(LS_EMPLOYEES_KEY, JSON.stringify(rows));
+                    }
+                } catch(e) {
+                    console.error('Error fetching default data:', e);
+                }
+            } else {
+                try {
+                    rows = JSON.parse(saved);
+                } catch(e) {}
+            }
+
+            if (rows && rows.length > 0) {
+                const tbody = document.getElementById('employeesBody');
+                tbody.innerHTML = '';
+                rows.forEach((r, idx) => {
+                    const tr = document.createElement('tr');
+                    let html = `<td style="font-weight:bold; background:#f8f9fa;">${idx + 1}</td>`;
+                    for (let i = 0; i < TOTAL_COLS; i++) {
+                        const val = (r[i] || '').replace(/"/g, '&quot;');
+                        html += `<td><input type="text" value="${val}"></td>`;
+                    }
+                    html += `<td><button class="btn-delete" onclick="deleteRow(this)">✕</button></td>`;
+                    tr.innerHTML = html;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        document.addEventListener('input', (e) => {
+            if (e.target.tagName.toLowerCase() === 'input') {
+                saveToLocalStorage();
+            }
+        });
+
+        // Smart Paste
+        document.addEventListener('paste', function(e) {
+            const target = e.target;
+            if (target.tagName.toLowerCase() !== 'input') return;
+            
+            const tbody = target.closest('tbody');
+            if (!tbody || tbody.id !== 'employeesBody') return;
+
+            const clipboardData = e.clipboardData || window.clipboardData;
+            const pastedData = clipboardData.getData('Text');
+            if (!pastedData) return;
+
+            const rows = pastedData.split('\n');
+            if (rows.length <= 1 && rows[0].split('\t').length <= 1) return;
+
+            e.preventDefault();
+
+            const startTr = target.closest('tr');
+            const startTd = target.closest('td');
+            const allTrs = Array.from(tbody.querySelectorAll('tr'));
+            let startRowIdx = allTrs.indexOf(startTr);
+            const allTds = Array.from(startTr.querySelectorAll('td:not(:last-child):not(:first-child)'));
+            let startColIdx = allTds.indexOf(startTd);
+
+            for (let i = 0; i < rows.length; i++) {
+                const rowStr = rows[i].trim();
+                if (!rowStr) continue;
+                
+                const cells = rowStr.split('\t');
+                let targetTr = allTrs[startRowIdx + i];
+                
+                if (!targetTr) {
+                    addEmployeeRow(false);
+                    const freshTrs = Array.from(tbody.querySelectorAll('tr'));
+                    targetTr = freshTrs[startRowIdx + i];
+                }
+
+                const targetTds = targetTr.querySelectorAll('td:not(:last-child):not(:first-child) input');
+                for (let j = 0; j < cells.length; j++) {
+                    const cellVal = cells[j].trim();
+                    const targetInput = targetTds[startColIdx + j];
+                    if (targetInput) {
+                        targetInput.value = cellVal;
+                    }
+                }
+            }
+            saveToLocalStorage();
+        });
+
+        async function exportToExcel() {
+            const workbook = new ExcelJS.Workbook();
+            const sheet = workbook.addWorksheet('بيانات الموظفين');
+            
+            // Just basic export for now
+            const rows = document.querySelectorAll('#employeesTable tr');
+            rows.forEach(tr => {
+                const rowData = [];
+                tr.querySelectorAll('th').forEach(th => rowData.push(th.innerText));
+                tr.querySelectorAll('td').forEach((td, idx) => {
+                    if (idx === tr.cells.length - 1) return; // skip actions
+                    const inp = td.querySelector('input');
+                    if (inp) rowData.push(inp.value);
+                    else if (idx === 0) rowData.push(td.innerText);
+                });
+                sheet.addRow(rowData);
+            });
+            
+            sheet.views = [{ rightToLeft: true }];
+            const buffer = await workbook.xlsx.writeBuffer();
+            saveAs(new Blob([buffer]), `بيانات_الموظفين_الفرع.xlsx`);
+        }
+
+        // Dark mode logic
+        function toggleEmpDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            document.getElementById('empDarkModeToggle').textContent = isDark ? '☀️' : '🌙';
+        }
+        
+        // Auto-load theme
+        if(localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('empDarkModeToggle').textContent = '☀️';
+        }
+    </script>
+</body>
+</html>
