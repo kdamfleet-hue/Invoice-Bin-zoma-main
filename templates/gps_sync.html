@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مزامنة كشف GPS | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css') }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        /* Styles unique to this page only — colors/fonts/topbar come from base_styles.css */
+        .gps-grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 1.25rem;
+            align-items: start;
+        }
+
+        @media (max-width: 860px) {
+            .gps-grid { grid-template-columns: 1fr; }
+        }
+
+        .dropzone {
+            border: 2px dashed var(--border-strong);
+            border-radius: 14px;
+            padding: 1.4rem;
+            background: var(--surface-hover);
+            transition: var(--trans);
+            margin-bottom: 1.1rem;
+        }
+
+        .dropzone:hover,
+        .dropzone.has-file {
+            border-color: var(--accent);
+            background: var(--surface);
+        }
+
+        .dropzone label {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            font-weight: 800;
+            margin-bottom: .75rem;
+            color: var(--text-primary);
+        }
+
+        .dropzone .dz-hint {
+            font-size: .82rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin: .5rem 0 0;
+        }
+
+        .dropzone input[type="file"] { display: block; width: 100%; }
+
+        .gps-steps {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: .85rem;
+        }
+
+        .gps-steps li {
+            display: flex;
+            gap: .75rem;
+            align-items: flex-start;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .gps-steps .step-num {
+            flex: 0 0 30px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: .9rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.25;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+    <header class="bz-topbar">
+        <div class="bz-brand">
+            <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+            <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+        </div>
+        <nav class="bz-nav">
+            <a href="/">🏠 الرئيسية</a>
+            <a href="/purchase">🛒 طلب شراء</a>
+            <a href="/schedule">📋 الجدول الأسبوعي</a>
+            <a href="/oils">🛢️ الزيوت والفلاتر</a>
+            <a href="/washing">🚿 الغسيل</a>
+            <a href="/workshop">🔧 الورشة</a>
+            <a href="/employees">👥 الموظفين</a>
+            <a href="/gps_sync" class="active">📡 مزامنة GPS</a>
+            <a href="/tracking">🛰️ التتبع</a>
+        </nav>
+        <div class="bz-actions">
+            <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+            <a href="/logout" class="bz-logout">خروج</a>
+        </div>
+    </header>
+
+    <div class="bz-shell">
+
+        <h2 class="bz-section-title">📡 مزامنة كشف أجهزة GPS</h2>
+
+        <div class="bz-stats">
+            <div class="bz-stat">
+                <div class="num" id="statMatches">0</div>
+                <div class="label">المركبات المطابقة</div>
+            </div>
+            <div class="bz-stat">
+                <div class="num" id="statUpdates">0</div>
+                <div class="label">الخلايا المحدثة</div>
+            </div>
+            <div class="bz-stat">
+                <div class="num" id="statStatus">—</div>
+                <div class="label">حالة المزامنة</div>
+            </div>
+        </div>
+
+        <div class="gps-grid">
+            <div class="card">
+                <p style="color:var(--text-secondary); font-weight:600; margin-top:0;">
+                    قم برفع الملف المصدر (البيانات المحدثة) وملف كشف الـ GPS الهدف، وسيقوم النظام بمطابقة المركبات وتحديث الخلايا تلقائياً ثم تنزيل الملف المحدّث.
+                </p>
+                <form id="gpsForm">
+                    <div class="dropzone" id="dzSource">
+                        <label>📥 الملف المصدر — البيانات المحدثة</label>
+                        <input type="file" id="sourceFile" accept=".xlsx, .xls" required>
+                        <p class="dz-hint">صيغ مدعومة: xlsx, xls</p>
+                    </div>
+                    <div class="dropzone" id="dzTarget">
+                        <label>🎯 الملف الهدف — كشف أجهزة GPS للمركبات</label>
+                        <input type="file" id="targetFile" accept=".xlsx, .xls" required>
+                        <p class="dz-hint">سيتم تحديث هذا الملف وتنزيله بعد المطابقة</p>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn-submit-gold" style="width:100%;">
+                        <span>🔄 دمج وتحديث البيانات</span>
+                    </button>
+                </form>
+
+                <div id="resultBox" class="card" style="display:none; margin-top:1.25rem; border-color:var(--accent);">
+                    <h3 style="margin-top:0; color:var(--accent);">✅ اكتملت المزامنة بنجاح</h3>
+                    <p id="matchCount" style="font-weight:700; margin:.35rem 0;">عدد المركبات المطابقة: 0</p>
+                    <p id="updateCount" style="font-weight:700; margin:.35rem 0;">عدد الخلايا المحدثة: 0</p>
+                    <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 10px;">تم تنزيل الملف المحدّث تلقائياً.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top:0;">طريقة العمل</h3>
+                <ol class="gps-steps">
+                    <li><span class="step-num">1</span><span>ارفع الملف المصدر الذي يحتوي على أحدث بيانات المركبات.</span></li>
+                    <li><span class="step-num">2</span><span>ارفع كشف أجهزة GPS الهدف المراد تحديثه.</span></li>
+                    <li><span class="step-num">3</span><span>اضغط «دمج وتحديث» ليتم مطابقة المركبات وتحديث الخلايا.</span></li>
+                    <li><span class="step-num">4</span><span>سيُنزَّل الملف المحدّث تلقائياً إلى جهازك.</span></li>
+                </ol>
+                <a href="/tracking" class="btn-outline" style="text-decoration:none; display:block; text-align:center; margin-top:1.25rem;">🛰️ الانتقال إلى التتبع المباشر</a>
+            </div>
+        </div>
+
+        <footer style="text-align:center; padding: 24px 0; color:var(--text-muted); font-weight:bold; margin-top:32px; border-top: 1px solid var(--border);">
+            أُعدّ بواسطة قسم الحركة — فرع الدمام · شركة بن زومة للتجارة والإنماء
+        </footer>
+    </div>
+
+    <a href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 14px 22px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+        واتساب
+    </a>
+
+    <script>
+        // Visual feedback when a file is chosen
+        ['sourceFile', 'targetFile'].forEach(function (id) {
+            var input = document.getElementById(id);
+            if (input) {
+                input.addEventListener('change', function () {
+                    var dz = input.closest('.dropzone');
+                    if (dz) dz.classList.toggle('has-file', input.files.length > 0);
+                });
+            }
+        });
+
+        document.getElementById('gpsForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const sourceFile = document.getElementById('sourceFile').files[0];
+            const targetFile = document.getElementById('targetFile').files[0];
+            const btn = document.getElementById('submitBtn');
+
+            if (!sourceFile || !targetFile) {
+                showToast('يرجى اختيار كلا الملفين!', 'error');
+                return;
+            }
+
+            btn.innerHTML = '⏳ جاري معالجة البيانات...';
+            btn.disabled = true;
+            document.getElementById('resultBox').style.display = 'none';
+            document.getElementById('statStatus').innerText = '⏳';
+
+            const formData = new FormData();
+            formData.append('source_file', sourceFile);
+            formData.append('target_file', targetFile);
+
+            try {
+                const response = await fetch('/api/gps_sync', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const matches = data.matches || 0;
+                    const updates = data.updates || 0;
+                    document.getElementById('matchCount').innerText = `عدد المركبات المطابقة: ${matches}`;
+                    document.getElementById('updateCount').innerText = `عدد الخلايا المحدثة: ${updates}`;
+                    document.getElementById('statMatches').innerText = matches;
+                    document.getElementById('statUpdates').innerText = updates;
+                    document.getElementById('statStatus').innerText = '✅';
+                    document.getElementById('resultBox').style.display = 'block';
+
+                    // Download updated file
+                    const blob = new Blob([Uint8Array.from(atob(data.file_b64), c => c.charCodeAt(0))], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                    saveAs(blob, "كشف_اجهزة_GPS_محدث_الدمام.xlsx");
+                    showToast('تم تحديث كشف الـ GPS بنجاح!', 'success');
+                } else {
+                    document.getElementById('statStatus').innerText = '⚠️';
+                    showToast('حدث خطأ: ' + (data.error || 'تعذّر إتمام المزامنة'), 'error');
+                }
+            } catch (err) {
+                document.getElementById('statStatus').innerText = '⚠️';
+                showToast('فشل الاتصال بالسيرفر.', 'error');
+            }
+
+            btn.innerHTML = '<span>🔄 دمج وتحديث البيانات</span>';
+            btn.disabled = false;
+        });
+    </script>
+
+</body>
+
+</html>

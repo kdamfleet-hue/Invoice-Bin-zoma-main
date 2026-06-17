@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التتبع المباشر | Live Tracking — BIN ZOMAH INTL.</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css') }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js') }}"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* Page-unique layout only — colors/fonts/buttons come from base_styles.css */
+        .track-layout {
+            display: flex;
+            gap: 1rem;
+            height: calc(100vh - 180px);
+            min-height: 520px;
+        }
+        .track-sidebar {
+            width: 340px;
+            min-width: 280px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 0;
+        }
+        .track-sidebar .side-head {
+            padding: 1rem 1.1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .5rem;
+        }
+        .track-sidebar .side-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+        .track-search {
+            padding: .75rem 1.1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .asset-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: .25rem 0;
+        }
+        .asset-item {
+            padding: .75rem 1.1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            cursor: pointer;
+            transition: background .15s ease;
+        }
+        .asset-item:hover { background: var(--surface-hover); }
+        .asset-item .status-dot {
+            width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
+        }
+        .asset-item .asset-name { font-size: .92rem; color: var(--text-primary); font-weight: 600; }
+        .asset-item .asset-meta { font-size: .78rem; color: var(--text-secondary); }
+        .track-map-wrap {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            padding: 0;
+            min-width: 0;
+        }
+        #map { width: 100%; height: 100%; min-height: 400px; background: var(--surface-hover); }
+
+        .map-state {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            text-align: center;
+            background: var(--surface);
+            z-index: 1200;
+            padding: 2rem;
+        }
+        .map-state .state-icon { font-size: 3rem; opacity: .85; }
+        .map-state h3 { margin: 0; color: var(--text-primary); }
+        .map-state p { margin: 0; color: var(--text-secondary); max-width: 420px; }
+        .map-state.hidden { display: none; }
+
+        .spinner {
+            width: 42px; height: 42px;
+            border: 4px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: bz-spin 0.9s linear infinite;
+        }
+        @keyframes bz-spin { to { transform: rotate(360deg); } }
+
+        .custom-marker {
+            width: 32px; height: 32px; border-radius: 50%; border: 3px solid #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.45); display: flex; align-items: center;
+            justify-content: center; font-weight: 800; font-size: 11px; color: #fff;
+        }
+        .leaflet-popup-content { font-family: 'Tajawal', sans-serif; }
+
+        @media (max-width: 860px) {
+            .track-layout { flex-direction: column; height: auto; }
+            .track-sidebar { width: 100%; max-height: 320px; }
+            .track-map-wrap { height: 60vh; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking" class="active">🛰️ التتبع</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <div class="bz-shell">
+        <h2 class="bz-section-title">🛰️ التتبع المباشر للأسطول</h2>
+
+        <div class="bz-stats" style="margin-bottom:1rem;">
+            <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
+            <div class="bz-stat"><div class="num" id="statOnline">0</div><div class="label">نشطة الآن</div></div>
+            <div class="bz-stat"><div class="num" id="statOffline">0</div><div class="label">متوقفة</div></div>
+        </div>
+
+        <div class="track-layout">
+            <div class="card track-sidebar">
+                <div class="side-head">
+                    <h3>📦 مركبات فرع الدمام <span id="assetCount" style="color:var(--text-secondary);font-weight:600;">(0)</span></h3>
+                    <button id="refreshBtn" class="btn-outline" style="padding:.35rem .75rem;font-size:.8rem;" onclick="fetchData()">🔄 تحديث</button>
+                </div>
+                <div class="track-search">
+                    <input type="text" id="assetSearch" placeholder="🔍 بحث عن مركبة..." oninput="filterAssets()">
+                </div>
+                <div class="asset-list" id="assetList"></div>
+            </div>
+
+            <div class="card track-map-wrap">
+                <div id="map"></div>
+
+                <div id="mapState" class="map-state">
+                    <div class="spinner"></div>
+                    <h3>جاري الاتصال بأنظمة التتبع…</h3>
+                    <p>يتم الآن جلب مواقع مركبات الأسطول المباشرة.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener"
+       style="position: fixed; bottom: 20px; left: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 13px 22px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; font-family: 'Tajawal', sans-serif;">
+       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+       تواصل معنا</a>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map = null;
+        let markers = {};
+        let currentAssets = [];
+
+        function initMap() {
+            if (map) return;
+            map = L.map('map', { zoomControl: false }).setView([26.4207, 50.0888], 10);
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri'
+            }).addTo(map);
+            L.control.zoom({ position: 'topright' }).addTo(map);
+        }
+
+        function setState(mode, opts = {}) {
+            const el = document.getElementById('mapState');
+            if (mode === 'hidden') { el.classList.add('hidden'); return; }
+            el.classList.remove('hidden');
+            if (mode === 'loading') {
+                el.innerHTML = '<div class="spinner"></div>'
+                    + '<h3>جاري الاتصال بأنظمة التتبع…</h3>'
+                    + '<p>يتم الآن جلب مواقع مركبات الأسطول المباشرة.</p>';
+            } else if (mode === 'error') {
+                const detail = opts.detail ? '<p style="opacity:.8;font-size:.85rem;">' + escapeHtml(opts.detail) + '</p>' : '';
+                el.innerHTML = '<div class="state-icon">📡</div>'
+                    + '<h3>تعذّر جلب مواقع الأسطول حالياً</h3>'
+                    + '<p>قد تكون خدمة التتبع غير مُفعّلة أو يتعذّر الوصول إليها الآن. يمكنك إعادة المحاولة.</p>'
+                    + detail
+                    + '<button class="btn-primary" onclick="fetchData()">🔄 إعادة المحاولة</button>';
+            } else if (mode === 'empty') {
+                el.innerHTML = '<div class="state-icon">🚗</div>'
+                    + '<h3>لا توجد مركبات لعرضها</h3>'
+                    + '<p>لم تُرجِع خدمة التتبع أي مركبات في الوقت الحالي.</p>'
+                    + '<button class="btn-outline" onclick="fetchData()">🔄 تحديث</button>';
+            }
+        }
+
+        async function fetchData() {
+            const btn = document.getElementById('refreshBtn');
+            if (btn) { btn.disabled = true; }
+            setState('loading');
+            try {
+                const response = await fetch('/api/gps');
+                let data = null;
+                try { data = await response.json(); } catch (_) { data = null; }
+
+                if (!response.ok || (data && data.error)) {
+                    const msg = (data && data.error) ? data.error : ('HTTP ' + response.status);
+                    setState('error', { detail: msg });
+                    renderAssets([]);
+                    return;
+                }
+
+                const items = Array.isArray(data)
+                    ? data
+                    : (data && (Array.isArray(data.assets) ? data.assets
+                        : Array.isArray(data.items) ? data.items : []));
+
+                renderAssets(items || []);
+                if (!items || items.length === 0) {
+                    setState('empty');
+                } else {
+                    setState('hidden');
+                    if (typeof showToast === 'function') showToast('تم تحديث مواقع الأسطول', 'success');
+                }
+            } catch (e) {
+                setState('error', { detail: 'تعذّر الاتصال بالخادم' });
+                renderAssets([]);
+            } finally {
+                if (btn) { btn.disabled = false; }
+            }
+        }
+
+        function normalize(item) {
+            const lat = item.lat != null ? item.lat : item.latitude;
+            const lng = item.lng != null ? item.lng : item.longitude;
+            const isOnline = !!(item.online || item.is_online
+                || item.status === 'moving' || item.status === 'idling');
+            const name = item.name || item.plate_number || item.plate || 'مركبة';
+            const id = item.id != null ? item.id : (item.asset_id != null ? item.asset_id : '');
+            return { id, name, lat, lng, isOnline, raw: item };
+        }
+
+        function renderAssets(items) {
+            // clear existing markers
+            Object.values(markers).forEach(m => { try { map && map.removeLayer(m); } catch (_) {} });
+            markers = {};
+
+            currentAssets = (items || []).map(normalize);
+
+            const online = currentAssets.filter(a => a.isOnline).length;
+            document.getElementById('statTotal').innerText = currentAssets.length;
+            document.getElementById('statOnline').innerText = online;
+            document.getElementById('statOffline').innerText = currentAssets.length - online;
+            document.getElementById('assetCount').innerText = '(' + currentAssets.length + ')';
+
+            currentAssets.forEach(a => {
+                if (a.lat != null && a.lng != null && map) {
+                    const color = a.isOnline ? '#10b981' : '#ef4444';
+                    const icon = L.divIcon({
+                        className: 'custom-marker-container',
+                        html: '<div class="custom-marker" style="background:' + color + '">'
+                            + escapeHtml(String(a.id)) + '</div>'
+                    });
+                    const marker = L.marker([a.lat, a.lng], { icon: icon }).addTo(map)
+                        .bindPopup('<b>' + escapeHtml(a.name) + '</b><br>الحالة: '
+                            + (a.isOnline ? 'نشط' : 'متوقف'));
+                    markers[a.id] = marker;
+                }
+            });
+
+            renderList();
+        }
+
+        function renderList() {
+            const term = (document.getElementById('assetSearch').value || '').trim().toLowerCase();
+            const list = document.getElementById('assetList');
+            list.innerHTML = '';
+
+            const shown = currentAssets.filter(a =>
+                !term || a.name.toLowerCase().includes(term) || String(a.id).toLowerCase().includes(term));
+
+            if (shown.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.cssText = 'padding:1.25rem;text-align:center;color:var(--text-secondary);font-size:.88rem;';
+                empty.textContent = currentAssets.length === 0 ? 'لا توجد مركبات' : 'لا توجد نتائج مطابقة';
+                list.appendChild(empty);
+                return;
+            }
+
+            shown.forEach(a => {
+                const div = document.createElement('div');
+                div.className = 'asset-item';
+                div.innerHTML =
+                    '<div class="status-dot" style="background:' + (a.isOnline ? '#10b981' : '#ef4444') + '"></div>'
+                    + '<div><div class="asset-name">' + escapeHtml(a.name) + '</div>'
+                    + '<div class="asset-meta">' + (a.isOnline ? 'نشط' : 'متوقف')
+                    + (a.id !== '' ? ' • #' + escapeHtml(String(a.id)) : '') + '</div></div>';
+                div.onclick = () => {
+                    if (a.lat != null && a.lng != null && map) {
+                        map.flyTo([a.lat, a.lng], 15);
+                        if (markers[a.id]) markers[a.id].openPopup();
+                    } else if (typeof showToast === 'function') {
+                        showToast('لا يتوفر موقع لهذه المركبة', 'info');
+                    }
+                };
+                list.appendChild(div);
+            });
+        }
+
+        function filterAssets() { renderList(); }
+
+        window.addEventListener('load', function () {
+            try { initMap(); } catch (_) {}
+            fetchData();
+        });
+    </script>
+</body>
+</html>

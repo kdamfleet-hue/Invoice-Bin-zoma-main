@@ -1,0 +1,1265 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحديث الجدول الأسبوعي | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        async function exportScheduleExcel() {
+            if (typeof ExcelJS === 'undefined') {
+                if (window.showToast) showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+                return;
+            }
+
+            const btn = document.querySelector('button[onclick="exportScheduleExcel()"]');
+            const oldText = btn ? btn.innerHTML : '';
+            if (btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
+
+            // Corporate palette
+            const NAVY = 'FF0C2340';
+            const GOLD = 'FFC9A227';
+            const ZEBRA = 'FFF5F7FA';
+            const THIN = { style: 'thin', color: { argb: 'FFD9D9D9' } };
+            const ALL_BORDERS = { top: THIN, left: THIN, bottom: THIN, right: THIN };
+            const FONT_NAME = 'Tajawal';
+            const TOTAL_COLS = 17;
+
+            try {
+                const wb = new ExcelJS.Workbook();
+                wb.creator = 'BIN ZOMAH INTL.';
+                wb.created = new Date();
+
+                const ws = wb.addWorksheet('الجدول الأسبوعي', {
+                    views: [{ rightToLeft: true, state: 'frozen', ySplit: 3 }],
+                    pageSetup: { orientation: 'landscape', fitToPage: true }
+                });
+
+                const titleDate = document.getElementById('scheduleDate').value;
+
+                // ── Title row (merged, navy) ──
+                const titleRow = ws.addRow(['بيان الجدول الأسبوعي للمركبات والسائقين — شركة بن زومة للتجارة والإنماء — BIN ZOMAH INTL.']);
+                ws.mergeCells(1, 1, 1, TOTAL_COLS);
+                titleRow.height = 30;
+                const tCell = ws.getCell('A1');
+                tCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                tCell.font = { bold: true, size: 16, name: FONT_NAME, color: { argb: 'FFFFFFFF' } };
+                tCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+
+                // ── Subtitle / date row ──
+                const subRow = ws.addRow(['فرع الدمام', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'التاريخ: ' + titleDate, '']);
+                ws.mergeCells(2, 1, 2, 4);
+                ws.mergeCells(2, 16, 2, TOTAL_COLS);
+                subRow.height = 22;
+                subRow.getCell(1).font = { bold: true, size: 11, name: FONT_NAME, color: { argb: NAVY } };
+                subRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+                subRow.getCell(16).font = { bold: true, size: 11, name: FONT_NAME, color: { argb: NAVY } };
+                subRow.getCell(16).alignment = { horizontal: 'center', vertical: 'middle' };
+
+                const headers = ['م', 'الرقم الوظيفي', 'اسم السائق', 'رقم الإقامة', 'الوظيفة', 'رقم اللوحة', 'موديل', 'نوع المركبة', 'عدد الطبالي', 'الحمولة', 'الرقم التسلسلي للمركبة', 'تاريخ انتهاء الفحص الدوري', 'تاريخ انتهاء رخصة السير', 'تاريخ انتهاء بطاقة السائق', 'تاريخ انتهاء بطاقة التشغيل', 'الملاحظات', 'رقم الجوال'];
+
+                function styleHeader(row) {
+                    row.height = 28;
+                    row.eachCell(cell => {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                        cell.font = { bold: true, name: FONT_NAME, size: 11, color: { argb: 'FFFFFFFF' } };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                        cell.border = { top: THIN, left: THIN, right: THIN, bottom: { style: 'medium', color: { argb: GOLD } } };
+                    });
+                }
+
+                function extractRows(tbody) {
+                    const out = [];
+                    if (!tbody) return out;
+                    tbody.querySelectorAll('tr').forEach(tr => {
+                        const rowData = [];
+                        const tds = tr.querySelectorAll('td');
+                        tds.forEach((td, idx) => {
+                            if (idx === tds.length - 1 && td.querySelector('.btn-delete')) return;
+                            const input = td.querySelector('input');
+                            rowData.push(input ? input.value : td.innerText.trim());
+                        });
+                        out.push(rowData);
+                    });
+                    return out;
+                }
+
+                function addDataRows(dataRows) {
+                    dataRows.forEach((rowData, i) => {
+                        const excelRow = ws.addRow(rowData);
+                        excelRow.height = 22;
+                        const zebra = i % 2 === 1;
+                        excelRow.eachCell(cell => {
+                            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                            cell.border = ALL_BORDERS;
+                            cell.font = { name: FONT_NAME, size: 10 };
+                            if (zebra) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
+                        });
+                    });
+                }
+
+                // ── Main header + data ──
+                styleHeader(ws.addRow(headers));
+                addDataRows(extractRows(document.getElementById('scheduleBody')));
+
+                // ── Spare vehicles section ──
+                ws.addRow([]);
+                const spareTitle = ws.addRow(['بيان المركبات الاسبير والمعطلة']);
+                ws.mergeCells(spareTitle.number, 1, spareTitle.number, TOTAL_COLS);
+                spareTitle.height = 24;
+                spareTitle.getCell(1).font = { bold: true, size: 13, name: FONT_NAME, color: { argb: 'FFFFFFFF' } };
+                spareTitle.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+                spareTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF9B1C1C' } };
+
+                styleHeader(ws.addRow(headers));
+                addDataRows(extractRows(document.getElementById('spareBody')));
+
+                // ── Summary section ──
+                ws.addRow([]);
+                const summaryTitle = ws.addRow(['ملخص الأعداد']);
+                ws.mergeCells(summaryTitle.number, 1, summaryTitle.number, 7);
+                summaryTitle.height = 22;
+                summaryTitle.getCell(1).font = { bold: true, size: 13, name: FONT_NAME, color: { argb: 'FFFFFFFF' } };
+                summaryTitle.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+                summaryTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+
+                const sumHeaders = ['م', 'عدد السائقيين', 'عدد الدينات', 'عدد اللواري', 'عدد الموصلين', 'عدد الموزعين', 'عدد السائقين في إجازة'];
+                const sumHRow = ws.addRow(sumHeaders);
+                sumHRow.height = 24;
+                sumHRow.eachCell(cell => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                    cell.font = { bold: true, name: FONT_NAME, color: { argb: 'FFFFFFFF' } };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = { top: THIN, left: THIN, right: THIN, bottom: { style: 'medium', color: { argb: GOLD } } };
+                });
+
+                const statsVals = [
+                    document.getElementById('statDrivers')?.innerText || '0',
+                    document.getElementById('statDina')?.innerText || '0',
+                    document.getElementById('statLorry')?.innerText || '0',
+                    document.getElementById('statDelivery')?.innerText || '0',
+                    document.getElementById('statDist')?.innerText || '0',
+                    document.getElementById('statVacation')?.value ?? document.getElementById('statVacation')?.innerText ?? '0'
+                ];
+                const sumDataRow = ws.addRow(['1', ...statsVals]);
+                sumDataRow.height = 22;
+                sumDataRow.eachCell(cell => {
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = ALL_BORDERS;
+                    cell.font = { bold: true, size: 12, name: FONT_NAME };
+                });
+
+                // ── Footer ──
+                ws.addRow([]);
+                const footerRow = ws.addRow(['أُعدّ بواسطة قسم الحركة — فرع الدمام    |    التاريخ: ' + (titleDate || new Date().toISOString().slice(0, 10))]);
+                ws.mergeCells(footerRow.number, 1, footerRow.number, TOTAL_COLS);
+                footerRow.height = 22;
+                footerRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+                footerRow.getCell(1).font = { bold: true, size: 11, name: FONT_NAME, color: { argb: NAVY } };
+
+                const nameRow = ws.addRow(['', '', 'مسؤول الحركة: خالد بن محمد الغامدي']);
+                nameRow.getCell(3).font = { bold: true, size: 11, name: FONT_NAME };
+
+                // Column widths
+                ws.columns = [
+                    { width: 5 }, { width: 10 }, { width: 22 }, { width: 12 }, { width: 8 },
+                    { width: 12 }, { width: 7 }, { width: 14 }, { width: 7 }, { width: 7 },
+                    { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 },
+                    { width: 25 }, { width: 13 }
+                ];
+
+                const buffer = await wb.xlsx.writeBuffer();
+                saveAs(new Blob([buffer]), 'بيان_الجدول_الأسبوعي_الدمام_' + (titleDate || '') + '.xlsx');
+                if (window.showToast) showToast('تم تصدير الجدول بنجاح', 'success');
+
+            } catch (e) {
+                console.error(e);
+                if (window.showToast) showToast('حدث خطأ أثناء التصدير: ' + e.message, 'error');
+            } finally {
+                if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+            }
+        }
+    </script>
+    <style>
+        /* ===== Page-specific layout only — design tokens live in base_styles.css ===== */
+
+        /* Section banner for the "spare/disabled vehicles" table (page-unique accent) */
+        .section-title-spare {
+            background: linear-gradient(135deg, #9b1c1c, #c0392b);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 10px 10px 0 0;
+            font-weight: 700;
+            font-size: 1rem;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            margin: 2rem auto 0 auto;
+            width: 100%;
+        }
+
+        /* Excel-style data grid (unique to this page) */
+        .excel-table-container {
+            width: 100%;
+            margin: 0 auto;
+            overflow-x: auto;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border-strong);
+            background: var(--surface);
+            min-width: 1700px;
+        }
+
+        .excel-table th,
+        .excel-table td {
+            border: 1px solid var(--border);
+            padding: 0;
+            margin: 0;
+        }
+
+        .excel-header {
+            background: var(--brand-navy, #0C2340) !important;
+            color: #fff !important;
+            text-align: center;
+            font-weight: 700;
+            padding: 10px 4px !important;
+            font-size: 0.82rem;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--brand-gold, #c9a227) !important;
+        }
+
+        .excel-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .excel-input input,
+        .excel-table td input {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: 1px solid transparent;
+            padding: 6px 2px;
+            background: transparent;
+            font-family: inherit;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+            outline: none;
+            min-height: 36px;
+            font-size: 0.82rem;
+            transition: var(--trans);
+            border-radius: 4px;
+        }
+
+        .excel-input input:focus,
+        .excel-table td input:focus {
+            background: var(--surface-hover);
+            border-color: var(--accent);
+            box-shadow: inset 0 0 0 1px var(--accent);
+        }
+
+        /* Row number / index cell */
+        .excel-table td.row-index {
+            text-align: center;
+            font-weight: bold;
+            background: var(--surface-hover);
+            color: var(--text-secondary);
+        }
+
+        .notes-cell input {
+            min-width: 120px !important;
+            text-align: right !important;
+            padding-right: 8px !important;
+        }
+
+        /* Keep the hardcoded row-index cells readable in dark mode */
+        body.dark-mode .excel-table td[style*="#f8f9fa"],
+        body.dark-mode .excel-table td[style*="#fff3f3"] {
+            background-color: var(--surface-hover) !important;
+            color: var(--text-secondary) !important;
+        }
+        body.dark-mode .excel-table td[style*="border:1px solid #000"] { border-color: var(--border) !important; }
+
+        .excel-table tbody tr {
+            transition: background-color 0.25s, opacity 0.4s, transform 0.4s;
+        }
+
+        .excel-table tbody tr:hover {
+            background-color: rgba(12, 35, 64, 0.04);
+        }
+
+        body.dark-mode .excel-table tbody tr:hover {
+            background-color: rgba(201, 162, 39, 0.08);
+        }
+
+        @keyframes fadeInRow {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .fade-in { animation: fadeInRow 0.4s ease-out forwards; }
+
+        /* Inline WhatsApp button inside table rows */
+        .btn-whatsapp {
+            background: #25D366;
+            color: #fff;
+            border: none;
+            padding: 5px 9px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: var(--trans);
+            margin-left: 4px;
+        }
+
+        .btn-whatsapp:hover { background: #1ebe57; transform: scale(1.05); }
+
+        .btn-delete {
+            background: var(--danger, #e74c3c);
+            color: #fff;
+            border: none;
+            padding: 5px 9px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+            transition: var(--trans);
+        }
+
+        .btn-delete:hover { background: #c0392b; transform: scale(1.05); }
+
+        /* Vacation editable stat field */
+        .bz-stat .stat-input {
+            width: 4ch;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--accent);
+            font-size: 2rem;
+            font-weight: 900;
+            text-align: center;
+            border-radius: 8px;
+            font-family: inherit;
+            outline: none;
+        }
+        .bz-stat .stat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+        /* Dispatcher (bulk WhatsApp) modal — page-specific component */
+        .dispatcher-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            backdrop-filter: blur(3px);
+        }
+        .dispatcher-modal {
+            display: none;
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; max-width: 600px;
+            background: var(--surface);
+            color: var(--text-primary);
+            border-radius: 14px;
+            z-index: 10000;
+            box-shadow: var(--shadow-lg);
+            flex-direction: column;
+            max-height: 80vh;
+            overflow: hidden;
+        }
+        .dispatcher-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--brand-navy, #0C2340);
+            color: #fff;
+        }
+        .dispatcher-header h2 { margin: 0; font-size: 1.15rem; color: #fff; }
+        .dispatcher-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #fff; }
+        .dispatcher-body { padding: 15px; overflow-y: auto; flex: 1; }
+        .dispatcher-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .dispatcher-row:last-child { border-bottom: none; }
+        .dispatcher-info { display: flex; flex-direction: column; gap: 4px; }
+        .dispatcher-name { font-weight: bold; font-size: 1.05rem; }
+        .dispatcher-phone { font-size: 0.9rem; color: var(--text-muted); }
+        .dispatcher-btn {
+            padding: 8px 15px; border-radius: 6px; border: none;
+            background: #25d366; color: #fff; font-weight: bold;
+            cursor: pointer; transition: var(--trans);
+            display: flex; align-items: center; gap: 5px;
+        }
+        .dispatcher-btn:hover { background: #128c7e; }
+        .dispatcher-btn.sent { background: #95a5a6; cursor: default; }
+
+        @media (max-width: 768px) {
+            .excel-table { min-width: 1200px; }
+        }
+
+        /* Print sheet */
+        @media print {
+            body { background: #fff !important; padding: 0 !important; }
+            .nav-buttons, .bz-actions, .dispatcher-overlay, .dispatcher-modal,
+            .btn-whatsapp, .btn-delete, .actions-column,
+            th.actions-column, td:last-child { display: none !important; }
+            .section-title-spare { background: #ccc !important; color: #000 !important; box-shadow: none !important; }
+            .excel-header { background: #eee !important; color: #000 !important; border: 1px solid #000 !important; }
+            .excel-table td { border: 1px solid #000 !important; }
+            .excel-input input { border: none !important; background: transparent !important; color: #000 !important; padding: 0 !important; }
+            @page { size: landscape; margin: 5mm; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+    <header class="bz-topbar">
+        <div class="bz-brand">
+            <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+            <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+        </div>
+        <nav class="bz-nav">
+            <a href="/">🏠 الرئيسية</a>
+            <a href="/purchase">🛒 طلب شراء</a>
+            <a href="/schedule" class="active">📋 الجدول الأسبوعي</a>
+            <a href="/oils">🛢️ الزيوت والفلاتر</a>
+            <a href="/washing">🚿 الغسيل</a>
+            <a href="/workshop">🔧 الورشة</a>
+            <a href="/employees">👥 الموظفين</a>
+            <a href="/gps_sync">📡 مزامنة GPS</a>
+            <a href="/tracking">🛰️ التتبع</a>
+        </nav>
+        <div class="bz-actions">
+            <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+            <a href="/logout" class="bz-logout">خروج</a>
+        </div>
+    </header>
+
+    <div class="bz-shell">
+
+    <h2 class="bz-section-title">📋 تحديث الجدول الأسبوعي للمركبات والسائقين</h2>
+
+    <div class="nav-buttons" style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+        <button class="btn-primary" onclick="addScheduleRow('scheduleBody')">➕ إضافة صف جديد</button>
+        <button class="btn-submit-gold" onclick="exportScheduleExcel()">📥 تحميل كملف Excel</button>
+        <button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
+        <button class="btn-submit-orange" onclick="openDispatcher()" title="إرسال رسائل مجمعة">📲 إرسال للجميع</button>
+        <button id="btnUndo" class="btn-outline" onclick="undoHistory()" disabled title="العودة للتعديل السابق">↩ تراجع <span id="undoCount"></span></button>
+        <button id="btnRedo" class="btn-outline" onclick="redoHistory()" disabled title="الإعادة للتعديل التالي">↪ إعادة <span id="redoCount"></span></button>
+    </div>
+
+    <!-- ════════ ملخص الأعداد ════════ -->
+    <div class="bz-stats" id="summaryStats">
+        <div class="bz-stat">
+            <div class="num" id="statDrivers">0</div>
+            <div class="label">عدد السائقيين</div>
+        </div>
+        <div class="bz-stat">
+            <div class="num" id="statDina">0</div>
+            <div class="label">عدد الدينات</div>
+        </div>
+        <div class="bz-stat">
+            <div class="num" id="statLorry">0</div>
+            <div class="label">عدد اللواري</div>
+        </div>
+        <div class="bz-stat">
+            <div class="num" id="statDelivery">0</div>
+            <div class="label">عدد الموصلين</div>
+        </div>
+        <div class="bz-stat">
+            <div class="num" id="statDist">0</div>
+            <div class="label">عدد الموزعين</div>
+        </div>
+        <div class="bz-stat">
+            <input type="number" min="0" id="statVacation" class="stat-input" value="0"
+                title="يُحسب تلقائياً من الملاحظات أو يمكن تعديله يدوياً">
+            <div class="label">عدد السائقين في إجازة</div>
+        </div>
+    </div>
+
+    <!-- ════════ الجدول الرئيسي ════════ -->
+    <div class="excel-table-container" style="width: 100%; max-width: 1900px; margin: 0 auto; overflow-x: auto; padding: 10px 20px;">
+        <table class="excel-table" id="scheduleExcelTable">
+            <thead>
+                <tr>
+                    <th colspan="3" style="border:none;"></th>
+                    <th colspan="3" style="border:none; text-align: left; padding-bottom: 10px;">
+                        <input type="date" id="scheduleDate" value="2026-06-03"
+                            style="font-weight:bold; font-size: 1.1rem; text-align:center; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-primary); font-family: inherit;">
+                    </th>
+                    <th colspan="6"
+                        style="border:none; text-align: center; font-size: 1.3rem; font-weight: 800; color: var(--text-primary); padding-bottom: 10px;">
+                        جدول تحديث مركبات وموصلين و موزعين الأسبوعي فرع الدمام
+                    </th>
+                    <th colspan="5" style="border:none;"></th>
+                </tr>
+                <tr>
+                    <th class="excel-header" style="width:2%;">م</th>
+                    <th class="excel-header" style="width:5%;">الرقم الوظيفي</th>
+                    <th class="excel-header" style="width:11%;">اسم السائق</th>
+                    <th class="excel-header" style="width:6%;">رقم الإقامة</th>
+                    <th class="excel-header" style="width:4%;">الوظيفة</th>
+                    <th class="excel-header" style="width:6%;">رقم اللوحة</th>
+                    <th class="excel-header" style="width:4%;">موديل</th>
+                    <th class="excel-header" style="width:8%;">نوع المركبة</th>
+                    <th class="excel-header" style="width:3%;">عدد الطبالي</th>
+                    <th class="excel-header" style="width:3%;">الحمولة</th>
+                    <th class="excel-header" style="width:7%;">الرقم التسلسلي<br>للمركبة</th>
+                    <th class="excel-header" style="width:6%;">تاريخ انتهاء<br>الفحص الدوري</th>
+                    <th class="excel-header" style="width:6%;">تاريخ انتهاء<br>رخصة السير</th>
+                    <th class="excel-header" style="width:6%;">تاريخ انتهاء<br>بطاقة السائق</th>
+                    <th class="excel-header" style="width:6%;">تاريخ انتهاء<br>بطاقة التشغيل</th>
+                    <th class="excel-header" style="width:10%;">الملاحظات</th>
+                    <th class="excel-header" style="width:6%;">رقم الجوال</th>
+                    <th class="excel-header actions-column" style="width:3%;">إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="scheduleBody">
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">1</td><td class="excel-input"><input type="text" value="100310"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="شومون مياه ادريس مياه"></td><td class="excel-input"><input type="text" value="2253252916"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م  8013"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="17554020"></td><td class="excel-input"><input type="text" value="2027-04-01"></td><td class="excel-input"><input type="text" value="2027-01-10"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-04-02"></td><td class="excel-input notes-cell"><input type="text" value="لا يوجد"></td><td class="excel-input"><input type="text" value="0504125217"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">2</td><td class="excel-input"><input type="text" value="100200"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="ثابت قاسم محسن بن نصور"></td><td class="excel-input"><input type="text" value="2171087048"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م  8025"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="968754020"></td><td class="excel-input"><input type="text" value="2026-10-14"></td><td class="excel-input"><input type="text" value="2027-01-11"></td><td class="excel-input"><input type="text" value="2026-05-19"></td><td class="excel-input"><input type="text" value="2027-04-07"></td><td class="excel-input notes-cell"><input type="text" value="لم يتم تجديد "></td><td class="excel-input"><input type="text" value="0595770006"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">3</td><td class="excel-input"><input type="text" value="100327"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد عبدالصبور عبدالعزيز "></td><td class="excel-input"><input type="text" value="2283628259"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8024"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="358754020"></td><td class="excel-input"><input type="text" value="2026-10-14"></td><td class="excel-input"><input type="text" value="2027-01-11"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-05"></td><td class="excel-input notes-cell"><input type="text" value="لا يوجد"></td><td class="excel-input"><input type="text" value="0565369080"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">4</td><td class="excel-input"><input type="text" value="100245"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="كابيل مياه"></td><td class="excel-input"><input type="text" value="2121612820"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ح  8714 "></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="متسوبيشي دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="29819910"></td><td class="excel-input"><input type="text" value="2026-09-30"></td><td class="excel-input"><input type="text" value="2029-04-02"></td><td class="excel-input"><input type="text" value="2026-06-26"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="(تعديل مهنة ) "></td><td class="excel-input"><input type="text" value="0567116916"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">5</td><td class="excel-input"><input type="text" value="102179"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="تنفير حسين"></td><td class="excel-input"><input type="text" value="2519784710"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر ع  2234"></td><td class="excel-input"><input type="text" value="2020"></td><td class="excel-input"><input type="text" value="متسوبيشي دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="196860810"></td><td class="excel-input"><input type="text" value="2026-06-03"></td><td class="excel-input"><input type="text" value="2026-09-10"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0594535961"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">6</td><td class="excel-input"><input type="text" value="100837"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="سراج ثاندو عبدول"></td><td class="excel-input"><input type="text" value="2460710367"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و 4140"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="826065910"></td><td class="excel-input"><input type="text" value="2027-03-14"></td><td class="excel-input"><input type="text" value="2028-09-24"></td><td class="excel-input"><input type="text" value="2026-02-15"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="(اصدار) ** رخصة نقل ثقيل **"></td><td class="excel-input"><input type="text" value="0571729294"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">7</td><td class="excel-input"><input type="text" value="101238"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="علاء عبد النبي رفاعي احمد"></td><td class="excel-input"><input type="text" value="2485516401"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س  8015"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="2"></td><td class="excel-input"><input type="text" value="698454020"></td><td class="excel-input"><input type="text" value="1448-12-23"></td><td class="excel-input"><input type="text" value="2027-01-10"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-04-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0535690637"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">8</td><td class="excel-input"><input type="text" value="100385"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="رفيق اسان بيلات"></td><td class="excel-input"><input type="text" value="2407663372"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ق 7776  "></td><td class="excel-input"><input type="text" value="2016"></td><td class="excel-input"><input type="text" value="متسوبيشي لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="2"></td><td class="excel-input"><input type="text" value="831809610"></td><td class="excel-input"><input type="text" value="2026-12-08"></td><td class="excel-input"><input type="text" value="2026-08-30"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0570528945"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">9</td><td class="excel-input"><input type="text" value="100360"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="ابراهيم محمد ابوزيد محمد"></td><td class="excel-input"><input type="text" value="2393652496"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="أ ر ع  2233"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="متسوبيشي دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="886860810"></td><td class="excel-input"><input type="text" value="2026-07-10"></td><td class="excel-input"><input type="text" value="2026-09-10"></td><td class="excel-input"><input type="text" value="2026-06-28"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value=""></td><td class="excel-input"><input type="text" value="0541364538"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">10</td><td class="excel-input"><input type="text" value="100332"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="انفير كاريماري عمير"></td><td class="excel-input"><input type="text" value="2350147415"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و 4085 "></td><td class="excel-input"><input type="text" value="2022"></td><td class="excel-input"><input type="text" value="ايسوزو دينا"></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="211941910"></td><td class="excel-input"><input type="text" value="2027-02-08"></td><td class="excel-input"><input type="text" value="2028-04-16"></td><td class="excel-input"><input type="text" value="2026-09-09"></td><td class="excel-input"><input type="text" value="2026-12-13"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0571991926"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">11</td><td class="excel-input"><input type="text" value="102126"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="ارجوان"></td><td class="excel-input"><input type="text" value="2530207360"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8033 "></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="207954020"></td><td class="excel-input"><input type="text" value="2027-04-01"></td><td class="excel-input"><input type="text" value="2027-01-11"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-04-08"></td><td class="excel-input notes-cell"><input type="text" value="لا يوجد"></td><td class="excel-input"><input type="text" value="0567948210"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">12</td><td class="excel-input"><input type="text" value="100828"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="اجيت راجا"></td><td class="excel-input"><input type="text" value="2461544377"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و 4084 "></td><td class="excel-input"><input type="text" value="2022"></td><td class="excel-input"><input type="text" value="ايسوزو دينا"></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="960941910"></td><td class="excel-input"><input type="text" value="2027-01-10"></td><td class="excel-input"><input type="text" value="2028-04-16"></td><td class="excel-input"><input type="text" value="2027-01-13"></td><td class="excel-input"><input type="text" value="2026-12-13"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0549131428"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">13</td><td class="excel-input"><input type="text" value="100522"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="سليم اختر محمد"></td><td class="excel-input"><input type="text" value="2430898482"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ح 8670"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="متسوبيشي دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="379167910"></td><td class="excel-input"><input type="text" value="2026-11-15"></td><td class="excel-input"><input type="text" value="2029-02-13"></td><td class="excel-input"><input type="text" value="2026-10-03"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0581993668"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">14</td><td class="excel-input"><input type="text" value="101199"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد عبدالنبي رفاعي احمد"></td><td class="excel-input"><input type="text" value="2468851676"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ص ق 6853"></td><td class="excel-input"><input type="text" value="2024"></td><td class="excel-input"><input type="text" value="ايسوزو دينا"></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="739131120"></td><td class="excel-input"><input type="text" value="2027-04-04"></td><td class="excel-input"><input type="text" value="2027-07-24"></td><td class="excel-input"><input type="text" value="2026-11-06"></td><td class="excel-input"><input type="text" value="2027-05-05"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0558654476"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">15</td><td class="excel-input"><input type="text" value="100330"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="اسف باث شوهل"></td><td class="excel-input"><input type="text" value="2325599070"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ح  8717"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="متسوبيشي دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="949819910"></td><td class="excel-input"><input type="text" value="2027-03-24"></td><td class="excel-input"><input type="text" value="2029-04-02"></td><td class="excel-input"><input type="text" value="2027-01-03"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0571724688"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">16</td><td class="excel-input"><input type="text" value="100303"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="فالق سجاد سجاد"></td><td class="excel-input"><input type="text" value="2090207859"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8029 "></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="537954020"></td><td class="excel-input"><input type="text" value="2027-03-31"></td><td class="excel-input"><input type="text" value="2027-01-11"></td><td class="excel-input"><input type="text" value="2027-03-20"></td><td class="excel-input"><input type="text" value="2027-04-02"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0558453231"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">17</td><td class="excel-input"><input type="text" value="102845"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="موزيد خان"></td><td class="excel-input"><input type="text" value="2607260698"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ل 8850 "></td><td class="excel-input"><input type="text" value="2016"></td><td class="excel-input"><input type="text" value="متسوبيشي لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="2"></td><td class="excel-input"><input type="text" value="451809610"></td><td class="excel-input"><input type="text" value="2026-11-12"></td><td class="excel-input"><input type="text" value="2026-10-04"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0572901340"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">18</td><td class="excel-input"><input type="text" value="102368"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="بسام علي احمد الجلال"></td><td class="excel-input"><input type="text" value="2537417152"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8023 "></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="277754020"></td><td class="excel-input"><input type="text" value="2026-10-15"></td><td class="excel-input"><input type="text" value="2027-01-11"></td><td class="excel-input"><input type="text" value="2027-04-23"></td><td class="excel-input"><input type="text" value="2027-04-07"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0536735114"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">19</td><td class="excel-input"><input type="text" value="101260"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="كرم ابو الهدى صادق "></td><td class="excel-input"><input type="text" value="2487345031"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و  4071"></td><td class="excel-input"><input type="text" value="2022"></td><td class="excel-input"><input type="text" value="ايسوزو دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="74841910"></td><td class="excel-input"><input type="text" value="2027-01-06"></td><td class="excel-input"><input type="text" value="2028-04-16"></td><td class="excel-input"><input type="text" value="2027-05-04"></td><td class="excel-input"><input type="text" value="2026-12-13"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0564649987"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">20</td><td class="excel-input"><input type="text" value="101936"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="مران حسين مد تارو"></td><td class="excel-input"><input type="text" value="2505074498"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م 8031 "></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="317954020"></td><td class="excel-input"><input type="text" value="2027-04-02"></td><td class="excel-input"><input type="text" value="2027-01-11"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-04-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0550920461"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">21</td><td class="excel-input"><input type="text" value="100717"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد عبدالحميد محمد "></td><td class="excel-input"><input type="text" value="2445181585"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م  8035"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="776954020"></td><td class="excel-input"><input type="text" value="2027-04-06"></td><td class="excel-input"><input type="text" value="2027-01-11"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-05"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0564701656"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">22</td><td class="excel-input"><input type="text" value="100711"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="احمد عبدالصبور رشوان"></td><td class="excel-input"><input type="text" value="2409104953"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س م  8021"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="538754020"></td><td class="excel-input"><input type="text" value="2026-10-26"></td><td class="excel-input"><input type="text" value="2027-01-11"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-05"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0567428582"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">23</td><td class="excel-input"><input type="text" value="101958"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="انصار الم"></td><td class="excel-input"><input type="text" value="2512564010"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و  4139  "></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="395065910"></td><td class="excel-input"><input type="text" value="2028-10-23"></td><td class="excel-input"><input type="text" value="2028-09-24"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0530727974"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">24</td><td class="excel-input"><input type="text" value="100249"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="شندان دبينات "></td><td class="excel-input"><input type="text" value="2255207751"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر و 4141"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="186065910"></td><td class="excel-input"><input type="text" value="2027-02-04"></td><td class="excel-input"><input type="text" value="2028-09-24"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0502219743"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">25</td><td class="excel-input"><input type="text" value="101225"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="نديم فضل سبحان"></td><td class="excel-input"><input type="text" value="2472649249"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر ع 2240 "></td><td class="excel-input"><input type="text" value="2020"></td><td class="excel-input"><input type="text" value="متسوبيشي دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="427860810"></td><td class="excel-input"><input type="text" value="2026-07-09"></td><td class="excel-input"><input type="text" value="2026-09-10"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0501901731"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">26</td><td class="excel-input"><input type="text" value="100237"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="شوكت علي"></td><td class="excel-input"><input type="text" value="2317876015"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="أ س ر 8873 "></td><td class="excel-input"><input type="text" value="2020"></td><td class="excel-input"><input type="text" value="متسوبيشي دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="203480020"></td><td class="excel-input"><input type="text" value="2026-10-01"></td><td class="excel-input"><input type="text" value="2026-08-07"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0551575512"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">27</td><td class="excel-input"><input type="text" value="102181"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="محمد مصلح"></td><td class="excel-input"><input type="text" value="2536883693"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ص ق 6855"></td><td class="excel-input"><input type="text" value="2024"></td><td class="excel-input"><input type="text" value="ايسوزو دينا"></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="761431120"></td><td class="excel-input"><input type="text" value="2027-04-01"></td><td class="excel-input"><input type="text" value="2027-07-24"></td><td class="excel-input"><input type="text" value="2027-05-05"></td><td class="excel-input"><input type="text" value="2027-04-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0548827398"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">28</td><td class="excel-input"><input type="text" value="100217"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="مارييل فينود"></td><td class="excel-input"><input type="text" value="2265030078"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ق 7920"></td><td class="excel-input"><input type="text" value="2016"></td><td class="excel-input"><input type="text" value="متسوبيشي لوري "></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="2"></td><td class="excel-input"><input type="text" value="621809610"></td><td class="excel-input"><input type="text" value="1447-05-16"></td><td class="excel-input"><input type="text" value="2026-08-25"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="( صيانة جهاز التتبع)"></td><td class="excel-input"><input type="text" value="0564915114"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">29</td><td class="excel-input"><input type="text" value="100714"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="علي محمد ابوزيد محمد"></td><td class="excel-input"><input type="text" value="2441374739"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ر ل  5580 "></td><td class="excel-input"><input type="text" value="2015"></td><td class="excel-input"><input type="text" value="ايسوزو دينا"></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="322761410"></td><td class="excel-input"><input type="text" value="2026-06-03"></td><td class="excel-input"><input type="text" value="2027-06-15"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0530658749"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">30</td><td class="excel-input"><input type="text" value="100231"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="انال كومار"></td><td class="excel-input"><input type="text" value="2255854875"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا س ح 8715"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="متسوبيشي دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="2"></td><td class="excel-input"><input type="text" value="539819910"></td><td class="excel-input"><input type="text" value="2027-02-15"></td><td class="excel-input"><input type="text" value="2029-04-02"></td><td class="excel-input"><input type="text" value="2027-05-09"></td><td class="excel-input"><input type="text" value="2026-05-17"></td><td class="excel-input notes-cell"><input type="text" value=" لم يتم تجديد بطاقة التشغيل "></td><td class="excel-input"><input type="text" value="0570947069"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">31</td><td class="excel-input"><input type="text" value="100729"></td><td class="excel-input"><input type="text" list="scheduleDriversList" value="احمد دنقل"></td><td class="excel-input"><input type="text" value="2441375439"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" list="schedulePlatesList" value="ا ص ا 7810"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="هينو  دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="829737020"></td><td class="excel-input"><input type="text" value="2026-08-24"></td><td class="excel-input"><input type="text" value="2027-04-22"></td><td class="excel-input"><input type="text" value="2026-10-18"></td><td class="excel-input"><input type="text" value="2026-10-21"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0563480939"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ════════ بيان المركبات الاسبير والمعطلة ════════ -->
+    <div class="section-title-spare" style="margin-top: 2rem;">⚠️ بيان المركبات الاسبير والمعطلة</div>
+    <div class="excel-table-container" style="width: 100%; max-width: 1900px; margin: 0 auto; overflow-x: auto; padding: 0 20px 10px 20px;">
+        <table class="excel-table" id="spareExcelTable">
+            <thead>
+                <tr>
+                    <th class="excel-header" style="width:2%;">م</th>
+                    <th class="excel-header" style="width:5%;">الرقم الوظيفي</th>
+                    <th class="excel-header" style="width:11%;">اسم السائق</th>
+                    <th class="excel-header" style="width:6%;">رقم الإقامة</th>
+                    <th class="excel-header" style="width:4%;">الوظيفة</th>
+                    <th class="excel-header" style="width:6%;">رقم اللوحة</th>
+                    <th class="excel-header" style="width:4%;">موديل</th>
+                    <th class="excel-header" style="width:8%;">نوع المركبة</th>
+                    <th class="excel-header" style="width:3%;">عدد الطبالي</th>
+                    <th class="excel-header" style="width:3%;">الحمولة</th>
+                    <th class="excel-header" style="width:7%;">الرقم التسلسلي<br>للمركبة</th>
+                    <th class="excel-header" style="width:6%;">تاريخ انتهاء<br>الفحص الدوري</th>
+                    <th class="excel-header" style="width:6%;">تاريخ انتهاء<br>رخصة السير</th>
+                    <th class="excel-header" style="width:6%;">تاريخ انتهاء<br>بطاقة السائق</th>
+                    <th class="excel-header" style="width:6%;">تاريخ انتهاء<br>بطاقة التشغيل</th>
+                    <th class="excel-header" style="width:10%;">الملاحظات</th>
+                    <th class="excel-header" style="width:6%;">رقم الجوال</th>
+                    <th class="excel-header actions-column" style="width:3%;">إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="spareBody">
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#fff3f3;">1</td><td class="excel-input"><input type="text" value="————"></td><td class="excel-input"><input type="text" value="فحص"></td><td class="excel-input"><input type="text" value="————"></td><td class="excel-input"><input type="text" value="——"></td><td class="excel-input"><input type="text" value="ا س ق 7774"></td><td class="excel-input"><input type="text" value="2016"></td><td class="excel-input"><input type="text" value="متسوبيشي لوري "></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="2"></td><td class="excel-input"><input type="text" value="178838410"></td><td class="excel-input"><input type="text" value="2025-11-17"></td><td class="excel-input"><input type="text" value="2026-09-19"></td><td class="excel-input"><input type="text" value="————"></td><td class="excel-input"><input type="text" value="2026-05-17"></td><td class="excel-input notes-cell"><input type="text" value=" لم يتم تجديد بطاقة التشغيل (فحص دوري + صيانة جهاز التتبع)"></td><td class="excel-input"><input type="text" value="————"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'spareBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#fff3f3;">2</td><td class="excel-input"><input type="text" value="————"></td><td class="excel-input"><input type="text" value="فحص"></td><td class="excel-input"><input type="text" value="————"></td><td class="excel-input"><input type="text" value="——"></td><td class="excel-input"><input type="text" value="ا س ق 7821"></td><td class="excel-input"><input type="text" value="2016"></td><td class="excel-input"><input type="text" value="متسوبيشي لوري "></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="787571510"></td><td class="excel-input"><input type="text" value="2025-12-02"></td><td class="excel-input"><input type="text" value="2026-09-26"></td><td class="excel-input"><input type="text" value="————"></td><td class="excel-input"><input type="text" value="2026-05-17"></td><td class="excel-input notes-cell"><input type="text" value="لم يتم تجديد بطاقة التشغيل (فحص دوري- صيانة جهاز التتبع)"></td><td class="excel-input"><input type="text" value="————"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'spareBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#fff3f3;">3</td><td class="excel-input"><input type="text" value="101238"></td><td class="excel-input"><input type="text" value="مد سيف "></td><td class="excel-input"><input type="text" value="2485516401"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" value="أ س ق 7775"></td><td class="excel-input"><input type="text" value="2016"></td><td class="excel-input"><input type="text" value="متسوبيشي لوري "></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="2"></td><td class="excel-input"><input type="text" value="490809610"></td><td class="excel-input"><input type="text" value="2026-11-22"></td><td class="excel-input"><input type="text" value="2026-09-19"></td><td class="excel-input"><input type="text" value="2026-08-05"></td><td class="excel-input"><input type="text" value="2026-05-17"></td><td class="excel-input notes-cell"><input type="text" value="ورشة خارجي (لم يتم تجديد بطاقة التشغيل  صيانة جهاز التتبع)"></td><td class="excel-input"><input type="text" value="0570947069"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'spareBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#fff3f3;">4</td><td class="excel-input"><input type="text" value="102452"></td><td class="excel-input"><input type="text" value="محمد يونس "></td><td class="excel-input"><input type="text" value="2550977850"></td><td class="excel-input"><input type="text" value="موصل"></td><td class="excel-input"><input type="text" value="ا ر ع 2232"></td><td class="excel-input"><input type="text" value="2020"></td><td class="excel-input"><input type="text" value="متسوبيشي دينا "></td><td class="excel-input"><input type="text" value="4"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="386860810"></td><td class="excel-input"><input type="text" value="2026-05-22"></td><td class="excel-input"><input type="text" value="2026-09-10"></td><td class="excel-input"><input type="text" value="2027-05-09"></td><td class="excel-input"><input type="text" value="2027-05-08"></td><td class="excel-input notes-cell"><input type="text" value="لايوجد"></td><td class="excel-input"><input type="text" value="0575806817"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'spareBody')">✕</button></td></tr>
+                <tr><td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#fff3f3;">5</td><td class="excel-input"><input type="text" value="100574"></td><td class="excel-input"><input type="text" value="محمد عبدالرحمن المندوه"></td><td class="excel-input"><input type="text" value="2441077944"></td><td class="excel-input"><input type="text" value="موزع"></td><td class="excel-input"><input type="text" value="ا س م 8022"></td><td class="excel-input"><input type="text" value="2023"></td><td class="excel-input"><input type="text" value="ايسوزو لوري"></td><td class="excel-input"><input type="text" value="8"></td><td class="excel-input"><input type="text" value="3"></td><td class="excel-input"><input type="text" value="978754020"></td><td class="excel-input"><input type="text" value="لا يوجد"></td><td class="excel-input"><input type="text" value="2027-01-11"></td><td class="excel-input"><input type="text" value="2016-05-19"></td><td class="excel-input"><input type="text" value="2027-04-02"></td><td class="excel-input notes-cell"><input type="text" value="ورشة خارجية للتامين ( بطاقة التشغيل منتهيه وتحتاج الى فحص دوري)"></td><td class="excel-input"><input type="text" value="0576559794"></td><td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'spareBody')">✕</button></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ════════ التوقيع ════════ -->
+    <div class="card" style="text-align:center; margin:2rem auto; max-width:600px;">
+        <p style="font-size:1.1rem; font-weight:700; margin:5px 0;">تم إعداد هذا الجدول بواسطة قسم الحركة</p>
+        <p style="color:var(--text-muted); margin-top:12px;">قسم الحركة</p>
+        <p style="font-size:1.1rem; color:var(--accent); font-weight:700; margin:5px 0;">خالد بن محمد الغامدي</p>
+    </div>
+
+    </div><!-- /.bz-shell -->
+
+    <script>
+        // ──── Constants ────
+        const MAIN_COLS = 16; // Number of input columns (excluding row number and delete button)
+        const LS_MAIN_KEY = 'excel_schedule_data_v2';
+        const LS_SPARE_KEY = 'excel_spare_data_v2';
+        const LS_DATE_KEY = 'excel_schedule_date';
+
+        // ──── History (Undo / Redo) ────
+        const MAX_HISTORY = 50;
+        let _history = [];   // stack of snapshots [{main, spare, date}, ...]
+        let _histIdx = -1;   // pointer into _history
+        let _isRestoring = false; // guard: don't push while restoring
+
+        function _captureSnapshot() {
+            const main = [];
+            document.querySelectorAll('#scheduleBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 0) main.push(Array.from(inputs).map(i => i.value));
+            });
+            const spare = [];
+            document.querySelectorAll('#spareBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 0) spare.push(Array.from(inputs).map(i => i.value));
+            });
+            const date = document.getElementById('scheduleDate').value;
+            return { main, spare, date };
+        }
+
+        function pushHistory() {
+            if (_isRestoring) return;
+            const snap = _captureSnapshot();
+            // Discard any redo states above current pointer
+            _history = _history.slice(0, _histIdx + 1);
+            _history.push(snap);
+            if (_history.length > MAX_HISTORY) _history.shift();
+            _histIdx = _history.length - 1;
+            updateHistoryButtons();
+        }
+
+        function _restoreSnapshot(snap) {
+            _isRestoring = true;
+            // Restore main table
+            const mainBody = document.getElementById('scheduleBody');
+            mainBody.innerHTML = '';
+            snap.main.forEach((r, idx) => {
+                const tr = document.createElement('tr');
+                let html = `<td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#f8f9fa;">${idx + 1}</td>`;
+                for (let i = 0; i < MAIN_COLS; i++) {
+                    const val = (r[i] || '').replace(/"/g, '&quot;');
+                    const isList2 = (i === 1) ? ' list="scheduleDriversList"' : '';
+                    const isList4 = (i === 4) ? ' list="schedulePlatesList"' : '';
+                    const notesCls = (i === 15) ? ' notes-cell' : '';
+                    html += `<td class="excel-input${notesCls}"><input type="text"${isList2}${isList4} value="${val}"></td>`;
+                }
+                html += `<td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'scheduleBody')">✕</button></td>`;
+                tr.innerHTML = html;
+                mainBody.appendChild(tr);
+            });
+            // Restore spare table
+            const spareBody = document.getElementById('spareBody');
+            spareBody.innerHTML = '';
+            snap.spare.forEach((r, idx) => {
+                const tr = document.createElement('tr');
+                let html = `<td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:#fff3f3;">${idx + 1}</td>`;
+                for (let i = 0; i < MAIN_COLS; i++) {
+                    const val = (r[i] || '').replace(/"/g, '&quot;');
+                    const isList2 = (i === 1) ? ' list="scheduleDriversList"' : '';
+                    const isList4 = (i === 4) ? ' list="schedulePlatesList"' : '';
+                    const notesCls = (i === 15) ? ' notes-cell' : '';
+                    html += `<td class="excel-input${notesCls}"><input type="text"${isList2}${isList4} value="${val}"></td>`;
+                }
+                html += `<td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'spareBody')">✕</button></td>`;
+                tr.innerHTML = html;
+                spareBody.appendChild(tr);
+            });
+            // Restore date
+            document.getElementById('scheduleDate').value = snap.date;
+            updateStats();
+            _isRestoring = false;
+        }
+
+        function undoHistory() {
+            if (_histIdx <= 0) return;
+            _histIdx--;
+            _restoreSnapshot(_history[_histIdx]);
+            saveToLocalStorage();
+            updateHistoryButtons();
+        }
+
+        function redoHistory() {
+            if (_histIdx >= _history.length - 1) return;
+            _histIdx++;
+            _restoreSnapshot(_history[_histIdx]);
+            saveToLocalStorage();
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            const undoBtn = document.getElementById('btnUndo');
+            const redoBtn = document.getElementById('btnRedo');
+            const undoCnt = document.getElementById('undoCount');
+            const redoCnt = document.getElementById('redoCount');
+            if (!undoBtn) return;
+            const canUndo = _histIdx > 0;
+            const canRedo = _histIdx < _history.length - 1;
+            undoBtn.disabled = !canUndo;
+            undoBtn.style.opacity = canUndo ? '1' : '0.4';
+            redoBtn.disabled = !canRedo;
+            redoBtn.style.opacity = canRedo ? '1' : '0.4';
+            undoCnt.textContent = canUndo ? `(${_histIdx})` : '';
+            redoCnt.textContent = canRedo ? `(${_history.length - 1 - _histIdx})` : '';
+        }
+
+        // ──── Add Row ────
+        function addScheduleRow(tbodyId) {
+            const tbody = document.getElementById(tbodyId);
+            const rowCount = tbody.querySelectorAll('tr').length + 1;
+            const bgColor = tbodyId === 'spareBody' ? '#fff3f3' : '#f8f9fa';
+            const tr = document.createElement('tr');
+            tr.classList.add('fade-in');
+            tr.innerHTML = `
+                <td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:${bgColor};">${rowCount}</td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text" list="scheduleDriversList"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text" list="schedulePlatesList"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td class="excel-input notes-cell"><input type="text"></td>
+                <td class="excel-input"><input type="text"></td>
+                <td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'${tbodyId}')">✕</button></td>
+            `;
+            tbody.appendChild(tr);
+            saveToLocalStorage();
+        }
+
+        // ──── Save to LocalStorage ────
+        function saveToLocalStorage() {
+            // Save a history snapshot before writing (skip while restoring)
+            if (!_isRestoring) pushHistory();
+            // Main table
+            const mainRows = [];
+            document.querySelectorAll('#scheduleBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 0) {
+                    const rowData = [];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    mainRows.push(rowData);
+                }
+            });
+            localStorage.setItem(LS_MAIN_KEY, JSON.stringify(mainRows));
+
+            // Spare table
+            const spareRows = [];
+            document.querySelectorAll('#spareBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 0) {
+                    const rowData = [];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    spareRows.push(rowData);
+                }
+            });
+            localStorage.setItem(LS_SPARE_KEY, JSON.stringify(spareRows));
+
+            // Date
+            const dateVal = document.getElementById('scheduleDate').value;
+            localStorage.setItem(LS_DATE_KEY, dateVal);
+
+            // Update stats
+            updateStats();
+        }
+
+        // ──── Delete Row ────
+        function deleteScheduleRow(btn, tbodyId) {
+            if (!confirm('هل أنت متأكد من حذف هذا الصف؟')) return;
+            // Capture before deletion so Undo can restore the deleted row
+            pushHistory();
+            const tr = btn.closest('tr');
+            tr.remove();
+
+            const bgColor = tbodyId === 'spareBody' ? '#fff3f3' : '#f8f9fa';
+            document.querySelectorAll(`#${tbodyId} tr`).forEach((row, idx) => {
+                row.cells[0].innerText = idx + 1;
+                row.cells[0].style.backgroundColor = bgColor;
+            });
+
+            saveToLocalStorage();
+        }
+
+        // ──── Load from LocalStorage ────
+        function loadFromLocalStorage() {
+            loadTableFromLS('scheduleBody', LS_MAIN_KEY, '#f8f9fa');
+            loadTableFromLS('spareBody', LS_SPARE_KEY, '#fff3f3');
+
+            const dateVal = localStorage.getItem(LS_DATE_KEY);
+            if (dateVal) {
+                document.getElementById('scheduleDate').value = dateVal;
+            }
+
+            updateStats();
+        }
+
+        function loadTableFromLS(tbodyId, lsKey, bgColor) {
+            const savedData = localStorage.getItem(lsKey);
+            if (!savedData) return;
+
+            try {
+                const rows = JSON.parse(savedData);
+                if (rows.length === 0) return;
+
+                const tbody = document.getElementById(tbodyId);
+                tbody.innerHTML = '';
+                rows.forEach((r, idx) => {
+                    const tr = document.createElement('tr');
+                    let html = `<td style="text-align:center; font-weight:bold; border:1px solid #000; background-color:${bgColor};">${idx + 1}</td>`;
+                    for (let i = 0; i < MAIN_COLS; i++) {
+                        const val = (r[i] || '').replace(/"/g, '&quot;');
+                        const isList2 = (i === 1) ? ' list="scheduleDriversList"' : '';
+                        const isList4 = (i === 4) ? ' list="schedulePlatesList"' : '';
+                        const notesCls = (i === 15) ? ' notes-cell' : '';
+                        html += `<td class="excel-input${notesCls}"><input type="text"${isList2}${isList4} value="${val}"></td>`;
+                    }
+                    html += `<td style="text-align:center;border:1px solid #000; min-width:70px;"><button class="btn-whatsapp" title="إرسال رسالة واتساب" onclick="sendWhatsApp(this)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg></button><button class="btn-delete" onclick="deleteScheduleRow(this,'${tbodyId}')">✕</button></td>`;
+                    tr.innerHTML = html;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Error loading from localStorage:', e);
+            }
+        }
+
+        
+        // ──── WhatsApp Message ────
+        function sendWhatsApp(btn) {
+            const tr = btn.closest('tr');
+            const inputs = tr.querySelectorAll('input');
+            if (inputs.length < 16) return;
+            
+            const phoneInput = inputs[15].value || '';
+            if (!phoneInput || phoneInput === '————' || phoneInput.trim() === '') {
+                if (window.showToast) showToast('لا يوجد رقم جوال صالح لهذا السائق.', 'error');
+                return;
+            }
+            
+            const waUrl = generateWaUrl(inputs);
+            window.open(waUrl, '_blank');
+        }
+
+        function generateWaUrl(inputs) {
+            const empid = inputs[0].value || '---';
+            const name = inputs[1].value || '---';
+            const iqama = inputs[2].value || '---';
+            const job = inputs[3].value || '---';
+            const plate = inputs[4].value || '---';
+            const model = inputs[5].value || '---';
+            const carType = inputs[6].value || '---';
+            const pallets = inputs[7].value || '---';
+            const capacity = inputs[8].value || '---';
+            const serial = inputs[9].value || '---';
+            const inspectDate = inputs[10].value || '---';
+            const licenseDate = inputs[11].value || '---';
+            const driverCardDate = inputs[12].value || '---';
+            const opCardDate = inputs[13].value || '---';
+            const notes = inputs[14].value || 'لا يوجد';
+            const phoneInput = inputs[15].value || '';
+
+            let phone = phoneInput.replace(/\D/g, '');
+            if (phone.startsWith('05')) {
+                phone = '966' + phone.substring(1);
+            } else if (phone.startsWith('5')) {
+                phone = '966' + phone;
+            }
+
+            const message = `السلام عليكم ورحمة الله وبركاته
+أرفق لكم بيانات السائق والمركبة المحدّثة:
+Attached is the updated driver and vehicle data:
+
+👤 اسم السائق / Driver Name: ${name}
+🆔 الرقم الوظيفي / Emp ID: ${empid}
+🪪 رقم الإقامة / Iqama No: ${iqama}
+💼 الوظيفة / Job Title: ${job}
+
+🚚 بيانات المركبة / Vehicle Details:
+نوع المركبة / Vehicle Type: ${carType}
+موديل / Model: ${model}
+رقم اللوحة / Plate No: ${plate}
+الرقم التسلسلي / Serial No: ${serial}
+عدد الطبالي / Pallets: ${pallets}
+الحمولة / Capacity: ${capacity}
+
+📅 تواريخ انتهاء الصلاحية / Expiry Dates:
+الفحص الدوري / MVPI (Fahas): ${inspectDate}
+رخصة السير / Vehicle Reg (Istimara): ${licenseDate}
+بطاقة السائق / Driver Card: ${driverCardDate}
+بطاقة التشغيل / Operation Card: ${opCardDate}
+
+📝 الملاحظات / Notes: 
+${notes}
+
+شاكر لكم تعاونكم / Thank you for your cooperation.
+
+مسؤول الحركة / Fleet Manager: خالد بن محمد الغامدي (Khaled Al-Ghamdi)`;
+
+            const encodedMsg = encodeURIComponent(message);
+            return `https://wa.me/${phone}?text=${encodedMsg}`;
+        }
+
+        // ──── WhatsApp Dispatcher ────
+        function openDispatcher() {
+            const listDiv = document.getElementById('dispatcherList');
+            listDiv.innerHTML = '';
+            
+            const allRows = Array.from(document.querySelectorAll('#scheduleBody tr, #spareBody tr'));
+            let validDrivers = 0;
+
+            allRows.forEach((tr, index) => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length < 16) return;
+                
+                const name = inputs[1].value.trim();
+                const plate = inputs[4].value.trim();
+                const phoneInput = inputs[15].value.trim();
+                
+                if (name && phoneInput && phoneInput !== '————') {
+                    const cleanPhone = phoneInput.replace(/\D/g, '');
+                    if (cleanPhone.length >= 9) {
+                        validDrivers++;
+                        const waUrl = generateWaUrl(inputs);
+                        
+                        const safeName = escapeHtml(name);
+                        const safePlate = escapeHtml(plate);
+                        const safePhone = escapeHtml(phoneInput);
+                        const plateSpan = (plate && plate !== '————') ? `<span style="font-size: 0.85rem; color: #e67e22; background: #fef5e7; padding: 2px 6px; border-radius: 4px; margin-right: 5px; border: 1px solid #fdebd0; vertical-align: middle;">🚗 ${safePlate}</span>` : '';
+
+                        const rowEl = document.createElement('div');
+                        rowEl.className = 'dispatcher-row';
+                        rowEl.innerHTML = `
+                            <div class="dispatcher-info">
+                                <span class="dispatcher-name" style="display:flex; align-items:center;">${safeName} ${plateSpan}</span>
+                                <span class="dispatcher-phone" dir="ltr">${safePhone}</span>
+                            </div>
+                            <button class="dispatcher-btn" id="dispatchBtn_${index}" type="button">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg> إرسال
+                            </button>
+                        `;
+                        const dispatchBtn = rowEl.querySelector('.dispatcher-btn');
+                        dispatchBtn.addEventListener('click', () => dispatchMessage(dispatchBtn, waUrl));
+                        listDiv.appendChild(rowEl);
+                    }
+                }
+            });
+
+            if (validDrivers === 0) {
+                listDiv.innerHTML = '<p style="text-align:center; padding: 20px;">لا يوجد سائقين بأرقام جوال صالحة للإرسال.</p>';
+            }
+
+            document.getElementById('dispatcherOverlay').style.display = 'block';
+            document.getElementById('dispatcherModal').style.display = 'flex';
+        }
+
+        function closeDispatcher() {
+            document.getElementById('dispatcherOverlay').style.display = 'none';
+            document.getElementById('dispatcherModal').style.display = 'none';
+        }
+
+        function dispatchMessage(btn, url) {
+            if (btn.classList.contains('sent')) return;
+            window.open(url, '_blank');
+            btn.classList.add('sent');
+            btn.innerHTML = '✓ تم الإرسال';
+        }
+
+        // ──── Update Statistics ────
+        // Set to true once the user edits the vacation field manually so we stop auto-overwriting it.
+        let _vacationManual = false;
+        function updateStats() {
+            const rows = document.querySelectorAll('#scheduleBody tr');
+            let drivers = rows.length;
+            let dina = 0, lorry = 0, delivery = 0, dist = 0, vacation = 0;
+
+            rows.forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length < 8) return;
+                const job = inputs[3]?.value || '';
+                const type = inputs[6]?.value || '';
+                const notes = inputs[14]?.value || '';
+
+                if (type.includes('دينا')) dina++;
+                if (type.includes('لوري')) lorry++;
+                if (job === 'موصل') delivery++;
+                if (job === 'موزع') dist++;
+                // Auto-detect drivers on leave from job/notes text
+                if (/إجازة|اجازة/.test(job) || /إجازة|اجازة/.test(notes)) vacation++;
+            });
+
+            document.getElementById('statDrivers').textContent = drivers;
+            document.getElementById('statDina').textContent = dina;
+            document.getElementById('statLorry').textContent = lorry;
+            document.getElementById('statDelivery').textContent = delivery;
+            document.getElementById('statDist').textContent = dist;
+
+            const vacEl = document.getElementById('statVacation');
+            if (vacEl && !_vacationManual) vacEl.value = vacation;
+        }
+
+        // ──── Auto-save on input ────
+        document.addEventListener('input', function (e) {
+            if (e.target.tagName.toLowerCase() !== 'input') return;
+            // The vacation stat is a standalone field, not table data — don't trigger a table save.
+            if (e.target.id === 'statVacation') {
+                _vacationManual = true;
+                return;
+            }
+            clearTimeout(window._saveTimer);
+            window._saveTimer = setTimeout(saveToLocalStorage, 1000);
+        });
+
+        // ──── Drivers Fetch & Auto-fill ────
+        // Primary source: /api/drivers (live DB). Fallback/merge: shared FleetData engine (fleet_data.json).
+        let driversData = [];
+        async function fetchDrivers() {
+            try {
+                let apiData = [];
+                try {
+                    const res = await fetch('/api/drivers');
+                    if (res.ok) apiData = await res.json();
+                } catch (_) { /* network/endpoint not ready — fall back to FleetData below */ }
+                if (!Array.isArray(apiData)) apiData = [];
+
+                // Merge the shared FleetData records (single source of truth across tabs).
+                let fleet = [];
+                try {
+                    if (window.FleetData) { await FleetData.load(); fleet = FleetData.records() || []; }
+                } catch (_) { /* ignore */ }
+
+                const byNameKey = new Map();
+                [...apiData, ...fleet].forEach(d => {
+                    if (!d || !d.name) return;
+                    const key = String(d.name).trim();
+                    if (!key) return;
+                    // API records win over FleetData for the same name (first wins).
+                    if (!byNameKey.has(key)) byNameKey.set(key, d);
+                });
+                driversData = Array.from(byNameKey.values());
+
+                let list = document.getElementById('scheduleDriversList');
+                let platesList = document.getElementById('schedulePlatesList');
+                if (!list) {
+                    list = document.createElement('datalist');
+                    list.id = 'scheduleDriversList';
+                    document.body.appendChild(list);
+                }
+                if (!platesList) {
+                    platesList = document.createElement('datalist');
+                    platesList.id = 'schedulePlatesList';
+                    document.body.appendChild(platesList);
+                }
+                list.innerHTML = '';
+                platesList.innerHTML = '';
+                driversData.forEach(d => {
+                    if (d.name && d.name !== 'Employee Name (اسم السائق)' && d.name !== 'اسم العامل') {
+                        const o = document.createElement('option');
+                        o.value = d.name;
+                        o.setAttribute('data-plate', d.plate || '');
+                        list.appendChild(o);
+                    }
+                    if (d.plate && d.plate !== 'None' && d.plate !== '') {
+                        const op = document.createElement('option');
+                        op.value = d.plate;
+                        platesList.appendChild(op);
+                    }
+                });
+            } catch (e) { console.error('Failed to fetch drivers', e); }
+        }
+
+        function handleAutofill(inputEl) {
+            const val = inputEl.value.trim();
+            const listAttr = inputEl.getAttribute('list');
+
+            let driver = null;
+            if (listAttr === 'scheduleDriversList') {
+                // بحث بالاسم فقط — لا نطابق اللوحة هنا أبداً
+                driver = driversData.find(d => d.name === val || d.name?.trim() === val);
+                if (!driver) {
+                    driver = driversData.find(d => d.name && (d.name.includes(val) || val.includes(d.name)));
+                }
+            } else if (listAttr === 'schedulePlatesList') {
+                driver = driversData.find(d => d.plate === val || d.plate?.trim() === val);
+                if (!driver) {
+                    driver = driversData.find(d => d.plate && (d.plate.includes(val) || val.includes(d.plate)));
+                }
+            }
+
+            // Fallback to the shared FleetData engine if nothing matched in the merged list.
+            if (!driver && window.FleetData) {
+                if (listAttr === 'scheduleDriversList') driver = FleetData.byName(val);
+                else if (listAttr === 'schedulePlatesList') driver = FleetData.byPlate(val);
+            }
+
+            if (driver) {
+                const tr = inputEl.closest('tr');
+                const inputs = tr.querySelectorAll('input');
+                // Input indices: 0=empid, 1=name, 2=iqama, 3=job, 4=plate, 5=model, 6=car,
+                //                7=pallets, 8=capacity, 9=serial, 10=inspect, 11=license,
+                //                12=drivercard, 13=opcard, 14=notes, 15=phone
+
+                // If triggered by Driver Name change, only autofill driver-specific details:
+                if (listAttr === 'scheduleDriversList') {
+                    if (driver.empid && driver.empid !== 'None') inputs[0].value = driver.empid;
+                    inputs[1].value = driver.name;
+                    if (driver.iqama && driver.iqama !== 'None') inputs[2].value = driver.iqama;
+                    if (driver.drivercard && driver.drivercard !== 'None') {
+                        inputs[12].value = driver.drivercard;
+                    } else {
+                        inputs[12].value = '';
+                    }
+                    if (driver.phone && driver.phone !== 'None') {
+                        let phone = driver.phone;
+                        if (!phone.startsWith('0') && phone.length === 9) phone = '0' + phone;
+                        inputs[15].value = phone;
+                    } else {
+                        inputs[15].value = '';
+                    }
+                } else {
+                    // Full autofill when plate is selected
+                    if (driver.empid && driver.empid !== 'None') inputs[0].value = driver.empid;
+                    inputs[1].value = driver.name;
+                    if (driver.iqama && driver.iqama !== 'None') inputs[2].value = driver.iqama;
+                    if (driver.plate && driver.plate !== 'None') inputs[4].value = driver.plate;
+                    if (driver.phone && driver.phone !== 'None') {
+                        let phone = driver.phone;
+                        if (!phone.startsWith('0') && phone.length === 9) phone = '0' + phone;
+                        inputs[15].value = phone;
+                    }
+                    if (driver.drivercard && driver.drivercard !== 'None') {
+                        inputs[12].value = driver.drivercard;
+                    }
+                    if (driver.car && driver.car !== 'None') {
+                        inputs[6].value = driver.car;
+                        const match = driver.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+                        if (match) {
+                            inputs[5].value = match[1];
+                        }
+                    }
+                }
+
+                saveToLocalStorage();
+            }
+        }
+
+        document.addEventListener('change', function (e) {
+            if (e.target.tagName.toLowerCase() === 'input' &&
+                (e.target.getAttribute('list') === 'scheduleDriversList' || e.target.getAttribute('list') === 'schedulePlatesList')) {
+                handleAutofill(e.target);
+            }
+        });
+
+        // ===== Smart Paste Feature =====
+        document.addEventListener('paste', function(e) {
+            const target = e.target;
+            if (target.tagName.toLowerCase() !== 'input') return;
+            
+            const tbody = target.closest('tbody');
+            if (!tbody || (tbody.id !== 'scheduleBody' && tbody.id !== 'spareBody')) return;
+
+            const clipboardData = e.clipboardData || window.clipboardData;
+            const pastedText = clipboardData.getData('Text');
+            
+            if (!pastedText.includes('\t') && !pastedText.includes('\n')) return;
+
+            e.preventDefault();
+
+            const rows = pastedText.split(/\r?\n/).filter(r => r.trim() !== '');
+            if (rows.length === 0) return;
+
+            const tr = target.closest('tr');
+            const allTrs = Array.from(tbody.querySelectorAll('tr'));
+            const startRowIdx = allTrs.indexOf(tr);
+            
+            const td = target.closest('td');
+            const allTds = Array.from(tr.querySelectorAll('td.excel-input'));
+            const startColIdx = allTds.indexOf(td);
+
+            const firstRowCols = rows[0].split('\t');
+            const isFullBlock = firstRowCols.length >= 15;
+            const isStartingAtFirstCol = startColIdx === 0;
+
+            rows.forEach((rowStr, i) => {
+                const targetRow = allTrs[startRowIdx + i];
+                if (!targetRow) return;
+
+                const cols = rowStr.split('\t');
+                const inputs = targetRow.querySelectorAll('input');
+
+                if (isFullBlock && isStartingAtFirstCol) {
+                    if (cols[0] !== undefined) inputs[0].value = cols[0].trim();
+                    if (cols[1] !== undefined) inputs[1].value = cols[1].trim();
+                    if (cols[2] !== undefined) inputs[2].value = cols[2].trim();
+                    if (cols[3] !== undefined) inputs[3].value = cols[3].trim();
+                    if (cols[12] !== undefined) inputs[12].value = cols[12].trim();
+                    if (cols[15] !== undefined) inputs[15].value = cols[15].trim();
+                } else {
+                    cols.forEach((colVal, j) => {
+                        const targetInput = inputs[startColIdx + j];
+                        if (targetInput) {
+                            targetInput.value = colVal.trim();
+                        }
+                    });
+                }
+            });
+
+            saveToLocalStorage();
+            updateStats();
+        });
+
+        // ──── Initialize ────
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+            fetchDrivers();
+
+            // Ensure all plate inputs have datalist
+            document.querySelectorAll('#scheduleBody tr, #spareBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 4 && !inputs[4].getAttribute('list')) {
+                    inputs[4].setAttribute('list', 'schedulePlatesList');
+                }
+            });
+        });
+    </script>
+    <div id="dispatcherOverlay" class="dispatcher-overlay" onclick="closeDispatcher()"></div>
+    <div id="dispatcherModal" class="dispatcher-modal">
+        <div class="dispatcher-header">
+            <h2>📲 نافذة الإرسال المجمّع (واتساب)</h2>
+            <button class="dispatcher-close" onclick="closeDispatcher()">✕</button>
+        </div>
+        <div class="dispatcher-body" id="dispatcherList">
+            <!-- Dynamic rows will go here -->
+        </div>
+    </div>
+
+    <footer
+        style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;width:100%">
+        تم التطوير بواسطة قسم الحركة (فرع الدمام)
+    </footer>
+</body>
+
+</html>

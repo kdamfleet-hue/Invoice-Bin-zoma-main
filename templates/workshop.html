@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقرير صيانة الورشة | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        /* Page-specific layout only — colors/fonts/buttons/inputs come from base_styles.css */
+        .report-header {
+            background: var(--brand-navy, #0C2340);
+            border-radius: 14px 14px 0 0;
+            padding: 1.4rem 1.5rem;
+            color: #fff;
+            text-align: center;
+            border-bottom: 3px solid var(--brand-gold, #c9a227);
+        }
+        .report-header h1 { margin: 0; font-size: 1.35rem; font-weight: 800; }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+        }
+        .meta-item {
+            padding: 12px;
+            border-inline-start: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+        .meta-item:first-child { border-inline-start: none; }
+        .meta-item label {
+            font-weight: 800;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+        }
+        .meta-item input { width: 100%; text-align: center; font-weight: 700; }
+
+        .notes-table { width: 100%; border-collapse: collapse; }
+        .notes-table thead th {
+            background: var(--brand-navy, #0C2340);
+            color: #fff;
+            padding: 12px;
+            font-size: 1.05rem;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .notes-table tbody td { border: 1px solid var(--border); padding: 0; }
+        .col-idx { width: 52px; font-weight: 800; text-align: center; background: var(--surface-hover); color: var(--text-primary); }
+        .col-note, .col-sol { width: 50%; }
+        .notes-table input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            font-weight: 600;
+            outline: none;
+        }
+        .notes-table input:focus { background: rgba(201,162,39,0.08); }
+
+        .sig-section {
+            display: flex;
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 14px 14px;
+            background: var(--surface);
+            overflow: hidden;
+        }
+        .sig-item {
+            flex: 1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+        .sig-item:first-child { border-inline-start: 1px solid var(--border); }
+        .sig-item label { font-weight: 800; color: var(--text-primary); font-size: 1.05rem; }
+        .sig-item input {
+            width: 80%;
+            border: none;
+            border-bottom: 2px dashed var(--border);
+            border-radius: 0;
+            background: transparent;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .action-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1.25rem; }
+        .action-bar .autosave-hint { margin-inline-start: auto; font-size: 0.85rem; color: var(--text-secondary); font-weight: 700; }
+
+        @media (max-width: 768px) {
+            .meta-grid { grid-template-columns: 1fr; }
+            .meta-item { border-inline-start: none; border-bottom: 1px solid var(--border); }
+            .sig-section { flex-direction: column; }
+            .sig-item:first-child { border-inline-start: none; border-bottom: 1px solid var(--border); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop" class="active">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <div class="bz-shell">
+        <h2 class="bz-section-title">🔧 تقرير صيانة الورشة</h2>
+        <div class="action-bar">
+            <button class="btn-submit-gold" onclick="exportWorkshopExcel()">📥 تصدير Excel</button>
+            <button class="btn-danger" onclick="clearAll()">🗑 مسح الكل</button>
+            <span class="autosave-hint">💾 يتم الحفظ تلقائياً</span>
+        </div>
+
+        <div class="report-header">
+            <h1>تقرير فنى الورشة عن السيارة الموضحه بيناتها ادناه لفرع الدمام</h1>
+        </div>
+
+        <div class="meta-grid">
+            <div class="meta-item">
+                <label>التاريخ</label>
+                <input type="date" id="reportDate">
+            </div>
+            <div class="meta-item">
+                <label>اسم السائق</label>
+                <input type="text" id="driverName" list="driverNames" placeholder="اختر السائق">
+            </div>
+            <div class="meta-item">
+                <label>رقم اللوحة (P:NO)</label>
+                <input type="text" id="carPlate" list="plateList" placeholder="أ د ج 1234">
+            </div>
+            <div class="meta-item">
+                <label>نوع السيارة (V/NAME)</label>
+                <input type="text" id="carType" placeholder="مثال: ايسوزو دينا">
+            </div>
+            <div class="meta-item">
+                <label>الموديل (MODEL)</label>
+                <input type="text" id="carModel" placeholder="2024">
+            </div>
+            <div class="meta-item" style="grid-column: 1 / -1;">
+                <label>العداد (K/m)</label>
+                <input type="text" id="carKm" placeholder="150,000" style="max-width:240px;">
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="notes-table">
+                <thead>
+                    <tr>
+                        <th class="col-idx">م</th>
+                        <th class="col-note">الملاحظات</th>
+                        <th class="col-sol">الحل</th>
+                    </tr>
+                </thead>
+                <tbody id="notesBody">
+                    <!-- JavaScript will generate 10 rows here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="sig-section">
+            <div class="sig-item">
+                <label>توقيع الفني /</label>
+                <input type="text" id="sigTech" placeholder="الاسم أو التوقيع">
+            </div>
+            <div class="sig-item">
+                <label>توقيع مسؤول الحركة /</label>
+                <input type="text" id="sigManager" placeholder="الاسم أو التوقيع">
+            </div>
+        </div>
+    </div>
+
+    <datalist id="plateList"></datalist>
+    <datalist id="driverNames"></datalist>
+
+    <script>
+    const LS_KEY = 'workshop_report_v4';
+    let driversData = [];
+
+    // Populate plate datalist from /api/drivers (live backend data)
+    async function fetchDrivers() {
+        try {
+            const res = await fetch('/api/drivers');
+            if (!res.ok) return;
+            const data = await res.json();
+            driversData = Array.isArray(data) ? data : [];
+            const pl = document.getElementById('plateList');
+            if (!pl) return;
+            pl.innerHTML = driversData
+                .filter(d => d.plate && d.plate !== 'None')
+                .map(d => `<option value="${escapeHtml(d.plate)}"></option>`)
+                .join('');
+        } catch (e) { /* offline / no backend — autofill still works via FleetData */ }
+    }
+
+    // Fill car fields from a fleet/driver record (whatever fields are present)
+    function applyVehicle(rec) {
+        if (!rec) return;
+        const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val && val !== 'None') el.value = val;
+        };
+        set('carType', rec.car);
+        set('carPlate', rec.plate);
+    }
+
+    // Plate -> resolve vehicle via FleetData first, then /api/drivers fallback
+    function autofillCarByPlate() {
+        const p = document.getElementById('carPlate').value;
+        if (!p) return;
+        let rec = (window.FleetData && FleetData.byPlate) ? FleetData.byPlate(p) : null;
+        if (!rec) {
+            const norm = window.normalizePlate ? normalizePlate(p) : p;
+            rec = driversData.find(x => (window.normalizePlate ? normalizePlate(x.plate) : x.plate) === norm);
+        }
+        applyVehicle(rec);
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('notesBody');
+        tbody.innerHTML = '';
+        for(let i=1; i<=10; i++) {
+            tbody.innerHTML += `
+                <tr>
+                    <td class="col-idx">${i}</td>
+                    <td class="col-note"><input type="text" id="note_${i}" placeholder="وصف المشكلة..."></td>
+                    <td class="col-sol"><input type="text" id="sol_${i}" placeholder="الحل المنفذ..."></td>
+                </tr>
+            `;
+        }
+    }
+
+    function saveData() {
+        const data = {
+            date: document.getElementById('reportDate').value,
+            driver: document.getElementById('driverName').value,
+            car: document.getElementById('carType').value,
+            plate: document.getElementById('carPlate').value,
+            model: document.getElementById('carModel').value,
+            km: document.getElementById('carKm').value,
+            sigTech: document.getElementById('sigTech').value,
+            sigManager: document.getElementById('sigManager').value,
+            notes: []
+        };
+        for(let i=1; i<=10; i++) {
+            data.notes.push({
+                n: document.getElementById('note_'+i).value,
+                s: document.getElementById('sol_'+i).value
+            });
+        }
+        localStorage.setItem(LS_KEY, JSON.stringify(data));
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem(LS_KEY);
+        if(raw) {
+            try {
+                const data = JSON.parse(raw);
+                document.getElementById('reportDate').value = data.date || '';
+                document.getElementById('driverName').value = data.driver || '';
+                document.getElementById('carType').value = data.car || '';
+                document.getElementById('carPlate').value = data.plate || '';
+                document.getElementById('carModel').value = data.model || '';
+                document.getElementById('carKm').value = data.km || '';
+                document.getElementById('sigTech').value = data.sigTech || '';
+                document.getElementById('sigManager').value = data.sigManager || '';
+                if(data.notes && data.notes.length === 10) {
+                    for(let i=1; i<=10; i++) {
+                        document.getElementById('note_'+i).value = data.notes[i-1].n || '';
+                        document.getElementById('sol_'+i).value = data.notes[i-1].s || '';
+                    }
+                }
+            } catch(e){}
+        } else {
+            document.getElementById('reportDate').valueAsDate = new Date();
+        }
+    }
+
+    function clearAll() {
+        if(!confirm('هل أنت متأكد من مسح جميع البيانات؟')) return;
+        localStorage.removeItem(LS_KEY);
+        document.getElementById('driverName').value = '';
+        document.getElementById('carType').value = '';
+        document.getElementById('carPlate').value = '';
+        document.getElementById('carModel').value = '';
+        document.getElementById('carKm').value = '';
+        document.getElementById('sigTech').value = '';
+        document.getElementById('sigManager').value = '';
+        for(let i=1; i<=10; i++) {
+            document.getElementById('note_'+i).value = '';
+            document.getElementById('sol_'+i).value = '';
+        }
+        document.getElementById('reportDate').valueAsDate = new Date();
+        if(typeof showToast === 'function') showToast('تم المسح', 'success');
+    }
+
+    async function exportWorkshopExcel() {
+        if(typeof showToast === 'function') showToast('جاري إنشاء ملف Excel...', 'info');
+        try {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('تقرير الورشة', {
+                views: [{ rightToLeft: true, state: 'frozen', ySplit: 7 }]
+            });
+
+            const NAVY = 'FF0C2340'; // brand navy
+            const GOLD = 'FFC9A227'; // brand gold
+            const ZEBRA = 'FFF5F7FA'; // alternate row tint
+            const W = 'FFFFFFFF';
+            const borderThin = { style: 'thin', color: { argb: 'FFD9D9D9' } };
+            const borderAll = { top: borderThin, left: borderThin, bottom: borderThin, right: borderThin };
+            const navyFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+            const goldBottom = { bottom: { style: 'medium', color: { argb: GOLD } } };
+
+            ws.columns = [
+                { width: 9 },      // A
+                { width: 4 },      // B
+                { width: 5.125 },  // C (Index)
+                { width: 23.5 },   // D
+                { width: 18.25 },  // E
+                { width: 18.75 },  // F
+                { width: 13.25 },  // G
+                { width: 12.125 }, // H
+                { width: 9 }       // I
+            ];
+
+            // Embed logo from base64 safely
+            const new_logo = "{{ b64_en }}";
+            if(new_logo && new_logo !== '') {
+                try {
+                    const id = wb.addImage({ base64: 'data:image/png;base64,'+new_logo, extension: 'png' });
+                    // Merged range approx C1 to G3 for the logo
+                    ws.addImage(id, { tl: { col: 3.2, row: 0.3 }, ext: { width: 180, height: 70 } });
+                } catch(e) { console.error("Logo error", e); }
+            }
+
+            ws.getRow(1).height = 38;
+            ws.getRow(2).height = 38;
+            ws.getRow(3).height = 63;
+            ws.getRow(4).height = 20.25;
+            ws.getRow(5).height = 25.5;
+
+            // Title — merged navy banner, white bold, centered
+            ws.mergeCells('C3:I5');
+            const titleCell = ws.getCell('C3');
+            titleCell.value = 'تقرير فنى الورشة — شركة بن زومة للتجارة والإنماء\nBIN ZOMAH INTL. — فرع الدمام';
+            titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: W } };
+            titleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            titleCell.fill = navyFill;
+            titleCell.border = goldBottom;
+
+            // Date + driver line
+            ws.getRow(6).height = 26.25;
+            const dateVal = document.getElementById('reportDate').value;
+            const driverVal = document.getElementById('driverName').value;
+            let dStr = '2026 /  /  :التاريخ ';
+            if(dateVal) {
+                const parts = dateVal.split('-');
+                dStr = `${parts[0]} / ${parts[1]} / ${parts[2]} :التاريخ `;
+            }
+            if (driverVal) dStr = `السائق: ${driverVal}     ` + dStr;
+            ws.mergeCells('C6:I6');
+            const dateCell = ws.getCell('C6');
+            dateCell.value = dStr;
+            dateCell.font = { name: 'Tajawal', size: 12, bold: true };
+            dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
+
+            // Row 7 (Headers)
+            ws.getRow(7).height = 35.25;
+            ws.mergeCells('H7:I11'); // The huge "الحل" box for the top portion (wait, no! "الحل" applies to the notes below. But in the original it's merged H7:I11 for visual header).
+            
+            const h7 = ws.getCell('H7');
+            h7.value = 'الحل';
+            h7.font = { name: 'Tajawal', size: 13, bold: true, color: { argb: W } };
+            h7.alignment = { horizontal: 'center', vertical: 'middle' };
+            h7.fill = navyFill;
+            h7.border = { ...borderAll, ...goldBottom };
+
+            const hData = [
+                { c: 'C7', v: 'م', s: 14 },
+                { c: 'D7', v: ' نوع السيارة  (V/NAME)', s: 13 },
+                { c: 'E7', v: 'رقم اللوحة (P:NO) ', s: 13 },
+                { c: 'F7', v: ' الموديل (MODEL)', s: 13 },
+                { c: 'G7', v: ' العداد (K/m) ', s: 13 }
+            ];
+            hData.forEach(hd => {
+                const cell = ws.getCell(hd.c);
+                cell.value = hd.v;
+                cell.font = { name: 'Tajawal', size: hd.s, bold: true, color: { argb: W } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.fill = navyFill;
+                cell.border = { ...borderAll, ...goldBottom };
+            });
+
+            // Rows 8-9 (Car Info)
+            ws.getRow(8).height = 29.25;
+            ws.getRow(9).height = 29.25;
+            ['D', 'E', 'F', 'G'].forEach(col => {
+                ws.mergeCells(`${col}8:${col}9`);
+                ws.getCell(`${col}8`).border = borderAll;
+            });
+            ws.getCell('D8').value = document.getElementById('carType').value;
+            ws.getCell('E8').value = document.getElementById('carPlate').value;
+            ws.getCell('F8').value = document.getElementById('carModel').value;
+            ws.getCell('G8').value = document.getElementById('carKm').value;
+            ['D8', 'E8', 'F8', 'G8'].forEach(c => {
+                ws.getCell(c).font = { name: 'Tajawal', size: 13, bold: true };
+                ws.getCell(c).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            });
+
+            // Row 10-11 (Notes Header) — navy banner
+            ws.getRow(10).height = 36;
+            ws.getRow(11).height = 15;
+            ws.mergeCells('D10:G11');
+            const noteHeader = ws.getCell('D10');
+            noteHeader.value = 'الملاحظات';
+            noteHeader.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: W } };
+            noteHeader.alignment = { horizontal: 'center', vertical: 'middle' };
+            noteHeader.fill = navyFill;
+            noteHeader.border = { ...borderAll, ...goldBottom };
+
+            // Rows 12-21 (Data)
+            for(let i=1; i<=10; i++) {
+                const rowIdx = 11 + i;
+                ws.getRow(rowIdx).height = 42.75;
+                const zebra = (i % 2 === 0)
+                    ? { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } }
+                    : null;
+
+                // Index
+                const idxCell = ws.getCell('C' + rowIdx);
+                idxCell.value = i;
+                idxCell.font = { name: 'Tajawal', size: 14, bold: true };
+                idxCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                idxCell.border = borderAll;
+                if (zebra) idxCell.fill = zebra;
+
+                // Note
+                ws.mergeCells(`D${rowIdx}:G${rowIdx}`);
+                const noteCell = ws.getCell(`D${rowIdx}`);
+                noteCell.value = document.getElementById('note_'+i).value;
+                noteCell.font = { name: 'Tajawal', size: 13 };
+                noteCell.alignment = { horizontal: 'right', vertical: 'middle', wrapText: true };
+                noteCell.border = borderAll;
+                if (zebra) noteCell.fill = zebra;
+
+                // Solution
+                ws.mergeCells(`H${rowIdx}:I${rowIdx}`);
+                const solCell = ws.getCell(`H${rowIdx}`);
+                solCell.value = document.getElementById('sol_'+i).value;
+                solCell.font = { name: 'Tajawal', size: 13 };
+                solCell.alignment = { horizontal: 'right', vertical: 'middle', wrapText: true };
+                solCell.border = borderAll;
+                if (zebra) solCell.fill = zebra;
+            }
+
+            // Signatures
+            const sigT = document.getElementById('sigTech').value;
+            const sigM = document.getElementById('sigManager').value;
+            ws.getRow(22).height = 24;
+            ws.getRow(23).height = 24;
+            const sigCell1 = ws.getCell('C22');
+            sigCell1.value = 'توقيع الفني /  ' + sigT;
+            sigCell1.font = { name: 'Tajawal', size: 13, bold: true };
+            const sigCell2 = ws.getCell('C23');
+            sigCell2.value = 'توقيع مسؤول الحركة / ' + sigM;
+            sigCell2.font = { name: 'Tajawal', size: 13, bold: true };
+
+            // Footer row
+            const footRow = 25;
+            ws.getRow(footRow).height = 22;
+            ws.mergeCells(`C${footRow}:I${footRow}`);
+            const footCell = ws.getCell(`C${footRow}`);
+            const todayStr = new Date().toISOString().split('T')[0];
+            footCell.value = `أُعدّ بواسطة قسم الحركة — فرع الدمام     ${dateVal || todayStr}`;
+            footCell.font = { name: 'Tajawal', size: 11, italic: true, color: { argb: 'FF6B7280' } };
+            footCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            const buffer = await wb.xlsx.writeBuffer();
+            const dateStr = document.getElementById('reportDate').value || new Date().toISOString().split('T')[0];
+            saveAs(new Blob([buffer]), `تقرير_فني_ورشة_${document.getElementById('carPlate').value || 'الدمام'}_${dateStr}.xlsx`);
+            if(typeof showToast === 'function') showToast('تم التصدير بنجاح ✅', 'success');
+        } catch(e) {
+            console.error(e);
+            if(typeof showToast === 'function') showToast('خطأ أثناء التصدير', 'error');
+        }
+    }
+
+    window.addEventListener('load', async () => {
+        renderTable();
+        loadData();
+        await fetchDrivers();
+
+        // Shared autofill engine: picking a driver name fills plate + car type
+        if (window.FleetData) {
+            try {
+                await FleetData.fillDatalist('driverNames');
+                await FleetData.attachAutofill({
+                    name: 'driverName',
+                    fields: { plate: 'carPlate', car: 'carType' },
+                    onFill: () => saveData()
+                });
+            } catch (e) { /* ignore */ }
+        }
+
+        // Plate -> car type autofill
+        const plateEl = document.getElementById('carPlate');
+        if (plateEl) plateEl.addEventListener('change', () => { autofillCarByPlate(); saveData(); });
+    });
+
+    document.addEventListener('input', saveData);
+    document.addEventListener('change', saveData);
+    </script>
+</body>
+</html>

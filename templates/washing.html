@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحضير جدول الغسيل | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css') }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js') }}"></script>
+    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+    <style>
+        /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
+        .wash-table-wrap { overflow-x: auto; }
+        #washTable { min-width: 1200px; border-collapse: collapse; width: 100%; }
+        #washTable thead { position: sticky; top: 0; z-index: 5; }
+        #washTable thead th {
+            background: var(--brand-navy, #0C2340);
+            color: #fff; padding: 12px 8px; font-size: 0.8rem; font-weight: 700;
+            text-align: center; white-space: nowrap; border-bottom: 2px solid var(--accent, #c9a227);
+        }
+        #washTable thead th.col-id { width: 40px; }
+        #washTable thead th.col-plate { text-align: right; min-width: 120px; }
+        #washTable thead th.col-type { text-align: right; min-width: 160px; }
+        #washTable thead th.col-driver { text-align: right; min-width: 180px; }
+        #washTable thead th.col-month { width: 52px; }
+        #washTable thead th.col-total { width: 60px; background: var(--accent, #c9a227); color: #0C2340; }
+
+        #washTable tbody td {
+            padding: 8px 10px; font-size: 0.85rem; text-align: center;
+            border: 1px solid var(--border); transition: background 0.15s ease;
+        }
+        #washTable tbody td.cell-plate { text-align: right; font-weight: 700; font-family: monospace; font-size: 0.9rem; }
+        #washTable tbody td.cell-type { text-align: right; font-size: 0.8rem; color: var(--text-secondary); }
+        #washTable tbody td.cell-driver { text-align: right; font-size: 0.8rem; max-width: 200px; }
+        .driver-edit-input { width: 100%; border: none; background: transparent; color: var(--text-primary); font-family: inherit; font-size: 0.85rem; font-weight: bold; text-align: right; outline: none; padding: 4px; transition: var(--trans); border-radius: 4px; }
+        .driver-edit-input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
+        #washTable tbody td.cell-total { font-weight: 800; font-size: 1rem; background: var(--surface-hover); }
+        #washTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
+
+        /* Wash status cells */
+        .cell-wash { cursor: pointer; font-size: 1.1rem; font-weight: 700; min-width: 44px; user-select: none; }
+        .cell-wash.washed { background: #1f9d57 !important; color: #fff; }
+        .cell-wash.not-washed { color: var(--text-muted); }
+        .cell-wash:hover { opacity: 0.85; }
+
+        /* Legend */
+        .legend { display: flex; gap: 2rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-secondary); }
+        .legend-dot { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
+        .legend-dot.green { background: #1f9d57; color: #fff; }
+        .legend-dot.gray { background: var(--surface-hover); border: 1px solid var(--border-strong); color: var(--text-muted); }
+
+        /* Search */
+        .search-bar { width: 100%; max-width: 500px; margin: 0 auto 1.5rem; position: relative; }
+        .search-bar input { width: 100%; padding: 12px 20px 12px 44px; border-radius: 50px; font-size: 1rem; }
+        .search-bar::before { content: '🔍'; position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; }
+
+        @media (max-width: 768px) {
+            .bz-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing" class="active">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <datalist id="driversList"></datalist>
+
+    <div class="bz-shell">
+
+    <h2 class="bz-section-title">🚿 تحضير جدول الغسيل — الشهري</h2>
+    <p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">جدول غسيل المركبات الشهري — فرع الدمام 2026</p>
+
+    <!-- Stats -->
+    <div class="bz-stats">
+        <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
+        <div class="bz-stat"><div class="num" id="statWashes">0</div><div class="label">إجمالي الغسلات</div></div>
+        <div class="bz-stat"><div class="num" id="statCurrent">0</div><div class="label">غسلات الشهر الحالي</div></div>
+        <div class="bz-stat"><div class="num" id="statPending">0</div><div class="label">لم تُغسل هذا الشهر</div></div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." oninput="filterTable()">
+    </div>
+
+    <!-- Table -->
+    <div class="card">
+    <div class="table-wrapper wash-table-wrap">
+        <table id="washTable">
+            <thead>
+                <tr>
+                    <th class="col-id">#</th>
+                    <th class="col-plate">رقم اللوحة</th>
+                    <th class="col-type">نوع السيارة</th>
+                    <th class="col-driver">اسم السائق</th>
+                    <th class="col-month">1</th><th class="col-month">2</th>
+                    <th class="col-month">3</th><th class="col-month">4</th>
+                    <th class="col-month">5</th><th class="col-month">6</th>
+                    <th class="col-month">7</th><th class="col-month">8</th>
+                    <th class="col-month">9</th><th class="col-month">10</th>
+                    <th class="col-month">11</th><th class="col-month">12</th>
+                    <th class="col-total">المجموع</th>
+                </tr>
+            </thead>
+            <tbody id="washBody"></tbody>
+        </table>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item"><div class="legend-dot green">✓</div><span>تم الغسيل (استلم)</span></div>
+        <div class="legend-item"><div class="legend-dot gray">✕</div><span>لم يتم الغسيل</span></div>
+        <div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">انقر على أي خلية شهر لتغيير الحالة</div>
+    </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+        <button class="btn-submit-gold" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+        <button class="btn-primary" onclick="saveState()">💾 حفظ التغييرات</button>
+    </div>
+
+    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي) — فرع الدمام</footer>
+
+    </div><!-- /bz-shell -->
+
+<script>
+    const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    let vehicles = [];
+
+    function init() {
+        // Populate the driver datalist + load fleet records for plate-based autofill
+        if (window.FleetData) {
+            FleetData.fillDatalist('driversList').catch(err => console.error('FleetData datalist', err));
+        }
+        // Fetch from server first, fallback to local or default
+        fetch('/api/washing_data')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    vehicles = data.vehicles;
+                } else {
+                    const saved = localStorage.getItem('washingSchedule2026');
+                    if (saved) {
+                        try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                    } else {
+                        vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                    }
+                }
+                renderTable();
+                updateStats();
+            })
+            .catch(err => {
+                console.error('Failed to load from server', err);
+                const saved = localStorage.getItem('washingSchedule2026');
+                if (saved) {
+                    try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                } else {
+                    vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                }
+                renderTable();
+                updateStats();
+            });
+    }
+
+    function getTotal(v) { return v.m.reduce((a, b) => a + b, 0); }
+
+    function renderTable(filter) {
+        const tbody = document.getElementById('washBody');
+        tbody.innerHTML = '';
+        const q = (filter || '').toLowerCase();
+
+        let allHtml = '';
+        vehicles.forEach((v, idx) => {
+            if (q && !v.plate.toLowerCase().includes(q) && !v.driver.toLowerCase().includes(q) && !v.type.toLowerCase().includes(q)) return;
+
+            const total = getTotal(v);
+            const driver = v.driver || '';
+            let html = `<tr>
+                <td>${escapeHtml(v.id)}</td>
+                <td class="cell-plate">${escapeHtml(v.plate)}</td>
+                <td class="cell-type">${escapeHtml(v.type || '-')}</td>
+                <td class="cell-driver"><input type="text" class="driver-edit-input" list="driversList" value="${escapeHtml(driver)}" onchange="autofillWashingDriver(this, ${idx})" title="${escapeHtml(driver)}"></td>`;
+
+            for (let mi = 0; mi < 12; mi++) {
+                const w = v.m[mi];
+                html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}" onclick="toggle(${idx},${mi})">${w ? '✓' : ''}</td>`;
+            }
+            html += `<td class="cell-total">${total}</td></tr>`;
+            allHtml += html;
+        });
+        tbody.innerHTML = allHtml;
+    }
+
+    function updateDriver(idx, val) {
+        vehicles[idx].driver = val;
+        saveState(false); // background save
+    }
+
+    function autofillWashingDriver(elem, idx) {
+        const val = elem.value.trim();
+        updateDriver(idx, val);
+
+        // Match by PLATE (Arabic plates) via the shared FleetData engine.
+        // Latin/Arabic name mismatches used to break name-based matching — plate matching is reliable.
+        const rec = window.FleetData ? FleetData.byPlate(vehicles[idx].plate) : null;
+        if (rec) {
+            let changed = false;
+            // Fill the vehicle type if missing/placeholder
+            if (rec.car && rec.car !== 'None' && (!vehicles[idx].type || vehicles[idx].type !== rec.car)) {
+                vehicles[idx].type = rec.car;
+                changed = true;
+            }
+            // If the driver cell is empty, adopt the fleet driver name for that plate
+            if (!val && rec.name && rec.name !== 'None') {
+                vehicles[idx].driver = rec.name;
+                changed = true;
+            }
+            if (changed) {
+                renderTable(document.getElementById('searchInput').value);
+                saveState(false);
+            }
+        }
+    }
+
+    function toggle(vi, mi) {
+        vehicles[vi].m[mi] = vehicles[vi].m[mi] ? 0 : 1;
+        renderTable(document.getElementById('searchInput').value);
+        updateStats();
+    }
+
+    function filterTable() {
+        renderTable(document.getElementById('searchInput').value);
+    }
+
+    function updateStats() {
+        const now = new Date();
+        const cm = now.getMonth(); // 0-based
+        const totalV = vehicles.length;
+        const totalW = vehicles.reduce((s, v) => s + getTotal(v), 0);
+        const currentM = vehicles.filter(v => v.m[cm] === 1).length;
+        const pending = totalV - currentM;
+
+        document.getElementById('statTotal').textContent = totalV;
+        document.getElementById('statWashes').textContent = totalW;
+        document.getElementById('statCurrent').textContent = currentM;
+        document.getElementById('statPending').textContent = pending;
+    }
+
+    function saveState(showMsg = true) {
+        localStorage.setItem('washingSchedule2026', JSON.stringify(vehicles)); // Keep local backup
+        fetch('/api/washing_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vehicles: vehicles })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && showMsg) {
+                showToast('تم حفظ التغييرات بنجاح في الموقع! ✅', 'success');
+            } else if (!data.success && showMsg) {
+                showToast('تم الحفظ محلياً فقط. فشل الحفظ في السيرفر', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            if (showMsg) showToast('حدث خطأ في الاتصال، تم الحفظ محلياً فقط', 'error');
+        });
+    }
+
+    async function exportXlsx() {
+        if(typeof ExcelJS === 'undefined') {
+            showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+            return;
+        }
+
+        const btn = document.querySelector('.btn-submit-gold');
+        const oldText = btn ? btn.innerHTML : '';
+        if (btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
+
+        const THIN = { style: 'thin', color: { argb: 'FFD9D9D9' } };
+        const ALL_BORDERS = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+
+        try {
+            const response = await fetch('/static/washing_template.xlsx');
+            if(!response.ok) throw new Error("لم يتم العثور على قالب الإكسل الأساسي.");
+            const buffer = await response.arrayBuffer();
+
+            const wb = new ExcelJS.Workbook();
+            await wb.xlsx.load(buffer);
+            const ws = wb.worksheets[0];
+
+            // Corporate standard: RTL + freeze the header rows (data starts at row 5).
+            ws.views = [{ rightToLeft: true, state: 'frozen', ySplit: 4 }];
+
+            // Vehicles data starts at row 5 in template.
+            const startRow = 5;
+
+            // The template has 28 data rows by default (row 5 to 32).
+            // Row 34 is the Total footer (kept with its COUNTIF formulas), row 36 the bottom footer.
+            if(vehicles.length > 28) {
+                const extra = vehicles.length - 28;
+                ws.spliceRows(33, 0, ...Array.from({length: extra}).map(() => []));
+            }
+
+            vehicles.forEach((v, idx) => {
+                const r = startRow + idx;
+                const row = ws.getRow(r);
+                row.height = Math.max(row.height || 0, 22);
+                row.getCell(1).value = v.id || (idx + 1);
+                row.getCell(2).value = v.plate || '';
+                row.getCell(3).value = v.type || '';
+                row.getCell(4).value = v.driver || '';
+
+                let total = 0;
+                for(let m = 0; m < 12; m++) {
+                    const isWashed = v.m && v.m[m] === 1;
+                    if(isWashed) total++;
+                    row.getCell(5 + m).value = isWashed ? 'استلم' : '';
+                }
+                row.getCell(17).value = total;
+
+                // Copy styling from the template's first data row for any newly inserted rows.
+                if(r > 5) {
+                    for(let c = 1; c <= 17; c++) {
+                        const styleCell = ws.getCell(5, c);
+                        const targetCell = row.getCell(c);
+                        targetCell.font = Object.assign({}, styleCell.font);
+                        targetCell.alignment = Object.assign({}, styleCell.alignment);
+                        targetCell.border = Object.assign({}, styleCell.border);
+                        targetCell.fill = Object.assign({}, styleCell.fill);
+                    }
+                }
+
+                // Enforce the corporate look on every data cell (borders + centering + zebra).
+                const zebra = (idx % 2 === 1);
+                for(let c = 1; c <= 17; c++) {
+                    const cell = row.getCell(c);
+                    cell.border = ALL_BORDERS;
+                    cell.alignment = { vertical: 'middle', horizontal: 'center', readingOrder: 'rtl' };
+                    if (zebra && (!cell.fill || cell.fill.type !== 'pattern')) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F7FA' } };
+                    }
+                }
+                row.getCell(17).font = Object.assign({}, row.getCell(17).font, { bold: true });
+            });
+
+            // Footer line with the prepared-by note and the export date.
+            const lastDataRow = startRow + vehicles.length - 1;
+            const footerRow = ws.getRow(lastDataRow + 3);
+            const today = new Date().toISOString().slice(0, 10);
+            footerRow.getCell(1).value = 'أُعدّ بواسطة قسم الحركة — فرع الدمام — ' + today;
+            footerRow.getCell(1).font = { name: 'Tajawal', size: 11, italic: true, color: { argb: 'FF555555' } };
+            footerRow.getCell(1).alignment = { horizontal: 'right', readingOrder: 'rtl' };
+
+            const outBuffer = await wb.xlsx.writeBuffer();
+            saveAs(new Blob([outBuffer]), 'جدول_غسيل_السيارات_الدمام.xlsx');
+            showToast('تم تصدير ملف الإكسل بنجاح ✅', 'success');
+
+        } catch (e) {
+            console.error(e);
+            showToast('حدث خطأ أثناء التصدير: ' + e.message, 'error');
+        } finally {
+            if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+        }
+    }
+
+    window.addEventListener('load', init);
+</script>
+<a href="https://wa.me/966570310909?text=مرحباً" target="_blank" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; font-family: Cairo;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل معنا - خالد بن محمد الغامدي</a>
+</body>
+</html>
+

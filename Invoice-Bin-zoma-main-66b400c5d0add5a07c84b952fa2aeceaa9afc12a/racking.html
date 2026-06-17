@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>تتبع المركبات</title>
+    <style>
+        #map {
+            width: 100%;
+            height: 600px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>📍 تتبع المركبات عبر GPS</h2>
+<div id="map"></div>
+
+<script>
+    let map;
+
+    async function loadGPS() {
+        const response = await fetch("/api/gps");
+        const data = await response.json();
+
+        if (!data.vehicles) return;
+
+        data.vehicles.forEach(v => {
+            new google.maps.Marker({
+                position: { lat: v.lat, lng: v.lng },
+                map: map,
+                title: v.name
+            });
+        });
+    }
+
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 6,
+            center: { lat: 23.8859, lng: 45.0792 } // مركز السعودية
+        });
+
+        loadGPS();
+        setInterval(loadGPS, 15000); // تحديث كل 15 ثانية
+    }
+</script>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_KEY&callback=initMap" async defer></script>
+
+</body>
+</html>
+
