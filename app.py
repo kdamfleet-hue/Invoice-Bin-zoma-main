@@ -1315,7 +1315,7 @@ def generate_po():
         ws["I9"] = data.get("empid", "")
         
         from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
-        label_fill = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")
+        label_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")  # neutral gray, B&W-print-safe
         thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
         center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
         
@@ -1447,6 +1447,19 @@ def generate_po():
         except Exception as e:
             logger.error("Logo injection failed: %s", e)
 
+        # Clean black-&-white printing: fit to one page width, centered, A4 portrait.
+        try:
+            from openpyxl.worksheet.properties import PageSetupProperties
+            from openpyxl.worksheet.page import PageMargins
+            ws.page_setup.orientation = "portrait"
+            ws.page_setup.fitToWidth = 1
+            ws.page_setup.fitToHeight = 0
+            ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+            ws.print_options.horizontalCentered = True
+            ws.page_margins = PageMargins(left=0.3, right=0.3, top=0.5, bottom=0.5, header=0.2, footer=0.2)
+        except Exception as e:
+            logger.warning("PO page setup skipped: %s", e)
+
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
@@ -1454,7 +1467,8 @@ def generate_po():
         b64 = base64.b64encode(output.read()).decode("utf-8")
         return jsonify({"success": True, "file_b64": b64})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.exception("generate_po error")
+        return jsonify({"success": False, "error": "تعذّر توليد طلب الشراء."}), 500
 
 
 @app.route("/api/generate_oils", methods=["POST"])

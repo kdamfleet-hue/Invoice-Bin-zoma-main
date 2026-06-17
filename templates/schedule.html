@@ -36,8 +36,20 @@
 
                 const ws = wb.addWorksheet('الجدول الأسبوعي', {
                     views: [{ rightToLeft: true, state: 'frozen', ySplit: 3 }],
-                    pageSetup: { orientation: 'landscape', fitToPage: true }
+                    // B&W-print-safe page setup (Design System §6): fit to one page wide,
+                    // centered, show the grid on the printout.
+                    pageSetup: {
+                        orientation: 'landscape',
+                        fitToPage: true,
+                        fitToWidth: 1,
+                        fitToHeight: 0,
+                        horizontalCentered: true,
+                        margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+                    }
                 });
+                ws.properties.defaultRowHeight = 22;
+                // Print gridlines so the full used range prints as a clean grid in grayscale.
+                ws.pageSetup.showGridLines = true;
 
                 const titleDate = document.getElementById('scheduleDate').value;
 
@@ -113,7 +125,10 @@
                 spareTitle.height = 24;
                 spareTitle.getCell(1).font = { bold: true, size: 13, name: FONT_NAME, color: { argb: 'FFFFFFFF' } };
                 spareTitle.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-                spareTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF9B1C1C' } };
+                // B&W-print-safe: navy is the only heavy fill allowed (a colored fill prints muddy
+                // in grayscale). The meaning is carried by the title text, not by colour.
+                spareTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                spareTitle.getCell(1).border = { bottom: { style: 'medium', color: { argb: GOLD } } };
 
                 styleHeader(ws.addRow(headers));
                 addDataRows(extractRows(document.getElementById('spareBody')));
@@ -121,13 +136,13 @@
                 // ── Summary section ──
                 ws.addRow([]);
                 const summaryTitle = ws.addRow(['ملخص الأعداد']);
-                ws.mergeCells(summaryTitle.number, 1, summaryTitle.number, 7);
+                ws.mergeCells(summaryTitle.number, 1, summaryTitle.number, 8);
                 summaryTitle.height = 22;
                 summaryTitle.getCell(1).font = { bold: true, size: 13, name: FONT_NAME, color: { argb: 'FFFFFFFF' } };
                 summaryTitle.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
                 summaryTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
 
-                const sumHeaders = ['م', 'عدد السائقيين', 'عدد الدينات', 'عدد اللواري', 'عدد الموصلين', 'عدد الموزعين', 'عدد السائقين في إجازة'];
+                const sumHeaders = ['م', 'عدد السائقيين', 'عدد الدينات', 'عدد اللواري', 'عدد الموصلين', 'عدد الموزعين', 'عدد المركبات السبير', 'عدد السائقين في إجازة'];
                 const sumHRow = ws.addRow(sumHeaders);
                 sumHRow.height = 24;
                 sumHRow.eachCell(cell => {
@@ -143,6 +158,7 @@
                     document.getElementById('statLorry')?.innerText || '0',
                     document.getElementById('statDelivery')?.innerText || '0',
                     document.getElementById('statDist')?.innerText || '0',
+                    document.getElementById('statSpare')?.innerText || '0',
                     document.getElementById('statVacation')?.value ?? document.getElementById('statVacation')?.innerText ?? '0'
                 ];
                 const sumDataRow = ws.addRow(['1', ...statsVals]);
@@ -484,9 +500,13 @@
             <div class="label">عدد الموزعين</div>
         </div>
         <div class="bz-stat">
+            <div class="num" id="statSpare">0</div>
+            <div class="label">عدد المركبات السبير</div>
+        </div>
+        <div class="bz-stat">
             <input type="number" min="0" id="statVacation" class="stat-input" value="0"
                 title="يُحسب تلقائياً من الملاحظات أو يمكن تعديله يدوياً">
-            <div class="label">عدد السائقين في إجازة</div>
+            <div class="label">عدد السائقين في إجازة (هذا الأسبوع)</div>
         </div>
     </div>
 
@@ -1011,11 +1031,23 @@ ${notes}
                 if (/إجازة|اجازة/.test(job) || /إجازة|اجازة/.test(notes)) vacation++;
             });
 
+            // Spare / disabled vehicles: count rows in the spare table that carry a plate
+            // (column index 4 = رقم اللوحة) — live from the table, never a fixed value.
+            let spare = 0;
+            document.querySelectorAll('#spareBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length < 5) return;
+                const plate = (inputs[4]?.value || '').trim();
+                if (plate && plate !== '————') spare++;
+            });
+
             document.getElementById('statDrivers').textContent = drivers;
             document.getElementById('statDina').textContent = dina;
             document.getElementById('statLorry').textContent = lorry;
             document.getElementById('statDelivery').textContent = delivery;
             document.getElementById('statDist').textContent = dist;
+            const spareEl = document.getElementById('statSpare');
+            if (spareEl) spareEl.textContent = spare;
 
             const vacEl = document.getElementById('statVacation');
             if (vacEl && !_vacationManual) vacEl.value = vacation;
@@ -1088,6 +1120,12 @@ ${notes}
                         platesList.appendChild(op);
                     }
                 });
+
+                // Guarantee the driver-name datalist is populated via the shared engine even if
+                // the /api/drivers + merge step produced nothing (keeps autofill working offline).
+                if (!list.children.length && window.FleetData && typeof FleetData.fillDatalist === 'function') {
+                    await FleetData.fillDatalist('scheduleDriversList');
+                }
             } catch (e) { console.error('Failed to fetch drivers', e); }
         }
 
@@ -1111,8 +1149,17 @@ ${notes}
 
             // Fallback to the shared FleetData engine if nothing matched in the merged list.
             if (!driver && window.FleetData) {
-                if (listAttr === 'scheduleDriversList') driver = FleetData.byName(val);
-                else if (listAttr === 'schedulePlatesList') driver = FleetData.byPlate(val);
+                if (listAttr === 'scheduleDriversList') {
+                    driver = FleetData.byName(val);
+                    // Last resort: match by the residence (Iqama) number already in this row.
+                    if (!driver) {
+                        const rowInputs = inputEl.closest('tr')?.querySelectorAll('input');
+                        const iqamaVal = rowInputs && rowInputs[2] ? rowInputs[2].value.trim() : '';
+                        if (iqamaVal) driver = FleetData.byIqama(iqamaVal);
+                    }
+                } else if (listAttr === 'schedulePlatesList') {
+                    driver = FleetData.byPlate(val);
+                }
             }
 
             if (driver) {
@@ -1122,7 +1169,9 @@ ${notes}
                 //                7=pallets, 8=capacity, 9=serial, 10=inspect, 11=license,
                 //                12=drivercard, 13=opcard, 14=notes, 15=phone
 
-                // If triggered by Driver Name change, only autofill driver-specific details:
+                // If triggered by Driver Name change, autofill the full driver + vehicle
+                // assignment (name, empid, iqama, driver card, phone, plate, car/type, model).
+                // Changing/handover of a driver should also move the vehicle data with him.
                 if (listAttr === 'scheduleDriversList') {
                     if (driver.empid && driver.empid !== 'None') inputs[0].value = driver.empid;
                     inputs[1].value = driver.name;
@@ -1132,12 +1181,19 @@ ${notes}
                     } else {
                         inputs[12].value = '';
                     }
-                    if (driver.phone && driver.phone !== 'None') {
-                        let phone = driver.phone;
+                    if (driver.phone && driver.phone !== 'None' && String(driver.phone).trim() !== '') {
+                        let phone = String(driver.phone);
                         if (!phone.startsWith('0') && phone.length === 9) phone = '0' + phone;
                         inputs[15].value = phone;
-                    } else {
-                        inputs[15].value = '';
+                    }
+                    // Vehicle assignment for this driver (from the enriched fleet record).
+                    if (driver.plate && driver.plate !== 'None' && String(driver.plate).trim() !== '') {
+                        inputs[4].value = driver.plate;
+                    }
+                    if (driver.car && driver.car !== 'None' && String(driver.car).trim() !== '') {
+                        inputs[6].value = driver.car;
+                        const m = String(driver.car).match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+                        if (m) inputs[5].value = m[1];
                     }
                 } else {
                     // Full autofill when plate is selected

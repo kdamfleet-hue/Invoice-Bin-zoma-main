@@ -577,13 +577,17 @@
             const wb = new ExcelJS.Workbook();
             const ws = wb.addWorksheet('الفاتورة', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 12 }] });
 
-            ws.getCell('A1').font = { name: 'Cairo', size: 12 };
-            const P = 'FF1A3A5C'; const G = 'FFC8A45A'; const W = 'FFFFFFFF'; const L = 'FFF0F2F5';
-            const thinBorder = { style: 'thin', color: { argb: 'FFD0D5DD' } };
+            ws.getCell('A1').font = { name: 'Tajawal', size: 12 };
+            // B&W print-safe palette (DESIGN_SYSTEM §6): navy is the ONLY heavy fill.
+            const P = 'FF0C2340';      // brand navy — header/title fill, white text on it
+            const G = 'FFC9A227';      // gold — used ONLY for thin accent borders (prints as a thin line)
+            const W = 'FFFFFFFF';      // white — data backgrounds + text on navy
+            const BLACK = 'FF000000';  // data text + grid borders
+            const thinBorder = { style: 'thin', color: { argb: BLACK } };
+            const allBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
 
             ws.columns = [ { width: 5 }, { width: 25 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 25 }, { width: 5 } ];
 
-            for(let c=1; c<=7; c++) ws.getCell(1, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: G } };
             ws.getRow(1).height = 5;
 
             const new_logo = "{{ b64_en }}";
@@ -597,8 +601,8 @@
 
             ws.mergeCells('B6:F6');
             const title = ws.getCell('B6');
-            title.value = "فاتورة طلب صيانة / خدمة — شركة بن زومة للتجارة والإنماء";
-            title.font = { name: 'Cairo', size: 16, bold: true, color: { argb: W } };
+            title.value = "بيان فاتورة طلب صيانة / خدمة — شركة بن زومة للتجارة والإنماء";
+            title.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: W } };
             title.alignment = { horizontal: 'center', vertical: 'middle' };
             title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } };
             title.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
@@ -607,7 +611,7 @@
             ws.mergeCells('B7:F7');
             const subTitle = ws.getCell('B7');
             subTitle.value = "BIN ZOMAH INTL. — Dammam Branch";
-            subTitle.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF5A6A7A' } };
+            subTitle.font = { name: 'Arial', size: 11, bold: true, color: { argb: BLACK } };
             subTitle.alignment = { horizontal: 'center', vertical: 'middle' };
             ws.getRow(7).height = 20;
 
@@ -615,9 +619,9 @@
 
             function setInfo(cell1, lbl, cell2, val) {
                 const c1 = ws.getCell(cell1);
-                c1.value = lbl; c1.font = { name: 'Cairo', size: 12, bold: true, color: { argb: W } }; c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c1.alignment = { horizontal: 'center', vertical: 'middle' }; c1.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+                c1.value = lbl; c1.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: W } }; c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c1.alignment = { horizontal: 'center', vertical: 'middle' }; c1.border = allBorders;
                 const c2 = ws.getCell(cell2);
-                c2.value = val; c2.font = { name: 'Cairo', size: 12, bold: true, color: { argb: 'FF333333' } }; c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }; c2.alignment = { horizontal: 'center', vertical: 'middle' }; c2.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+                c2.value = val; c2.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } }; c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } }; c2.alignment = { horizontal: 'center', vertical: 'middle' }; c2.border = allBorders;
             }
 
             setInfo('B8', 'اسم السائق', 'C8', driver);
@@ -640,35 +644,41 @@
             const hCols = ['B', 'C', 'D', 'E', 'F'];
             for(let i=0; i<headers.length; i++) {
                 const c = ws.getCell(hCols[i] + '13');
-                c.value = headers[i]; c.font = { name: 'Cairo', size: 11, bold: true, color: { argb: W } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
+                c.value = headers[i]; c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: W } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
             }
 
             ws.getRow(14).height = 35;
             const data = [1, desc, parseFloat(qty) || 0, parseFloat(price) || 0, parseFloat(subtotal) || 0];
             for(let i=0; i<data.length; i++) {
                 const c = ws.getCell(hCols[i] + '14');
-                c.value = data[i]; c.font = { name: 'Cairo', size: 11, color: { argb: 'FF1A1A2E' } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; c.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
-                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: L } };
+                c.value = data[i]; c.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; c.border = allBorders;
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
                 if(i > 1) c.numFmt = '#,##0.00';
             }
 
-            function addTotalRow(r, lbl, val, bold, color, fill) {
+            // B&W-safe totals: emphasis via bold + borders, NOT color fills.
+            // grand=true -> navy fill + white text (the one allowed heavy fill) with a darker top edge.
+            function addTotalRow(r, lbl, val, grand) {
                 ws.getRow(r).height = 35; ws.mergeCells(`B${r}:E${r}`);
+                const txt = grand ? W : BLACK;
+                const fill = grand ? P : W;
+                const topEdge = grand ? { style: 'medium', color: { argb: BLACK } } : thinBorder;
+                const border = { top: topEdge, bottom: thinBorder, left: thinBorder, right: thinBorder };
                 const lCell = ws.getCell(`B${r}`);
-                lCell.value = lbl; lCell.font = { name: 'Cairo', size: 12, bold: true, color: { argb: color } }; lCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; lCell.alignment = { horizontal: 'left', vertical: 'middle' }; lCell.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+                lCell.value = lbl; lCell.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: txt } }; lCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; lCell.alignment = { horizontal: 'left', vertical: 'middle' }; lCell.border = border;
                 const vCell = ws.getCell(`F${r}`);
-                vCell.value = parseFloat(val) || 0; vCell.font = { name: 'Cairo', size: bold ? 14 : 12, bold: bold, color: { argb: color } }; vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; vCell.alignment = { horizontal: 'center', vertical: 'middle' }; vCell.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder }; vCell.numFmt = '#,##0.00';
+                vCell.value = parseFloat(val) || 0; vCell.font = { name: 'Tajawal', size: grand ? 14 : 12, bold: true, color: { argb: txt } }; vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; vCell.alignment = { horizontal: 'center', vertical: 'middle' }; vCell.border = border; vCell.numFmt = '#,##0.00';
             }
 
-            addTotalRow(15, "المبلغ الإجمالي (قبل الضريبة)", subtotal, false, P, 'FFF9FAFB');
-            addTotalRow(16, "ضريبة القيمة المضافة (15%)", tax, false, 'FFC0392B', 'FFFFF9F9');
-            addTotalRow(17, "المجموع الكلي (مع الضريبة)", total, true, W, P);
+            addTotalRow(15, "المبلغ الإجمالي (قبل الضريبة)", subtotal, false);
+            addTotalRow(16, "ضريبة القيمة المضافة (15%)", tax, false);
+            addTotalRow(17, "المجموع الكلي (مع الضريبة)", total, true);
 
             ws.getRow(20).height = 25;
             ws.getCell('B20').value = "توقيع السائق"; ws.getCell('F20').value = "اعتماد الإدارة";
-            [ws.getCell('B20'), ws.getCell('F20')].forEach(c => { c.font = { name: 'Cairo', size: 11, bold: true, color: { argb: P } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; });
+            [ws.getCell('B20'), ws.getCell('F20')].forEach(c => { c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: BLACK } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; });
             ws.getRow(21).height = 40;
-            const bBottom = { bottom: { style: 'medium', color: { argb: P } } };
+            const bBottom = { bottom: { style: 'medium', color: { argb: BLACK } } };
             ws.getCell('B21').border = bBottom; ws.getCell('F21').border = bBottom;
 
             
@@ -677,10 +687,19 @@
         const footerRow = ws.addRow([`أُعدّ بواسطة قسم الحركة — فرع الدمام    |    التاريخ: ${footerDate}`]);
         ws.mergeCells(`A${footerRow.number}:G${footerRow.number}`);
         footerRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-        footerRow.getCell(1).font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF5A6A7A' } };
-        footerRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDF2F7' } };
+        footerRow.getCell(1).font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
+        footerRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
         footerRow.height = 30;
-        
+
+        // Clean B&W print setup (DESIGN_SYSTEM §6): fit to one page width, centered, show grid on print.
+        ws.pageSetup = {
+            fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+            orientation: 'portrait', horizontalCentered: true,
+            margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+        };
+        ws.properties.showGridLines = false;
+        ws.printOptions = { gridLines: true, horizontalCentered: true };
+
         const buffer = await wb.xlsx.writeBuffer();
 
             return { buffer, filename: `فاتورة_${driver}_${plate}.xlsx` };

@@ -316,20 +316,32 @@
             }
         });
 
-        // Autofill the rest of a row when a known employee name is chosen.
+        // Autofill the rest of a row when a known employee is identified —
+        // either by typing the name (COL_NAME -> FleetData.byName) or the
+        // iqama/ID (COL_IQAMA -> FleetData.byIqama). Existing non-empty cells
+        // are never overwritten.
         function maybeAutofill(input) {
-            if (!window.FleetData || Number(input.dataset.col) !== COL_NAME) return;
-            const rec = FleetData.byName(input.value);
+            if (!window.FleetData) return;
+            const col = Number(input.dataset.col);
+            let rec = null;
+            if (col === COL_NAME) {
+                rec = FleetData.byName(input.value);
+            } else if (col === COL_IQAMA) {
+                rec = FleetData.byIqama(input.value);
+            } else {
+                return;
+            }
             if (!rec) return;
+
             const tr = input.closest('tr');
-            const inputs = tr.querySelectorAll('#employeesBody input, input[data-col]');
-            const setIfEmpty = (col, val) => {
+            const setIfEmpty = (c, val) => {
                 if (val == null || val === '') return;
-                const cell = tr.querySelector(`input[data-col="${col}"]`);
+                const cell = tr.querySelector(`input[data-col="${c}"]`);
                 if (cell && !cell.value.trim()) cell.value = val;
             };
             setIfEmpty(COL_EMPID, rec.empid);
             setIfEmpty(COL_IQAMA, rec.iqama);
+            setIfEmpty(COL_NAME, rec.name);
             setIfEmpty(COL_PLATE, rec.plate);
             setIfEmpty(COL_CAR, rec.car);
             setIfEmpty(COL_PHONE, rec.phone);

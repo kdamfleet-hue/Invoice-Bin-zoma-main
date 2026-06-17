@@ -23,6 +23,13 @@
         #washTable thead th.col-driver { text-align: right; min-width: 180px; }
         #washTable thead th.col-month { width: 52px; }
         #washTable thead th.col-total { width: 60px; background: var(--accent, #c9a227); color: #0C2340; }
+        /* Current-month emphasis: a gold underline + bold so it reads even in B&W on screen */
+        #washTable thead th.col-month.current-month {
+            background: var(--accent, #c9a227); color: #0C2340; font-weight: 900;
+            box-shadow: inset 0 -3px 0 #0C2340;
+        }
+        #washTable thead th.col-month.current-month::after { content: " ⬇"; font-size: 0.7rem; }
+        #washTable tbody td.cell-wash.current-month { box-shadow: inset 2px 0 0 var(--accent, #c9a227), inset -2px 0 0 var(--accent, #c9a227); }
 
         #washTable tbody td {
             padding: 8px 10px; font-size: 0.85rem; text-align: center;
@@ -36,11 +43,25 @@
         #washTable tbody td.cell-total { font-weight: 800; font-size: 1rem; background: var(--surface-hover); }
         #washTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
 
-        /* Wash status cells */
+        /* Wash status cells — meaning carried by symbol (✓/✗) AND text, never color alone */
         .cell-wash { cursor: pointer; font-size: 1.1rem; font-weight: 700; min-width: 44px; user-select: none; }
         .cell-wash.washed { background: #1f9d57 !important; color: #fff; }
         .cell-wash.not-washed { color: var(--text-muted); }
+        .cell-wash.not-washed .x-mark { opacity: 0.55; }
         .cell-wash:hover { opacity: 0.85; }
+
+        /* Monthly-invoice summary banner above the table */
+        .month-summary {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+            gap: 1.5rem; margin: 0 auto 1.25rem; padding: 0.85rem 1.25rem; max-width: 760px;
+            border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.08));
+        }
+        .month-summary .ms-title { font-weight: 800; color: var(--text-primary); }
+        .month-summary .ms-pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.95rem; }
+        .month-summary .ms-pill .badge { min-width: 28px; text-align: center; padding: 2px 10px; border-radius: 999px; font-weight: 800; }
+        .month-summary .ms-pill.received .badge { background: #1f9d57; color: #fff; }
+        .month-summary .ms-pill.pending  .badge { background: var(--surface-hover); color: var(--text-primary); border: 1.5px solid var(--border-strong); }
 
         /* Legend */
         .legend { display: flex; gap: 2rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
@@ -100,6 +121,13 @@
         <div class="bz-stat"><div class="num" id="statPending">0</div><div class="label">لم تُغسل هذا الشهر</div></div>
     </div>
 
+    <!-- Monthly-invoice summary (one wash invoice per vehicle per month) -->
+    <div class="month-summary" id="monthSummary" aria-live="polite">
+        <span class="ms-title">فاتورة الشهر الحالي (<span id="msMonthName">—</span>):</span>
+        <span class="ms-pill received">استلم فاتورة <span class="badge" id="msReceived">0</span></span>
+        <span class="ms-pill pending">لم يستلم بعد <span class="badge" id="msPending">0</span></span>
+    </div>
+
     <!-- Search -->
     <div class="search-bar">
         <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." oninput="filterTable()">
@@ -115,12 +143,12 @@
                     <th class="col-plate">رقم اللوحة</th>
                     <th class="col-type">نوع السيارة</th>
                     <th class="col-driver">اسم السائق</th>
-                    <th class="col-month">1</th><th class="col-month">2</th>
-                    <th class="col-month">3</th><th class="col-month">4</th>
-                    <th class="col-month">5</th><th class="col-month">6</th>
-                    <th class="col-month">7</th><th class="col-month">8</th>
-                    <th class="col-month">9</th><th class="col-month">10</th>
-                    <th class="col-month">11</th><th class="col-month">12</th>
+                    <th class="col-month" id="mhead-0">1</th><th class="col-month" id="mhead-1">2</th>
+                    <th class="col-month" id="mhead-2">3</th><th class="col-month" id="mhead-3">4</th>
+                    <th class="col-month" id="mhead-4">5</th><th class="col-month" id="mhead-5">6</th>
+                    <th class="col-month" id="mhead-6">7</th><th class="col-month" id="mhead-7">8</th>
+                    <th class="col-month" id="mhead-8">9</th><th class="col-month" id="mhead-9">10</th>
+                    <th class="col-month" id="mhead-10">11</th><th class="col-month" id="mhead-11">12</th>
                     <th class="col-total">المجموع</th>
                 </tr>
             </thead>
@@ -130,9 +158,9 @@
 
     <!-- Legend -->
     <div class="legend">
-        <div class="legend-item"><div class="legend-dot green">✓</div><span>تم الغسيل (استلم)</span></div>
-        <div class="legend-item"><div class="legend-dot gray">✕</div><span>لم يتم الغسيل</span></div>
-        <div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">انقر على أي خلية شهر لتغيير الحالة</div>
+        <div class="legend-item"><div class="legend-dot green">✓</div><span>استلم فاتورة الغسيل لهذا الشهر</span></div>
+        <div class="legend-item"><div class="legend-dot gray">✗</div><span>لم يستلم فاتورة هذا الشهر</span></div>
+        <div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">العمود المظلل بالذهبي ⬇ هو الشهر الحالي — انقر على أي خلية لتغيير الحالة (فاتورة واحدة لكل مركبة شهرياً)</div>
     </div>
     </div>
 
@@ -148,7 +176,18 @@
 
 <script>
     const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    const CURRENT_MONTH = new Date().getMonth(); // 0-based index of the active invoice month
     let vehicles = [];
+
+    // Mark the current-month column header so the dispatch officer sees it at a glance.
+    function markCurrentMonthHeader() {
+        for (let i = 0; i < 12; i++) {
+            const th = document.getElementById('mhead-' + i);
+            if (th) th.classList.toggle('current-month', i === CURRENT_MONTH);
+        }
+        const msName = document.getElementById('msMonthName');
+        if (msName) msName.textContent = MONTH_NAMES[CURRENT_MONTH];
+    }
 
     function init() {
         // Populate the driver datalist + load fleet records for plate-based autofill
@@ -206,7 +245,10 @@
 
             for (let mi = 0; mi < 12; mi++) {
                 const w = v.m[mi];
-                html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}" onclick="toggle(${idx},${mi})">${w ? '✓' : ''}</td>`;
+                const cur = mi === CURRENT_MONTH ? ' current-month' : '';
+                const mark = w ? '<span class="ok-mark" title="استلم">✓</span>'
+                               : '<span class="x-mark" title="لم يستلم">✗</span>';
+                html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}${cur}" onclick="toggle(${idx},${mi})" title="${escapeHtml(MONTH_NAMES[mi])}: ${w ? 'استلم' : 'لم يستلم'}">${mark}</td>`;
             }
             html += `<td class="cell-total">${total}</td></tr>`;
             allHtml += html;
@@ -256,10 +298,10 @@
     }
 
     function updateStats() {
-        const now = new Date();
-        const cm = now.getMonth(); // 0-based
+        const cm = CURRENT_MONTH; // 0-based current invoice month
         const totalV = vehicles.length;
         const totalW = vehicles.reduce((s, v) => s + getTotal(v), 0);
+        // Monthly-invoice logic: a vehicle "received" if its current-month cell == 1 (one invoice / month).
         const currentM = vehicles.filter(v => v.m[cm] === 1).length;
         const pending = totalV - currentM;
 
@@ -267,6 +309,12 @@
         document.getElementById('statWashes').textContent = totalW;
         document.getElementById('statCurrent').textContent = currentM;
         document.getElementById('statPending').textContent = pending;
+
+        // Summary banner above the table
+        const msR = document.getElementById('msReceived');
+        const msP = document.getElementById('msPending');
+        if (msR) msR.textContent = currentM;
+        if (msP) msP.textContent = pending;
     }
 
     function saveState(showMsg = true) {
@@ -300,8 +348,23 @@
         const oldText = btn ? btn.innerHTML : '';
         if (btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
 
-        const THIN = { style: 'thin', color: { argb: 'FFD9D9D9' } };
+        // B&W-print-safe borders (Section 6): thin grid everywhere, medium dark
+        // border to emphasize the current-month column (emphasis = border, not color).
+        const THIN  = { style: 'thin',   color: { argb: 'FFBFBFBF' } };
+        const DARK  = { style: 'thin',   color: { argb: 'FF000000' } };
+        const MED   = { style: 'medium', color: { argb: 'FF000000' } };
         const ALL_BORDERS = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+        // Current month is the same index used on screen (one invoice / vehicle / month).
+        const curCol = 5 + CURRENT_MONTH; // E(5)=Jan … P(16)=Dec
+
+        // Apply the current-month emphasis to a single cell: keep its borders but make
+        // the side borders medium-black + bold text so it stands out in pure grayscale.
+        function emphasizeCurrentMonth(cell) {
+            const b = Object.assign({}, cell.border || ALL_BORDERS);
+            b.left = MED; b.right = MED;
+            cell.border = b;
+            cell.font = Object.assign({}, cell.font, { bold: true });
+        }
 
         try {
             const response = await fetch('/static/washing_template.xlsx');
@@ -310,20 +373,36 @@
 
             const wb = new ExcelJS.Workbook();
             await wb.xlsx.load(buffer);
-            const ws = wb.worksheets[0];
+            // The washing data lives in the "جدول الغسيل" sheet (with the COUNTIF totals row),
+            // not the first sheet. Select it by name; fall back to the last sheet.
+            const ws = wb.getWorksheet('جدول الغسيل') || wb.worksheets[wb.worksheets.length - 1];
 
             // Corporate standard: RTL + freeze the header rows (data starts at row 5).
             ws.views = [{ rightToLeft: true, state: 'frozen', ySplit: 4 }];
+
+            // B&W print setup (Section 6): fit to width, centered, show gridlines on print.
+            ws.pageSetup = Object.assign({}, ws.pageSetup, {
+                fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+                horizontalCentered: true, orientation: 'landscape',
+                margins: { left:0.3, right:0.3, top:0.5, bottom:0.5, header:0.2, footer:0.2 }
+            });
+            ws.properties = Object.assign({}, ws.properties);
+            if (ws.pageSetup) ws.pageSetup.showGridLines = true;
 
             // Vehicles data starts at row 5 in template.
             const startRow = 5;
 
             // The template has 28 data rows by default (row 5 to 32).
             // Row 34 is the Total footer (kept with its COUNTIF formulas), row 36 the bottom footer.
+            // Inserting at row 33 shifts the totals row & its COUNTIF/SUM ranges down automatically.
             if(vehicles.length > 28) {
                 const extra = vehicles.length - 28;
                 ws.spliceRows(33, 0, ...Array.from({length: extra}).map(() => []));
             }
+
+            // Mark the current-month column header (row 4) for B&W clarity.
+            const headerCell = ws.getRow(4).getCell(curCol);
+            emphasizeCurrentMonth(headerCell);
 
             vehicles.forEach((v, idx) => {
                 const r = startRow + idx;
@@ -338,7 +417,9 @@
                 for(let m = 0; m < 12; m++) {
                     const isWashed = v.m && v.m[m] === 1;
                     if(isWashed) total++;
-                    row.getCell(5 + m).value = isWashed ? 'استلم' : '';
+                    // Meaning carried by TEXT/SYMBOL, never color alone (Section 6) — mirrors the
+                    // on-screen ✓/✗ convention. "استلم" is matched exactly by the template's COUNTIF.
+                    row.getCell(5 + m).value = isWashed ? 'استلم' : '✗';
                 }
                 row.getCell(17).value = total;
 
@@ -354,24 +435,32 @@
                     }
                 }
 
-                // Enforce the corporate look on every data cell (borders + centering + zebra).
+                // Enforce the corporate B&W look on every data cell:
+                // white bg, black text, thin border every side, optional ultra-light zebra.
                 const zebra = (idx % 2 === 1);
                 for(let c = 1; c <= 17; c++) {
                     const cell = row.getCell(c);
                     cell.border = ALL_BORDERS;
+                    cell.font = Object.assign({}, cell.font, { color: { argb: 'FF000000' } });
                     cell.alignment = { vertical: 'middle', horizontal: 'center', readingOrder: 'rtl' };
-                    if (zebra && (!cell.fill || cell.fill.type !== 'pattern')) {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F7FA' } };
-                    }
+                    // Force white/zebra fill so no inherited color fill survives into B&W print.
+                    cell.fill = { type: 'pattern', pattern: 'solid',
+                                  fgColor: { argb: zebra ? 'FFF2F2F2' : 'FFFFFFFF' } };
                 }
                 row.getCell(17).font = Object.assign({}, row.getCell(17).font, { bold: true });
+                // Current-month cell emphasis (bold + medium black side borders).
+                emphasizeCurrentMonth(row.getCell(curCol));
             });
 
-            // Footer line with the prepared-by note and the export date.
-            const lastDataRow = startRow + vehicles.length - 1;
-            const footerRow = ws.getRow(lastDataRow + 3);
+            // Total row keeps its COUNTIF/SUM formulas; emphasize its current-month cell too.
+            const totalRow = 34 + Math.max(0, vehicles.length - 28);
+            emphasizeCurrentMonth(ws.getRow(totalRow).getCell(curCol));
+
+            // Footer line with the prepared-by note and the export date (below the bottom footer).
             const today = new Date().toISOString().slice(0, 10);
-            footerRow.getCell(1).value = 'أُعدّ بواسطة قسم الحركة — فرع الدمام — ' + today;
+            const footerRow = ws.getRow(totalRow + 4);
+            footerRow.getCell(1).value = 'أُعدّ بواسطة قسم الحركة — فرع الدمام — ' + today
+                + '  |  الشهر الحالي: ' + MONTH_NAMES[CURRENT_MONTH];
             footerRow.getCell(1).font = { name: 'Tajawal', size: 11, italic: true, color: { argb: 'FF555555' } };
             footerRow.getCell(1).alignment = { horizontal: 'right', readingOrder: 'rtl' };
 
@@ -387,7 +476,7 @@
         }
     }
 
-    window.addEventListener('load', init);
+    window.addEventListener('load', () => { markCurrentMonthHeader(); init(); });
 </script>
 <a href="https://wa.me/966570310909?text=مرحباً" target="_blank" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; font-family: Cairo;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل معنا - خالد بن محمد الغامدي</a>
 </body>

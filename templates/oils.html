@@ -136,7 +136,7 @@
                     <th class="excel-header" style="width:12%;">رقم العداد</th>
                     <th class="excel-header" style="width:12%;">عدد اللترات</th>
                     <th class="excel-header" style="width:28%;">عدد فلاتر الزيت والديزل والهواء</th>
-                      <th class="excel-header" style="width:3%; border-right:none; background-color:#ffcccc; color:red;">حذف</th>
+                      <th class="excel-header" style="width:3%; border-right:none;">حذف</th>
                 </tr>
             </thead>
             <tbody id="oilsBody">
@@ -728,10 +728,10 @@
     
     <!-- Total Consumed Oils -->
     <div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 20px;">
-        <table class="excel-table" style="border: 2px solid #000; box-shadow: var(--shadow-sm);">
+        <table class="excel-table" style="border: 2px solid var(--border-strong); box-shadow: var(--shadow-sm);">
             <tr>
-                <td style="background-color: #BDD7EE; color: #000; font-weight: 800; font-size: 1.2rem; text-align: center; padding: 15px !important; width: 70%; border: 1px solid #000;">إجمالي الزيوت المستهلكة (عدد اللترات)</td>
-                <td style="background: #fff; color: #e74c3c; font-weight: 900; font-size: 1.5rem; text-align: center; padding: 15px !important; width: 30%; border: 1px solid #000;" id="totalOilsLiters">0</td>
+                <td style="background-color: var(--brand-navy); color: #fff; font-weight: 800; font-size: 1.2rem; text-align: center; padding: 15px !important; width: 70%; border: 1px solid var(--brand-navy);">إجمالي الزيوت المستهلكة (عدد اللترات)</td>
+                <td style="background: var(--surface); color: var(--text-primary); font-weight: 900; font-size: 1.5rem; text-align: center; padding: 15px !important; width: 30%; border: 1px solid var(--border-strong);" id="totalOilsLiters">0</td>
             </tr>
         </table>
     </div>
@@ -740,7 +740,7 @@
     <div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 20px;">
         <table class="excel-table">
             <tr>
-                <td style="background-color: #BDD7EE; font-weight: bold; text-align: center; padding: 10px !important;">ملاحظات وتفاصيل الفلاتر</td>
+                <td style="background-color: var(--brand-navy); color: #fff; font-weight: bold; text-align: center; padding: 10px !important;">ملاحظات وتفاصيل الفلاتر</td>
             </tr>
             <tr><td style="border:none; height:10px;"></td></tr>
             <tr>
@@ -1220,17 +1220,38 @@
                 await wb.xlsx.load(buffer);
                 const ws = wb.worksheets[0];
 
-                // --- Corporate styling helpers (DESIGN_SYSTEM Excel standard) ---
-                const NAVY = 'FF0C2340', GOLD = 'FFC9A227', ZEBRA = 'FFF5F7FA', GRID = 'FFD9D9D9';
+                // --- Corporate styling helpers (DESIGN_SYSTEM §6 — B&W print safe) ---
+                // Header = navy fill + white bold (only heavy fill allowed).
+                // Data  = WHITE background, BLACK text, thin border on every side.
+                // Zebra = very light gray only (reads near-white in grayscale).
+                const NAVY = 'FF0C2340', GOLD = 'FFC9A227', ZEBRA = 'FFF2F2F2',
+                      WHITE = 'FFFFFFFF', BLACK = 'FF000000', GRID = 'FF595959';
                 const thin = { style: 'thin', color: { argb: GRID } };
                 const allBorders = { top: thin, left: thin, bottom: thin, right: thin };
                 ws.views = [{ rightToLeft: true, state: 'frozen', ySplit: 5 }];
 
+                const whiteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WHITE } };
+                const zebraFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
+
                 function styleData(cell, isZebra) {
                     cell.border = allBorders;
                     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                    cell.font = { name: 'Tajawal', size: 11, color: { argb: 'FF1A1A1A' } };
-                    if(isZebra) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
+                    cell.font = { name: 'Tajawal', size: 11, bold: false, color: { argb: BLACK } };
+                    // Force a print-safe background: white, or very-light-gray zebra. Never colored.
+                    cell.fill = isZebra ? zebraFill : whiteFill;
+                }
+
+                // Neutralize any decorative/colored fills inherited from the static template
+                // so the whole sheet prints cleanly in pure black & white. Header (row 5) and
+                // title (row 4) are re-styled with navy below, so skipping them here is safe.
+                function neutralizeTemplateFill(cell) {
+                    const f = cell.fill;
+                    if(f && f.type === 'pattern' && f.fgColor && f.fgColor.argb) {
+                        const argb = String(f.fgColor.argb).toUpperCase();
+                        if(argb !== NAVY && argb !== WHITE && argb !== ZEBRA) {
+                            cell.fill = whiteFill;
+                        }
+                    }
                 }
 
                 // 1. Title (merged, navy fill, white bold 16)
@@ -1283,12 +1304,26 @@
 
                 const tables = document.querySelectorAll('.excel-table');
                 
+                // Helper: style a merged note row (white bg, black text, thin border, right-aligned)
+                function styleNoteRow(rowNum) {
+                    ['A','B','C','D','E','F','G','H','I','J'].forEach(col => {
+                        const c = ws.getCell(col + rowNum);
+                        c.border = allBorders;
+                        c.fill = whiteFill;
+                        c.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } };
+                        c.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true, readingOrder: 'rtl' };
+                    });
+                    const ro = ws.getRow(rowNum);
+                    if(ro.height < 22) ro.height = 22;
+                }
+
                 // 3. Top Notes (Row 65,66,67)
                 if(tables.length > 1) {
                     const topNotes = tables[1].querySelectorAll('input');
                     if(topNotes.length >= 1) ws.getCell('A65').value = topNotes[0].value;
                     if(topNotes.length >= 2) ws.getCell('A66').value = topNotes[1].value;
                     if(topNotes.length >= 3) ws.getCell('A67').value = topNotes[2].value;
+                    [65, 66, 67].forEach(styleNoteRow);
                 }
 
                 // 4. Filters Table (Max 18 rows: Excel Row 69 to 86)
@@ -1310,7 +1345,23 @@
                             ws.getCell('G'+r).value = getVal(6);
                             ws.getCell('H'+r).value = getVal(7);
                             ws.getCell('I'+r).value = getVal(8);
+
+                            const zebra = (idx % 2 === 1);
+                            ['A','B','C','D','E','F','G','H','I','J'].forEach(col => styleData(ws.getCell(col + r), zebra));
+                            const rowObj = ws.getRow(r);
+                            if(rowObj.height < 22) rowObj.height = 22;
                         }
+                    });
+
+                    // Style the filters table header row (Excel row 68) navy + white bold.
+                    const fHeader = ws.getRow(68);
+                    fHeader.height = 26;
+                    ['A','B','C','D','E','F','G','H','I','J'].forEach(col => {
+                        const c = ws.getCell(col + '68');
+                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                        c.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: WHITE } };
+                        c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                        c.border = { top: thin, left: thin, right: thin, bottom: { style: 'medium', color: { argb: GOLD } } };
                     });
                 }
 
@@ -1323,6 +1374,7 @@
                     if(bottomNotes.length >= 4) ws.getCell('A92').value = bottomNotes[3].value;
                     if(bottomNotes.length >= 5) ws.getCell('A93').value = bottomNotes[4].value;
                     if(bottomNotes.length >= 6) ws.getCell('A94').value = bottomNotes[5].value;
+                    [89, 90, 91, 92, 93, 94].forEach(styleNoteRow);
                 }
 
                 // 6. Corporate footer row
@@ -1331,8 +1383,29 @@
                 const today = new Date().toISOString().slice(0, 10);
                 footCell.value = 'أُعدّ بواسطة قسم الحركة — فرع الدمام   |   التاريخ: ' + today;
                 try { ws.mergeCells('A' + footRow + ':H' + footRow); } catch(e) {}
-                footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: 'FF5A6A7A' } };
+                footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: BLACK } };
                 footCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+                // 7. Re-style title (row 4) navy + white bold 16, in case the template carried other fills.
+                titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: WHITE } };
+                titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+                // 8. Final B&W sweep: strip any leftover decorative fills from the template
+                // (light blue/beige bands) across the whole used range so nothing prints muddy.
+                // Skip the title (row 4) and the two navy header rows (5 and 68).
+                ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+                    if(rowNumber === 4 || rowNumber === 5 || rowNumber === 68) return;
+                    row.eachCell({ includeEmpty: false }, (cell) => neutralizeTemplateFill(cell));
+                });
+
+                // 9. Print setup — clean B&W landscape (DESIGN_SYSTEM §6).
+                ws.pageSetup = {
+                    fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+                    orientation: 'landscape', horizontalCentered: true,
+                    margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+                };
+                ws.printOptions = { gridLines: true, horizontalCentered: true };
 
                 const outBuffer = await wb.xlsx.writeBuffer();
                 saveAs(new Blob([outBuffer]), 'بيان_الزيوت_الدمام.xlsx');

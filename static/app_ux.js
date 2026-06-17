@@ -809,6 +809,12 @@ window.FleetData = (function () {
         return records().find(function (d) { return window.normalizePlate(d.plate) === target; }) || null;
     }
 
+    function byIqama(iqama) {
+        const t = String(iqama == null ? '' : iqama).replace(/\D/g, '');
+        if (!t) return null;
+        return records().find(function (d) { return String(d.iqama || '').replace(/\D/g, '') === t; }) || null;
+    }
+
     /** Populate a <datalist> (or <select>) with all driver names. */
     async function fillDatalist(elOrId) {
         await load();
@@ -853,7 +859,7 @@ window.FleetData = (function () {
         nameEl.addEventListener('input', apply);
     }
 
-    return { load: load, records: records, byName: byName, byPlate: byPlate, fillDatalist: fillDatalist, attachAutofill: attachAutofill };
+    return { load: load, records: records, byName: byName, byPlate: byPlate, byIqama: byIqama, fillDatalist: fillDatalist, attachAutofill: attachAutofill };
 })();
 
 function applyEnglishStyles() {
