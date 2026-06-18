@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بحث سريع | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+
+    <style>
+        /* Page-specific layout only — colors/fonts/buttons come from base_styles.css tokens. */
+        .search-hero {
+            max-width: 1200px;
+            margin: 0 auto 1.25rem;
+            padding: 0 20px;
+        }
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-box .search-icon {
+            position: absolute;
+            inset-inline-start: 18px;
+            font-size: 1.5rem;
+            pointer-events: none;
+            opacity: .7;
+        }
+        #searchInput {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 18px 56px 18px 20px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            background: var(--surface);
+            border: 2px solid var(--border-strong);
+            border-radius: 14px;
+            outline: none;
+            box-shadow: var(--shadow-sm);
+            transition: var(--trans);
+        }
+        #searchInput:focus {
+            border-color: var(--brand-gold);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        .search-toolbar {
+            display: flex;
+            gap: .6rem;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            margin: 1rem auto 0;
+            max-width: 1200px;
+            padding: 0 20px;
+        }
+        .filter-pills { display: flex; gap: .5rem; flex-wrap: wrap; }
+        .filter-pill {
+            cursor: pointer;
+            border: 1.5px solid var(--border-strong);
+            background: var(--surface);
+            color: var(--text-primary);
+            font-family: 'Tajawal', sans-serif;
+            font-weight: 700;
+            font-size: .95rem;
+            padding: 9px 18px;
+            border-radius: 999px;
+            transition: var(--trans);
+        }
+        .filter-pill:hover { border-color: var(--brand-gold); }
+        .filter-pill.active {
+            background: var(--brand-navy);
+            color: #fff;
+            border-color: var(--brand-navy);
+        }
+
+        .result-count {
+            text-align: center;
+            font-weight: 700;
+            color: var(--text-secondary, var(--text-primary));
+            margin: 1rem auto;
+            font-size: 1rem;
+        }
+        .result-count strong { color: var(--brand-gold); font-size: 1.15rem; }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+            gap: 1.1rem;
+            max-width: 1200px;
+            margin: 0 auto 2rem;
+            padding: 0 20px;
+        }
+
+        .vehicle-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            transition: var(--trans);
+        }
+        .vehicle-card:hover { box-shadow: var(--shadow-md, var(--shadow-sm)); transform: translateY(-2px); }
+        .vc-head {
+            background: var(--brand-navy);
+            color: #fff;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .vc-name { font-weight: 800; font-size: 1.1rem; }
+        .vc-plate {
+            font-weight: 800;
+            font-size: 1.05rem;
+            letter-spacing: 1px;
+            background: var(--brand-gold);
+            color: var(--brand-navy);
+            padding: 4px 12px;
+            border-radius: 8px;
+            white-space: nowrap;
+            direction: ltr;
+            unicode-bidi: plaintext;
+        }
+        .vc-kind {
+            display: inline-block;
+            font-size: .8rem;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.18);
+            color: #fff;
+        }
+        .vc-body {
+            padding: 12px 16px 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 14px;
+        }
+        .vc-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .vc-field.full { grid-column: 1 / -1; }
+        .vc-label { font-size: .72rem; font-weight: 700; color: var(--text-secondary, #6b7280); }
+        .vc-value { font-size: .95rem; font-weight: 600; color: var(--text-primary); word-break: break-word; }
+        .vc-value.expired { color: var(--danger, #d92d20); font-weight: 800; }
+        .vc-value.expired::after { content: " ⚠"; }
+
+        .empty-state {
+            text-align: center;
+            max-width: 600px;
+            margin: 2rem auto;
+            color: var(--text-secondary, var(--text-primary));
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+        .empty-state .big { font-size: 2.4rem; display: block; margin-bottom: .5rem; opacity: .7; }
+
+        @media (max-width: 480px) {
+            .vc-body { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/search" class="active">🔍 بحث</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      </nav>
+      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <div class="bz-shell">
+
+        <h2 class="bz-section-title">🔍 بحث سريع — بيانات المركبات والسائقين</h2>
+
+        <div class="bz-stats">
+            <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
+            <div class="bz-stat"><div class="num" id="statTrucks">0</div><div class="label">شاحنات</div></div>
+            <div class="bz-stat"><div class="num" id="statSmall">0</div><div class="label">سيارات صغيرة</div></div>
+        </div>
+
+        <div class="search-hero">
+            <div class="search-box">
+                <span class="search-icon">🔎</span>
+                <input type="search" id="searchInput" autocomplete="off"
+                       placeholder="اكتب اسم السائق أو رقم اللوحة أو رقم الإقامة..." disabled>
+            </div>
+        </div>
+
+        <div class="search-toolbar">
+            <div class="filter-pills" id="kindFilters">
+                <button type="button" class="filter-pill active" data-kind="all">الكل</button>
+                <button type="button" class="filter-pill" data-kind="شاحنة">🚛 شاحنة</button>
+                <button type="button" class="filter-pill" data-kind="صغيرة">🚗 صغيرة</button>
+            </div>
+        </div>
+
+        <div class="result-count" id="resultCount">جارٍ تحميل البيانات...</div>
+
+        <div class="results-grid" id="resultsGrid"></div>
+
+        <div class="empty-state" id="emptyState" style="display:none;"></div>
+
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            var DISPLAY_LIMIT = 100;
+            var allVehicles = [];
+            var currentKind = 'all';
+            var dataReady = false;
+
+            var inputEl   = document.getElementById('searchInput');
+            var gridEl    = document.getElementById('resultsGrid');
+            var countEl   = document.getElementById('resultCount');
+            var emptyEl   = document.getElementById('emptyState');
+            var filtersEl = document.getElementById('kindFilters');
+
+            // Safe HTML escaper — prefer the shared global, fall back if app_ux.js not yet loaded.
+            function esc(v) {
+                if (typeof window.escapeHtml === 'function') return window.escapeHtml(v);
+                return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+                });
+            }
+            function normPlate(v) {
+                if (typeof window.normalizePlate === 'function') return window.normalizePlate(v);
+                return String(v == null ? '' : v).replace(/\s+/g, '');
+            }
+            function normIqama(v) {
+                return String(v == null ? '' : v).replace(/\D/g, '');
+            }
+
+            // Returns true only for Gregorian YYYY-MM-DD dates (year 20xx) strictly before today.
+            // Hijri dates (14xx-...) are ignored intentionally.
+            function isExpired(dateStr) {
+                var s = String(dateStr == null ? '' : dateStr).trim();
+                var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+                if (!m) return false;
+                if (!/^20\d{2}$/.test(m[1])) return false;
+                var d = new Date(m[1] + '-' + m[2] + '-' + m[3] + 'T00:00:00');
+                if (isNaN(d.getTime())) return false;
+                var today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return d.getTime() < today.getTime();
+            }
+
+            function field(label, value, opts) {
+                opts = opts || {};
+                var val = (value == null || String(value).trim() === '') ? '—' : value;
+                var cls = 'vc-value' + (opts.expired ? ' expired' : '');
+                var fullCls = opts.full ? ' full' : '';
+                return '<div class="vc-field' + fullCls + '">' +
+                       '<span class="vc-label">' + esc(label) + '</span>' +
+                       '<span class="' + cls + '">' + esc(val) + '</span>' +
+                       '</div>';
+            }
+
+            function cardHtml(v) {
+                var name  = (v.name && String(v.name).trim()) ? v.name : 'غير مسجَّل';
+                var plate = (v.plate && String(v.plate).trim()) ? v.plate : '—';
+                var kind  = (v.kind && String(v.kind).trim()) ? v.kind : '';
+
+                var licExp = isExpired(v.licenseExpiry);
+                var insExp = isExpired(v.inspectExpiry);
+
+                var html = '<article class="vehicle-card">';
+                html += '<div class="vc-head">';
+                html += '<span class="vc-name">' + esc(name) + '</span>';
+                html += '<span class="vc-plate">' + esc(plate) + '</span>';
+                if (kind) html += '<span class="vc-kind">' + esc(kind) + '</span>';
+                html += '</div>';
+
+                html += '<div class="vc-body">';
+                html += field('رقم الإقامة', v.iqama);
+                html += field('الفئة', kind || '—');
+                html += field('نوع التسجيل', v.regType);
+                html += field('حالة المركبة', v.status);
+                html += field('الماركة', v.make);
+                html += field('الطراز', v.model);
+                html += field('سنة الصنع', v.year);
+                html += field('اللون', v.color);
+                html += field('الرقم التسلسلي', v.vserial);
+                html += field('رقم الهيكل', v.chassis);
+                html += field('انتهاء رخصة السير', v.licenseExpiry, { expired: licExp });
+                html += field('انتهاء الفحص', v.inspectExpiry, { expired: insExp });
+                html += field('حالة الفحص', v.inspectStatus);
+                html += field('حالة التأمين', v.insuranceStatus);
+                html += '</div>';
+
+                html += '</article>';
+                return html;
+            }
+
+            function matches(v, query) {
+                // Name (partial, case-insensitive)
+                var name = String(v.name == null ? '' : v.name).toLowerCase();
+                if (name.indexOf(query.raw) !== -1) return true;
+                // Plate (normalized partial)
+                if (query.plate && normPlate(v.plate).indexOf(query.plate) !== -1) return true;
+                // Iqama (digits-only partial)
+                if (query.digits && normIqama(v.iqama).indexOf(query.digits) !== -1) return true;
+                return false;
+            }
+
+            function buildQuery(rawValue) {
+                var raw = rawValue.trim().toLowerCase();
+                return {
+                    raw: raw,
+                    plate: normPlate(rawValue.trim()).toLowerCase(),
+                    digits: String(rawValue).replace(/[^\d٠-٩]/g, '').replace(/[٠-٩]/g, function (d) {
+                        return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);
+                    })
+                };
+            }
+
+            function render() {
+                if (!dataReady) return;
+
+                var rawVal = inputEl.value;
+                var hasQuery = rawVal.trim().length > 0;
+                var query = buildQuery(rawVal);
+
+                var list = allVehicles.filter(function (v) {
+                    if (currentKind !== 'all' && v.kind !== currentKind) return false;
+                    if (!hasQuery) return true;
+                    return matches(v, query);
+                });
+
+                var total = list.length;
+
+                if (total === 0) {
+                    gridEl.innerHTML = '';
+                    gridEl.style.display = 'none';
+                    emptyEl.style.display = 'block';
+                    emptyEl.innerHTML = hasQuery
+                        ? '<span class="big">🔍</span>لا توجد نتائج مطابقة لبحثك. جرّب اسماً آخر أو رقم لوحة/إقامة.'
+                        : '<span class="big">🚚</span>ابدأ بكتابة اسم السائق أو رقم اللوحة أو الإقامة لعرض النتائج.';
+                    countEl.innerHTML = hasQuery ? 'لا توجد نتائج' : '';
+                    return;
+                }
+
+                emptyEl.style.display = 'none';
+                gridEl.style.display = 'grid';
+
+                var shown = total;
+                var note = '';
+                if (!hasQuery && total > DISPLAY_LIMIT) {
+                    shown = DISPLAY_LIMIT;
+                    note = ' — يُعرض أول ' + DISPLAY_LIMIT + ' فقط، اكتب للتضييق';
+                }
+
+                var slice = list.slice(0, shown);
+                var out = '';
+                for (var i = 0; i < slice.length; i++) out += cardHtml(slice[i]);
+                gridEl.innerHTML = out;
+
+                countEl.innerHTML = 'عدد النتائج: <strong>' + total + '</strong>' + esc(note);
+            }
+
+            function setStats() {
+                var trucks = 0, small = 0;
+                for (var i = 0; i < allVehicles.length; i++) {
+                    if (allVehicles[i].kind === 'شاحنة') trucks++;
+                    else if (allVehicles[i].kind === 'صغيرة') small++;
+                }
+                document.getElementById('statTotal').textContent  = allVehicles.length;
+                document.getElementById('statTrucks').textContent = trucks;
+                document.getElementById('statSmall').textContent  = small;
+            }
+
+            // Filter pill clicks
+            filtersEl.addEventListener('click', function (e) {
+                var btn = e.target.closest('.filter-pill');
+                if (!btn) return;
+                currentKind = btn.getAttribute('data-kind') || 'all';
+                var pills = filtersEl.querySelectorAll('.filter-pill');
+                for (var i = 0; i < pills.length; i++) pills[i].classList.remove('active');
+                btn.classList.add('active');
+                render();
+            });
+
+            // Live filter as the user types
+            inputEl.addEventListener('input', render);
+
+            // Load data once on open
+            function loadData() {
+                fetch('/api/vehicles_lookup', { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.ok ? r.json() : []; })
+                    .then(function (rows) {
+                        allVehicles = Array.isArray(rows) ? rows : [];
+                        dataReady = true;
+                        inputEl.disabled = false;
+                        setStats();
+                        render();
+                        inputEl.focus();
+                    })
+                    .catch(function () {
+                        dataReady = true;
+                        inputEl.disabled = false;
+                        countEl.textContent = '';
+                        emptyEl.style.display = 'block';
+                        emptyEl.innerHTML = '<span class="big">⚠️</span>تعذّر تحميل بيانات المركبات. حدّث الصفحة وحاول مرة أخرى.';
+                        if (typeof window.showToast === 'function') {
+                            window.showToast('تعذّر تحميل بيانات المركبات', 'error');
+                        }
+                    });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', loadData);
+            } else {
+                loadData();
+            }
+        })();
+    </script>
+
+</body>
+</html>

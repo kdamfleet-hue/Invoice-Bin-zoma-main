@@ -15,22 +15,34 @@
     .sched-date { display:flex; align-items:center; gap:.5rem; font-weight:700; }
     .sched-date input { width:auto; padding:8px 12px; }
 
-    .sched-table-wrap { width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-sm); background:var(--surface); }
-    table.sched { border-collapse:collapse; width:100%; min-width:1500px; }
-    table.sched th, table.sched td { border:1px solid var(--border-strong); padding:0; text-align:center; }
+    /* Fit-to-width: no horizontal scrollbar — all 17 columns visible at once */
+    .sched-table-wrap { width:100%; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-sm); background:var(--surface); overflow:hidden; }
+    table.sched { border-collapse:collapse; width:100%; table-layout:fixed; }
+    table.sched th, table.sched td { border:1px solid var(--border-strong); padding:0; text-align:center; overflow:hidden; }
     table.sched thead th {
-      background:#BDD7EE; color:#0f2747; font-weight:800; font-size:.78rem;
-      padding:8px 4px; position:sticky; top:0; z-index:2; white-space:normal; line-height:1.3;
+      background:#BDD7EE; color:#0f2747; font-weight:700; font-size:.68rem;
+      padding:6px 2px; position:sticky; top:0; z-index:2; white-space:normal; line-height:1.25; word-break:break-word;
     }
     body.dark-mode table.sched thead th { background:#1e3a5f; color:#dbe9ff; }
     table.sched td { vertical-align:middle; }
     table.sched td input {
-      width:100%; min-width:70px; border:none; background:transparent; text-align:center;
-      padding:7px 5px; font-size:.82rem; color:var(--text-primary); box-shadow:none; border-radius:0; font-family:inherit;
+      width:100%; min-width:0; border:none; background:transparent; text-align:center;
+      padding:6px 2px; font-size:.72rem; color:var(--text-primary); box-shadow:none; border-radius:0; font-family:inherit; text-overflow:ellipsis;
     }
-    table.sched td input:focus { background:var(--accent-glow); outline:2px solid var(--accent); outline-offset:-2px; }
-    table.sched td.col-idx { background:var(--surface-hover); font-weight:700; width:42px; font-size:.8rem; }
-    table.sched td.col-act { width:46px; }
+    table.sched td input:focus { background:var(--accent-glow); outline:2px solid var(--accent); outline-offset:-2px; position:relative; z-index:3; }
+    table.sched td.col-idx { background:var(--surface-hover); font-weight:700; font-size:.72rem; }
+    /* Expired / soon-to-expire date highlighting */
+    table.sched td.exp-bad input { background:#fde2e2; color:#b91c1c; font-weight:800; }
+    table.sched td.exp-warn input { background:#fef3c7; color:#92400e; font-weight:800; }
+    body.dark-mode table.sched td.exp-bad input { background:rgba(220,38,38,.30); color:#fca5a5; }
+    body.dark-mode table.sched td.exp-warn input { background:rgba(245,158,11,.24); color:#fcd34d; }
+    .col-act-wrap { display:flex; gap:3px; justify-content:center; align-items:center; }
+    .row-notify { background:#dcfce7; color:#15803d; border:none; width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:.85rem; line-height:1; }
+    .row-notify:hover { background:#16a34a; color:#fff; }
+    body.dark-mode .row-notify { background:rgba(22,163,74,.20); color:#86efac; }
+    .exp-legend { display:flex; gap:1rem; flex-wrap:wrap; font-size:.8rem; color:var(--text-secondary); margin:.4rem 0 .2rem; }
+    .exp-legend span { display:inline-flex; align-items:center; gap:5px; }
+    .exp-legend i { width:14px; height:14px; border-radius:3px; display:inline-block; }
     table.sched tbody tr:nth-child(even) td:not(.col-idx) { background:rgba(0,0,0,0.015); }
     body.dark-mode table.sched tbody tr:nth-child(even) td:not(.col-idx) { background:rgba(255,255,255,0.02); }
     .row-del { background:#fef2f2; color:#dc2626; border:none; width:26px; height:26px; border-radius:6px; cursor:pointer; font-weight:800; }
@@ -68,6 +80,8 @@
       <a href="/washing">🚿 الغسيل</a>
       <a href="/workshop">🔧 الورشة</a>
       <a href="/employees">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
       <a href="/gps_sync">📡 مزامنة GPS</a>
       <a href="/tracking">🛰️ التتبع</a>
     </nav>
@@ -107,6 +121,11 @@
 
     <!-- Main table -->
     <div class="sec-title"><h2>📋 الجدول الرئيسي</h2></div>
+    <div class="exp-legend">
+      <span><i style="background:#fde2e2;border:1px solid #b91c1c;"></i> تاريخ منتهٍ</span>
+      <span><i style="background:#fef3c7;border:1px solid #92400e;"></i> ينتهي خلال 30 يوماً</span>
+      <span>📲 إشعار السائق ببياناته عبر واتساب</span>
+    </div>
     <div class="sched-table-wrap">
       <table class="sched"><thead><tr id="headMain"></tr></thead><tbody id="bodyMain"></tbody></table>
     </div>
@@ -138,23 +157,24 @@
   <script>
     // ===== Column model (matches the official weekly schedule file, 17 columns) =====
     const COLS = [
-      { key: 'empid',      label: 'الرقم الوظيفي' },
-      { key: 'name',       label: 'اسم السائق' },
-      { key: 'iqama',      label: 'رقم الإقامة' },
-      { key: 'job',        label: 'الوظيفة' },
-      { key: 'plate',      label: 'رقم اللوحة' },
-      { key: 'model',      label: 'موديل' },
-      { key: 'vtype',      label: 'نوع المركبة' },
-      { key: 'pallets',    label: 'عدد الطبالي' },
-      { key: 'load',       label: 'الحمولة' },
-      { key: 'vserial',    label: 'الرقم التسلسلي للمركبة' },
-      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري' },
-      { key: 'license',    label: 'تاريخ انتهاء رخصة السير' },
-      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق' },
-      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل' },
-      { key: 'notes',      label: 'الملاحظات' },
-      { key: 'phone',      label: 'رقم الجوال' },
+      { key: 'empid',      label: 'الرقم الوظيفي',           w: 5 },
+      { key: 'name',       label: 'اسم السائق',              w: 11 },
+      { key: 'iqama',      label: 'رقم الإقامة',             w: 6 },
+      { key: 'job',        label: 'الوظيفة',                 w: 5 },
+      { key: 'plate',      label: 'رقم اللوحة',              w: 6 },
+      { key: 'model',      label: 'موديل',                   w: 4 },
+      { key: 'vtype',      label: 'نوع المركبة',             w: 7 },
+      { key: 'pallets',    label: 'عدد الطبالي',             w: 3 },
+      { key: 'load',       label: 'الحمولة',                 w: 3 },
+      { key: 'vserial',    label: 'الرقم التسلسلي للمركبة',  w: 6 },
+      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 6, date: true },
+      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',  w: 6, date: true },
+      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق', w: 6, date: true },
+      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', w: 6, date: true },
+      { key: 'notes',      label: 'الملاحظات',               w: 7 },
+      { key: 'phone',      label: 'رقم الجوال',              w: 6 },
     ];
+    const DATE_KEYS = COLS.filter(c => c.date).map(c => c.key);
     const EXPORT_HEADERS = ['م', ...COLS.map(c => c.label)];
     const LS_KEY = 'bz_schedule_v1';
 
@@ -174,7 +194,13 @@
 
     function buildHead(id) {
       const tr = document.getElementById(id);
-      tr.innerHTML = '<th class="col-idx">م</th>' + COLS.map(c => `<th>${escapeHtml(c.label)}</th>`).join('') + '<th class="col-act"></th>';
+      tr.innerHTML = '<th class="col-idx">م</th>' + COLS.map(c => `<th>${escapeHtml(c.label)}</th>`).join('') + '<th class="col-act">⚙</th>';
+      const table = tr.closest('table');
+      if (table && !table.querySelector('colgroup')) {
+        const cg = document.createElement('colgroup');
+        cg.innerHTML = [2, ...COLS.map(c => c.w), 5].map(w => `<col style="width:${w}%">`).join('');
+        table.insertBefore(cg, table.firstChild);
+      }
     }
 
     async function loadData() {
@@ -221,9 +247,10 @@
         COLS.forEach(c => {
           const v = escapeHtml(row[c.key] || '');
           const listAttr = c.key === 'name' ? ' list="driverNames"' : '';
-          html += `<td><input type="text" value="${v}" data-sec="${section}" data-i="${idx}" data-k="${c.key}"${listAttr}></td>`;
+          const cls = c.date ? dateStatusVal(row[c.key]) : '';
+          html += `<td class="${cls}"><input type="text" value="${v}" data-sec="${section}" data-i="${idx}" data-k="${c.key}"${listAttr}></td>`;
         });
-        html += `<td class="col-act"><button class="row-del" title="حذف" onclick="deleteRow('${section}',${idx})">✕</button></td>`;
+        html += `<td class="col-act"><div class="col-act-wrap"><button class="row-notify" title="إشعار السائق عبر واتساب" onclick="notifyDriver('${section}',${idx})">📲</button><button class="row-del" title="حذف" onclick="deleteRow('${section}',${idx})">✕</button></div></td>`;
         tr.innerHTML = html;
         tb.appendChild(tr);
       });
@@ -263,6 +290,46 @@
       const ym = (rec.car || '').match(/\b(19|20)\d{2}\b/);
       if (ym) set('model', ym[0]);
       renderBody('body' + cap(section), state[section], section);
+    }
+
+    // ---- date expiry status (Gregorian only; Hijri/blank ignored) ----
+    function dateStatusVal(val) {
+      const m = String(val || '').trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!m) return '';
+      const y = +m[1]; if (y < 2000 || y > 2100) return '';
+      const d = new Date(y, +m[2] - 1, +m[3]); if (isNaN(d.getTime())) return '';
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const diff = Math.round((d - today) / 86400000);
+      if (diff < 0) return 'exp-bad';
+      if (diff <= 30) return 'exp-warn';
+      return '';
+    }
+
+    // ---- notify a driver of their info via WhatsApp ----
+    function notifyDriver(section, idx) {
+      const r = state[section][idx]; if (!r) return;
+      let ph = String(r.phone || '').replace(/\D/g, '');
+      if (!ph) { if (window.showToast) showToast('لا يوجد رقم جوال لهذا السائق', 'error'); return; }
+      if (ph.charAt(0) === '0') ph = ph.slice(1);
+      if (ph.indexOf('966') !== 0) ph = '966' + ph;
+      const tag = v => { const s = dateStatusVal(v); return s === 'exp-bad' ? ' (منتهية ⚠️)' : s === 'exp-warn' ? ' (قاربت الانتهاء ⏳)' : ''; };
+      const line = (lbl, v) => `${lbl}: ${v || '—'}${tag(v)}`;
+      const msg = [
+        `السلام عليكم ${r.name || ''}`,
+        'بيانات مركبتك لدى قسم الحركة — فرع الدمام (شركة بن زومة):',
+        `رقم اللوحة: ${r.plate || '—'}`,
+        `نوع المركبة: ${r.vtype || '—'}`,
+        `الرقم التسلسلي: ${r.vserial || '—'}`,
+        '',
+        'تنبيهات انتهاء المستندات:',
+        line('رخصة السير', r.license),
+        line('الفحص الدوري', r.inspect),
+        line('بطاقة السائق', r.drivercard),
+        line('بطاقة التشغيل', r.opcard),
+        '',
+        'يرجى مراجعة قسم الحركة عند اقتراب أي انتهاء.'
+      ].join('\n');
+      window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
     function addRow(section) {

@@ -324,6 +324,9 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS schedule_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS records_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             db.commit()
 
             # Safe migration: add drivercard to older tables that lack it.
@@ -486,6 +489,33 @@ def workshop():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("workshop.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/search")
+@login_required
+def search_page():
+    return render_template("search.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/records")
+@login_required
+def records_page():
+    return render_template("records.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/api/vehicles_lookup")
+@login_required
+def vehicles_lookup():
+    """Serve the vehicle/driver registry (authenticated — contains personal data)."""
+    path = os.path.join(app.root_path, "vehicles_lookup.json")
+    if not os.path.exists(path):
+        return jsonify([])
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    except Exception:
+        logger.exception("vehicles_lookup read error")
+        return jsonify([])
 
 
 @app.route("/api/download_workshop_template")
@@ -1012,6 +1042,38 @@ def schedule_data():
         except Exception:
             logger.exception("schedule_data GET error")
             return jsonify({"success": False, "error": "تعذّر جلب الجدول الأسبوعي."}), 500
+
+
+@app.route("/api/records", methods=["GET", "POST"])
+@login_required
+def records_data():
+    """Persist the documentation/records log (administrative safety records)."""
+    if request.method == "POST":
+        try:
+            rows = (request.json or {}).get("rows", [])
+            data_str = json.dumps(rows, ensure_ascii=False)
+            with db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT id FROM records_data WHERE id = 1")
+                if c.fetchone():
+                    c.execute("UPDATE records_data SET data = ? WHERE id = 1", (data_str,))
+                else:
+                    c.execute("INSERT INTO records_data (id, data) VALUES (1, ?)", (data_str,))
+                conn.commit()
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("records_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ السجلات."}), 500
+    else:
+        try:
+            with db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT data FROM records_data WHERE id = 1")
+                row = c.fetchone()
+            return jsonify({"success": True, "rows": json.loads(row["data"]) if row else []})
+        except Exception:
+            logger.exception("records_data GET error")
+            return jsonify({"success": False, "rows": []})
 
 
 @app.route("/api/drivers", methods=["GET"])

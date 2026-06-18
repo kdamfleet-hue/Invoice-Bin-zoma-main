@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التوثيق والسجلات | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css') }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
+        .rec-intro {
+            max-width: 920px; margin: -0.25rem auto 1.5rem; padding: 1rem 1.25rem;
+            border: 1px solid var(--border); border-right: 4px solid var(--accent, #c9a227);
+            border-radius: 12px; background: var(--surface);
+            color: var(--text-secondary); font-size: 0.92rem; line-height: 1.9;
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.08));
+        }
+        .rec-intro strong { color: var(--text-primary); }
+
+        .rec-toolbar {
+            display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+            justify-content: center; margin: 0 auto 1.25rem; max-width: 1000px;
+        }
+        .rec-toolbar .rec-search { position: relative; flex: 1 1 280px; min-width: 220px; }
+        .rec-toolbar .rec-search input { width: 100%; padding: 11px 18px 11px 42px; border-radius: 50px; font-size: 0.95rem; }
+        .rec-toolbar .rec-search::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 1rem; }
+        .rec-toolbar select { min-width: 150px; }
+
+        #recTable { min-width: 1500px; border-collapse: collapse; width: 100%; }
+        #recTable thead { position: sticky; top: 0; z-index: 5; }
+        #recTable thead th {
+            background: var(--brand-navy, #0C2340); color: #fff;
+            padding: 12px 8px; font-size: 0.78rem; font-weight: 700;
+            text-align: center; white-space: nowrap; border-bottom: 2px solid var(--accent, #c9a227);
+        }
+        #recTable tbody td { padding: 6px 7px; font-size: 0.83rem; text-align: center; border: 1px solid var(--border); vertical-align: middle; }
+        #recTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
+        #recTable tbody tr:hover td { background: var(--surface-hover); }
+
+        /* In-cell editors styled to look flush with the cell (tokens only) */
+        .rec-in {
+            width: 100%; border: none; background: transparent; color: var(--text-primary);
+            font-family: inherit; font-size: 0.83rem; text-align: center;
+            outline: none; padding: 5px 4px; border-radius: 6px; transition: var(--trans);
+        }
+        .rec-in:focus { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent, #c9a227); }
+        textarea.rec-in { resize: vertical; min-height: 34px; text-align: right; line-height: 1.5; }
+        td.col-details, td.col-subject { text-align: right; }
+        td.col-details { min-width: 240px; }
+        td.col-subject { min-width: 150px; }
+        td.col-name { min-width: 150px; }
+        select.rec-in { text-align: center; }
+
+        /* Status & type kept readable in B&W on screen too (text + thin frame, no color-only meaning) */
+        .rec-status, .rec-type { font-weight: 700; }
+        .col-link a { color: var(--accent, #c9a227); font-weight: 700; text-decoration: none; }
+        .col-link a:hover { text-decoration: underline; }
+
+        .rec-del { background: transparent; border: 1px solid var(--border-strong, #c33); color: #c0392b; border-radius: 8px; padding: 4px 9px; cursor: pointer; font-size: 0.85rem; font-weight: 700; transition: var(--trans); }
+        .rec-del:hover { background: #c0392b; color: #fff; }
+
+        .rec-empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-weight: 700; }
+        .rec-count { text-align: center; color: var(--text-muted); font-size: 0.88rem; margin: 0.25rem 0 1rem; }
+
+        @media (max-width: 768px) {
+            .bz-stats { grid-template-columns: repeat(2, 1fr); }
+            .rec-toolbar select { flex: 1 1 45%; min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/search">🔍 بحث</a>
+        <a href="/records" class="active">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      </nav>
+      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <datalist id="driverNames"></datalist>
+
+    <div class="bz-shell">
+
+    <h2 class="bz-section-title">📁 التوثيق والسجلات — قسم الحركة</h2>
+
+    <div class="rec-intro">
+        <strong>سجل توثيق إداري دقيق.</strong>
+        يُوثّق هذا السجل كل واقعة تتعلق بالأسطول (حوادث، مخالفات مرورية، تسليم واستلام المركبات، صيانة، إنذارات، تحقيقات إدارية) بتاريخها ومرجعها وحالتها.
+        التوثيق الدقيق والمؤرّخ يُشكّل <strong>مرجعية قانونية</strong> تحمي حقوق قسم الحركة ومسؤول الحركة، وتُثبت سلامة الإجراءات عند أي نزاع أو مساءلة.
+        احرص على إرفاق رقم المرجع ورابط المستند الرسمي كلما توفّر، وعلى تحديث الحالة حتى الإغلاق.
+    </div>
+
+    <!-- Stats -->
+    <div class="bz-stats">
+        <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي السجلات</div></div>
+        <div class="bz-stat"><div class="num" id="statOpen">0</div><div class="label">مفتوحة</div></div>
+        <div class="bz-stat"><div class="num" id="statFollow">0</div><div class="label">قيد المتابعة</div></div>
+        <div class="bz-stat"><div class="num" id="statClosed">0</div><div class="label">مغلقة</div></div>
+    </div>
+
+    <!-- Toolbar: search + filters + add -->
+    <div class="rec-toolbar">
+        <div class="rec-search">
+            <input type="text" id="searchInput" placeholder="ابحث بالاسم أو اللوحة أو الموضوع أو النوع أو التفاصيل..." oninput="renderTable()">
+        </div>
+        <select id="filterType" class="rec-in" onchange="renderTable()" title="فلترة حسب النوع" style="max-width:200px;">
+            <option value="">كل الأنواع</option>
+        </select>
+        <select id="filterStatus" class="rec-in" onchange="renderTable()" title="فلترة حسب الحالة" style="max-width:180px;">
+            <option value="">كل الحالات</option>
+            <option value="مفتوح">مفتوح</option>
+            <option value="قيد المتابعة">قيد المتابعة</option>
+            <option value="مغلق">مغلق</option>
+        </select>
+        <button class="btn-primary" onclick="addRecord('top')">➕ إضافة سجل</button>
+    </div>
+
+    <div class="rec-count" id="recCount">0 سجل</div>
+
+    <!-- Table -->
+    <div class="card">
+    <div class="table-wrapper">
+        <table id="recTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>التاريخ</th>
+                    <th>نوع التوثيق</th>
+                    <th>اسم السائق/الموظف</th>
+                    <th>رقم الإقامة</th>
+                    <th>رقم اللوحة</th>
+                    <th>الموضوع</th>
+                    <th>التفاصيل</th>
+                    <th>رقم المرجع</th>
+                    <th>الحالة</th>
+                    <th>رابط المستند</th>
+                    <th>ملاحظات</th>
+                    <th>حذف</th>
+                </tr>
+            </thead>
+            <tbody id="recBody"></tbody>
+        </table>
+    </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+        <button class="btn-primary" onclick="addRecord('bottom')">➕ إضافة سجل في الأسفل</button>
+        <button class="btn-submit-gold" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+        <button class="btn-outline" onclick="saveState(true)">💾 حفظ يدوي</button>
+    </div>
+
+    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">سجل التوثيق — قسم الحركة، فرع الدمام</footer>
+
+    </div><!-- /bz-shell -->
+
+<script>
+    // ===== Column model (order is preserved everywhere: render, save, export) =====
+    const COLS = [
+        { key: 'date',     label: 'التاريخ' },
+        { key: 'type',     label: 'نوع التوثيق' },
+        { key: 'name',     label: 'اسم السائق/الموظف' },
+        { key: 'iqama',    label: 'رقم الإقامة' },
+        { key: 'plate',    label: 'رقم اللوحة' },
+        { key: 'subject',  label: 'الموضوع' },
+        { key: 'details',  label: 'التفاصيل' },
+        { key: 'ref',      label: 'رقم المرجع' },
+        { key: 'status',   label: 'الحالة' },
+        { key: 'link',     label: 'رابط المستند' },
+        { key: 'notes',    label: 'ملاحظات' }
+    ];
+    const TYPES = ['حادث', 'مخالفة مرورية', 'تسليم مركبة', 'استلام مركبة', 'صيانة', 'إنذار', 'تحقيق إداري', 'مخالفة سلوكية', 'أخرى'];
+    const STATUSES = ['مفتوح', 'قيد المتابعة', 'مغلق'];
+    const LS_KEY = 'binZomahRecords';
+
+    let records = [];          // array of objects keyed by COLS keys
+    let saveTimer = null;
+
+    function blankRecord() {
+        const o = {};
+        COLS.forEach(c => o[c.key] = '');
+        return o;
+    }
+
+    // Coerce any incoming shape (array-of-arrays OR array-of-objects) into objects.
+    function normalize(rows) {
+        if (!Array.isArray(rows)) return [];
+        return rows.map(function (row) {
+            const o = blankRecord();
+            if (Array.isArray(row)) {
+                COLS.forEach((c, i) => { o[c.key] = row[i] == null ? '' : String(row[i]); });
+            } else if (row && typeof row === 'object') {
+                COLS.forEach(c => { o[c.key] = row[c.key] == null ? '' : String(row[c.key]); });
+            }
+            return o;
+        });
+    }
+
+    // ===== Load on open =====
+    function init() {
+        if (window.FleetData) {
+            FleetData.fillDatalist('driverNames').catch(err => console.error('FleetData datalist', err));
+        }
+        // Populate the type filter from the canonical list
+        const ft = document.getElementById('filterType');
+        TYPES.forEach(function (t) {
+            const opt = document.createElement('option');
+            opt.value = t; opt.textContent = t;
+            ft.appendChild(opt);
+        });
+
+        fetch('/api/records')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success && Array.isArray(data.rows) && data.rows.length) {
+                    records = normalize(data.rows);
+                } else {
+                    records = loadLocal();
+                }
+                renderTable();
+            })
+            .catch(err => {
+                console.error('Failed to load /api/records', err);
+                records = loadLocal();
+                renderTable();
+            });
+    }
+
+    function loadLocal() {
+        const saved = localStorage.getItem(LS_KEY);
+        if (saved) {
+            try { return normalize(JSON.parse(saved)); } catch (e) { return []; }
+        }
+        return [];
+    }
+
+    // ===== Render (with search + filters) =====
+    function passesFilter(r, q, ftype, fstatus) {
+        if (ftype && r.type !== ftype) return false;
+        if (fstatus && r.status !== fstatus) return false;
+        if (q) {
+            const hay = [r.name, r.plate, r.subject, r.type, r.details, r.iqama, r.ref, r.notes]
+                .join(' ').toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    }
+
+    function buildSelect(key, value, options, cls) {
+        let html = '<select class="rec-in ' + cls + '" data-key="' + key + '">';
+        options.forEach(function (opt) {
+            const sel = (opt === value) ? ' selected' : '';
+            html += '<option value="' + escapeHtml(opt) + '"' + sel + '>' + escapeHtml(opt) + '</option>';
+        });
+        // Preserve an unknown stored value so it isn't silently dropped
+        if (value && options.indexOf(value) === -1) {
+            html += '<option value="' + escapeHtml(value) + '" selected>' + escapeHtml(value) + '</option>';
+        }
+        html += '</select>';
+        return html;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('recBody');
+        const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+        const ftype = document.getElementById('filterType').value;
+        const fstatus = document.getElementById('filterStatus').value;
+
+        let html = '';
+        let shown = 0;
+        records.forEach(function (r, idx) {
+            if (!passesFilter(r, q, ftype, fstatus)) return;
+            shown++;
+            const linkCell = r.link
+                ? '<a href="' + escapeHtml(r.link) + '" target="_blank" rel="noopener" title="' + escapeHtml(r.link) + '">📎 فتح</a>'
+                : '';
+            html += '<tr data-idx="' + idx + '">'
+                + '<td>' + shown + '</td>'
+                + '<td><input type="date" class="rec-in" data-key="date" value="' + escapeHtml(r.date) + '"></td>'
+                + '<td>' + buildSelect('type', r.type, TYPES, 'rec-type') + '</td>'
+                + '<td class="col-name"><input type="text" class="rec-in" list="driverNames" data-key="name" value="' + escapeHtml(r.name) + '" placeholder="الاسم"></td>'
+                + '<td><input type="text" class="rec-in" data-key="iqama" value="' + escapeHtml(r.iqama) + '" placeholder="الإقامة"></td>'
+                + '<td><input type="text" class="rec-in" data-key="plate" value="' + escapeHtml(r.plate) + '" placeholder="اللوحة"></td>'
+                + '<td class="col-subject"><input type="text" class="rec-in" data-key="subject" value="' + escapeHtml(r.subject) + '" placeholder="الموضوع"></td>'
+                + '<td class="col-details"><textarea class="rec-in" data-key="details" rows="1" placeholder="التفاصيل">' + escapeHtml(r.details) + '</textarea></td>'
+                + '<td><input type="text" class="rec-in" data-key="ref" value="' + escapeHtml(r.ref) + '" placeholder="المرجع"></td>'
+                + '<td>' + buildSelect('status', r.status || 'مفتوح', STATUSES, 'rec-status') + '</td>'
+                + '<td class="col-link"><input type="url" class="rec-in" data-key="link" value="' + escapeHtml(r.link) + '" placeholder="https://...">' + (linkCell ? '<div>' + linkCell + '</div>' : '') + '</td>'
+                + '<td><input type="text" class="rec-in" data-key="notes" value="' + escapeHtml(r.notes) + '" placeholder="ملاحظات"></td>'
+                + '<td><button class="rec-del" onclick="deleteRecord(' + idx + ')" title="حذف السجل">🗑</button></td>'
+                + '</tr>';
+        });
+
+        if (!shown) {
+            const msg = records.length ? 'لا توجد سجلات مطابقة للبحث/الفلترة.' : 'لا توجد سجلات بعد — اضغط «إضافة سجل» للبدء.';
+            html = '<tr><td colspan="13" class="rec-empty">' + escapeHtml(msg) + '</td></tr>';
+        }
+        tbody.innerHTML = html;
+
+        document.getElementById('recCount').textContent =
+            shown + ' سجل معروض' + (shown !== records.length ? ' من ' + records.length : '');
+        updateStats();
+    }
+
+    function updateStats() {
+        document.getElementById('statTotal').textContent = records.length;
+        document.getElementById('statOpen').textContent = records.filter(r => r.status === 'مفتوح').length;
+        document.getElementById('statFollow').textContent = records.filter(r => r.status === 'قيد المتابعة').length;
+        document.getElementById('statClosed').textContent = records.filter(r => r.status === 'مغلق').length;
+    }
+
+    // ===== Inline editing (event delegation, no inline-edit handlers in markup) =====
+    document.addEventListener('input', function (e) {
+        const el = e.target;
+        if (!el.classList || !el.classList.contains('rec-in')) return;
+        const tr = el.closest('tr[data-idx]');
+        if (!tr) return;
+        const idx = parseInt(tr.getAttribute('data-idx'), 10);
+        const key = el.getAttribute('data-key');
+        if (isNaN(idx) || !key || !records[idx]) return;
+
+        records[idx][key] = el.value;
+
+        // Autofill iqama + plate from the chosen driver name (only fill empties).
+        if (key === 'name' && window.FleetData) {
+            const rec = FleetData.byName(el.value.trim());
+            if (rec) {
+                if (!records[idx].iqama && rec.iqama && rec.iqama !== 'None') records[idx].iqama = String(rec.iqama);
+                if (!records[idx].plate && rec.plate && rec.plate !== 'None') records[idx].plate = String(rec.plate);
+                // Re-render this row's sibling cells so the auto-filled values appear
+                const iqamaEl = tr.querySelector('[data-key="iqama"]');
+                const plateEl = tr.querySelector('[data-key="plate"]');
+                if (iqamaEl && !iqamaEl.value) iqamaEl.value = records[idx].iqama;
+                if (plateEl && !plateEl.value) plateEl.value = records[idx].plate;
+            }
+        }
+
+        if (key === 'status' || key === 'type') updateStats();
+        scheduleSave();
+    });
+    // selects/dates also emit 'change'; 'input' covers them in modern browsers, but guard anyway
+    document.addEventListener('change', function (e) {
+        const el = e.target;
+        if (el.classList && el.classList.contains('rec-in') && el.tagName.toLowerCase() === 'select') {
+            // status/type changes already handled by 'input' on most browsers; ensure stats fresh
+            updateStats();
+        }
+    });
+
+    // ===== CRUD =====
+    function addRecord(where) {
+        const rec = blankRecord();
+        rec.status = 'مفتوح';
+        rec.date = new Date().toISOString().slice(0, 10);
+        if (where === 'bottom') records.push(rec); else records.unshift(rec);
+        // Clear filters/search so the new row is definitely visible
+        document.getElementById('searchInput').value = '';
+        document.getElementById('filterType').value = '';
+        document.getElementById('filterStatus').value = '';
+        renderTable();
+        scheduleSave();
+        showToast('تمت إضافة سجل جديد', 'success');
+    }
+
+    function deleteRecord(idx) {
+        const r = records[idx];
+        if (!r) return;
+        const label = r.subject || r.name || r.type || ('سجل #' + (idx + 1));
+        if (!confirm('هل تريد حذف هذا السجل؟\n\n' + label)) return;
+        records.splice(idx, 1);
+        renderTable();
+        scheduleSave();
+        showToast('تم حذف السجل', 'info');
+    }
+
+    // ===== Persistence (debounced) =====
+    function scheduleSave() {
+        localStorage.setItem(LS_KEY, JSON.stringify(records)); // immediate local backup
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () { saveState(false); }, 700);
+    }
+
+    function saveState(showMsg) {
+        localStorage.setItem(LS_KEY, JSON.stringify(records));
+        fetch('/api/records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rows: records })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.success) {
+                if (showMsg) showToast('تم حفظ السجلات بنجاح ✅', 'success');
+            } else if (showMsg) {
+                showToast('تم الحفظ محلياً فقط — فشل الحفظ في الخادم', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Save failed', err);
+            if (showMsg) showToast('خطأ في الاتصال — تم الحفظ محلياً فقط', 'error');
+        });
+    }
+
+    // ===== Excel export (Section 6: B&W-print-safe, corporate) =====
+    async function exportXlsx() {
+        if (typeof ExcelJS === 'undefined') {
+            showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+            return;
+        }
+        const btn = document.querySelector('.btn-submit-gold');
+        const oldText = btn ? btn.innerHTML : '';
+        if (btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
+
+        try {
+            const NAVY = 'FF0C2340';
+            const GOLD = 'FFC9A227';
+            const BLACK = { argb: 'FF000000' };
+            const THIN_BLACK = { style: 'thin', color: BLACK };
+            const ALL_BORDERS = { top: THIN_BLACK, bottom: THIN_BLACK, left: THIN_BLACK, right: THIN_BLACK };
+
+            const headers = ['#'].concat(COLS.map(c => c.label));
+            const lastColIdx = headers.length; // 1-based count of columns
+            const lastColLetter = ExcelJS.utils ? null : null; // not needed; we use indices
+
+            const wb = new ExcelJS.Workbook();
+            wb.creator = 'BIN ZOMAH INTL.';
+            wb.created = new Date();
+            const ws = wb.addWorksheet('سجل التوثيق', {
+                views: [{ rightToLeft: true, state: 'frozen', ySplit: 2 }]
+            });
+
+            ws.pageSetup = {
+                fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+                horizontalCentered: true, orientation: 'landscape',
+                showGridLines: true,
+                margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+            };
+
+            // Row 1: merged title on navy fill
+            const titleRow = ws.getRow(1);
+            titleRow.getCell(1).value = 'سجل التوثيق — قسم الحركة، فرع الدمام  |  BIN ZOMAH INTL.';
+            ws.mergeCells(1, 1, 1, lastColIdx);
+            const titleCell = ws.getCell(1, 1);
+            titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+            titleCell.alignment = { vertical: 'middle', horizontal: 'center', readingOrder: 'rtl' };
+            titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+            titleRow.height = 30;
+
+            // Row 2: header row (navy + white bold + gold bottom border)
+            const headerRow = ws.getRow(2);
+            headers.forEach(function (h, i) {
+                const cell = headerRow.getCell(i + 1);
+                cell.value = h;
+                cell.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true, readingOrder: 'rtl' };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                cell.border = { top: THIN_BLACK, left: THIN_BLACK, right: THIN_BLACK, bottom: { style: 'medium', color: { argb: GOLD } } };
+            });
+            headerRow.height = 26;
+
+            // Data rows (white bg / black text / thin black border every side; ultra-light zebra)
+            records.forEach(function (r, idx) {
+                const rowNum = 3 + idx;
+                const row = ws.getRow(rowNum);
+                const vals = [idx + 1, r.date, r.type, r.name, r.iqama, r.plate, r.subject, r.details, r.ref, r.status, r.link, r.notes];
+                const zebra = (idx % 2 === 1);
+                vals.forEach(function (val, ci) {
+                    const cell = row.getCell(ci + 1);
+                    cell.value = (val == null ? '' : val);
+                    cell.font = { name: 'Tajawal', size: 10, color: BLACK };
+                    const isText = (ci === 6 || ci === 7); // الموضوع، التفاصيل
+                    cell.alignment = {
+                        vertical: 'middle',
+                        horizontal: isText ? 'right' : 'center',
+                        wrapText: true,
+                        readingOrder: 'rtl'
+                    };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra ? 'FFF2F2F2' : 'FFFFFFFF' } };
+                    cell.border = ALL_BORDERS;
+                });
+                row.height = 24;
+            });
+
+            // If there are no records, still draw one empty gridded row so the sheet is clean.
+            if (!records.length) {
+                const row = ws.getRow(3);
+                for (let c = 1; c <= lastColIdx; c++) {
+                    const cell = row.getCell(c);
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+                    cell.border = ALL_BORDERS;
+                }
+                row.height = 24;
+            }
+
+            // Footer row with prepared-by note + date
+            const footRowNum = 3 + Math.max(records.length, 1) + 1;
+            const footRow = ws.getRow(footRowNum);
+            const today = new Date().toISOString().slice(0, 10);
+            footRow.getCell(1).value = 'أُعدّ بواسطة قسم الحركة — فرع الدمام — ' + today;
+            ws.mergeCells(footRowNum, 1, footRowNum, lastColIdx);
+            const footCell = ws.getCell(footRowNum, 1);
+            footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: 'FF555555' } };
+            footCell.alignment = { horizontal: 'right', readingOrder: 'rtl' };
+
+            // Column widths (sensible per content)
+            const widths = [5, 13, 16, 20, 14, 14, 22, 34, 13, 14, 22, 20];
+            widths.forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
+
+            const outBuffer = await wb.xlsx.writeBuffer();
+            saveAs(new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'سجل_التوثيق_الدمام.xlsx');
+            showToast('تم تصدير ملف الإكسل بنجاح ✅', 'success');
+        } catch (e) {
+            console.error(e);
+            showToast('حدث خطأ أثناء التصدير: ' + e.message, 'error');
+        } finally {
+            if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+        }
+    }
+
+    window.addEventListener('load', init);
+</script>
+
+<a href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; font-family: Tajawal;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل معنا - خالد بن محمد الغامدي</a>
+</body>
+</html>
