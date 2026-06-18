@@ -564,13 +564,22 @@ function initIdleTimeout() {
 // =============================================================================
 let translationObserver = null;
 
-function initLanguageTranslation() {
+async function initLanguageTranslation() {
     applyEnglishStyles();
-    
+
     // Auto-inject translation button
     injectLanguageToggle();
 
-    // Fetch and apply saved language
+    // Merge the comprehensive site-wide translation map (covers all tabs' UI strings)
+    try {
+        const r = await fetch('/static/i18n_en.json', { cache: 'no-cache' });
+        if (r.ok) {
+            const map = await r.json();
+            translations.en = Object.assign({}, translations.en, map);
+        }
+    } catch (e) { /* fall back to the built-in dictionary */ }
+
+    // Fetch and apply saved language (re-applies with the now-complete dictionary)
     const currentLang = localStorage.getItem('lang') || 'ar';
     setLanguage(currentLang);
 }
