@@ -321,6 +321,9 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS employees (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS schedule_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             db.commit()
 
             # Safe migration: add drivercard to older tables that lack it.
@@ -976,6 +979,39 @@ def employees_data():
         except Exception as e:
             logger.exception("employees_data GET error")
             return jsonify({"success": False, "error": "تعذّر جلب بيانات الموظفين."}), 500
+
+
+@app.route("/api/schedule_data", methods=["GET", "POST"])
+@login_required
+def schedule_data():
+    """Persist the weekly schedule (main/spare/vacation/summary) server-side."""
+    if request.method == "POST":
+        try:
+            data_str = json.dumps(request.json or {}, ensure_ascii=False)
+            with db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT id FROM schedule_data WHERE id = 1")
+                if c.fetchone():
+                    c.execute("UPDATE schedule_data SET data = ? WHERE id = 1", (data_str,))
+                else:
+                    c.execute("INSERT INTO schedule_data (id, data) VALUES (1, ?)", (data_str,))
+                conn.commit()
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("schedule_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ الجدول الأسبوعي."}), 500
+    else:
+        try:
+            with db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT data FROM schedule_data WHERE id = 1")
+                row = c.fetchone()
+            if row:
+                return jsonify({"success": True, "data": json.loads(row["data"])})
+            return jsonify({"success": True, "data": None})
+        except Exception:
+            logger.exception("schedule_data GET error")
+            return jsonify({"success": False, "error": "تعذّر جلب الجدول الأسبوعي."}), 500
 
 
 @app.route("/api/drivers", methods=["GET"])
