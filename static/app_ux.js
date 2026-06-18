@@ -230,6 +230,9 @@ const translations = {
         "📁 التوثيق": "📁 Records",
         "📡 مزامنة GPS": "📡 GPS Sync",
         "🛰️ التتبع": "🛰️ Tracking",
+        "📹 الكاميرات": "📹 Cameras",
+        "📹 الكاميرات المباشرة — Hik-Connect": "📹 Live Cameras — Hik-Connect",
+        "فتح في نافذة جديدة": "Open in new window",
         "خروج": "Logout",
 
         // Common actions / share

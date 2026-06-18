@@ -503,6 +503,19 @@ def records_page():
     return render_template("records.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
+@app.route("/cameras")
+@login_required
+def cameras_page():
+    # Embeds Hik-Connect in an iframe. URL is configurable via the CAMERAS_URL env var
+    # (or per-browser in the UI). Note: Hik-Connect may block iframing (X-Frame-Options).
+    return render_template(
+        "cameras.html",
+        google_user=session.get("google_user"),
+        b64_en=load_logo(),
+        cameras_url=os.environ.get("CAMERAS_URL", ""),
+    )
+
+
 @app.route("/api/vehicles_lookup")
 @login_required
 def vehicles_lookup():
