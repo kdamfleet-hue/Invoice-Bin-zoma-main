@@ -81,6 +81,22 @@
             background: var(--danger, #e74c3c);
             color: #fff;
         }
+        /* Compact (key columns only) vs full (all 46) view */
+        #employeesTable.compact .nk { display: none; }
+        #employeesTable.compact .group-row { display: none; }
+        .only-compact { display: none; }
+        #employeesTable.compact .only-compact { display: table-cell; }
+        /* Freeze the م column while scrolling sideways (RTL → start = right) */
+        #employeesTable .idx-cell, #employeesTable .idx-head {
+            position: sticky; right: 0; z-index: 3;
+        }
+        #employeesTable thead .idx-head { z-index: 6; background-color: var(--brand-navy, #0C2340); color:#fff; }
+        /* override the static-positioning of the group header row for the م cell so it freezes sideways */
+        #employeesTable thead tr:first-child th.idx-head { position: sticky; right: 0; }
+        .emp-search { flex: 1; min-width: 200px; max-width: 360px; }
+        .emp-search input { padding: 9px 14px; }
+        .emp-count { font-weight: 700; color: var(--text-secondary); white-space: nowrap; }
+        .emp-hint { font-size: .82rem; color: var(--text-muted); margin: -.4rem 0 .8rem; }
     </style>
 </head>
 <body>
@@ -113,18 +129,21 @@
         <h2 class="bz-section-title">بيانات جميع الموظفين في الفرع</h2>
 
         <div class="emp-toolbar">
-            <button class="btn-primary" onclick="addEmployeeRow()">+ إضافة صف جديد</button>
-            <button class="btn-submit-gold" onclick="exportToExcel()">📥 تحميل كملف Excel</button>
+            <div class="emp-search"><input type="text" id="empSearch" placeholder="🔍 ابحث باسم الموظف أو الإقامة أو اللوحة..." oninput="filterEmployees()"></div>
+            <button class="btn-primary" id="viewToggleBtn" onclick="toggleView()">📊 عرض كامل (كل الأعمدة)</button>
+            <span class="emp-count" id="empCount"></span>
+            <span style="flex:1"></span>
+            <button class="btn-primary" onclick="addEmployeeRow()">+ إضافة صف</button>
+            <button class="btn-submit-gold" onclick="exportToExcel()">📥 تصدير Excel</button>
             <button class="btn-outline" onclick="saveToServer()">💾 حفظ على الخادم</button>
-            <a href="/schedule" class="btn-outline">الجدول الأسبوعي</a>
-            <a href="/" class="btn-outline">العودة للرئيسية</a>
         </div>
+        <p class="emp-hint">العرض المختصر يُظهر الأعمدة الأساسية فقط (بدون تمرير جانبي). اضغط «عرض كامل» لكل الأعمدة الـ46، واستخدم البحث للوصول لأي موظف بسرعة. عمود «م» والترويسة يبقيان ثابتين أثناء التمرير.</p>
 
         <div class="excel-table-container">
             <table id="employeesTable">
                 <thead>
-                    <tr>
-                        <th rowspan="2">م</th>
+                    <tr class="group-row">
+                        <th rowspan="2" class="idx-head">م</th>
                         <th class="group-header" colspan="10">بيانات الموظف العامة</th>
                         <th class="group-header" colspan="6">مقيم</th>
                         <th class="group-header" colspan="9">قوى</th>
@@ -167,6 +186,8 @@
 
         // Column indexes used by autofill (within the 46-col row)
         const COL_EMPID = 0, COL_IQAMA = 1, COL_NAME = 2, COL_PLATE = 9, COL_CAR = 36, COL_PHONE = 7;
+        // Key columns shown in the compact view (no horizontal scrolling needed)
+        const KEY_COLS = new Set([0, 1, 2, 6, 7, 9, 10, 36, 37, 38]);
 
         const esc = (v) => (window.escapeHtml ? window.escapeHtml(v) : String(v == null ? '' : v));
 
@@ -180,11 +201,14 @@
             if (window.FleetData) {
                 FleetData.fillDatalist('empNames');
             }
+            document.getElementById('employeesTable').classList.add('compact'); // start compact = no side scroll
+            updateCount();
         });
 
         function buildHeaderRow() {
             const row = document.getElementById('empColHeaderRow');
-            row.innerHTML = COLS.map(c => `<th>${esc(c)}</th>`).join('');
+            const heads = COLS.map((c, i) => `<th class="${KEY_COLS.has(i) ? '' : 'nk'}">${esc(c)}</th>`).join('');
+            row.innerHTML = `<th class="idx-head only-compact">م</th>${heads}<th class="only-compact">إجراءات</th>`;
         }
 
         function buildRowHtml(idx, values) {
@@ -193,10 +217,39 @@
             for (let i = 0; i < TOTAL_COLS; i++) {
                 const isName = (i === COL_NAME);
                 const listAttr = isName ? ' list="empNames"' : '';
-                html += `<td><input type="text"${listAttr} data-col="${i}" value="${esc(v[i] || '')}"></td>`;
+                const nk = KEY_COLS.has(i) ? '' : ' class="nk"';
+                html += `<td${nk}><input type="text"${listAttr} data-col="${i}" value="${esc(v[i] || '')}"></td>`;
             }
             html += `<td class="actions-column"><button class="btn-delete" onclick="deleteRow(this)">✕</button></td>`;
             return html;
+        }
+
+        function toggleView() {
+            const t = document.getElementById('employeesTable');
+            const compact = t.classList.toggle('compact');
+            document.getElementById('viewToggleBtn').textContent = compact ? '📊 عرض كامل (كل الأعمدة)' : '📋 عرض مختصر';
+        }
+
+        function filterEmployees() {
+            const q = (document.getElementById('empSearch').value || '').trim().toLowerCase();
+            let shown = 0;
+            document.querySelectorAll('#employeesBody tr').forEach(tr => {
+                let match = !q;
+                if (q) match = Array.from(tr.querySelectorAll('input')).some(inp => (inp.value || '').toLowerCase().indexOf(q) !== -1);
+                tr.style.display = match ? '' : 'none';
+                if (match) shown++;
+            });
+            updateCount(shown);
+        }
+
+        function updateCount(visible) {
+            const rows = document.querySelectorAll('#employeesBody tr');
+            const all = rows.length;
+            const vis = (visible == null)
+                ? Array.from(rows).filter(tr => tr.style.display !== 'none').length
+                : visible;
+            const el = document.getElementById('empCount');
+            if (el) el.textContent = `الموظفون: ${vis}${vis !== all ? ' / ' + all : ''}`;
         }
 
         function addEmployeeRow(save = true) {
@@ -206,6 +259,7 @@
             tr.innerHTML = buildRowHtml(idx, []);
             tbody.appendChild(tr);
             if (save) persistLocal();
+            updateCount();
         }
 
         function deleteRow(btn) {
@@ -213,6 +267,7 @@
             btn.closest('tr').remove();
             reindex();
             persistLocal();
+            updateCount();
         }
 
         function reindex() {
@@ -246,6 +301,7 @@
                 tr.innerHTML = buildRowHtml(idx + 1, r);
                 tbody.appendChild(tr);
             });
+            updateCount();
         }
 
         // Load order: server (POST contract) -> static default -> localStorage cache.
