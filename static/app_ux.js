@@ -216,7 +216,59 @@ const translations = {
         "كرت البلدية": "Municipality Card",
         "الكرت الوظيفي": "Work ID Card",
         "حالة التامين": "Insurance Status",
-        "الاستحقاقات السنوية": "Annual Entitlements"
+        "الاستحقاقات السنوية": "Annual Entitlements",
+
+        // Navigation (with emoji, as rendered in the top bar)
+        "🏠 الرئيسية": "🏠 Home",
+        "🛒 طلب شراء": "🛒 Purchase",
+        "📋 الجدول الأسبوعي": "📋 Weekly Schedule",
+        "🛢️ الزيوت والفلاتر": "🛢️ Oils & Filters",
+        "🚿 الغسيل": "🚿 Washing",
+        "🔧 الورشة": "🔧 Workshop",
+        "👥 الموظفين": "👥 Employees",
+        "🔍 بحث": "🔍 Search",
+        "📁 التوثيق": "📁 Records",
+        "📡 مزامنة GPS": "📡 GPS Sync",
+        "🛰️ التتبع": "🛰️ Tracking",
+        "خروج": "Logout",
+
+        // Common actions / share
+        "تصدير Excel": "Export Excel",
+        "تنزيل Excel": "Download Excel",
+        "إرسال بالبريد": "Send by Email",
+        "إرسال واتساب": "Send via WhatsApp",
+        "تنزيل PDF": "Download PDF",
+        "مشاركة / تصدير": "Share / Export",
+        "طباعة": "Print",
+        "إضافة صف": "Add Row",
+        "إضافة سائق": "Add Driver",
+        "حفظ على الخادم": "Save to Server",
+        "بحث": "Search",
+        "عرض مختصر": "Compact View",
+        "عرض كامل (كل الأعمدة)": "Full View (all columns)",
+
+        // Schedule groups / sections
+        "الجدول الرئيسي": "Main Schedule",
+        "بيانات الموظف": "Employee Data",
+        "بيانات المركبات": "Vehicle Data",
+        "بيان المركبات الاسبير والمعطلة": "Spare & Out-of-service Vehicles",
+        "السائقون في إجازة (هذا الأسبوع)": "Drivers on Leave (this week)",
+        "إرسال للجميع عبر واتساب": "Send to all via WhatsApp",
+        "ملخص الأعداد": "Counts Summary",
+
+        // Records (documentation) tab
+        "التوثيق والسجلات": "Documentation & Records",
+        "ما فائدة هذا التبويب؟": "What is this tab for?",
+        "نوع التوثيق": "Record Type",
+        "الموضوع": "Subject",
+        "التفاصيل": "Details",
+        "رقم المرجع": "Reference No.",
+        "الحالة": "Status",
+        "رابط المستند": "Document Link",
+
+        // Search tab
+        "بحث سريع": "Quick Search",
+        "ابحث بالاسم أو رقم الإقامة": "Search by name or ID number"
     }
 };
 
@@ -531,10 +583,10 @@ function setLanguage(lang) {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     
-    // Update language toggle text
+    // Update language toggle text (EN / AR)
     const langBtn = document.getElementById('languageToggleBtn');
     if (langBtn) {
-        langBtn.innerHTML = lang === 'ar' ? '🇬🇧' : '🇸🇦';
+        langBtn.innerHTML = lang === 'ar' ? 'EN' : 'AR';
         langBtn.title = lang === 'ar' ? 'Switch to English' : 'التحويل للعربية';
     }
 
@@ -702,7 +754,8 @@ function injectLanguageToggle() {
     const langBtn = document.createElement('button');
     langBtn.id = 'languageToggleBtn';
     langBtn.onclick = window.toggleLanguage;
-    
+    langBtn.setAttribute('aria-label', 'Language EN/AR');
+
     // Unified Styling
     langBtn.style.cursor = 'pointer';
     langBtn.style.border = 'none';
@@ -712,7 +765,8 @@ function injectLanguageToggle() {
     langBtn.style.display = 'flex';
     langBtn.style.alignItems = 'center';
     langBtn.style.justifyContent = 'center';
-    langBtn.style.fontSize = '1.3rem';
+    langBtn.style.fontSize = '0.95rem';
+    langBtn.style.fontWeight = '800';
     langBtn.style.transition = 'var(--trans-spring, 0.3s)';
     langBtn.style.boxShadow = 'var(--shadow-sm, 0 4px 15px rgba(0,0,0,0.1))';
     langBtn.style.backdropFilter = 'blur(5px)';
@@ -740,7 +794,7 @@ function injectLanguageToggle() {
         }
         
         const currentLang = localStorage.getItem('lang') || 'ar';
-        langBtn.innerHTML = currentLang === 'ar' ? '🇬🇧' : '🇸🇦';
+        langBtn.innerHTML = currentLang === 'ar' ? 'EN' : 'AR';
         darkToggle.parentNode.insertBefore(langBtn, darkToggle.nextSibling);
     } else {
         // Floating fallback
@@ -749,7 +803,7 @@ function injectLanguageToggle() {
         langBtn.style.right = '75px';
         
         const currentLang = localStorage.getItem('lang') || 'ar';
-        langBtn.innerHTML = currentLang === 'ar' ? '🇬🇧' : '🇸🇦';
+        langBtn.innerHTML = currentLang === 'ar' ? 'EN' : 'AR';
         document.body.appendChild(langBtn);
     }
 }
@@ -861,6 +915,140 @@ window.FleetData = (function () {
 
     return { load: load, records: records, byName: byName, byPlate: byPlate, byIqama: byIqama, fillDatalist: fillDatalist, attachAutofill: attachAutofill };
 })();
+
+// =============================================================================
+// SHARE / EXPORT HELPERS (used by every tab): Download · Email · WhatsApp · PDF
+// =============================================================================
+
+// Current language + translate-a-string helper (for Excel headers, dynamic text, etc.)
+window.bzLang = function () { return localStorage.getItem('lang') || 'ar'; };
+window.bzTL = function (ar) {
+    const d = (typeof translations !== 'undefined' && translations.en) ? translations.en : {};
+    const key = String(ar == null ? '' : ar).trim();
+    return (window.bzLang() === 'en' && d[key]) ? d[key] : ar;
+};
+
+window.bzBlobToBase64 = function (blob) {
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onloadend = () => resolve(String(r.result).split(',')[1]);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+    });
+};
+
+window.bzDownload = function (blob, filename) {
+    if (window.saveAs) { window.saveAs(blob, filename); return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+};
+
+window.bzEmailFile = async function (blob, filename, subject) {
+    const email = (window.prompt('أدخل البريد الإلكتروني للمستلم:', '') || '').trim();
+    if (!email) return;
+    try {
+        const b64 = await bzBlobToBase64(blob);
+        const r = await fetch('/api/send_email', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, filename: filename, file_b64: b64, subject: subject || filename })
+        });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && d.success) showToast('تم إرسال الملف إلى ' + email, 'success');
+        else showToast('تعذّر الإرسال: ' + (d.error || ''), 'error');
+    } catch (e) { showToast('تعذّر الإرسال بالبريد', 'error'); }
+};
+
+// WhatsApp web links can't carry file attachments — download the file then open a chat
+// with a note so the user attaches it. (Honest limitation of wa.me.)
+window.bzWhatsAppFile = function (blob, filename, message) {
+    bzDownload(blob, filename);
+    const phone = (window.prompt('رقم واتساب المستلم (اختياري، بصيغة 9665…) — اتركه فارغاً لاختيار المحادثة:', '') || '').replace(/\D/g, '');
+    const msg = (message || ('الملف المرفق: ' + filename)) + '\n(تم تنزيل الملف على جهازك — يرجى إرفاقه في المحادثة)';
+    const base = phone ? ('https://wa.me/' + phone) : 'https://wa.me/';
+    window.open(base + '?text=' + encodeURIComponent(msg), '_blank');
+    showToast('تم تنزيل الملف — أرفقه في واتساب', 'info');
+};
+
+let _html2pdfLoading = null;
+function bzEnsureHtml2pdf() {
+    if (window.html2pdf) return Promise.resolve();
+    if (_html2pdfLoading) return _html2pdfLoading;
+    _html2pdfLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+    });
+    return _html2pdfLoading;
+}
+
+/** Render a DOM element to a PDF Blob (Arabic-safe; rasterizes the element). */
+window.bzElementToPdfBlob = async function (element, orientation) {
+    await bzEnsureHtml2pdf();
+    const opt = {
+        margin: 6, image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: orientation || 'landscape' }
+    };
+    return window.html2pdf().set(opt).from(element).toPdf().output('blob');
+};
+
+/**
+ * Unified share menu. Pass an async builder that returns a Blob, or pass {blob}.
+ * opts: { filename, subject, pdfElement (DOM el or id for PDF), waMessage }
+ */
+window.bzShare = function (getExcelBlob, opts) {
+    opts = opts || {};
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop show';
+    overlay.style.zIndex = 3000;
+    overlay.innerHTML =
+        '<div class="modal-content-custom" style="max-width:420px;">' +
+        '<div class="modal-header-custom"><h2>📤 مشاركة / تصدير</h2>' +
+        '<button class="close-btn" data-x>✕</button></div>' +
+        '<div class="modal-body-custom"><div class="bz-share-menu" style="flex-direction:column;">' +
+        '<button class="btn-primary" data-act="dl-xlsx">📥 تنزيل Excel</button>' +
+        '<button class="btn-outline" data-act="email-xlsx">📧 إرسال Excel بالبريد</button>' +
+        '<button class="btn-outline" data-act="wa-xlsx">💬 إرسال Excel واتساب</button>' +
+        (opts.pdfElement ? '<hr style="border:none;border-top:1px solid var(--border);margin:6px 0;">' +
+            '<button class="btn-primary" data-act="dl-pdf">📄 تنزيل PDF</button>' +
+            '<button class="btn-outline" data-act="email-pdf">📧 إرسال PDF بالبريد</button>' +
+            '<button class="btn-outline" data-act="wa-pdf">💬 إرسال PDF واتساب</button>' : '') +
+        '</div></div></div>';
+    document.body.appendChild(overlay);
+    const close = () => { overlay.remove(); };
+    overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.hasAttribute('data-x')) close(); });
+
+    const fnameBase = (opts.filename || 'ملف').replace(/\.(xlsx|pdf)$/i, '');
+    const getPdfEl = () => typeof opts.pdfElement === 'string' ? document.getElementById(opts.pdfElement) : opts.pdfElement;
+
+    overlay.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', async () => {
+        const act = btn.dataset.act;
+        btn.disabled = true;
+        try {
+            if (act.endsWith('xlsx')) {
+                const blob = typeof getExcelBlob === 'function' ? await getExcelBlob() : getExcelBlob;
+                if (!blob) { showToast('تعذّر تجهيز ملف Excel', 'error'); return; }
+                const fn = fnameBase + '.xlsx';
+                if (act === 'dl-xlsx') bzDownload(blob, fn);
+                else if (act === 'email-xlsx') await bzEmailFile(blob, fn, opts.subject);
+                else bzWhatsAppFile(blob, fn, opts.waMessage);
+            } else {
+                const el = getPdfEl();
+                if (!el) { showToast('لا يوجد محتوى للـ PDF', 'error'); return; }
+                const blob = await bzElementToPdfBlob(el, opts.pdfOrientation);
+                const fn = fnameBase + '.pdf';
+                if (act === 'dl-pdf') bzDownload(blob, fn);
+                else if (act === 'email-pdf') await bzEmailFile(blob, fn, opts.subject);
+                else bzWhatsAppFile(blob, fn, opts.waMessage);
+            }
+            close();
+        } catch (e) { showToast('حدث خطأ: ' + e.message, 'error'); }
+        finally { btn.disabled = false; }
+    }));
+};
 
 function applyEnglishStyles() {
     let styleEl = document.getElementById('en-layout-styles');

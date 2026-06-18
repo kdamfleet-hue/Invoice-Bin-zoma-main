@@ -142,7 +142,7 @@
 
     </div>
 
-    <div class="grid-container">
+    <div class="grid-container" id="invoiceArea">
         <!-- 1. اسم السائق -->
         <div class="card card-purple span-2 glass-surface">
             <label for="driverName">اسم السائق (اكتب للبحث)</label>
@@ -238,6 +238,9 @@
         <button class="btn-submit-green" style="background-color: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; flex:1; min-width: 250px;" onclick="sendWhatsApp()">
             💬 إرسال عبر الواتساب
         </button>
+        <button class="btn-submit-orange" style="flex:1; min-width: 250px;" onclick="openInvoiceShare()">
+            📤 مشاركة / تصدير
+        </button>
         <button class="btn-outline" style="flex:1; min-width: 200px; margin-top: 3rem; border-radius: 50px; border-color: #e74c3c; color: #e74c3c; font-weight: 800; font-size: 1.2rem; display: inline-flex; align-items: center; justify-content: center;" onclick="clearInvoiceForm()">
             🗑️ إفراغ الفاتورة
         </button>
@@ -267,7 +270,7 @@
                 </div>
 
                 <div class="drivers-table-wrapper">
-                    <table class="drivers-table">
+                    <table class="drivers-table bz-fit">
                         <thead>
                             <tr>
                                 <th>الاسم</th>
@@ -603,7 +606,7 @@
 
             ws.mergeCells('B6:F6');
             const title = ws.getCell('B6');
-            title.value = "بيان فاتورة طلب صيانة / خدمة — شركة بن زومة للتجارة والإنماء";
+            title.value = bzTL("بيان فاتورة طلب صيانة / خدمة — شركة بن زومة للتجارة والإنماء");
             title.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: W } };
             title.alignment = { horizontal: 'center', vertical: 'middle' };
             title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } };
@@ -621,7 +624,7 @@
 
             function setInfo(cell1, lbl, cell2, val) {
                 const c1 = ws.getCell(cell1);
-                c1.value = lbl; c1.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: W } }; c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c1.alignment = { horizontal: 'center', vertical: 'middle' }; c1.border = allBorders;
+                c1.value = bzTL(lbl); c1.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: W } }; c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c1.alignment = { horizontal: 'center', vertical: 'middle' }; c1.border = allBorders;
                 const c2 = ws.getCell(cell2);
                 c2.value = val; c2.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } }; c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } }; c2.alignment = { horizontal: 'center', vertical: 'middle' }; c2.border = allBorders;
             }
@@ -642,7 +645,7 @@
             ws.mergeCells('C11:F11');
 
             ws.getRow(13).height = 30;
-            const headers = ['م', 'الوصف / البيان', 'الكمية', 'السعر الإفرادي', 'المبلغ'];
+            const headers = ['م', 'الوصف / البيان', 'الكمية', 'السعر الإفرادي', 'المبلغ'].map(h => bzTL(h));
             const hCols = ['B', 'C', 'D', 'E', 'F'];
             for(let i=0; i<headers.length; i++) {
                 const c = ws.getCell(hCols[i] + '13');
@@ -667,7 +670,7 @@
                 const topEdge = grand ? { style: 'medium', color: { argb: BLACK } } : thinBorder;
                 const border = { top: topEdge, bottom: thinBorder, left: thinBorder, right: thinBorder };
                 const lCell = ws.getCell(`B${r}`);
-                lCell.value = lbl; lCell.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: txt } }; lCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; lCell.alignment = { horizontal: 'left', vertical: 'middle' }; lCell.border = border;
+                lCell.value = bzTL(lbl); lCell.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: txt } }; lCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; lCell.alignment = { horizontal: 'left', vertical: 'middle' }; lCell.border = border;
                 const vCell = ws.getCell(`F${r}`);
                 vCell.value = parseFloat(val) || 0; vCell.font = { name: 'Tajawal', size: grand ? 14 : 12, bold: true, color: { argb: txt } }; vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; vCell.alignment = { horizontal: 'center', vertical: 'middle' }; vCell.border = border; vCell.numFmt = '#,##0.00';
             }
@@ -677,7 +680,7 @@
             addTotalRow(17, "المجموع الكلي (مع الضريبة)", total, true);
 
             ws.getRow(20).height = 25;
-            ws.getCell('B20').value = "توقيع السائق"; ws.getCell('F20').value = "اعتماد الإدارة";
+            ws.getCell('B20').value = bzTL("توقيع السائق"); ws.getCell('F20').value = bzTL("اعتماد الإدارة");
             [ws.getCell('B20'), ws.getCell('F20')].forEach(c => { c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: BLACK } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; });
             ws.getRow(21).height = 40;
             const bBottom = { bottom: { style: 'medium', color: { argb: BLACK } } };
@@ -686,7 +689,7 @@
             
         ws.addRow([]);
         const footerDate = invoiceDate || new Date().toISOString().slice(0, 10);
-        const footerRow = ws.addRow([`أُعدّ بواسطة قسم الحركة — فرع الدمام    |    التاريخ: ${footerDate}`]);
+        const footerRow = ws.addRow([`${bzTL("أُعدّ بواسطة قسم الحركة — فرع الدمام")}    |    ${bzTL("التاريخ")}: ${footerDate}`]);
         ws.mergeCells(`A${footerRow.number}:G${footerRow.number}`);
         footerRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
         footerRow.getCell(1).font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
@@ -711,6 +714,25 @@
             const { buffer, filename } = await createInvoiceBuffer();
             const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
             saveAs(blob, filename);
+        }
+
+        // Returns the invoice Excel as a Blob (for the shared bzShare menu)
+        async function createInvoiceBlob() {
+            const { buffer } = await createInvoiceBuffer();
+            return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        }
+
+        // Unified share/export (Excel + PDF via email / WhatsApp / download)
+        function openInvoiceShare() {
+            const driver = document.getElementById('driverName').value || 'غير محدد';
+            const plate = document.getElementById('plateNum').value || 'غير محدد';
+            bzShare(createInvoiceBlob, {
+                filename: `فاتورة_${driver}_${plate}.xlsx`,
+                subject: bzTL('فاتورة طلب صيانة / خدمة — شركة بن زومة'),
+                pdfElement: 'invoiceArea',
+                pdfOrientation: 'portrait',
+                waMessage: bzTL('مرفق فاتورة طلب الصيانة / الخدمة — إدارة الحركة بفرع الدمام.')
+            });
         }
 
         async function sendExcelEmail() {

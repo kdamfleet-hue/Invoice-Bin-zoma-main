@@ -23,6 +23,9 @@
             white-space: nowrap;
             min-width: 100%;
         }
+        /* Compact view (default): fit all key columns to page width, no side scroll */
+        #employeesTable.compact { width: 100%; min-width: 0; table-layout: fixed; white-space: normal; }
+        #employeesTable.compact input { min-width: 0; }
         #employeesTable th,
         #employeesTable td {
             border: 1px solid var(--border);
@@ -135,12 +138,13 @@
             <span style="flex:1"></span>
             <button class="btn-primary" onclick="addEmployeeRow()">+ إضافة صف</button>
             <button class="btn-submit-gold" onclick="exportToExcel()">📥 تصدير Excel</button>
+            <button class="btn-submit-orange" onclick="shareEmployees()">📤 مشاركة / تصدير</button>
             <button class="btn-outline" onclick="saveToServer()">💾 حفظ على الخادم</button>
         </div>
         <p class="emp-hint">العرض المختصر يُظهر الأعمدة الأساسية فقط (بدون تمرير جانبي). اضغط «عرض كامل» لكل الأعمدة الـ46، واستخدم البحث للوصول لأي موظف بسرعة. عمود «م» والترويسة يبقيان ثابتين أثناء التمرير.</p>
 
         <div class="excel-table-container">
-            <table id="employeesTable">
+            <table id="employeesTable" class="bz-fit">
                 <thead>
                     <tr class="group-row">
                         <th rowspan="2" class="idx-head">م</th>
@@ -450,8 +454,13 @@
             persistLocal();
         });
 
-        // ---- Corporate Excel export (single fixed header row of 46 columns) ----
-        async function exportToExcel() {
+        // Translate helper (Arabic header -> English when EN is active)
+        const tl = (v) => (window.bzTL ? window.bzTL(v) : v);
+        const EXPORT_FILENAME = 'بيان_بيانات_الموظفين_الدمام.xlsx';
+
+        // ---- Build the corporate Excel workbook and return a Blob ----
+        // (single fixed header row of 46 columns)
+        async function buildEmployeesBlob() {
             const dataRows = collectRows();
             const workbook = new ExcelJS.Workbook();
             workbook.creator = 'BIN ZOMAH INTL.';
@@ -464,7 +473,7 @@
             const thin = { style: 'thin', color: { argb: borderGray } };
 
             // Title row (row 1) — merged across full width
-            const titleRow = sheet.addRow(['بيان بيانات الموظفين — شركة بن زومة للتجارة والإنماء — BIN ZOMAH INTL.']);
+            const titleRow = sheet.addRow([tl('بيان بيانات الموظفين') + ' — ' + tl('شركة بن زومة للتجارة والإنماء') + ' — BIN ZOMAH INTL.']);
             sheet.mergeCells(1, 1, 1, totalCols);
             const titleCell = titleRow.getCell(1);
             titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -472,8 +481,8 @@
             titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } };
             titleRow.height = 30;
 
-            // Header row (row 2)
-            const headerRow = sheet.addRow(['م'].concat(COLS));
+            // Header row (row 2) — headers translated for EN export
+            const headerRow = sheet.addRow([tl('م')].concat(COLS.map(tl)));
             headerRow.height = 26;
             headerRow.eachCell((cell) => {
                 cell.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -506,9 +515,16 @@
                 sheet.getColumn(c + 2).width = Math.min(34, Math.max(14, header.length + 4));
             }
 
+            // Print setup (B&W safe, wide table -> landscape)
+            sheet.pageSetup = {
+                fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
+                orientation: 'landscape',
+                margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+            };
+
             // Footer row
             const footerRowIdx = sheet.rowCount + 1;
-            const footer = sheet.addRow([`أُعدّ بواسطة قسم الحركة — فرع الدمام    |    ${new Date().toISOString().slice(0, 10)}`]);
+            const footer = sheet.addRow([tl('أُعدّ بواسطة قسم الحركة — فرع الدمام') + `    |    ${new Date().toISOString().slice(0, 10)}`]);
             sheet.mergeCells(footerRowIdx, 1, footerRowIdx, totalCols);
             const fCell = footer.getCell(1);
             fCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: 'FF555555' } };
@@ -516,8 +532,31 @@
             footer.height = 22;
 
             const buffer = await workbook.xlsx.writeBuffer();
-            saveAs(new Blob([buffer]), 'بيان_بيانات_الموظفين_الدمام.xlsx');
-            showToast('تم تصدير ملف Excel بنجاح', 'success');
+            return new Blob([buffer]);
+        }
+
+        // Download button — keeps the existing direct-download behavior
+        async function exportToExcel() {
+            try {
+                const blob = await buildEmployeesBlob();
+                if (window.bzDownload) bzDownload(blob, EXPORT_FILENAME);
+                else saveAs(blob, EXPORT_FILENAME);
+                showToast('تم تصدير ملف Excel بنجاح', 'success');
+            } catch (e) {
+                showToast('تعذّر تصدير ملف Excel', 'error');
+            }
+        }
+
+        // Share / export menu — Excel + PDF via email / WhatsApp
+        function shareEmployees() {
+            if (!window.bzShare) { exportToExcel(); return; }
+            bzShare(buildEmployeesBlob, {
+                filename: EXPORT_FILENAME,
+                subject: 'بيان بيانات الموظفين — فرع الدمام',
+                waMessage: 'مرفق بيان بيانات الموظفين — فرع الدمام',
+                pdfElement: document.getElementById('employeesTable'),
+                pdfOrientation: 'landscape'
+            });
         }
     </script>
 </body>

@@ -146,10 +146,13 @@
         </div>
 
         <div class="track-layout">
-            <div class="card track-sidebar">
+            <div class="card track-sidebar" id="assetPanel">
                 <div class="side-head">
                     <h3>📦 مركبات فرع الدمام <span id="assetCount" style="color:var(--text-secondary);font-weight:600;">(0)</span></h3>
-                    <button id="refreshBtn" class="btn-outline" style="padding:.35rem .75rem;font-size:.8rem;" onclick="fetchData()">🔄 تحديث</button>
+                    <div style="display:flex;gap:.4rem;">
+                        <button id="shareBtn" class="btn-outline" style="padding:.35rem .6rem;font-size:.8rem;" onclick="shareAssets()">📤 مشاركة / تصدير</button>
+                        <button id="refreshBtn" class="btn-outline" style="padding:.35rem .75rem;font-size:.8rem;" onclick="fetchData()">🔄 تحديث</button>
+                    </div>
                 </div>
                 <div class="track-search">
                     <input type="text" id="assetSearch" placeholder="🔍 بحث عن مركبة..." oninput="filterAssets()">
@@ -326,6 +329,24 @@
         }
 
         function filterAssets() { renderList(); }
+
+        function shareAssets() {
+            if (typeof bzShare !== 'function') {
+                if (typeof showToast === 'function') showToast('خدمة المشاركة غير متاحة', 'error');
+                return;
+            }
+            if (!currentAssets.length) {
+                if (typeof showToast === 'function') showToast('لا توجد مركبات للمشاركة', 'info');
+                return;
+            }
+            bzShare(null, {
+                filename: 'مركبات_التتبع_الدمام',
+                subject: 'قائمة مركبات الأسطول — شركة بن زومة',
+                pdfElement: document.getElementById('assetPanel'),
+                pdfOrientation: 'portrait',
+                waMessage: 'قائمة مركبات الأسطول من نظام التتبع — شركة بن زومة'
+            });
+        }
 
         window.addEventListener('load', function () {
             try { initMap(); } catch (_) {}

@@ -235,7 +235,7 @@
     </div>
 
     <!-- Vehicle Info -->
-    <div class="table-container glass-surface">
+    <div class="table-container glass-surface" id="poFormArea">
         <div class="section-title">🚗 بيانات السيارة والسائق</div>
 
         <!-- Universal Search -->
@@ -276,7 +276,7 @@
         </table>
 
         <!-- Parts -->
-        <table id="partsTable" class="excel-table">
+        <table id="partsTable" class="excel-table bz-fit">
             <thead>
                 <tr><th colspan="7" class="excel-header">قطع الغيار <button class="btn-add-row" onclick="addPartRow()">+ إضافة</button></th></tr>
                 <tr>
@@ -293,7 +293,7 @@
         </table>
 
         <!-- Repairs -->
-        <table id="repairsTable" class="excel-table">
+        <table id="repairsTable" class="excel-table bz-fit">
             <thead>
                 <tr><th colspan="5" class="excel-header">الإصلاح <button class="btn-add-row" onclick="addRepairRow()">+ إضافة</button></th></tr>
                 <tr>
@@ -308,7 +308,7 @@
         </table>
 
         <!-- Tires -->
-        <table id="tiresTable" class="excel-table">
+        <table id="tiresTable" class="excel-table bz-fit">
             <thead>
                 <tr><th colspan="9" class="excel-header">الكفرات <button class="btn-add-row" onclick="addTireRow()">+ إضافة</button></th></tr>
                 <tr>
@@ -327,7 +327,7 @@
         </table>
 
         <!-- Batteries -->
-        <table id="batteriesTable" class="excel-table">
+        <table id="batteriesTable" class="excel-table bz-fit">
             <thead>
                 <tr><th colspan="8" class="excel-header">البطاريات <button class="btn-add-row" onclick="addBatteryRow()">+ إضافة</button></th></tr>
                 <tr>
@@ -345,7 +345,7 @@
         </table>
 
         <!-- Summary Totals -->
-        <table id="summaryTable" class="excel-table">
+        <table id="summaryTable" class="excel-table bz-fit">
             <thead>
                 <tr><th colspan="7" class="excel-header">ملخص الإجماليات</th></tr>
                 <tr>
@@ -409,6 +409,7 @@
 
         <div style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
             <button class="btn-submit-gold" onclick="downloadPO(this)">📥 استخراج الطلب (Excel)</button>
+            <button class="btn-primary" onclick="sharePO(this)">📤 مشاركة / تصدير</button>
             <button class="btn-submit-orange" onclick="openCustomModal('emailModal')">📧 إرسال عبر الإيميل</button>
         </div>
     </div>
@@ -708,6 +709,38 @@
                 } else showToast('خطأ: ' + (data.error || 'تعذّر إنشاء الملف'), 'error');
             } catch (e) { showToast('خطأ: ' + e, 'error'); }
             if (btn) { btn.disabled = false; btn.innerText = originalText || '📥 استخراج الطلب (Excel)'; }
+        }
+
+        // ── Share / Export: build Excel Blob from server-generated file_b64, then open bzShare menu ──
+        function poFilename() {
+            const serial = document.getElementById('poSerial').value || '';
+            const drv = document.getElementById('poDriver').value || 'سائق';
+            return 'طلب_شراء_' + serial + '_' + drv + '.xlsx';
+        }
+        async function poExcelBlob() {
+            const res = await fetch('/api/generate_po', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(collectPOData()) });
+            const data = await res.json();
+            if (!data.success) { showToast('خطأ: ' + (data.error || 'تعذّر إنشاء الملف'), 'error'); return null; }
+            const bin = atob(data.file_b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        }
+        async function sharePO(btn) {
+            const originalText = btn ? btn.innerText : '';
+            if (btn) { btn.disabled = true; btn.innerText = bzTL('جاري التجهيز...') + ' ⏳'; }
+            try {
+                const blob = await poExcelBlob();
+                if (!blob) return;
+                bzShare(async () => blob, {
+                    filename: poFilename(),
+                    subject: bzTL('طلب شراء وإصلاح سيارة') + ' — BIN ZOMAH INTL.',
+                    waMessage: bzTL('مرفق طلب شراء وإصلاح سيارة من شركة بن زومة'),
+                    pdfElement: 'poFormArea',
+                    pdfOrientation: 'portrait'
+                });
+            } catch (e) { showToast('خطأ: ' + e, 'error'); }
+            if (btn) { btn.disabled = false; btn.innerText = originalText || '📤 مشاركة / تصدير'; }
         }
 
         async function sendPOEmail() {

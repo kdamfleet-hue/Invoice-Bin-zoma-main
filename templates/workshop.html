@@ -43,7 +43,7 @@
         }
         .meta-item input { width: 100%; text-align: center; font-weight: 700; }
 
-        .notes-table { width: 100%; border-collapse: collapse; }
+        .notes-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .notes-table thead th {
             background: var(--brand-navy, #0C2340);
             color: #fff;
@@ -52,8 +52,7 @@
             border: 1px solid rgba(255,255,255,0.15);
         }
         .notes-table tbody td { border: 1px solid var(--border); padding: 0; }
-        .col-idx { width: 52px; font-weight: 800; text-align: center; background: var(--surface-hover); color: var(--text-primary); }
-        .col-note, .col-sol { width: 50%; }
+        .col-idx { font-weight: 800; text-align: center; background: var(--surface-hover); color: var(--text-primary); }
         .notes-table input {
             width: 100%;
             padding: 12px;
@@ -62,6 +61,7 @@
             background: transparent;
             font-weight: 600;
             outline: none;
+            box-sizing: border-box;
         }
         .notes-table input:focus { background: rgba(201,162,39,0.08); }
 
@@ -134,10 +134,12 @@
         <h2 class="bz-section-title">🔧 تقرير صيانة الورشة</h2>
         <div class="action-bar">
             <button class="btn-submit-gold" onclick="exportWorkshopExcel()">📥 تصدير Excel</button>
+            <button class="btn-primary" onclick="shareWorkshop()">📤 مشاركة / تصدير</button>
             <button class="btn-danger" onclick="clearAll()">🗑 مسح الكل</button>
             <span class="autosave-hint">💾 يتم الحفظ تلقائياً</span>
         </div>
 
+        <div id="workshopPrintable">
         <div class="report-header">
             <h1>تقرير فنى الورشة عن السيارة الموضحه بيناتها ادناه لفرع الدمام</h1>
         </div>
@@ -170,7 +172,12 @@
         </div>
 
         <div class="table-wrapper">
-            <table class="notes-table">
+            <table class="notes-table bz-fit">
+                <colgroup>
+                    <col style="width:8%;">
+                    <col style="width:46%;">
+                    <col style="width:46%;">
+                </colgroup>
                 <thead>
                     <tr>
                         <th class="col-idx">م</th>
@@ -194,6 +201,7 @@
                 <input type="text" id="sigManager" placeholder="الاسم أو التوقيع">
             </div>
         </div>
+        </div><!-- /#workshopPrintable -->
     </div>
 
     <datalist id="plateList"></datalist>
@@ -320,9 +328,11 @@
         if(typeof showToast === 'function') showToast('تم المسح', 'success');
     }
 
-    async function exportWorkshopExcel() {
-        if(typeof showToast === 'function') showToast('جاري إنشاء ملف Excel...', 'info');
-        try {
+    // Helper: translate Excel header/label text when EN is active.
+    const T = (s) => (typeof bzTL === 'function' ? bzTL(s) : s);
+
+    // Build the styled, B&W-print-safe workbook and return an Excel Blob.
+    async function buildWorkshopExcelBlob() {
             const wb = new ExcelJS.Workbook();
             // Header band occupies rows 1-3; freeze below the date/info block so the
             // notes grid scrolls under a fixed reference header.
@@ -376,7 +386,7 @@
             ws.getRow(3).height = 18;
             ws.mergeCells('C1:I3');
             const titleCell = ws.getCell('C1');
-            titleCell.value = 'تقرير فنى الورشة — شركة بن زومة للتجارة والإنماء\nBIN ZOMAH INTL. — فرع الدمام';
+            titleCell.value = T('تقرير فنى الورشة — شركة بن زومة للتجارة والإنماء') + '\nBIN ZOMAH INTL. — ' + T('فرع الدمام');
             titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: W } };
             titleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             titleCell.fill = navyFill;
@@ -393,12 +403,12 @@
 
             // ---- Date / driver line (row 4) ----
             ws.getRow(4).height = 24;
-            let dStr = '____ / ____ / ______ :التاريخ';
+            let dStr = '____ / ____ / ______ :' + T('التاريخ');
             if(dateVal) {
                 const parts = dateVal.split('-');
-                dStr = `${parts[0]} / ${parts[1]} / ${parts[2]} :التاريخ`;
+                dStr = `${parts[0]} / ${parts[1]} / ${parts[2]} :` + T('التاريخ');
             }
-            if (driverVal) dStr = `السائق: ${driverVal}        ` + dStr;
+            if (driverVal) dStr = T('السائق') + `: ${driverVal}        ` + dStr;
             ws.mergeCells('C4:I4');
             const dateCell = ws.getCell('C4');
             dateCell.value = dStr;
@@ -409,14 +419,14 @@
             // ---- Vehicle info header (row 5) ----
             ws.getRow(5).height = 28;
             const vehHead = [
-                { c: 'C5', v: 'م' },
-                { c: 'D5', v: 'نوع السيارة (V/NAME)' },
-                { c: 'E5', v: 'رقم اللوحة (P:NO)' },
-                { c: 'F5', v: 'الموديل (MODEL)' },
-                { c: 'G5', v: 'العداد (K/m)' }
+                { c: 'C5', v: T('م') },
+                { c: 'D5', v: T('نوع السيارة (V/NAME)') },
+                { c: 'E5', v: T('رقم اللوحة (P:NO)') },
+                { c: 'F5', v: T('الموديل (MODEL)') },
+                { c: 'G5', v: T('العداد (K/m)') }
             ];
             ws.mergeCells('H5:I5');
-            vehHead.push({ c: 'H5', v: 'بيانات المركبة' });
+            vehHead.push({ c: 'H5', v: T('بيانات المركبة') });
             vehHead.forEach(hd => {
                 const cell = ws.getCell(hd.c);
                 cell.value = hd.v;
@@ -451,7 +461,7 @@
             // ---- Notes section header (row 7) : "م" | الملاحظات | الحل ----
             ws.getRow(7).height = 28;
             const idxHead = ws.getCell('C7');
-            idxHead.value = 'م';
+            idxHead.value = T('م');
             idxHead.font = navyText(13);
             idxHead.alignment = { horizontal: 'center', vertical: 'middle' };
             idxHead.fill = navyFill;
@@ -459,7 +469,7 @@
 
             ws.mergeCells('D7:G7');
             const notesHead = ws.getCell('D7');
-            notesHead.value = 'الملاحظات';
+            notesHead.value = T('الملاحظات');
             notesHead.font = navyText(14);
             notesHead.alignment = { horizontal: 'center', vertical: 'middle' };
             notesHead.fill = navyFill;
@@ -467,7 +477,7 @@
 
             ws.mergeCells('H7:I7');
             const solHead = ws.getCell('H7');
-            solHead.value = 'الحل';
+            solHead.value = T('الحل');
             solHead.font = navyText(14);
             solHead.alignment = { horizontal: 'center', vertical: 'middle' };
             solHead.fill = navyFill;
@@ -525,12 +535,12 @@
             ws.mergeCells(`C${sigRowA}:I${sigRowA}`);
             ws.mergeCells(`C${sigRowB}:I${sigRowB}`);
             const sigCell1 = ws.getCell(`C${sigRowA}`);
-            sigCell1.value = 'توقيع الفني / ' + sigT;
+            sigCell1.value = T('توقيع الفني') + ' / ' + sigT;
             sigCell1.font = blackText(13, true);
             sigCell1.alignment = { horizontal: 'right', vertical: 'middle' };
             sigCell1.border = { top: { style: 'medium', color: { argb: BLACK } }, left: bThin, right: bThin, bottom: bThin };
             const sigCell2 = ws.getCell(`C${sigRowB}`);
-            sigCell2.value = 'توقيع مسؤول الحركة / ' + sigM;
+            sigCell2.value = T('توقيع مسؤول الحركة') + ' / ' + sigM;
             sigCell2.font = blackText(13, true);
             sigCell2.alignment = { horizontal: 'right', vertical: 'middle' };
             sigCell2.border = borderAll;
@@ -546,7 +556,7 @@
             ws.mergeCells(`C${footRow}:I${footRow}`);
             const footCell = ws.getCell(`C${footRow}`);
             const todayStr = new Date().toISOString().split('T')[0];
-            footCell.value = `أُعدّ بواسطة قسم الحركة — فرع الدمام     ${dateVal || todayStr}`;
+            footCell.value = T('أُعدّ بواسطة قسم الحركة — فرع الدمام') + `     ${dateVal || todayStr}`;
             footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: 'FF595959' } };
             footCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
@@ -563,13 +573,45 @@
             ws.properties.defaultRowHeight = 18;
 
             const buffer = await wb.xlsx.writeBuffer();
-            const dateStr = dateVal || new Date().toISOString().split('T')[0];
-            saveAs(new Blob([buffer]), `تقرير_فني_ورشة_${carPlate || 'الدمام'}_${dateStr}.xlsx`);
+            return new Blob([buffer]);
+    }
+
+    // Build a meaningful Arabic filename for the current report.
+    function workshopFileName() {
+        const dateVal = document.getElementById('reportDate').value;
+        const carPlate = document.getElementById('carPlate').value;
+        const dateStr = dateVal || new Date().toISOString().split('T')[0];
+        return `تقرير_فني_ورشة_${carPlate || 'الدمام'}_${dateStr}.xlsx`;
+    }
+
+    // Download button: keep the existing one-click Excel download behaviour.
+    async function exportWorkshopExcel() {
+        if(typeof showToast === 'function') showToast('جاري إنشاء ملف Excel...', 'info');
+        try {
+            const blob = await buildWorkshopExcelBlob();
+            if (typeof bzDownload === 'function') bzDownload(blob, workshopFileName());
+            else saveAs(blob, workshopFileName());
             if(typeof showToast === 'function') showToast('تم التصدير بنجاح ✅', 'success');
         } catch(e) {
             console.error(e);
             if(typeof showToast === 'function') showToast('خطأ أثناء التصدير', 'error');
         }
+    }
+
+    // Share / export menu: Excel + PDF via download / email / WhatsApp.
+    function shareWorkshop() {
+        if (typeof bzShare !== 'function') {
+            if(typeof showToast === 'function') showToast('خدمة المشاركة غير متاحة', 'error');
+            return;
+        }
+        const plate = document.getElementById('carPlate').value || 'الدمام';
+        bzShare(buildWorkshopExcelBlob, {
+            filename: workshopFileName(),
+            subject: 'تقرير فني الورشة — ' + plate,
+            waMessage: 'تقرير فني الورشة — شركة بن زومة (فرع الدمام)',
+            pdfElement: 'workshopPrintable',
+            pdfOrientation: 'portrait'
+        });
     }
 
     window.addEventListener('load', async () => {

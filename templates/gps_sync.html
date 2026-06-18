@@ -162,6 +162,10 @@
                     <p id="matchCount" style="font-weight:700; margin:.35rem 0;">عدد المركبات المطابقة: 0</p>
                     <p id="updateCount" style="font-weight:700; margin:.35rem 0;">عدد الخلايا المحدثة: 0</p>
                     <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 10px;">تم تنزيل الملف المحدّث تلقائياً.</p>
+                    <div style="display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.9rem;">
+                        <button type="button" id="downloadBtn" class="btn-outline">📥 تنزيل الملف المحدّث</button>
+                        <button type="button" id="shareBtn" class="btn-submit-orange">📤 مشاركة / تصدير</button>
+                    </div>
                 </div>
             </div>
 
@@ -188,6 +192,10 @@
     </a>
 
     <script>
+        // Holds the most recent synced Excel file so it can be shared/exported.
+        let syncedBlob = null;
+        const SYNCED_FILENAME = 'كشف_اجهزة_GPS_محدث_الدمام.xlsx';
+
         // Visual feedback when a file is chosen
         ['sourceFile', 'targetFile'].forEach(function (id) {
             var input = document.getElementById(id);
@@ -206,7 +214,7 @@
             const btn = document.getElementById('submitBtn');
 
             if (!sourceFile || !targetFile) {
-                showToast('يرجى اختيار كلا الملفين!', 'error');
+                showToast(bzTL('يرجى اختيار كلا الملفين!'), 'error');
                 return;
             }
 
@@ -230,28 +238,44 @@
                 if (data.success) {
                     const matches = data.matches || 0;
                     const updates = data.updates || 0;
-                    document.getElementById('matchCount').innerText = `عدد المركبات المطابقة: ${matches}`;
-                    document.getElementById('updateCount').innerText = `عدد الخلايا المحدثة: ${updates}`;
+                    document.getElementById('matchCount').innerText = `${bzTL('عدد المركبات المطابقة')}: ${matches}`;
+                    document.getElementById('updateCount').innerText = `${bzTL('عدد الخلايا المحدثة')}: ${updates}`;
                     document.getElementById('statMatches').innerText = matches;
                     document.getElementById('statUpdates').innerText = updates;
                     document.getElementById('statStatus').innerText = '✅';
                     document.getElementById('resultBox').style.display = 'block';
 
-                    // Download updated file
-                    const blob = new Blob([Uint8Array.from(atob(data.file_b64), c => c.charCodeAt(0))], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-                    saveAs(blob, "كشف_اجهزة_GPS_محدث_الدمام.xlsx");
-                    showToast('تم تحديث كشف الـ GPS بنجاح!', 'success');
+                    // Keep the updated file in memory for download / share-export.
+                    syncedBlob = new Blob([Uint8Array.from(atob(data.file_b64), c => c.charCodeAt(0))], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                    saveAs(syncedBlob, SYNCED_FILENAME);
+                    showToast(bzTL('تم تحديث كشف الـ GPS بنجاح!'), 'success');
                 } else {
                     document.getElementById('statStatus').innerText = '⚠️';
-                    showToast('حدث خطأ: ' + (data.error || 'تعذّر إتمام المزامنة'), 'error');
+                    showToast(bzTL('حدث خطأ') + ': ' + (data.error || bzTL('تعذّر إتمام المزامنة')), 'error');
                 }
             } catch (err) {
                 document.getElementById('statStatus').innerText = '⚠️';
-                showToast('فشل الاتصال بالسيرفر.', 'error');
+                showToast(bzTL('فشل الاتصال بالسيرفر.'), 'error');
             }
 
             btn.innerHTML = '<span>🔄 دمج وتحديث البيانات</span>';
             btn.disabled = false;
+        });
+
+        // Re-download the synced file on demand.
+        document.getElementById('downloadBtn').addEventListener('click', function () {
+            if (!syncedBlob) { showToast(bzTL('لا يوجد ملف متاح بعد.'), 'error'); return; }
+            saveAs(syncedBlob, SYNCED_FILENAME);
+        });
+
+        // Share / export the synced Excel file (download / email / WhatsApp).
+        document.getElementById('shareBtn').addEventListener('click', function () {
+            if (!syncedBlob) { showToast(bzTL('لا يوجد ملف متاح بعد.'), 'error'); return; }
+            bzShare(async () => syncedBlob, {
+                filename: SYNCED_FILENAME,
+                subject: bzTL('كشف أجهزة GPS المحدّث — شركة بن زومة'),
+                waMessage: bzTL('مرفق كشف أجهزة GPS المحدّث — شركة بن زومة')
+            });
         });
     </script>
 

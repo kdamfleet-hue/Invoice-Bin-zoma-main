@@ -28,14 +28,15 @@
         .rec-toolbar .rec-search::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 1rem; }
         .rec-toolbar select { min-width: 150px; }
 
-        #recTable { min-width: 1500px; border-collapse: collapse; width: 100%; }
+        #recTable { width: 100%; border-collapse: collapse; table-layout: fixed; }
         #recTable thead { position: sticky; top: 0; z-index: 5; }
         #recTable thead th {
             background: var(--brand-navy, #0C2340); color: #fff;
             padding: 12px 8px; font-size: 0.78rem; font-weight: 700;
             text-align: center; white-space: nowrap; border-bottom: 2px solid var(--accent, #c9a227);
         }
-        #recTable tbody td { padding: 6px 7px; font-size: 0.83rem; text-align: center; border: 1px solid var(--border); vertical-align: middle; }
+        #recTable tbody td { padding: 6px 5px; font-size: 0.83rem; text-align: center; border: 1px solid var(--border); vertical-align: middle; overflow: hidden; }
+        #recTable th, #recTable td { word-break: break-word; }
         #recTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
         #recTable tbody tr:hover td { background: var(--surface-hover); }
 
@@ -45,12 +46,9 @@
             font-family: inherit; font-size: 0.83rem; text-align: center;
             outline: none; padding: 5px 4px; border-radius: 6px; transition: var(--trans);
         }
-        .rec-in:focus { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent, #c9a227); }
+        .rec-in:focus { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent, #c9a227); position: relative; z-index: 6; }
         textarea.rec-in { resize: vertical; min-height: 34px; text-align: right; line-height: 1.5; }
         td.col-details, td.col-subject { text-align: right; }
-        td.col-details { min-width: 240px; }
-        td.col-subject { min-width: 150px; }
-        td.col-name { min-width: 150px; }
         select.rec-in { text-align: center; }
 
         /* Status & type kept readable in B&W on screen too (text + thin frame, no color-only meaning) */
@@ -126,14 +124,30 @@
             <option value="مغلق">مغلق</option>
         </select>
         <button class="btn-primary" onclick="addRecord('top')">➕ إضافة سجل</button>
+        <button class="btn-outline" onclick="openCustomModal('recHelpModal')" title="شرح فائدة هذا التبويب">❓ ما فائدة هذا التبويب؟</button>
     </div>
 
     <div class="rec-count" id="recCount">0 سجل</div>
 
     <!-- Table -->
-    <div class="card">
+    <div class="card" id="recPrintArea">
     <div class="table-wrapper">
-        <table id="recTable">
+        <table id="recTable" class="bz-fit">
+            <colgroup>
+                <col style="width:3%">
+                <col style="width:8%">
+                <col style="width:9%">
+                <col style="width:11%">
+                <col style="width:8%">
+                <col style="width:8%">
+                <col style="width:11%">
+                <col style="width:15%">
+                <col style="width:7%">
+                <col style="width:8%">
+                <col style="width:9%">
+                <col style="width:9%">
+                <col style="width:4%">
+            </colgroup>
             <thead>
                 <tr>
                     <th>#</th>
@@ -160,10 +174,43 @@
     <div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
         <button class="btn-primary" onclick="addRecord('bottom')">➕ إضافة سجل في الأسفل</button>
         <button class="btn-submit-gold" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+        <button class="btn-submit-orange" onclick="shareRecords()">📤 مشاركة / تصدير</button>
         <button class="btn-outline" onclick="saveState(true)">💾 حفظ يدوي</button>
     </div>
 
     <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">سجل التوثيق — قسم الحركة، فرع الدمام</footer>
+
+    <!-- Help modal: what is this tab for + document link guidance -->
+    <div class="modal-backdrop" id="recHelpModal">
+        <div class="modal-content-custom" style="max-width:640px;text-align:right;">
+            <h2 class="bz-section-title" style="margin-top:0;">❓ ما فائدة تبويب «التوثيق والسجلات»؟</h2>
+
+            <div style="line-height:1.95;color:var(--text-secondary);font-size:0.95rem;">
+                <p style="margin:0 0 0.5rem;"><strong style="color:var(--text-primary);">١) مرجعية قانونية تحمي مسؤول الحركة:</strong>
+                يُعدّ سجل التوثيق وثيقة مرجعية رسمية تُثبت كل واقعة تتعلق بالأسطول (حوادث، مخالفات،
+                صيانة، إنذارات) بتاريخها ورقم مرجعها وحالتها. عند أي تحقيق إداري أو حادث أو عملية
+                تسليم/استلام للمركبات، يُشكّل هذا السجل المؤرّخ دليلاً يحمي حقوق مسؤول الحركة وقسم
+                الحركة ويُثبت سلامة الإجراءات المتّبعة.</p>
+
+                <p style="margin:0 0 0.5rem;"><strong style="color:var(--text-primary);">٢) ما هو «رابط المستند»؟</strong>
+                هو رابط إلكتروني لنسخة رقمية من المستند الأصلي (صورة أو ملف PDF) مرفوعة على خدمة
+                تخزين سحابية. وضع الرابط في السجل يجعل المستند موثّقاً ويُمكن فتحه مباشرةً من الجدول
+                بضغطة واحدة دون البحث في الأرشيف الورقي.</p>
+
+                <p style="margin:0 0 0.25rem;"><strong style="color:var(--text-primary);">٣) من أين تحصل على الرابط؟</strong></p>
+                <ol style="margin:0 0 0.5rem;padding-right:1.25rem;">
+                    <li>ارفع المستند (صورة/PDF) إلى <strong>Google Drive</strong> أو <strong>OneDrive</strong> أو <strong>Dropbox</strong>.</li>
+                    <li>فعّل خيار المشاركة: <strong>«أي شخص لديه الرابط يمكنه الاطّلاع»</strong> (Anyone with the link can view).</li>
+                    <li>انسخ الرابط الناتج والصقه في خانة <strong>«رابط المستند»</strong> في صف السجل.</li>
+                </ol>
+                <p style="margin:0;">بهذا يبقى المستند موثّقاً سحابياً ويمكن فتحه مباشرةً من السجل في أي وقت.</p>
+            </div>
+
+            <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+                <button class="btn-primary" onclick="closeCustomModal('recHelpModal')">فهمت ✅</button>
+            </div>
+        </div>
+    </div>
 
     </div><!-- /bz-shell -->
 
@@ -414,31 +461,27 @@
         });
     }
 
-    // ===== Excel export (Section 6: B&W-print-safe, corporate) =====
-    async function exportXlsx() {
+    // ===== Excel workbook builder (Section 6: B&W-print-safe, corporate) → returns Blob =====
+    // Column headers are wrapped with bzTL so the sheet localizes to EN when EN is active.
+    async function buildRecordsBlob() {
         if (typeof ExcelJS === 'undefined') {
-            showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
-            return;
+            throw new Error('مكتبة التصدير غير محمّلة بعد');
         }
-        const btn = document.querySelector('.btn-submit-gold');
-        const oldText = btn ? btn.innerHTML : '';
-        if (btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
-
-        try {
+        {
             const NAVY = 'FF0C2340';
             const GOLD = 'FFC9A227';
             const BLACK = { argb: 'FF000000' };
             const THIN_BLACK = { style: 'thin', color: BLACK };
             const ALL_BORDERS = { top: THIN_BLACK, bottom: THIN_BLACK, left: THIN_BLACK, right: THIN_BLACK };
 
-            const headers = ['#'].concat(COLS.map(c => c.label));
+            const TL = (typeof bzTL === 'function') ? bzTL : (function (x) { return x; });
+            const headers = ['#'].concat(COLS.map(c => TL(c.label)));
             const lastColIdx = headers.length; // 1-based count of columns
-            const lastColLetter = ExcelJS.utils ? null : null; // not needed; we use indices
 
             const wb = new ExcelJS.Workbook();
             wb.creator = 'BIN ZOMAH INTL.';
             wb.created = new Date();
-            const ws = wb.addWorksheet('سجل التوثيق', {
+            const ws = wb.addWorksheet(TL('سجل التوثيق'), {
                 views: [{ rightToLeft: true, state: 'frozen', ySplit: 2 }]
             });
 
@@ -451,7 +494,7 @@
 
             // Row 1: merged title on navy fill
             const titleRow = ws.getRow(1);
-            titleRow.getCell(1).value = 'سجل التوثيق — قسم الحركة، فرع الدمام  |  BIN ZOMAH INTL.';
+            titleRow.getCell(1).value = TL('سجل التوثيق — قسم الحركة، فرع الدمام') + '  |  BIN ZOMAH INTL.';
             ws.mergeCells(1, 1, 1, lastColIdx);
             const titleCell = ws.getCell(1, 1);
             titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -475,7 +518,7 @@
             records.forEach(function (r, idx) {
                 const rowNum = 3 + idx;
                 const row = ws.getRow(rowNum);
-                const vals = [idx + 1, r.date, r.type, r.name, r.iqama, r.plate, r.subject, r.details, r.ref, r.status, r.link, r.notes];
+                const vals = [idx + 1, r.date, TL(r.type), r.name, r.iqama, r.plate, r.subject, r.details, r.ref, TL(r.status), r.link, r.notes];
                 const zebra = (idx % 2 === 1);
                 vals.forEach(function (val, ci) {
                     const cell = row.getCell(ci + 1);
@@ -509,7 +552,7 @@
             const footRowNum = 3 + Math.max(records.length, 1) + 1;
             const footRow = ws.getRow(footRowNum);
             const today = new Date().toISOString().slice(0, 10);
-            footRow.getCell(1).value = 'أُعدّ بواسطة قسم الحركة — فرع الدمام — ' + today;
+            footRow.getCell(1).value = TL('أُعدّ بواسطة قسم الحركة — فرع الدمام') + ' — ' + today;
             ws.mergeCells(footRowNum, 1, footRowNum, lastColIdx);
             const footCell = ws.getCell(footRowNum, 1);
             footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: 'FF555555' } };
@@ -520,7 +563,25 @@
             widths.forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
 
             const outBuffer = await wb.xlsx.writeBuffer();
-            saveAs(new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'سجل_التوثيق_الدمام.xlsx');
+            return new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        }
+    }
+
+    const XLSX_NAME = 'سجل_التوثيق_الدمام.xlsx';
+
+    // ===== Download button (keeps original behaviour) =====
+    async function exportXlsx() {
+        if (typeof ExcelJS === 'undefined') {
+            showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+            return;
+        }
+        const btn = document.querySelector('.btn-submit-gold');
+        const oldText = btn ? btn.innerHTML : '';
+        if (btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
+        try {
+            const blob = await buildRecordsBlob();
+            if (typeof bzDownload === 'function') bzDownload(blob, XLSX_NAME);
+            else saveAs(blob, XLSX_NAME);
             showToast('تم تصدير ملف الإكسل بنجاح ✅', 'success');
         } catch (e) {
             console.error(e);
@@ -528,6 +589,21 @@
         } finally {
             if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
         }
+    }
+
+    // ===== Share / export (Excel + PDF via email/WhatsApp) =====
+    function shareRecords() {
+        if (typeof bzShare !== 'function') {
+            showToast('أداة المشاركة غير متاحة حالياً', 'error');
+            return;
+        }
+        bzShare(buildRecordsBlob, {
+            filename: XLSX_NAME,
+            subject: 'سجل التوثيق — قسم الحركة، فرع الدمام',
+            pdfElement: document.getElementById('recPrintArea'),
+            pdfOrientation: 'landscape',
+            waMessage: 'سجل التوثيق — قسم الحركة، فرع الدمام (شركة بن زومة)'
+        });
     }
 
     window.addEventListener('load', init);

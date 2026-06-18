@@ -21,9 +21,15 @@
     table.sched th, table.sched td { border:1px solid var(--border-strong); padding:0; text-align:center; overflow:hidden; }
     table.sched thead th {
       background:#BDD7EE; color:#0f2747; font-weight:700; font-size:.68rem;
-      padding:6px 2px; position:sticky; top:0; z-index:2; white-space:normal; line-height:1.25; word-break:break-word;
+      padding:6px 2px; white-space:normal; line-height:1.25; word-break:break-word;
     }
+    /* group header band (بيانات الموظف / بيانات المركبات) */
+    table.sched thead th.grp { font-size:.82rem; font-weight:800; letter-spacing:.3px; padding:7px 2px; }
+    table.sched thead th.grp-emp { background:#0C2340; color:#fff; }
+    table.sched thead th.grp-veh { background:#c9a227; color:#1a1500; }
     body.dark-mode table.sched thead th { background:#1e3a5f; color:#dbe9ff; }
+    body.dark-mode table.sched thead th.grp-emp { background:#0C2340; color:#fff; }
+    body.dark-mode table.sched thead th.grp-veh { background:#8a6f1a; color:#fff; }
     table.sched td { vertical-align:middle; }
     table.sched td input {
       width:100%; min-width:0; border:none; background:transparent; text-align:center;
@@ -63,6 +69,13 @@
     .sign-block { margin-top:1.5rem; text-align:center; color:var(--text-secondary); }
     .sign-block .dept { font-weight:800; color:var(--text-primary); margin-top:6px; }
     .hint { font-size:.82rem; color:var(--text-muted); }
+
+    /* "Send to all via WhatsApp" modal */
+    .wa-all-list { display:flex; flex-direction:column; gap:.45rem; max-height:55vh; overflow-y:auto; }
+    .wa-all-row { display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+      border:1px solid var(--border); border-radius:10px; padding:8px 12px; background:var(--surface); }
+    .wa-all-info { display:flex; flex-direction:column; gap:2px; text-align:start; }
+    .wa-all-info strong { font-size:.92rem; }
   </style>
 </head>
 <body>
@@ -100,6 +113,8 @@
       <span class="hint" id="saveHint">يُحفظ تلقائياً</span>
       <button class="btn-primary" onclick="addRow('main')">➕ إضافة سائق</button>
       <button class="btn-submit-gold" onclick="exportExcel()">📥 تصدير Excel</button>
+      <button class="btn-submit-orange" onclick="shareSchedule()">📤 مشاركة / تصدير</button>
+      <button class="btn-outline" onclick="openWaAll()">📲 إرسال للجميع عبر واتساب</button>
       <button class="btn-outline" onclick="window.print()">🖨️ طباعة</button>
     </div>
 
@@ -126,15 +141,15 @@
       <span><i style="background:#fef3c7;border:1px solid #92400e;"></i> ينتهي خلال 30 يوماً</span>
       <span>📲 إشعار السائق ببياناته عبر واتساب</span>
     </div>
-    <div class="sched-table-wrap">
-      <table class="sched"><thead><tr id="headMain"></tr></thead><tbody id="bodyMain"></tbody></table>
+    <div class="sched-table-wrap" id="mainPrintArea">
+      <table class="sched bz-fit"><thead id="headMain"></thead><tbody id="bodyMain"></tbody></table>
     </div>
 
     <!-- Spare / broken -->
     <div class="sec-title spare"><h2>بيان المركبات الاسبير والمعطلة</h2>
       <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="addRow('spare')">➕ إضافة</button></div>
     <div class="sched-table-wrap">
-      <table class="sched"><thead><tr id="headSpare"></tr></thead><tbody id="bodySpare"></tbody></table>
+      <table class="sched bz-fit"><thead id="headSpare"></thead><tbody id="bodySpare"></tbody></table>
     </div>
 
     <!-- Vacation -->
@@ -142,7 +157,7 @@
       <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="addRow('vacation')">➕ إضافة سائق في إجازة</button></div>
     <p class="hint" style="margin:-4px 0 8px;">أضف سائقاً وعدّل بياناته — يزداد العدد تلقائياً في الملخص.</p>
     <div class="sched-table-wrap">
-      <table class="sched"><thead><tr id="headVac"></tr></thead><tbody id="bodyVac"></tbody></table>
+      <table class="sched bz-fit"><thead id="headVac"></thead><tbody id="bodyVac"></tbody></table>
     </div>
 
     <div class="sign-block">
@@ -155,52 +170,68 @@
   <datalist id="driverNames"></datalist>
 
   <script>
-    // ===== Column model (matches the official weekly schedule file, 17 columns) =====
-    const COLS = [
-      { key: 'empid',      label: 'الرقم الوظيفي',           w: 5 },
-      { key: 'name',       label: 'اسم السائق',              w: 11 },
-      { key: 'iqama',      label: 'رقم الإقامة',             w: 6 },
-      { key: 'job',        label: 'الوظيفة',                 w: 5 },
-      { key: 'plate',      label: 'رقم اللوحة',              w: 6 },
-      { key: 'model',      label: 'موديل',                   w: 4 },
-      { key: 'vtype',      label: 'نوع المركبة',             w: 7 },
-      { key: 'pallets',    label: 'عدد الطبالي',             w: 3 },
-      { key: 'load',       label: 'الحمولة',                 w: 3 },
-      { key: 'vserial',    label: 'الرقم التسلسلي للمركبة',  w: 6 },
-      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 6, date: true },
-      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',  w: 6, date: true },
-      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق', w: 6, date: true },
-      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', w: 6, date: true },
-      { key: 'notes',      label: 'الملاحظات',               w: 7 },
-      { key: 'phone',      label: 'رقم الجوال',              w: 6 },
+    // ===== Column model — two groups: employee data (7) + vehicle data (10) =====
+    const EMP_COLS = [
+      { key: 'empid',      label: 'الرقم الوظيفي',            w: 6 },
+      { key: 'name',       label: 'اسم السائق',               w: 12 },
+      { key: 'iqama',      label: 'رقم الإقامة',              w: 7 },
+      { key: 'job',        label: 'الوظيفة',                  w: 5 },
+      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق', w: 7, date: true },
+      { key: 'phone',      label: 'رقم الجوال',               w: 7 },
+      { key: 'empNotes',   label: 'الملاحظات',                w: 8 },
     ];
+    const VEH_COLS = [
+      { key: 'plate',      label: 'رقم اللوحة',               w: 7 },
+      { key: 'model',      label: 'الموديل',                  w: 4 },
+      { key: 'vtype',      label: 'نوع المركبة',              w: 7 },
+      { key: 'pallets',    label: 'عدد الطبالي',              w: 4 },
+      { key: 'load',       label: 'الحمولة',                  w: 4 },
+      { key: 'vserial',    label: 'الرقم التسلسلي',           w: 7 },
+      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 7, date: true },
+      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   w: 7, date: true },
+      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', w: 7, date: true },
+      { key: 'notes',      label: 'الملاحظات',                w: 8 },
+    ];
+    // full ordered column list (employee group then vehicle group)
+    const COLS = [...EMP_COLS, ...VEH_COLS];
     const DATE_KEYS = COLS.filter(c => c.date).map(c => c.key);
-    const EXPORT_HEADERS = ['م', ...COLS.map(c => c.label)];
     const LS_KEY = 'bz_schedule_v1';
+    // which column set each table renders: vacation = employee group only (vehicle is cancelled on leave)
+    function colsFor(section) { return section === 'vacation' ? EMP_COLS : COLS; }
 
     let state = { title: '', date: '', main: [], spare: [], vacation: [], summary: {} };
     let saveTimer = null;
 
-    function blankRow() { const o = {}; COLS.forEach(c => o[c.key] = ''); return o; }
+    function blankRow() { const o = {}; COLS.forEach(c => o[c.key] = ''); o.empNotes = ''; return o; }
 
     document.addEventListener('DOMContentLoaded', init);
 
     async function init() {
-      buildHead('headMain'); buildHead('headSpare'); buildHead('headVac');
+      buildHead('headMain', 'main'); buildHead('headSpare', 'spare'); buildHead('headVac', 'vacation');
       await loadData();
       try { await FleetData.load(); FleetData.fillDatalist('driverNames'); } catch (e) {}
       renderAll();
     }
 
-    function buildHead(id) {
-      const tr = document.getElementById(id);
-      tr.innerHTML = '<th class="col-idx">م</th>' + COLS.map(c => `<th>${escapeHtml(c.label)}</th>`).join('') + '<th class="col-act">⚙</th>';
-      const table = tr.closest('table');
-      if (table && !table.querySelector('colgroup')) {
-        const cg = document.createElement('colgroup');
-        cg.innerHTML = [2, ...COLS.map(c => c.w), 5].map(w => `<col style="width:${w}%">`).join('');
-        table.insertBefore(cg, table.firstChild);
-      }
+    // Two-row header: group headers (بيانات الموظف / بيانات المركبات) over the column headers.
+    function buildHead(id, section) {
+      const thead = document.getElementById(id);
+      const cols = colsFor(section);
+      const hasVeh = cols.length > EMP_COLS.length;
+      // group header row
+      let g = '<tr class="grp-row"><th class="col-idx" rowspan="2">م</th>';
+      g += `<th class="grp grp-emp" colspan="${EMP_COLS.length}">بيانات الموظف</th>`;
+      if (hasVeh) g += `<th class="grp grp-veh" colspan="${VEH_COLS.length}">بيانات المركبات</th>`;
+      g += '<th class="col-act" rowspan="2">⚙</th></tr>';
+      // column header row
+      const h = '<tr>' + cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('') + '</tr>';
+      thead.innerHTML = g + h;
+
+      const table = thead.closest('table');
+      const old = table.querySelector('colgroup'); if (old) old.remove();
+      const cg = document.createElement('colgroup');
+      cg.innerHTML = [2, ...cols.map(c => c.w), 5].map(w => `<col style="width:${w}%">`).join('');
+      table.insertBefore(cg, table.firstChild);
     }
 
     async function loadData() {
@@ -240,11 +271,12 @@
 
     function renderBody(bodyId, rows, section) {
       const tb = document.getElementById(bodyId);
+      const cols = colsFor(section);
       tb.innerHTML = '';
       rows.forEach((row, idx) => {
         const tr = document.createElement('tr');
         let html = `<td class="col-idx">${idx + 1}</td>`;
-        COLS.forEach(c => {
+        cols.forEach(c => {
           const v = escapeHtml(row[c.key] || '');
           const listAttr = c.key === 'name' ? ' list="driverNames"' : '';
           const cls = c.date ? dateStatusVal(row[c.key]) : '';
@@ -308,28 +340,9 @@
     // ---- notify a driver of their info via WhatsApp ----
     function notifyDriver(section, idx) {
       const r = state[section][idx]; if (!r) return;
-      let ph = String(r.phone || '').replace(/\D/g, '');
-      if (!ph) { if (window.showToast) showToast('لا يوجد رقم جوال لهذا السائق', 'error'); return; }
-      if (ph.charAt(0) === '0') ph = ph.slice(1);
-      if (ph.indexOf('966') !== 0) ph = '966' + ph;
-      const tag = v => { const s = dateStatusVal(v); return s === 'exp-bad' ? ' (منتهية ⚠️)' : s === 'exp-warn' ? ' (قاربت الانتهاء ⏳)' : ''; };
-      const line = (lbl, v) => `${lbl}: ${v || '—'}${tag(v)}`;
-      const msg = [
-        `السلام عليكم ${r.name || ''}`,
-        'بيانات مركبتك لدى قسم الحركة — فرع الدمام (شركة بن زومة):',
-        `رقم اللوحة: ${r.plate || '—'}`,
-        `نوع المركبة: ${r.vtype || '—'}`,
-        `الرقم التسلسلي: ${r.vserial || '—'}`,
-        '',
-        'تنبيهات انتهاء المستندات:',
-        line('رخصة السير', r.license),
-        line('الفحص الدوري', r.inspect),
-        line('بطاقة السائق', r.drivercard),
-        line('بطاقة التشغيل', r.opcard),
-        '',
-        'يرجى مراجعة قسم الحركة عند اقتراب أي انتهاء.'
-      ].join('\n');
-      window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`, '_blank');
+      const link = waLink(r.phone, driverWaMessage(r));
+      if (!link) { if (window.showToast) showToast('لا يوجد رقم جوال لهذا السائق', 'error'); return; }
+      window.open(link, '_blank');
     }
 
     function addRow(section) {
@@ -396,131 +409,249 @@
       if (d) d.addEventListener('change', (e) => { state.date = e.target.value; scheduleSave(); });
     });
 
-    // ===== Excel export — matches the official file format exactly =====
-    const HDR_FILL = 'FFBDD7EE', SPARE_FILL = 'FFFFCCCC', SUM_FILL = 'FFD9E2F3';
-    const COLW = [5, 10, 22, 12, 10.2, 12, 7, 14, 7, 8, 14, 14, 14, 14, 14, 25, 13]; // A..Q
+    // ===== Excel export — two column groups (employee + vehicle) =====
+    const HDR_FILL = 'FFBDD7EE', GRP_EMP_FILL = 'FF0C2340', GRP_VEH_FILL = 'FFC9A227', SPARE_FILL = 'FFFFCCCC', SUM_FILL = 'FFD9E2F3';
+    const TOTAL_COLS = 1 + COLS.length; // م + 17 data columns = 18 (A..R)
+    // column widths: م, then employee group widths, then vehicle group widths
+    const COLW = [5,
+      10, 22, 14, 9, 16, 13, 24,                 // employee group (7)
+      11, 7, 13, 7, 7, 12, 16, 16, 16, 24 ];     // vehicle group (10)
 
     function thin(c) { return { style: 'thin', color: { argb: c || 'FF000000' } }; }
     function allThin() { return { top: thin(), bottom: thin(), left: thin(), right: thin() }; }
 
-    function styleHeaderRow(ws, rowNum) {
-      const r = ws.getRow(rowNum);
-      r.height = 30;
-      r.eachCell({ includeEmpty: true }, (cell, col) => {
-        if (col > 17) return;
+    // group-header row over the column headers
+    function writeGroupHeader(ws, rowNum, withVehicle) {
+      const r = ws.getRow(rowNum); r.height = 22;
+      // م spans both header rows
+      ws.mergeCells(rowNum, 1, rowNum + 1, 1);
+      const idx = ws.getCell(rowNum, 1);
+      idx.value = bzTL('م');
+      idx.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GRP_EMP_FILL } };
+      idx.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      idx.alignment = { horizontal: 'center', vertical: 'center' };
+      idx.border = allThin();
+      // employee group band
+      const empStart = 2, empEnd = 1 + EMP_COLS.length;
+      ws.mergeCells(rowNum, empStart, rowNum, empEnd);
+      const eg = ws.getCell(rowNum, empStart);
+      eg.value = bzTL('بيانات الموظف');
+      eg.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GRP_EMP_FILL } };
+      eg.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+      eg.alignment = { horizontal: 'center', vertical: 'center' };
+      for (let c = empStart; c <= empEnd; c++) ws.getCell(rowNum, c).border = allThin();
+      if (withVehicle) {
+        const vStart = empEnd + 1, vEnd = empEnd + VEH_COLS.length;
+        ws.mergeCells(rowNum, vStart, rowNum, vEnd);
+        const vg = ws.getCell(rowNum, vStart);
+        vg.value = bzTL('بيانات المركبات');
+        vg.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GRP_VEH_FILL } };
+        vg.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF1A1500' } };
+        vg.alignment = { horizontal: 'center', vertical: 'center' };
+        for (let c = vStart; c <= vEnd; c++) ws.getCell(rowNum, c).border = allThin();
+      }
+    }
+    // column-label header row (cols = column set for this table)
+    function writeColHeader(ws, rowNum, cols) {
+      const r = ws.getRow(rowNum); r.height = 30;
+      cols.forEach((c, i) => {
+        const cell = ws.getCell(rowNum, i + 2); // skip م (merged from group row)
+        cell.value = bzTL(c.label);
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HDR_FILL } };
         cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2747' } };
         cell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-        cell.border = { top: { style: 'medium' }, bottom: thin(), left: col === 1 ? { style: 'medium' } : thin(), right: thin() };
+        cell.border = { top: thin(), bottom: { style: 'medium', color: { argb: 'FFC9A227' } }, left: thin(), right: thin() };
       });
     }
-    function writeHeader(ws, rowNum) {
-      ws.getRow(rowNum).values = EXPORT_HEADERS;
-      styleHeaderRow(ws, rowNum);
+    // writes group header + column header, returns next row index
+    function writeHeader(ws, rowNum, cols) {
+      writeGroupHeader(ws, rowNum, cols.length > EMP_COLS.length);
+      writeColHeader(ws, rowNum + 1, cols);
+      return rowNum + 2;
     }
-    function writeDataRow(ws, rowNum, serial, row) {
+    function writeDataRow(ws, rowNum, serial, row, cols) {
       const r = ws.getRow(rowNum);
-      r.values = [serial, ...COLS.map(c => row[c.key] || '')];
+      r.values = [serial, ...cols.map(c => row[c.key] || '')];
       r.eachCell({ includeEmpty: true }, (cell, col) => {
-        if (col > 17) return;
+        if (col > 1 + cols.length) return;
         cell.font = { name: 'Arial', size: 11 };
         cell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-        cell.border = { top: thin(), bottom: thin(), left: col === 1 ? { style: 'medium' } : thin(), right: thin() };
+        cell.border = allThin();
       });
     }
     function sectionTitle(ws, rowNum, text, fill, span) {
       ws.mergeCells(rowNum, 1, rowNum, span);
       const cell = ws.getCell(rowNum, 1);
-      cell.value = text;
+      cell.value = bzTL(text);
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
       cell.font = { name: 'Calibri', size: 13, bold: true };
       cell.alignment = { horizontal: 'center', vertical: 'center' };
       for (let c = 1; c <= span; c++) ws.getCell(rowNum, c).border = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } };
     }
 
+    // builds the workbook and returns an Excel Blob (used by both download and share)
+    async function buildScheduleBlob() {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('الجدول الأسبوعي', { views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 4 }] });
+      COLW.forEach((w, i) => ws.getColumn(i + 1).width = w);
+
+      // Title (A1:R1)
+      ws.mergeCells(1, 1, 1, TOTAL_COLS);
+      const t = ws.getCell('A1');
+      t.value = state.title || bzTL('الجدول الأسبوعي');
+      t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0C2340' } };
+      t.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+      t.alignment = { horizontal: 'center', vertical: 'center' };
+      ws.getRow(1).height = 22;
+      // Date (B2)
+      ws.getCell('B2').value = (bzTL('التاريخ') + ': ') + (state.date || '');
+      ws.getCell('B2').font = { name: 'Calibri', size: 12, bold: true };
+      ws.getRow(2).height = 16.5;
+
+      let r = 3;
+      r = writeHeader(ws, r, COLS);
+      state.main.forEach((row, i) => { writeDataRow(ws, r, i + 1, row, COLS); r++; });
+
+      r += 1;
+      sectionTitle(ws, r, 'بيان المركبات الاسبير والمعطلة', SPARE_FILL, TOTAL_COLS); r += 1;
+      r = writeHeader(ws, r, COLS);
+      state.spare.forEach((row, i) => { writeDataRow(ws, r, i + 1, row, COLS); r++; });
+
+      // Vacation section — employee data only (7 cols)
+      const vac = state.vacation.filter(v => Object.values(v).some(x => String(x || '').trim()));
+      if (vac.length) {
+        r += 1;
+        sectionTitle(ws, r, 'السائقون في إجازة (هذا الأسبوع)', SUM_FILL, 1 + EMP_COLS.length); r += 1;
+        r = writeHeader(ws, r, EMP_COLS);
+        vac.forEach((row, i) => { writeDataRow(ws, r, i + 1, row, EMP_COLS); r++; });
+      }
+
+      // Summary
+      r += 1;
+      sectionTitle(ws, r, 'ملخص الأعداد', SUM_FILL, 8); r += 1;
+      const sumHdr = ['م', 'عدد السائقين', 'عدد الدينات', 'عدد اللواري', 'عدد الموصلين', 'عدد الموزعين', 'عدد السائقين في إجازة'];
+      ws.mergeCells(r, 7, r, 8);
+      sumHdr.forEach((h, i) => {
+        const cell = ws.getCell(r, i + 1);
+        cell.value = bzTL(h);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HDR_FILL } };
+        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2747' } };
+        cell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
+        cell.border = allThin();
+      });
+      ws.getCell(r, 8).border = allThin();
+      r += 1;
+      const s = state.summary || {};
+      const sumVals = ['1', s.drivers || '', s.dinas || '', s.lorries || '', s.delivery || '', s.distributors || '', s.vacation || ''];
+      ws.mergeCells(r, 7, r, 8);
+      sumVals.forEach((v, i) => {
+        const cell = ws.getCell(r, i + 1);
+        cell.value = v;
+        cell.font = { name: 'Arial', size: 12, bold: true };
+        cell.alignment = { horizontal: 'center', vertical: 'center' };
+        cell.border = allThin();
+      });
+      ws.getCell(r, 8).border = allThin();
+
+      // Footer + signature
+      r += 2;
+      ws.mergeCells(r, 1, r, TOTAL_COLS);
+      const f = ws.getCell(r, 1);
+      f.value = bzTL('تم إعداد هذا الجدول بواسطة قسم الحركة');
+      f.font = { name: 'Calibri', size: 12, bold: true };
+      f.alignment = { horizontal: 'center', vertical: 'center' };
+      r += 1; ws.getCell(r, 3).value = bzTL('قسم الحركة'); ws.getCell(r, 3).font = { name: 'Arial', size: 11, bold: true };
+      r += 1; ws.getCell(r, 3).value = 'خالد بن محمد الغامدي'; ws.getCell(r, 3).font = { name: 'Arial', size: 11, bold: true };
+
+      ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+
+      const buf = await wb.xlsx.writeBuffer();
+      return new Blob([buf]);
+    }
+
+    function scheduleFileName() {
+      const dt = (state.date || '').replace(/[^0-9-]/g, '') || 'الجدول';
+      return `الجدول_الاسبوعي_${dt}.xlsx`;
+    }
+
     async function exportExcel() {
       try {
-        const wb = new ExcelJS.Workbook();
-        const ws = wb.addWorksheet('الجدول الأسبوعي', { views: [{ rightToLeft: true, showGridLines: false }] });
-        COLW.forEach((w, i) => ws.getColumn(i + 1).width = w);
-
-        // Title (A1:Q1)
-        ws.mergeCells('A1:Q1');
-        const t = ws.getCell('A1');
-        t.value = state.title;
-        t.font = { name: 'Calibri', size: 14, bold: true };
-        t.alignment = { horizontal: 'center', vertical: 'center' };
-        ws.getRow(1).height = 19;
-        // Date (B2)
-        ws.getCell('B2').value = state.date;
-        ws.getCell('B2').font = { name: 'Calibri', size: 12, bold: true };
-        ws.getRow(2).height = 16.5;
-
-        let r = 3;
-        writeHeader(ws, r); r++;
-        state.main.forEach((row, i) => { writeDataRow(ws, r, i + 1, row); r++; });
-
-        r += 1;
-        sectionTitle(ws, r, 'بيان المركبات الاسبير والمعطلة', SPARE_FILL, 17); r += 1;
-        writeHeader(ws, r); r++;
-        state.spare.forEach((row, i) => { writeDataRow(ws, r, i + 1, row); r++; });
-
-        // Vacation section (only if it has drivers with data)
-        const vac = state.vacation.filter(v => Object.values(v).some(x => String(x || '').trim()));
-        if (vac.length) {
-          r += 1;
-          sectionTitle(ws, r, 'السائقون في إجازة (هذا الأسبوع)', SUM_FILL, 17); r += 1;
-          writeHeader(ws, r); r++;
-          vac.forEach((row, i) => { writeDataRow(ws, r, i + 1, row); r++; });
-        }
-
-        // Summary
-        r += 1;
-        sectionTitle(ws, r, 'ملخص الأعداد', SUM_FILL, 8); r += 1;
-        const sumHdr = ['م', 'عدد السائقيين', 'عدد الدينات', 'عدد اللواري', 'عدد الموصلين', 'عدد الموزعين', 'عدد السائقين في إجازة'];
-        ws.mergeCells(r, 7, r, 8); // merge G:H for the vacation header (matches the file)
-        sumHdr.forEach((h, i) => {
-          const cell = ws.getCell(r, i + 1);
-          cell.value = h;
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HDR_FILL } };
-          cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2747' } };
-          cell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-          cell.border = allThin();
-        });
-        ws.getCell(r, 8).border = allThin();
-        r += 1;
-        const s = state.summary || {};
-        const sumVals = ['1', s.drivers || '', s.dinas || '', s.lorries || '', s.delivery || '', s.distributors || '', s.vacation || ''];
-        ws.mergeCells(r, 7, r, 8);
-        sumVals.forEach((v, i) => {
-          const cell = ws.getCell(r, i + 1);
-          cell.value = v;
-          cell.font = { name: 'Arial', size: 12, bold: true };
-          cell.alignment = { horizontal: 'center', vertical: 'center' };
-          cell.border = allThin();
-        });
-        ws.getCell(r, 8).border = allThin();
-
-        // Footer + signature
-        r += 2;
-        ws.mergeCells(r, 1, r, 17);
-        const f = ws.getCell(r, 1);
-        f.value = 'تم إعداد هذا الجدول بواسطة قسم الحركة';
-        f.font = { name: 'Calibri', size: 12, bold: true };
-        f.alignment = { horizontal: 'center', vertical: 'center' };
-        r += 1; ws.getCell(r, 3).value = 'قسم الحركة'; ws.getCell(r, 3).font = { name: 'Arial', size: 11, bold: true };
-        r += 1; ws.getCell(r, 3).value = 'خالد بن محمد الغامدي'; ws.getCell(r, 3).font = { name: 'Arial', size: 11, bold: true };
-
-        ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
-
-        const buf = await wb.xlsx.writeBuffer();
-        const dt = (state.date || '').replace(/[^0-9-]/g, '') || 'الجدول';
-        saveAs(new Blob([buf]), `الجدول_الاسبوعي_${dt}.xlsx`);
+        const blob = await buildScheduleBlob();
+        saveAs(blob, scheduleFileName());
         if (window.showToast) showToast('تم تصدير الجدول الأسبوعي', 'success');
       } catch (err) {
         console.error(err);
         if (window.showToast) showToast('تعذّر التصدير: ' + err.message, 'error');
       }
+    }
+
+    // ===== Share / export (Excel + PDF via email / WhatsApp) =====
+    function shareSchedule() {
+      bzShare(buildScheduleBlob, {
+        filename: scheduleFileName(),
+        subject: state.title || 'الجدول الأسبوعي — شركة بن زومة',
+        pdfElement: 'mainPrintArea',
+        pdfOrientation: 'landscape',
+        waMessage: (state.title || 'الجدول الأسبوعي') + ' — شركة بن زومة (فرع الدمام)'
+      });
+    }
+
+    // ===== Build a WhatsApp message for a single driver row =====
+    function driverWaMessage(r) {
+      const tag = v => { const s = dateStatusVal(v); return s === 'exp-bad' ? ' (منتهية ⚠️)' : s === 'exp-warn' ? ' (قاربت الانتهاء ⏳)' : ''; };
+      const line = (lbl, v) => `${lbl}: ${v || '—'}${tag(v)}`;
+      return [
+        `السلام عليكم ${r.name || ''}`,
+        'بيانات مركبتك لدى قسم الحركة — فرع الدمام (شركة بن زومة):',
+        `رقم اللوحة: ${r.plate || '—'}`,
+        `نوع المركبة: ${r.vtype || '—'}`,
+        `الرقم التسلسلي: ${r.vserial || '—'}`,
+        '',
+        'تنبيهات انتهاء المستندات:',
+        line('رخصة السير', r.license),
+        line('الفحص الدوري', r.inspect),
+        line('بطاقة السائق', r.drivercard),
+        line('بطاقة التشغيل', r.opcard),
+        '',
+        'يرجى مراجعة قسم الحركة عند اقتراب أي انتهاء.'
+      ].join('\n');
+    }
+    function waLink(phone, msg) {
+      let ph = String(phone || '').replace(/\D/g, '');
+      if (!ph) return null;
+      if (ph.charAt(0) === '0') ph = ph.slice(1);
+      if (ph.indexOf('966') !== 0) ph = '966' + ph;
+      return `https://wa.me/${ph}?text=${encodeURIComponent(msg)}`;
+    }
+
+    // ===== "Send to all" modal — one WhatsApp button per driver (browser blocks bulk auto-open) =====
+    function openWaAll() {
+      const rows = state.main.filter(r => String(r.name || '').trim());
+      let items;
+      if (!rows.length) {
+        items = `<p class="hint" style="padding:10px;">لا يوجد سائقون في الجدول الرئيسي.</p>`;
+      } else {
+        items = rows.map(r => {
+          const link = waLink(r.phone, driverWaMessage(r));
+          const name = escapeHtml(r.name || '—');
+          const phone = escapeHtml(r.phone || '');
+          const btn = link
+            ? `<a class="btn-primary" style="padding:6px 14px;font-size:.85rem;text-decoration:none;" href="${escapeHtml(link)}" target="_blank" rel="noopener">📲 إرسال</a>`
+            : `<span class="hint">لا يوجد جوال</span>`;
+          return `<div class="wa-all-row"><div class="wa-all-info"><strong>${name}</strong><span class="hint">${phone || '—'}</span></div>${btn}</div>`;
+        }).join('');
+      }
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-backdrop show';
+      overlay.style.zIndex = 3000;
+      overlay.innerHTML =
+        '<div class="modal-content-custom" style="max-width:480px;">' +
+        '<div class="modal-header-custom"><h2>📲 إرسال للجميع عبر واتساب</h2>' +
+        '<button class="close-btn" data-x>✕</button></div>' +
+        '<div class="modal-body-custom"><p class="hint" style="margin:.2rem 0 .8rem;">المتصفح يحجب الفتح الجماعي التلقائي — أرسل لكل سائق على حدة:</p>' +
+        '<div class="wa-all-list">' + items + '</div></div></div>';
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.hasAttribute('data-x')) overlay.remove(); });
     }
   </script>
 </body>

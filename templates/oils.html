@@ -65,6 +65,11 @@
         }
         .excel-table tbody tr:nth-child(even) td { background: var(--surface-hover); }
         .excel-table tbody tr:nth-child(even) td.excel-input { background: var(--surface-hover); }
+        /* Fit tables to page width with no horizontal scroll (DESIGN_SYSTEM). */
+        .excel-table-container { overflow-x: visible !important; }
+        .excel-table.bz-fit { table-layout: fixed; }
+        .excel-table.bz-fit input { min-width: 0; }
+        .add-filter-cell { text-align:center; padding: 8px !important; border: 1px solid var(--border); }
         .btn-del {
             background: transparent; border: none; cursor: pointer; font-size: 1rem;
             line-height: 1; padding: 4px; border-radius: 6px; transition: var(--trans);
@@ -118,12 +123,19 @@
     <div class="oils-toolbar">
         <button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد</button>
         <button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
+        <button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
         <button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
     </div>
 
+    <div id="oilsPrintable">
+
     <!-- Excel Table Replica -->
-    <div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; overflow-x: auto; padding: 20px;">
-        <table class="excel-table" id="oilsExcelTable">
+    <div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 20px;">
+        <table class="excel-table bz-fit" id="oilsExcelTable">
+            <colgroup>
+                <col style="width:5%"><col style="width:13%"><col style="width:18%"><col style="width:14%">
+                <col style="width:13%"><col style="width:11%"><col style="width:23%"><col style="width:3%">
+            </colgroup>
             <thead>
                 <tr>
                     <th colspan="8" style="border:none; text-align: center; padding: 14px 8px;">
@@ -758,8 +770,15 @@
     </div>
 
     <!-- Filters Table -->
-    <div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; overflow-x: auto; padding: 0 20px 20px 20px;">
-        <table class="excel-table" id="filtersExcelTable">
+    <div class="oils-toolbar" style="margin: 0 auto 10px auto; max-width:1200px;" data-html2canvas-ignore="true">
+        <button class="btn-primary" onclick="addFilterRow()">＋ إضافة صف للفلاتر (زيت / ديزل / هواء)</button>
+    </div>
+    <div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px 20px 20px;">
+        <table class="excel-table bz-fit" id="filtersExcelTable">
+            <colgroup>
+                <col style="width:4%"><col style="width:20%"><col style="width:8%"><col style="width:9%"><col style="width:9%">
+                <col style="width:4%"><col style="width:20%"><col style="width:8%"><col style="width:9%"><col style="width:9%">
+            </colgroup>
             <thead>
                 <tr>
                     <th class="excel-header" style="width:4%;">م</th>
@@ -1039,6 +1058,8 @@
             </div>
         </div>
     </div>
+
+    </div><!-- /oilsPrintable -->
 <datalist id="oilsDriversList"></datalist>
 <datalist id="oilsPlatesList"></datalist>
 
@@ -1097,9 +1118,46 @@
             saveToLocalStorage();
         }
 
+        // --- Filters table dynamic rows (each row = two filter entries: oil/diesel/air) ---
+        const FILTER_ROW_TEMPLATE = (nL, nR, r) => `
+                    <td class="excel-rownum" style="width:4%;">${nL}</td>
+                    <td class="excel-input" style="width:20%;"><input type="text" value="${escapeHtml(r && r[0] || '')}"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="${escapeHtml(r && r[1] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[2] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[3] || '')}"></td>
+                    <td class="excel-rownum" style="width:4%;">${nR}</td>
+                    <td class="excel-input" style="width:20%;"><input type="text" value="${escapeHtml(r && r[4] || '')}"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="${escapeHtml(r && r[5] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[6] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[7] || '')}"></td>`;
+
+        function renumberFilterRows() {
+            const rows = document.querySelectorAll('#filtersBody tr');
+            const n = rows.length;
+            rows.forEach((tr, idx) => {
+                // First non-input cell = left index, the cell at position 5 = right index.
+                const tds = tr.querySelectorAll('td');
+                if(tds[0] && !tds[0].querySelector('input')) tds[0].textContent = idx + 1;
+                if(tds[5] && !tds[5].querySelector('input')) tds[5].textContent = idx + 1 + n;
+            });
+        }
+
+        function addFilterRow() {
+            const tbody = document.getElementById('filtersBody');
+            const n = tbody.querySelectorAll('tr').length;
+            const tr = document.createElement('tr');
+            // Left index = n+1, right index = (n+1)+(n+1) recomputed after renumber.
+            tr.innerHTML = FILTER_ROW_TEMPLATE(n + 1, n + 1, null);
+            tbody.appendChild(tr);
+            renumberFilterRows();
+            saveToLocalStorage();
+            if(window.showToast) showToast('تمت إضافة صف للفلاتر', 'success');
+        }
+
         function clearOilsData() {
             if(window.confirm('سيتم مسح كل البيانات المحفوظة محلياً. هل أنت متأكد؟')) {
                 localStorage.removeItem('excel_oils_data');
+                localStorage.removeItem('excel_filters_data');
                 localStorage.removeItem('excel_oils_title');
                 window.location.reload();
             }
@@ -1116,7 +1174,19 @@
                 }
             });
             localStorage.setItem('excel_oils_data', JSON.stringify(rows));
-            
+
+            // Persist the filters table rows too (so added filter rows survive reload).
+            const fRows = [];
+            document.querySelectorAll('#filtersBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if(inputs.length > 0) {
+                    const rowData = [];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    fRows.push(rowData);
+                }
+            });
+            localStorage.setItem('excel_filters_data', JSON.stringify(fRows));
+
             const titleVal = document.getElementById('oilsTitle').value;
             localStorage.setItem('excel_oils_title', titleVal);
         }
@@ -1137,6 +1207,23 @@
                         });
                     }
                 } catch(e) { console.error('Failed to load saved oils data', e); }
+            }
+
+            const savedFilters = localStorage.getItem('excel_filters_data');
+            if(savedFilters) {
+                try {
+                    const fRows = JSON.parse(savedFilters);
+                    const fbody = document.getElementById('filtersBody');
+                    if(fbody && fRows.length > 0) {
+                        fbody.innerHTML = '';
+                        fRows.forEach((r) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = FILTER_ROW_TEMPLATE(0, 0, r);
+                            fbody.appendChild(tr);
+                        });
+                        renumberFilterRows();
+                    }
+                } catch(e) { console.error('Failed to load saved filters data', e); }
             }
 
             const titleVal = localStorage.getItem('excel_oils_title');
@@ -1202,225 +1289,257 @@
             });
         });
 
+        // Build the Excel workbook fully from the current DOM (matches the page 1:1)
+        // and return a Blob. Layout flows DYNAMICALLY from the actual row counts, so
+        // added oils rows AND added filter rows are all included.
+        async function buildOilsBlob() {
+            if(typeof ExcelJS === 'undefined') throw new Error('مكتبة التصدير غير محمّلة بعد');
+            const TL = (window.bzTL || function(s){ return s; });
+
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('بيان الزيوت', { properties: { defaultRowHeight: 22 } });
+
+            // --- Corporate styling helpers (DESIGN_SYSTEM §6 — B&W print safe) ---
+            const NAVY = 'FF0C2340', GOLD = 'FFC9A227', ZEBRA = 'FFF2F2F2',
+                  WHITE = 'FFFFFFFF', BLACK = 'FF000000', GRID = 'FF595959';
+            const thin = { style: 'thin', color: { argb: GRID } };
+            const allBorders = { top: thin, left: thin, bottom: thin, right: thin };
+            const COLS = ['A','B','C','D','E','F','G','H','I','J'];
+            const whiteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WHITE } };
+            const zebraFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
+
+            ws.columns = [
+                { width: 5 }, { width: 16 }, { width: 22 }, { width: 16 },
+                { width: 14 }, { width: 12 }, { width: 30 }, { width: 10 },
+                { width: 10 }, { width: 10 }
+            ];
+
+            function styleData(cell, isZebra) {
+                cell.border = allBorders;
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.font = { name: 'Tajawal', size: 11, bold: false, color: { argb: BLACK } };
+                cell.fill = isZebra ? zebraFill : whiteFill;
+            }
+            function styleHeaderCell(cell) {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                cell.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: WHITE } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.border = { top: thin, left: thin, right: thin, bottom: { style: 'medium', color: { argb: GOLD } } };
+            }
+            function styleNoteRow(rowNum, span) {
+                (span || COLS).forEach(col => {
+                    const c = ws.getCell(col + rowNum);
+                    c.border = allBorders;
+                    c.fill = whiteFill;
+                    c.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } };
+                    c.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true, readingOrder: 'rtl' };
+                });
+                const ro = ws.getRow(rowNum);
+                if(ro.height < 22) ro.height = 22;
+            }
+            function sectionTitle(rowNum, text, span) {
+                const cols = span || ['A','B','C','D','E','F','G','H'];
+                try { ws.mergeCells(cols[0] + rowNum + ':' + cols[cols.length-1] + rowNum); } catch(e) {}
+                const c = ws.getCell(cols[0] + rowNum);
+                c.value = text;
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                c.font = { name: 'Tajawal', size: 13, bold: true, color: { argb: WHITE } };
+                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                ws.getRow(rowNum).height = 28;
+            }
+
+            let r = 1;
+
+            // 1. Title (merged across the oils-table width)
+            try { ws.mergeCells('A1:H1'); } catch(e) {}
+            const titleCell = ws.getCell('A1');
+            titleCell.value = document.getElementById('oilsTitle').value;
+            titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+            titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: WHITE } };
+            titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            ws.getRow(1).height = 34;
+            r = 2;
+
+            // 2. Oils header row (labels via bzTL so EN export translates)
+            const oilsHeaders = ['م','رقم لوحة السيارة','المستخدم','تاريخ تغيير الزيت','رقم العداد','عدد اللترات','عدد فلاتر الزيت والديزل والهواء'];
+            const oilsHeaderRow = r;
+            ['A','B','C','D','E','F','G'].forEach((col, i) => {
+                const c = ws.getCell(col + r);
+                c.value = TL(oilsHeaders[i]);
+                styleHeaderCell(c);
+            });
+            ws.getRow(r).height = 26;
+            ws.views = [{ rightToLeft: true, state: 'frozen', ySplit: oilsHeaderRow }];
+            r++;
+
+            // 3. Main Oils Table (ALL dynamic rows)
+            const oilsRows = document.querySelectorAll('#oilsBody tr');
+            let liveCount = 0, totalLiters = 0;
+            oilsRows.forEach((tr) => {
+                const tds = tr.querySelectorAll('td');
+                const getVal = (c) => {
+                    if(!tds[c]) return '';
+                    const input = tds[c].querySelector('input');
+                    if(input) return input.value;
+                    return tds[c].innerText.replace('❌','').trim();
+                };
+                ws.getCell('A'+r).value = liveCount + 1;
+                ws.getCell('B'+r).value = getVal(1);
+                ws.getCell('C'+r).value = getVal(2);
+                ws.getCell('D'+r).value = getVal(3);
+                ws.getCell('E'+r).value = getVal(4);
+                ws.getCell('F'+r).value = getVal(5);
+                ws.getCell('G'+r).value = getVal(6);
+                const lit = parseFloat(getVal(5));
+                if(!isNaN(lit)) totalLiters += lit;
+                const zebra = (liveCount % 2 === 1);
+                ['A','B','C','D','E','F','G'].forEach(col => styleData(ws.getCell(col + r), zebra));
+                const rowObj = ws.getRow(r);
+                if(rowObj.height < 22) rowObj.height = 22;
+                liveCount++; r++;
+            });
+
+            // 4. Total consumed oils (liters) row
+            try { ws.mergeCells('A'+r+':E'+r); } catch(e) {}
+            const totLabel = ws.getCell('A'+r);
+            totLabel.value = TL('إجمالي الزيوت المستهلكة (عدد اللترات)');
+            totLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+            totLabel.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: WHITE } };
+            totLabel.alignment = { vertical: 'middle', horizontal: 'center' };
+            try { ws.mergeCells('F'+r+':G'+r); } catch(e) {}
+            const totVal = ws.getCell('F'+r);
+            totVal.value = totalLiters;
+            totVal.font = { name: 'Tajawal', size: 13, bold: true, color: { argb: BLACK } };
+            totVal.alignment = { vertical: 'middle', horizontal: 'center' };
+            totVal.border = allBorders;
+            ws.getRow(r).height = 26;
+            r += 2;
+
+            const tables = document.querySelectorAll('.excel-table');
+            const filtersTable = document.getElementById('filtersExcelTable');
+            // Robustly locate the two free-text note tables (NOT the oils/total/filters tables):
+            // the first such table = "ملاحظات وتفاصيل الفلاتر", the last = "فلاتر الديزل".
+            const noteTables = Array.prototype.filter.call(tables, function(t) {
+                return t.id !== 'oilsExcelTable' && t !== filtersTable && t.querySelectorAll('input').length > 0;
+            });
+            const topNotesTable = noteTables[0] || null;
+            const bottomNotesTable = noteTables.length > 1 ? noteTables[noteTables.length - 1] : null;
+
+            // 5. Top Notes (notes & filter details)
+            if(topNotesTable) {
+                sectionTitle(r, TL('ملاحظات وتفاصيل الفلاتر')); r++;
+                topNotesTable.querySelectorAll('input').forEach(inp => {
+                    try { ws.mergeCells('A'+r+':H'+r); } catch(e) {}
+                    ws.getCell('A'+r).value = inp.value;
+                    styleNoteRow(r, ['A','B','C','D','E','F','G','H']);
+                    r++;
+                });
+                r++;
+            }
+
+            // 6. Filters Table — ALL dynamic rows
+            if(filtersTable) {
+                const fHeaders = ['م','نوع الفلتر','السابق','المستهلك','المتبقي','م','نوع الفلتر','السابق','المستهلك','المتبقي'];
+                COLS.forEach((col, i) => {
+                    const c = ws.getCell(col + r);
+                    c.value = TL(fHeaders[i]);
+                    styleHeaderCell(c);
+                });
+                ws.getRow(r).height = 26;
+                r++;
+
+                const filterRows = filtersTable.querySelectorAll('tbody tr');
+                filterRows.forEach((tr, idx) => {
+                    const tds = tr.querySelectorAll('td');
+                    const getVal = (c) => tds[c] ? (tds[c].querySelector('input') ? tds[c].querySelector('input').value : tds[c].innerText.trim()) : '';
+                    ws.getCell('A'+r).value = idx + 1;
+                    ws.getCell('B'+r).value = getVal(1);
+                    ws.getCell('C'+r).value = getVal(2);
+                    ws.getCell('D'+r).value = getVal(3);
+                    ws.getCell('E'+r).value = getVal(4);
+                    ws.getCell('F'+r).value = idx + 1 + filterRows.length;
+                    ws.getCell('G'+r).value = getVal(6);
+                    ws.getCell('H'+r).value = getVal(7);
+                    ws.getCell('I'+r).value = getVal(8);
+                    ws.getCell('J'+r).value = getVal(9);
+                    const zebra = (idx % 2 === 1);
+                    COLS.forEach(col => styleData(ws.getCell(col + r), zebra));
+                    const rowObj = ws.getRow(r);
+                    if(rowObj.height < 22) rowObj.height = 22;
+                    r++;
+                });
+                r++;
+            }
+
+            // 7. Diesel filters notes
+            if(bottomNotesTable) {
+                const bottomNotes = bottomNotesTable.querySelectorAll('input');
+                if(bottomNotes.length) {
+                    sectionTitle(r, TL('فلاتر الديزل')); r++;
+                    bottomNotes.forEach(inp => {
+                        try { ws.mergeCells('A'+r+':H'+r); } catch(e) {}
+                        ws.getCell('A'+r).value = inp.value;
+                        styleNoteRow(r, ['A','B','C','D','E','F','G','H']);
+                        r++;
+                    });
+                    r++;
+                }
+            }
+
+            // 8. Corporate footer row
+            try { ws.mergeCells('A'+r+':H'+r); } catch(e) {}
+            const footCell = ws.getCell('A'+r);
+            const today = new Date().toISOString().slice(0, 10);
+            footCell.value = TL('أُعدّ بواسطة قسم الحركة — فرع الدمام') + '   |   ' + today;
+            footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: BLACK } };
+            footCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            // 9. Print setup — clean B&W landscape (DESIGN_SYSTEM §6).
+            ws.pageSetup = {
+                fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+                orientation: 'landscape', horizontalCentered: true,
+                margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+            };
+            ws.printOptions = { gridLines: true, horizontalCentered: true };
+
+            const outBuffer = await wb.xlsx.writeBuffer();
+            return new Blob([outBuffer]);
+        }
+
         async function exportOilsExcel() {
             if(typeof ExcelJS === 'undefined') {
                 if(window.showToast) showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
                 return;
             }
-            
             const btn = document.querySelector('button[onclick="exportOilsExcel()"]');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = 'جاري التصدير... ⏳';
-            btn.disabled = true;
-
+            const originalText = btn ? btn.innerHTML : '';
+            if(btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
             try {
-                const response = await fetch('/static/oils_template.xlsx');
-                if(!response.ok) throw new Error("لم يتم العثور على قالب الإكسل الأساسي.");
-                const buffer = await response.arrayBuffer();
-                
-                const wb = new ExcelJS.Workbook();
-                await wb.xlsx.load(buffer);
-                const ws = wb.worksheets[0];
-
-                // --- Corporate styling helpers (DESIGN_SYSTEM §6 — B&W print safe) ---
-                // Header = navy fill + white bold (only heavy fill allowed).
-                // Data  = WHITE background, BLACK text, thin border on every side.
-                // Zebra = very light gray only (reads near-white in grayscale).
-                const NAVY = 'FF0C2340', GOLD = 'FFC9A227', ZEBRA = 'FFF2F2F2',
-                      WHITE = 'FFFFFFFF', BLACK = 'FF000000', GRID = 'FF595959';
-                const thin = { style: 'thin', color: { argb: GRID } };
-                const allBorders = { top: thin, left: thin, bottom: thin, right: thin };
-                ws.views = [{ rightToLeft: true, state: 'frozen', ySplit: 5 }];
-
-                const whiteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WHITE } };
-                const zebraFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
-
-                function styleData(cell, isZebra) {
-                    cell.border = allBorders;
-                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                    cell.font = { name: 'Tajawal', size: 11, bold: false, color: { argb: BLACK } };
-                    // Force a print-safe background: white, or very-light-gray zebra. Never colored.
-                    cell.fill = isZebra ? zebraFill : whiteFill;
-                }
-
-                // Neutralize any decorative/colored fills inherited from the static template
-                // so the whole sheet prints cleanly in pure black & white. Header (row 5) and
-                // title (row 4) are re-styled with navy below, so skipping them here is safe.
-                function neutralizeTemplateFill(cell) {
-                    const f = cell.fill;
-                    if(f && f.type === 'pattern' && f.fgColor && f.fgColor.argb) {
-                        const argb = String(f.fgColor.argb).toUpperCase();
-                        if(argb !== NAVY && argb !== WHITE && argb !== ZEBRA) {
-                            cell.fill = whiteFill;
-                        }
-                    }
-                }
-
-                // 1. Title (merged, navy fill, white bold 16)
-                const titleCell = ws.getCell('A4');
-                titleCell.value = document.getElementById('oilsTitle').value;
-                try { ws.mergeCells('A4:H4'); } catch(e) {}
-                titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-                titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
-                titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                ws.getRow(4).height = 34;
-
-                // Header row (row 5): navy fill, white bold, gold bottom border
-                const headerRow = ws.getRow(5);
-                headerRow.height = 26;
-                ['A','B','C','D','E','F','G','H'].forEach(col => {
-                    const c = ws.getCell(col + '5');
-                    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
-                    c.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-                    c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                    c.border = { top: thin, left: thin, right: thin, bottom: { style: 'medium', color: { argb: GOLD } } };
-                });
-
-                // 2. Main Oils Table (Max 59 rows: Excel Row 6 to 64)
-                const oilsRows = document.querySelectorAll('#oilsBody tr');
-                oilsRows.forEach((tr, idx) => {
-                    if(idx < 59) {
-                        const r = 6 + idx;
-                        const tds = tr.querySelectorAll('td');
-                        const getVal = (c) => {
-                            if(!tds[c]) return '';
-                            const input = tds[c].querySelector('input');
-                            if(input) return input.value;
-                            return tds[c].innerText.replace('❌','').trim();
-                        };
-
-                        ws.getCell('A'+r).value = getVal(0);
-                        ws.getCell('B'+r).value = getVal(1);
-                        ws.getCell('C'+r).value = getVal(2);
-                        ws.getCell('E'+r).value = getVal(3);
-                        ws.getCell('F'+r).value = getVal(4);
-                        ws.getCell('G'+r).value = getVal(5);
-                        ws.getCell('H'+r).value = getVal(6);
-
-                        const zebra = (idx % 2 === 1);
-                        ['A','B','C','D','E','F','G','H'].forEach(col => styleData(ws.getCell(col + r), zebra));
-                        const rowObj = ws.getRow(r);
-                        if(rowObj.height < 22) rowObj.height = 22;
-                    }
-                });
-
-                const tables = document.querySelectorAll('.excel-table');
-                
-                // Helper: style a merged note row (white bg, black text, thin border, right-aligned)
-                function styleNoteRow(rowNum) {
-                    ['A','B','C','D','E','F','G','H','I','J'].forEach(col => {
-                        const c = ws.getCell(col + rowNum);
-                        c.border = allBorders;
-                        c.fill = whiteFill;
-                        c.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } };
-                        c.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true, readingOrder: 'rtl' };
-                    });
-                    const ro = ws.getRow(rowNum);
-                    if(ro.height < 22) ro.height = 22;
-                }
-
-                // 3. Top Notes (Row 65,66,67)
-                if(tables.length > 1) {
-                    const topNotes = tables[1].querySelectorAll('input');
-                    if(topNotes.length >= 1) ws.getCell('A65').value = topNotes[0].value;
-                    if(topNotes.length >= 2) ws.getCell('A66').value = topNotes[1].value;
-                    if(topNotes.length >= 3) ws.getCell('A67').value = topNotes[2].value;
-                    [65, 66, 67].forEach(styleNoteRow);
-                }
-
-                // 4. Filters Table (Max 18 rows: Excel Row 69 to 86)
-                if(tables.length > 2) {
-                    const filterRows = tables[2].querySelectorAll('tbody tr');
-                    filterRows.forEach((tr, idx) => {
-                        if(idx < 18) {
-                            const r = 69 + idx;
-                            const tds = tr.querySelectorAll('td');
-                            const getVal = (c) => tds[c] ? (tds[c].querySelector('input') ? tds[c].querySelector('input').value : tds[c].innerText.trim()) : '';
-                            
-                            ws.getCell('A'+r).value = getVal(0);
-                            ws.getCell('B'+r).value = getVal(1);
-                            ws.getCell('C'+r).value = getVal(2);
-                            ws.getCell('D'+r).value = getVal(3);
-                            ws.getCell('E'+r).value = getVal(4);
-                            
-                            ws.getCell('F'+r).value = getVal(5);
-                            ws.getCell('G'+r).value = getVal(6);
-                            ws.getCell('H'+r).value = getVal(7);
-                            ws.getCell('I'+r).value = getVal(8);
-
-                            const zebra = (idx % 2 === 1);
-                            ['A','B','C','D','E','F','G','H','I','J'].forEach(col => styleData(ws.getCell(col + r), zebra));
-                            const rowObj = ws.getRow(r);
-                            if(rowObj.height < 22) rowObj.height = 22;
-                        }
-                    });
-
-                    // Style the filters table header row (Excel row 68) navy + white bold.
-                    const fHeader = ws.getRow(68);
-                    fHeader.height = 26;
-                    ['A','B','C','D','E','F','G','H','I','J'].forEach(col => {
-                        const c = ws.getCell(col + '68');
-                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
-                        c.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: WHITE } };
-                        c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                        c.border = { top: thin, left: thin, right: thin, bottom: { style: 'medium', color: { argb: GOLD } } };
-                    });
-                }
-
-                // 5. Bottom Notes (Row 89 to 94)
-                if(tables.length > 3) {
-                    const bottomNotes = tables[3].querySelectorAll('input');
-                    if(bottomNotes.length >= 1) ws.getCell('A89').value = bottomNotes[0].value;
-                    if(bottomNotes.length >= 2) ws.getCell('A90').value = bottomNotes[1].value;
-                    if(bottomNotes.length >= 3) ws.getCell('A91').value = bottomNotes[2].value;
-                    if(bottomNotes.length >= 4) ws.getCell('A92').value = bottomNotes[3].value;
-                    if(bottomNotes.length >= 5) ws.getCell('A93').value = bottomNotes[4].value;
-                    if(bottomNotes.length >= 6) ws.getCell('A94').value = bottomNotes[5].value;
-                    [89, 90, 91, 92, 93, 94].forEach(styleNoteRow);
-                }
-
-                // 6. Corporate footer row
-                const footRow = 96;
-                const footCell = ws.getCell('A' + footRow);
-                const today = new Date().toISOString().slice(0, 10);
-                footCell.value = 'أُعدّ بواسطة قسم الحركة — فرع الدمام   |   التاريخ: ' + today;
-                try { ws.mergeCells('A' + footRow + ':H' + footRow); } catch(e) {}
-                footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: BLACK } };
-                footCell.alignment = { vertical: 'middle', horizontal: 'center' };
-
-                // 7. Re-style title (row 4) navy + white bold 16, in case the template carried other fills.
-                titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
-                titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: WHITE } };
-                titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-
-                // 8. Final B&W sweep: strip any leftover decorative fills from the template
-                // (light blue/beige bands) across the whole used range so nothing prints muddy.
-                // Skip the title (row 4) and the two navy header rows (5 and 68).
-                ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-                    if(rowNumber === 4 || rowNumber === 5 || rowNumber === 68) return;
-                    row.eachCell({ includeEmpty: false }, (cell) => neutralizeTemplateFill(cell));
-                });
-
-                // 9. Print setup — clean B&W landscape (DESIGN_SYSTEM §6).
-                ws.pageSetup = {
-                    fitToPage: true, fitToWidth: 1, fitToHeight: 0,
-                    orientation: 'landscape', horizontalCentered: true,
-                    margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
-                };
-                ws.printOptions = { gridLines: true, horizontalCentered: true };
-
-                const outBuffer = await wb.xlsx.writeBuffer();
-                saveAs(new Blob([outBuffer]), 'بيان_الزيوت_الدمام.xlsx');
+                const blob = await buildOilsBlob();
+                if(window.bzDownload) bzDownload(blob, 'بيان_الزيوت_الدمام.xlsx');
+                else saveAs(blob, 'بيان_الزيوت_الدمام.xlsx');
                 if(window.showToast) showToast('تم تصدير ملف الإكسل بنجاح', 'success');
-
             } catch (e) {
                 console.error(e);
                 if(window.showToast) showToast('حدث خطأ أثناء التصدير: ' + e.message, 'error');
-                else alert('حدث خطأ أثناء التصدير: ' + e.message);
             } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                if(btn) { btn.innerHTML = originalText; btn.disabled = false; }
             }
+        }
+
+        function shareOils() {
+            if(typeof ExcelJS === 'undefined') {
+                if(window.showToast) showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+                return;
+            }
+            if(!window.bzShare) { exportOilsExcel(); return; }
+            bzShare(buildOilsBlob, {
+                filename: 'بيان_الزيوت_الدمام.xlsx',
+                subject: 'بيان استهلاك الزيوت والفلاتر — فرع الدمام',
+                waMessage: 'بيان استهلاك الزيوت والفلاتر — شركة بن زومة (فرع الدمام)',
+                pdfElement: 'oilsPrintable',
+                pdfOrientation: 'landscape'
+            });
         }
 </script>
 
@@ -1431,7 +1550,9 @@
     
     <div class="oils-toolbar" style="margin: 30px auto;">
         <button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد للزيوت</button>
+        <button class="btn-primary" onclick="addFilterRow()">＋ إضافة صف للفلاتر</button>
         <button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
+        <button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
         <button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
         <button class="btn-danger" onclick="clearOilsData()">🗑 مسح البيانات</button>
     </div>

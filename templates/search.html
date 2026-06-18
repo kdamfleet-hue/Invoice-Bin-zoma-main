@@ -185,27 +185,19 @@
 
     <div class="bz-shell">
 
-        <h2 class="bz-section-title">🔍 بحث سريع — بيانات المركبات والسائقين</h2>
+        <h2 class="bz-section-title">🔍 بحث سريع — بيانات الموظفين</h2>
 
         <div class="bz-stats">
-            <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
-            <div class="bz-stat"><div class="num" id="statTrucks">0</div><div class="label">شاحنات</div></div>
-            <div class="bz-stat"><div class="num" id="statSmall">0</div><div class="label">سيارات صغيرة</div></div>
+            <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي الموظفين</div></div>
+            <div class="bz-stat"><div class="num" id="statWithVehicle">0</div><div class="label">لديهم مركبة</div></div>
+            <div class="bz-stat"><div class="num" id="statExpired">0</div><div class="label">إقامات منتهية</div></div>
         </div>
 
         <div class="search-hero">
             <div class="search-box">
                 <span class="search-icon">🔎</span>
                 <input type="search" id="searchInput" autocomplete="off"
-                       placeholder="اكتب اسم السائق أو رقم اللوحة أو رقم الإقامة..." disabled>
-            </div>
-        </div>
-
-        <div class="search-toolbar">
-            <div class="filter-pills" id="kindFilters">
-                <button type="button" class="filter-pill active" data-kind="all">الكل</button>
-                <button type="button" class="filter-pill" data-kind="شاحنة">🚛 شاحنة</button>
-                <button type="button" class="filter-pill" data-kind="صغيرة">🚗 صغيرة</button>
+                       placeholder="اكتب اسم الموظف أو رقم الإقامة..." disabled>
             </div>
         </div>
 
@@ -221,16 +213,28 @@
         (function () {
             'use strict';
 
+            // ── Employee row column indexes (46-column rows) ──────────────
+            var COL = {
+                empid:      0,   // الرقم الوظيفي
+                iqama:      1,   // رقم الإقامة
+                name:       2,   // الاسم (عربي)
+                job:        6,   // الوظيفة
+                phone:      7,   // الجوال
+                plate:      9,   // رقم اللوحة
+                iqamaExp:  10,   // تاريخ انتهاء الإقامة
+                make:      36,   // الماركة
+                kind:      37,   // الطراز
+                model:     38    // الموديل
+            };
+
             var DISPLAY_LIMIT = 100;
-            var allVehicles = [];
-            var currentKind = 'all';
+            var allEmployees = [];   // normalized objects
             var dataReady = false;
 
-            var inputEl   = document.getElementById('searchInput');
-            var gridEl    = document.getElementById('resultsGrid');
-            var countEl   = document.getElementById('resultCount');
-            var emptyEl   = document.getElementById('emptyState');
-            var filtersEl = document.getElementById('kindFilters');
+            var inputEl = document.getElementById('searchInput');
+            var gridEl  = document.getElementById('resultsGrid');
+            var countEl = document.getElementById('resultCount');
+            var emptyEl = document.getElementById('emptyState');
 
             // Safe HTML escaper — prefer the shared global, fall back if app_ux.js not yet loaded.
             function esc(v) {
@@ -245,6 +249,10 @@
             }
             function normIqama(v) {
                 return String(v == null ? '' : v).replace(/\D/g, '');
+            }
+            function cell(row, idx) {
+                var v = row[idx];
+                return v == null ? '' : String(v).trim();
             }
 
             // Returns true only for Gregorian YYYY-MM-DD dates (year 20xx) strictly before today.
@@ -261,6 +269,23 @@
                 return d.getTime() < today.getTime();
             }
 
+            // Map a raw 46-column row into the fields this tab displays.
+            function toEmployee(row) {
+                if (!Array.isArray(row)) return null;
+                return {
+                    empid:    cell(row, COL.empid),
+                    iqama:    cell(row, COL.iqama),
+                    name:     cell(row, COL.name),
+                    job:      cell(row, COL.job),
+                    phone:    cell(row, COL.phone),
+                    plate:    cell(row, COL.plate),
+                    iqamaExp: cell(row, COL.iqamaExp),
+                    make:     cell(row, COL.make),
+                    kind:     cell(row, COL.kind),
+                    model:    cell(row, COL.model)
+                };
+            }
+
             function field(label, value, opts) {
                 opts = opts || {};
                 var val = (value == null || String(value).trim() === '') ? '—' : value;
@@ -272,58 +297,49 @@
                        '</div>';
             }
 
-            function cardHtml(v) {
-                var name  = (v.name && String(v.name).trim()) ? v.name : 'غير مسجَّل';
-                var plate = (v.plate && String(v.plate).trim()) ? v.plate : '—';
-                var kind  = (v.kind && String(v.kind).trim()) ? v.kind : '';
+            function cardHtml(e) {
+                var name  = e.name ? e.name : 'غير مسجَّل';
+                var plate = e.plate ? e.plate : '—';
 
-                var licExp = isExpired(v.licenseExpiry);
-                var insExp = isExpired(v.inspectExpiry);
+                var iqExp = isExpired(e.iqamaExp);
+
+                // Vehicle (make / kind / model) shown together when available.
+                var vehicleParts = [e.make, e.kind, e.model].filter(function (p) { return p; });
+                var vehicleText  = vehicleParts.length ? vehicleParts.join(' — ') : '—';
 
                 var html = '<article class="vehicle-card">';
                 html += '<div class="vc-head">';
                 html += '<span class="vc-name">' + esc(name) + '</span>';
                 html += '<span class="vc-plate">' + esc(plate) + '</span>';
-                if (kind) html += '<span class="vc-kind">' + esc(kind) + '</span>';
+                if (e.job) html += '<span class="vc-kind">' + esc(e.job) + '</span>';
                 html += '</div>';
 
                 html += '<div class="vc-body">';
-                html += field('رقم الإقامة', v.iqama);
-                html += field('الفئة', kind || '—');
-                html += field('نوع التسجيل', v.regType);
-                html += field('حالة المركبة', v.status);
-                html += field('الماركة', v.make);
-                html += field('الطراز', v.model);
-                html += field('سنة الصنع', v.year);
-                html += field('اللون', v.color);
-                html += field('الرقم التسلسلي', v.vserial);
-                html += field('رقم الهيكل', v.chassis);
-                html += field('انتهاء رخصة السير', v.licenseExpiry, { expired: licExp });
-                html += field('انتهاء الفحص', v.inspectExpiry, { expired: insExp });
-                html += field('حالة الفحص', v.inspectStatus);
-                html += field('حالة التأمين', v.insuranceStatus);
+                html += field('الرقم الوظيفي', e.empid);
+                html += field('رقم الإقامة', e.iqama);
+                html += field('الوظيفة', e.job);
+                html += field('الجوال', e.phone);
+                html += field('رقم اللوحة', e.plate);
+                html += field('المركبة (ماركة/طراز/موديل)', vehicleText, { full: true });
+                html += field('انتهاء الإقامة', e.iqamaExp, { expired: iqExp, full: true });
                 html += '</div>';
 
                 html += '</article>';
                 return html;
             }
 
-            function matches(v, query) {
+            function matches(e, query) {
                 // Name (partial, case-insensitive)
-                var name = String(v.name == null ? '' : v.name).toLowerCase();
-                if (name.indexOf(query.raw) !== -1) return true;
-                // Plate (normalized partial)
-                if (query.plate && normPlate(v.plate).indexOf(query.plate) !== -1) return true;
+                var name = String(e.name == null ? '' : e.name).toLowerCase();
+                if (query.raw && name.indexOf(query.raw) !== -1) return true;
                 // Iqama (digits-only partial)
-                if (query.digits && normIqama(v.iqama).indexOf(query.digits) !== -1) return true;
+                if (query.digits && normIqama(e.iqama).indexOf(query.digits) !== -1) return true;
                 return false;
             }
 
             function buildQuery(rawValue) {
-                var raw = rawValue.trim().toLowerCase();
                 return {
-                    raw: raw,
-                    plate: normPlate(rawValue.trim()).toLowerCase(),
+                    raw: rawValue.trim().toLowerCase(),
                     digits: String(rawValue).replace(/[^\d٠-٩]/g, '').replace(/[٠-٩]/g, function (d) {
                         return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);
                     })
@@ -337,10 +353,9 @@
                 var hasQuery = rawVal.trim().length > 0;
                 var query = buildQuery(rawVal);
 
-                var list = allVehicles.filter(function (v) {
-                    if (currentKind !== 'all' && v.kind !== currentKind) return false;
+                var list = allEmployees.filter(function (e) {
                     if (!hasQuery) return true;
-                    return matches(v, query);
+                    return matches(e, query);
                 });
 
                 var total = list.length;
@@ -350,8 +365,8 @@
                     gridEl.style.display = 'none';
                     emptyEl.style.display = 'block';
                     emptyEl.innerHTML = hasQuery
-                        ? '<span class="big">🔍</span>لا توجد نتائج مطابقة لبحثك. جرّب اسماً آخر أو رقم لوحة/إقامة.'
-                        : '<span class="big">🚚</span>ابدأ بكتابة اسم السائق أو رقم اللوحة أو الإقامة لعرض النتائج.';
+                        ? '<span class="big">🔍</span>لا توجد نتائج مطابقة لبحثك. جرّب اسماً آخر أو رقم إقامة.'
+                        : '<span class="big">👥</span>ابدأ بكتابة اسم الموظف أو رقم الإقامة لعرض النتائج.';
                     countEl.innerHTML = hasQuery ? 'لا توجد نتائج' : '';
                     return;
                 }
@@ -375,52 +390,73 @@
             }
 
             function setStats() {
-                var trucks = 0, small = 0;
-                for (var i = 0; i < allVehicles.length; i++) {
-                    if (allVehicles[i].kind === 'شاحنة') trucks++;
-                    else if (allVehicles[i].kind === 'صغيرة') small++;
+                var withVehicle = 0, expired = 0;
+                for (var i = 0; i < allEmployees.length; i++) {
+                    var e = allEmployees[i];
+                    if (e.plate || e.make || e.model) withVehicle++;
+                    if (isExpired(e.iqamaExp)) expired++;
                 }
-                document.getElementById('statTotal').textContent  = allVehicles.length;
-                document.getElementById('statTrucks').textContent = trucks;
-                document.getElementById('statSmall').textContent  = small;
+                document.getElementById('statTotal').textContent       = allEmployees.length;
+                document.getElementById('statWithVehicle').textContent = withVehicle;
+                document.getElementById('statExpired').textContent     = expired;
             }
 
-            // Filter pill clicks
-            filtersEl.addEventListener('click', function (e) {
-                var btn = e.target.closest('.filter-pill');
-                if (!btn) return;
-                currentKind = btn.getAttribute('data-kind') || 'all';
-                var pills = filtersEl.querySelectorAll('.filter-pill');
-                for (var i = 0; i < pills.length; i++) pills[i].classList.remove('active');
-                btn.classList.add('active');
-                render();
-            });
+            function ingest(rows) {
+                var out = [];
+                if (Array.isArray(rows)) {
+                    for (var i = 0; i < rows.length; i++) {
+                        var e = toEmployee(rows[i]);
+                        // Keep only rows that carry at least a name or an iqama.
+                        if (e && (e.name || e.iqama)) out.push(e);
+                    }
+                }
+                return out;
+            }
 
             // Live filter as the user types
             inputEl.addEventListener('input', render);
 
-            // Load data once on open
+            function activate(rows) {
+                allEmployees = ingest(rows);
+                dataReady = true;
+                inputEl.disabled = false;
+                setStats();
+                render();
+                inputEl.focus();
+            }
+
+            // Load employees: server first, then static seed file.
             function loadData() {
-                fetch('/api/vehicles_lookup', { headers: { 'Accept': 'application/json' } })
-                    .then(function (r) { return r.ok ? r.json() : []; })
-                    .then(function (rows) {
-                        allVehicles = Array.isArray(rows) ? rows : [];
-                        dataReady = true;
-                        inputEl.disabled = false;
-                        setStats();
-                        render();
-                        inputEl.focus();
+                fetch('/api/employees', { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (data) {
+                        if (data && data.success && Array.isArray(data.rows) && data.rows.length) {
+                            activate(data.rows);
+                            return;
+                        }
+                        // Fallback to the static seed file.
+                        fetch('/static/employees_default.json')
+                            .then(function (r) { return r.ok ? r.json() : []; })
+                            .then(function (rows) { activate(rows); })
+                            .catch(loadFailed);
                     })
                     .catch(function () {
-                        dataReady = true;
-                        inputEl.disabled = false;
-                        countEl.textContent = '';
-                        emptyEl.style.display = 'block';
-                        emptyEl.innerHTML = '<span class="big">⚠️</span>تعذّر تحميل بيانات المركبات. حدّث الصفحة وحاول مرة أخرى.';
-                        if (typeof window.showToast === 'function') {
-                            window.showToast('تعذّر تحميل بيانات المركبات', 'error');
-                        }
+                        fetch('/static/employees_default.json')
+                            .then(function (r) { return r.ok ? r.json() : []; })
+                            .then(function (rows) { activate(rows); })
+                            .catch(loadFailed);
                     });
+            }
+
+            function loadFailed() {
+                dataReady = true;
+                inputEl.disabled = false;
+                countEl.textContent = '';
+                emptyEl.style.display = 'block';
+                emptyEl.innerHTML = '<span class="big">⚠️</span>تعذّر تحميل بيانات الموظفين. حدّث الصفحة وحاول مرة أخرى.';
+                if (typeof window.showToast === 'function') {
+                    window.showToast('تعذّر تحميل بيانات الموظفين', 'error');
+                }
             }
 
             if (document.readyState === 'loading') {
