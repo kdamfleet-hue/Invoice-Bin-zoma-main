@@ -286,25 +286,34 @@ document.addEventListener('DOMContentLoaded', () => {
     initLanguageTranslation();
 });
 
-// --- Workstation mode (entered via the open /importantworkstation path) ---
-// The Employees, GPS Sync and Cameras tabs are password-locked: we mark them with a
-// 🔒 icon. The server shows the password gate (/unlock) when one is opened; once the
-// password is entered the tabs work normally (bz_unlocked cookie).
+// --- Workstation namespace (/importantworkstation/*) ---
+// A separate, open mirror of the site under a URL prefix. Detected purely by the path,
+// so the MAIN site is never affected. Internal links and /api calls are kept under the
+// prefix; the Employees/GPS-Sync/Cameras tabs show a 🔒 until unlocked.
+const WS_PREFIX = '/importantworkstation';
+function inWorkstation() { return window.location.pathname.indexOf(WS_PREFIX) === 0; }
 function getCookie(name) {
     const m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
     return m ? decodeURIComponent(m[1]) : '';
 }
 function applyWorkstationRestrictions() {
-    if (getCookie('bz_mode') !== 'workstation') return;
-    // Keep "home" inside the workstation URL so it never bounces to the main site.
-    document.querySelectorAll('a[href="/"]').forEach(a => a.setAttribute('href', '/importantworkstation'));
-    if (getCookie('bz_unlocked') === '1') return; // already unlocked → show tabs normally
-    const locked = ['/employees', '/gps_sync', '/cameras'];
-    document.querySelectorAll('a[href]').forEach(a => {
-        if (locked.indexOf(a.getAttribute('href')) !== -1 && a.textContent.indexOf('🔒') === -1) {
-            a.textContent = '🔒 ' + a.textContent.trim();
-            a.title = 'مقفل — يتطلب كلمة مرور';
-        }
+    if (!inWorkstation()) return; // MAIN SITE: do nothing at all
+    // 1) keep every internal nav link inside the workstation prefix
+    document.querySelectorAll('a[href^="/"]').forEach(a => {
+        const h = a.getAttribute('href');
+        if (!h || h.indexOf(WS_PREFIX) === 0) return;
+        if (h === '/logout' || h.indexOf('/static') === 0 || h.indexOf('/api') === 0 || h.indexOf('//') === 0) return;
+        a.setAttribute('href', WS_PREFIX + (h === '/' ? '' : h));
+    });
+    // 2) lock the sensitive tabs until unlocked
+    if (getCookie('ws_unlocked') === '1') return;
+    [WS_PREFIX + '/employees', WS_PREFIX + '/gps_sync', WS_PREFIX + '/cameras'].forEach(p => {
+        document.querySelectorAll('a[href="' + p + '"]').forEach(a => {
+            if (a.textContent.indexOf('🔒') === -1) {
+                a.textContent = '🔒 ' + a.textContent.trim();
+                a.title = 'مقفل — يتطلب كلمة مرور';
+            }
+        });
     });
 }
 
@@ -424,11 +433,14 @@ window.stopProgress = function() {
 // --- Fetch Wrapper for Progress ---
 function wrapFetchForProgress() {
     const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
+    window.fetch = async function(input, init) {
+        // In the workstation namespace, route /api/* calls to the sandboxed /importantworkstation/api/*
+        if (inWorkstation() && typeof input === 'string' && input.indexOf('/api/') === 0) {
+            input = WS_PREFIX + input;
+        }
         startProgress();
         try {
-            const response = await originalFetch(...args);
-            return response;
+            return await originalFetch(input, init);
         } finally {
             stopProgress();
         }

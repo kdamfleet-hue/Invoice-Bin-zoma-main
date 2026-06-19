@@ -21,7 +21,7 @@ try:
     import psycopg2.extras
 except ImportError:  # psycopg2 only required when DATABASE_URL (PostgreSQL) is used
     psycopg2 = None
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, make_response
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_cors import CORS
 from dotenv import load_dotenv
 from flask_mail import Mail, Message
@@ -115,9 +115,15 @@ def add_header(response):
 
 
 # Security Decorator (defined early so it is available to all routes below)
+WS_PREFIX = "/importantworkstation"
+
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # The /importantworkstation/* namespace is an OPEN, separate workstation — no main login.
+        if request.path.startswith(WS_PREFIX):
+            return f(*args, **kwargs)
         if not session.get("authenticated"):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
@@ -395,12 +401,9 @@ def login():
         if user_ok and pass_ok:
             session["authenticated"] = True
             session.permanent = True
-            session["mode"] = "full"
             session["google_user"] = {"name": username, "email": "admin@system.local"}
             logger.info("Successful login")
-            resp = redirect(url_for("index"))
-            resp.set_cookie("bz_mode", "full", samesite="Lax", secure=app.config.get("SESSION_COOKIE_SECURE", False))
-            return resp
+            return redirect(url_for("index"))
         else:
             logger.warning("Failed login attempt")
             return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة")
@@ -408,35 +411,31 @@ def login():
     return render_template("login.html")
 
 
-# ── Restricted "workstation" entry (/importantworkstation) ────────────────────
-# A separate, simple password gate. Users who enter here are authenticated but in
-# "workstation" mode: the Employees, GPS Sync and Cameras tabs are locked.
+# ── Workstation namespace (/importantworkstation/*) ───────────────────────────
+# A COMPLETELY SEPARATE, OPEN entry that mirrors the site under a URL prefix. It is a
+# sandbox (edits go to id=2, never touching the real id=1 data) and the
+# Cameras/Employees/GPS-Sync tabs are password-locked. The MAIN site (/) is untouched.
 WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
+WS_TABS = {
+    "": "index", "schedule": "schedule", "oils": "oils", "purchase": "purchase",
+    "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
+    "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync", "cameras": "cameras",
+}
+WS_LOCKED = {"employees", "gps_sync", "cameras"}
 
 
 def is_workstation():
-    return session.get("mode") == "workstation"
-
-
-def lock_for_workstation(f):
-    """In workstation mode, this route requires the password (once per session) to unlock.
-    Full (main-login) users are never asked. Tabs: Cameras, Employees, GPS Sync."""
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if is_workstation() and not session.get("restricted_unlocked"):
-            return redirect(url_for("unlock_page", next=request.path))
-        return f(*args, **kwargs)
-    return wrapper
+    """Determined purely by the URL prefix — never by the session — so the main site is
+    never affected, even in the same browser."""
+    return request.path.startswith(WS_PREFIX)
 
 
 def _row_id():
-    """Workstation mode edits an isolated copy (id=2) so the real data (id=1) is never touched."""
     return 2 if is_workstation() else 1
 
 
 def blob_get(table):
-    """Read a single-row JSON blob. In workstation mode read id=2, falling back to id=1
-    (so the sandbox starts seeded with the real data) — without ever writing id=1."""
+    """Read a single-row JSON blob. Workstation reads id=2, seeded-view from id=1 — never writing id=1."""
     rid = _row_id()
     with db_connection() as conn:
         c = conn.cursor()
@@ -462,50 +461,42 @@ def blob_set(table, data_obj):
         conn.commit()
 
 
-@app.route("/importantworkstation")
-def important_workstation():
-    """OPEN entry — no password. Renders the dashboard AT THIS URL (no redirect) in
-    workstation mode: a sandbox where edits don't affect the real site, and the
-    Cameras/Employees/GPS-Sync tabs are password-locked."""
-    session["authenticated"] = True
-    session.permanent = True
-    session["mode"] = "workstation"
-    session.setdefault("restricted_unlocked", False)  # preserve unlock across revisits
-    session["google_user"] = {"name": "Workstation", "email": "workstation@system.local"}
-    logger.info("Workstation open entry")
-    resp = make_response(render_template(
-        "index.html", google_user=session.get("google_user"), b64_en=load_logo()))
-    secure = app.config.get("SESSION_COOKIE_SECURE", False)
-    resp.set_cookie("bz_mode", "workstation", samesite="Lax", secure=secure)
-    resp.set_cookie("bz_unlocked", "1" if session.get("restricted_unlocked") else "0",
-                    samesite="Lax", secure=secure)
-    return resp
+@app.route(WS_PREFIX)
+@app.route(WS_PREFIX + "/<path:sub>")
+def workstation_page(sub=""):
+    """Open workstation pages under the prefix. The 3 sensitive tabs require the password."""
+    seg = sub.strip("/").split("/")[0] if sub else ""
+    if seg == "api":
+        return ("", 404)  # API served by the mirrored /importantworkstation/api/* rules
+    if seg not in WS_TABS:
+        return redirect(WS_PREFIX)
+    if seg in WS_LOCKED and not session.get("ws_unlocked"):
+        return render_template("tab_lock.html", next=WS_PREFIX + "/" + seg)
+    ctx = {"google_user": {"name": "Workstation", "email": "ws@system.local"}, "b64_en": load_logo()}
+    if seg == "cameras":
+        ctx["cameras_url"] = os.environ.get("CAMERAS_URL", "")
+    return render_template(WS_TABS[seg] + ".html", **ctx)
 
 
-@app.route("/unlock", methods=["GET", "POST"])
-@login_required
-def unlock_page():
-    """Password gate for the locked tabs (Cameras/Employees/GPS Sync) in workstation mode."""
-    nxt = request.values.get("next", "/")
-    if not nxt.startswith("/"):
-        nxt = "/"
-    if request.method == "POST":
-        if hmac.compare_digest(request.form.get("password", ""), WORKSTATION_PASSWORD):
-            session["restricted_unlocked"] = True
-            resp = redirect(nxt)
-            resp.set_cookie("bz_unlocked", "1", samesite="Lax",
-                            secure=app.config.get("SESSION_COOKIE_SECURE", False))
-            return resp
-        return render_template("tab_lock.html", next=nxt, error="كلمة المرور غير صحيحة")
-    return render_template("tab_lock.html", next=nxt)
+@app.route(WS_PREFIX + "/unlock", methods=["POST"])
+def workstation_unlock():
+    nxt = request.form.get("next", WS_PREFIX)
+    if not nxt.startswith(WS_PREFIX):
+        nxt = WS_PREFIX
+    if hmac.compare_digest(request.form.get("password", ""), WORKSTATION_PASSWORD):
+        session["ws_unlocked"] = True
+        resp = redirect(nxt)
+        resp.set_cookie("ws_unlocked", "1", path=WS_PREFIX, samesite="Lax",
+                        secure=app.config.get("SESSION_COOKIE_SECURE", False))
+        return resp
+    return render_template("tab_lock.html", next=nxt, error="كلمة المرور غير صحيحة")
 
 
 @app.route("/logout")
 def logout():
     session.clear()
     resp = redirect(url_for("login"))
-    resp.delete_cookie("bz_mode")
-    resp.delete_cookie("bz_unlocked")
+    resp.delete_cookie("ws_unlocked", path=WS_PREFIX)
     return resp
 
 
@@ -567,7 +558,6 @@ def washing():
 
 @app.route("/employees")
 @login_required
-@lock_for_workstation
 def employees():
     google_user = session.get("google_user")
     b64_en = load_logo()
@@ -576,7 +566,6 @@ def employees():
 
 @app.route("/gps_sync")
 @login_required
-@lock_for_workstation
 def gps_sync():
     google_user = session.get("google_user")
     b64_en = load_logo()
@@ -605,7 +594,6 @@ def records_page():
 
 @app.route("/cameras")
 @login_required
-@lock_for_workstation
 def cameras_page():
     # Embeds Hik-Connect in an iframe. URL is configurable via the CAMERAS_URL env var
     # (or per-browser in the UI). Note: Hik-Connect may block iframing (X-Frame-Options).
@@ -1964,6 +1952,19 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 </table>
 </td></tr></table>
 </body></html>"""
+
+
+# Mirror every /api/* endpoint under /importantworkstation/api/* (same handler). Because
+# is_workstation() is path-based, those calls transparently read/write the id=2 sandbox,
+# while the real /api/* endpoints (id=1) stay completely untouched.
+for _rule in list(app.url_map.iter_rules()):
+    if _rule.rule.startswith("/api/"):
+        app.add_url_rule(
+            WS_PREFIX + _rule.rule,
+            endpoint="ws_" + _rule.endpoint,
+            view_func=app.view_functions[_rule.endpoint],
+            methods=sorted(_rule.methods - {"HEAD", "OPTIONS"}),
+        )
 
 
 if __name__ == "__main__":
