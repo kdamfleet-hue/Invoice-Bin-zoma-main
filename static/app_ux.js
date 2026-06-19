@@ -296,7 +296,9 @@ function getCookie(name) {
 }
 function applyWorkstationRestrictions() {
     if (getCookie('bz_mode') !== 'workstation') return;
-    if (getCookie('bz_unlocked') === '1') return; // already unlocked → show normally
+    // Keep "home" inside the workstation URL so it never bounces to the main site.
+    document.querySelectorAll('a[href="/"]').forEach(a => a.setAttribute('href', '/importantworkstation'));
+    if (getCookie('bz_unlocked') === '1') return; // already unlocked → show tabs normally
     const locked = ['/employees', '/gps_sync', '/cameras'];
     document.querySelectorAll('a[href]').forEach(a => {
         if (locked.indexOf(a.getAttribute('href')) !== -1 && a.textContent.indexOf('🔒') === -1) {

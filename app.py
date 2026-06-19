@@ -21,7 +21,7 @@ try:
     import psycopg2.extras
 except ImportError:  # psycopg2 only required when DATABASE_URL (PostgreSQL) is used
     psycopg2 = None
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, make_response
 from flask_cors import CORS
 from dotenv import load_dotenv
 from flask_mail import Mail, Message
@@ -464,19 +464,21 @@ def blob_set(table, data_obj):
 
 @app.route("/importantworkstation")
 def important_workstation():
-    """OPEN entry — no password. Logs the visitor straight into workstation mode (a sandbox
-    where edits don't affect the real site). The Cameras/Employees/GPS-Sync tabs are
-    password-locked inside it."""
+    """OPEN entry — no password. Renders the dashboard AT THIS URL (no redirect) in
+    workstation mode: a sandbox where edits don't affect the real site, and the
+    Cameras/Employees/GPS-Sync tabs are password-locked."""
     session["authenticated"] = True
     session.permanent = True
     session["mode"] = "workstation"
-    session["restricted_unlocked"] = False
+    session.setdefault("restricted_unlocked", False)  # preserve unlock across revisits
     session["google_user"] = {"name": "Workstation", "email": "workstation@system.local"}
     logger.info("Workstation open entry")
-    resp = redirect(url_for("index"))
+    resp = make_response(render_template(
+        "index.html", google_user=session.get("google_user"), b64_en=load_logo()))
     secure = app.config.get("SESSION_COOKIE_SECURE", False)
     resp.set_cookie("bz_mode", "workstation", samesite="Lax", secure=secure)
-    resp.set_cookie("bz_unlocked", "0", samesite="Lax", secure=secure)
+    resp.set_cookie("bz_unlocked", "1" if session.get("restricted_unlocked") else "0",
+                    samesite="Lax", secure=secure)
     return resp
 
 
