@@ -276,6 +276,7 @@ const translations = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    applyWorkstationRestrictions();
     initThemeToggle();
     injectTopographicBackground();
     injectUXContainers();
@@ -284,6 +285,23 @@ document.addEventListener('DOMContentLoaded', () => {
     initIdleTimeout();
     initLanguageTranslation();
 });
+
+// --- Restricted "workstation" mode (entered via /importantworkstation) ---
+// Hides the Employees, GPS Sync and Cameras tabs. The server also blocks these
+// routes for workstation users; this is the matching UI cleanup.
+function getCookie(name) {
+    const m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
+    return m ? decodeURIComponent(m[1]) : '';
+}
+function applyWorkstationRestrictions() {
+    if (getCookie('bz_mode') !== 'workstation') return;
+    const blocked = ['/employees', '/gps_sync', '/cameras'];
+    document.querySelectorAll('a[href]').forEach(a => {
+        if (blocked.indexOf(a.getAttribute('href')) !== -1) a.remove();
+    });
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (blocked.indexOf(path) !== -1) window.location.replace('/');
+}
 
 // --- Theme Management ---
 function initThemeToggle() {

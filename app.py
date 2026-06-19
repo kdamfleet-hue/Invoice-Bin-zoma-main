@@ -395,20 +395,59 @@ def login():
         if user_ok and pass_ok:
             session["authenticated"] = True
             session.permanent = True
+            session["mode"] = "full"
             session["google_user"] = {"name": username, "email": "admin@system.local"}
             logger.info("Successful login")
-            return redirect(url_for("index"))
+            resp = redirect(url_for("index"))
+            resp.set_cookie("bz_mode", "full", samesite="Lax", secure=app.config.get("SESSION_COOKIE_SECURE", False))
+            return resp
         else:
             logger.warning("Failed login attempt")
             return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة")
-            
+
     return render_template("login.html")
+
+
+# ── Restricted "workstation" entry (/importantworkstation) ────────────────────
+# A separate, simple password gate. Users who enter here are authenticated but in
+# "workstation" mode: the Employees, GPS Sync and Cameras tabs are locked.
+WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
+WORKSTATION_BLOCKED = {"employees", "gps_sync", "cameras"}  # endpoint names
+
+
+def block_workstation(f):
+    """Deny workstation-mode users access to a route (redirect to home)."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if session.get("mode") == "workstation":
+            return redirect(url_for("index"))
+        return f(*args, **kwargs)
+    return wrapper
+
+
+@app.route("/importantworkstation", methods=["GET", "POST"])
+def important_workstation():
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        if hmac.compare_digest(password, WORKSTATION_PASSWORD):
+            session["authenticated"] = True
+            session.permanent = True
+            session["mode"] = "workstation"
+            session["google_user"] = {"name": "Workstation", "email": "workstation@system.local"}
+            logger.info("Workstation login")
+            resp = redirect(url_for("index"))
+            resp.set_cookie("bz_mode", "workstation", samesite="Lax", secure=app.config.get("SESSION_COOKIE_SECURE", False))
+            return resp
+        return render_template("importantworkstation.html", error="كلمة المرور غير صحيحة")
+    return render_template("importantworkstation.html")
 
 
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("login"))
+    resp = redirect(url_for("login"))
+    resp.delete_cookie("bz_mode")
+    return resp
 
 
 @app.route("/tracking")
@@ -469,6 +508,7 @@ def washing():
 
 @app.route("/employees")
 @login_required
+@block_workstation
 def employees():
     google_user = session.get("google_user")
     b64_en = load_logo()
@@ -477,6 +517,7 @@ def employees():
 
 @app.route("/gps_sync")
 @login_required
+@block_workstation
 def gps_sync():
     google_user = session.get("google_user")
     b64_en = load_logo()
@@ -505,6 +546,7 @@ def records_page():
 
 @app.route("/cameras")
 @login_required
+@block_workstation
 def cameras_page():
     # Embeds Hik-Connect in an iframe. URL is configurable via the CAMERAS_URL env var
     # (or per-browser in the UI). Note: Hik-Connect may block iframing (X-Frame-Options).

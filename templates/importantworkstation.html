@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محطة العمل — BIN ZOMAH INTL.</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <style>
+        body {
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; margin: 0; padding: 24px; box-sizing: border-box; overflow: hidden;
+            background: linear-gradient(135deg, var(--brand-navy, #0C2340) 0%, var(--brand-navy-2, #16335c) 100%);
+        }
+        .login-card {
+            padding: 3rem 2.75rem; border-radius: 24px; text-align: center;
+            max-width: 420px; width: 100%; z-index: 2; position: relative;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+        }
+        @media (max-width: 480px) { .login-card { padding: 2rem 1.5rem; } }
+        .login-card .site-logo { max-width: 280px; width: 80%; margin: 0 auto 18px; display: block; }
+        .login-card h2 { margin: 0 0 6px; color: var(--text-primary); font-size: 1.9rem; font-weight: 800; }
+        .login-card .brand-line { color: var(--accent); font-weight: 900; letter-spacing: 1px; font-size: 0.95rem; margin-bottom: 6px; }
+        .ws-badge {
+            display: inline-block; margin: 4px auto 14px; padding: 5px 14px; border-radius: 20px;
+            background: rgba(201,162,39,.14); border: 1px solid var(--brand-gold, #c9a227);
+            color: var(--brand-gold, #c9a227); font-weight: 800; font-size: .8rem;
+        }
+        .login-card p.subtitle { color: var(--text-muted); margin-bottom: 2rem; font-size: 1.02rem; line-height: 1.6; }
+        .login-form { display: flex; flex-direction: column; gap: 6px; text-align: right; }
+        .login-form label { color: var(--text-primary); font-weight: 700; margin-top: 12px; font-size: 0.95rem; }
+        .login-form button[type="submit"] { margin-top: 22px; width: 100%; font-size: 1.1rem; padding: 13px; }
+        .login-error {
+            margin-top: 16px; text-align: center; font-weight: 700; color: var(--danger, #ef4444);
+            background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 10px; padding: 10px; font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.25;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+    <div class="login-card glass-surface">
+        <img src="{{ url_for('static', filename='main_logo.png') }}" alt="شركة بن زومة — BIN ZOMAH INTL." class="site-logo">
+        <h2>محطة العمل</h2>
+        <div class="brand-line">BIN ZOMAH INTL.</div>
+        <div class="ws-badge">دخول محطة العمل</div>
+        <p class="subtitle">أدخل كلمة المرور للمتابعة إلى نظام إدارة الأسطول.</p>
+        <form method="POST" action="/importantworkstation" class="login-form">
+            <label for="password">كلمة المرور</label>
+            <input id="password" type="password" name="password" placeholder="أدخل كلمة المرور" autocomplete="current-password" autofocus required>
+
+            <button type="submit" class="btn-primary">دخول</button>
+
+            {% if error %}
+            <div class="login-error">{{ error }}</div>
+            {% endif %}
+        </form>
+    </div>
+</body>
+</html>
