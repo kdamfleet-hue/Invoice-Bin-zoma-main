@@ -4,6 +4,20 @@
  * Page Transitions, Idle Session Timeout, and Bilingual Translation.
  */
 
+// Isolate the workstation namespace's browser storage from the main site, so edits made
+// under /importantworkstation (employees, schedule, Excel cache, etc.) can NEVER bleed
+// into the real site's cached data. Runs first, before any tab code touches localStorage.
+(function () {
+    try {
+        if (window.location.pathname.indexOf('/importantworkstation') !== 0) return;
+        var ls = window.localStorage, ns = 'ws:';
+        var g = ls.getItem.bind(ls), s = ls.setItem.bind(ls), r = ls.removeItem.bind(ls);
+        ls.getItem = function (k) { return g(ns + k); };
+        ls.setItem = function (k, v) { return s(ns + k, v); };
+        ls.removeItem = function (k) { return r(ns + k); };
+    } catch (e) { /* ignore */ }
+})();
+
 const translations = {
     "en": {
         // Titles and headers
@@ -307,7 +321,7 @@ function applyWorkstationRestrictions() {
     });
     // 2) lock the sensitive tabs until unlocked
     if (getCookie('ws_unlocked') === '1') return;
-    [WS_PREFIX + '/employees', WS_PREFIX + '/gps_sync', WS_PREFIX + '/cameras'].forEach(p => {
+    [WS_PREFIX + '/employees', WS_PREFIX + '/gps_sync', WS_PREFIX + '/cameras', WS_PREFIX + '/tracking'].forEach(p => {
         document.querySelectorAll('a[href="' + p + '"]').forEach(a => {
             if (a.textContent.indexOf('🔒') === -1) {
                 a.textContent = '🔒 ' + a.textContent.trim();

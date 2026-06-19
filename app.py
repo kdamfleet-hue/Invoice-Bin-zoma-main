@@ -421,7 +421,7 @@ WS_TABS = {
     "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
     "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync", "cameras": "cameras",
 }
-WS_LOCKED = {"employees", "gps_sync", "cameras"}
+WS_LOCKED = {"employees", "gps_sync", "cameras", "tracking"}
 
 
 def is_workstation():
