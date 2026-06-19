@@ -425,6 +425,43 @@ def block_workstation(f):
     return wrapper
 
 
+def is_workstation():
+    return session.get("mode") == "workstation"
+
+
+def _row_id():
+    """Workstation mode edits an isolated copy (id=2) so the real data (id=1) is never touched."""
+    return 2 if is_workstation() else 1
+
+
+def blob_get(table):
+    """Read a single-row JSON blob. In workstation mode read id=2, falling back to id=1
+    (so the sandbox starts seeded with the real data) — without ever writing id=1."""
+    rid = _row_id()
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT data FROM %s WHERE id = ?" % table, (rid,))
+        row = c.fetchone()
+        if not row and rid != 1:
+            c.execute("SELECT data FROM %s WHERE id = 1" % table)
+            row = c.fetchone()
+    return json.loads(row["data"]) if row else None
+
+
+def blob_set(table, data_obj):
+    """Write a single-row JSON blob to the mode-specific row (id=2 for workstation)."""
+    rid = _row_id()
+    data_str = json.dumps(data_obj, ensure_ascii=False)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id FROM %s WHERE id = ?" % table, (rid,))
+        if c.fetchone():
+            c.execute("UPDATE %s SET data = ? WHERE id = ?" % table, (data_str, rid))
+        else:
+            c.execute("INSERT INTO %s (id, data) VALUES (?, ?)" % table, (rid, data_str))
+        conn.commit()
+
+
 @app.route("/importantworkstation", methods=["GET", "POST"])
 def important_workstation():
     if request.method == "POST":
@@ -998,137 +1035,78 @@ def generate_washing():
 @app.route("/api/washing_data", methods=["GET", "POST"])
 @login_required
 def washing_data():
+    # Workstation mode writes/reads an isolated copy (id=2); the real data (id=1) is untouched.
     if request.method == "POST":
         try:
-            data_str = json.dumps(request.json.get("vehicles", []))
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT id FROM washing_schedule WHERE id = 1")
-                if c.fetchone():
-                    c.execute(
-                        "UPDATE washing_schedule SET data = ? WHERE id = 1", (data_str,)
-                    )
-                else:
-                    c.execute(
-                        "INSERT INTO washing_schedule (id, data) VALUES (1, ?)",
-                        (data_str,),
-                    )
-                conn.commit()
+            blob_set("washing_schedule", (request.json or {}).get("vehicles", []))
             return jsonify({"success": True})
-        except Exception as e:
-            logger.error("washing_data POST error: %s", e)
-            return jsonify({"success": False, "error": str(e)}), 500
-    else:
-        try:
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT data FROM washing_schedule WHERE id = 1")
-                row = c.fetchone()
-            if row:
-                return jsonify({"success": True, "vehicles": json.loads(row["data"])})
-            return jsonify({"success": False, "vehicles": []})
-        except Exception as e:
-            logger.error("washing_data GET error: %s", e)
-            return jsonify({"success": False, "error": str(e)}), 500
+        except Exception:
+            logger.exception("washing_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ جدول الغسيل."}), 500
+    try:
+        data = blob_get("washing_schedule")
+        if data is not None:
+            return jsonify({"success": True, "vehicles": data})
+        return jsonify({"success": False, "vehicles": []})
+    except Exception:
+        logger.exception("washing_data GET error")
+        return jsonify({"success": False, "error": "تعذّر جلب جدول الغسيل."}), 500
 
 
 @app.route("/api/employees", methods=["GET", "POST"])
 @login_required
 def employees_data():
-    """Persist the branch employees grid (array of 46-column string rows) server-side."""
+    """Persist the branch employees grid (array of 46-column string rows). Sandboxed for workstation."""
     if request.method == "POST":
         try:
-            rows = (request.json or {}).get("rows", [])
-            data_str = json.dumps(rows, ensure_ascii=False)
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT id FROM employees WHERE id = 1")
-                if c.fetchone():
-                    c.execute("UPDATE employees SET data = ? WHERE id = 1", (data_str,))
-                else:
-                    c.execute("INSERT INTO employees (id, data) VALUES (1, ?)", (data_str,))
-                conn.commit()
+            blob_set("employees", (request.json or {}).get("rows", []))
             return jsonify({"success": True})
-        except Exception as e:
+        except Exception:
             logger.exception("employees_data POST error")
             return jsonify({"success": False, "error": "تعذّر حفظ بيانات الموظفين."}), 500
-    else:
-        try:
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT data FROM employees WHERE id = 1")
-                row = c.fetchone()
-            if row:
-                return jsonify({"success": True, "rows": json.loads(row["data"])})
-            return jsonify({"success": True, "rows": []})
-        except Exception as e:
-            logger.exception("employees_data GET error")
-            return jsonify({"success": False, "error": "تعذّر جلب بيانات الموظفين."}), 500
+    try:
+        data = blob_get("employees")
+        return jsonify({"success": True, "rows": data if data is not None else []})
+    except Exception:
+        logger.exception("employees_data GET error")
+        return jsonify({"success": False, "error": "تعذّر جلب بيانات الموظفين."}), 500
 
 
 @app.route("/api/schedule_data", methods=["GET", "POST"])
 @login_required
 def schedule_data():
-    """Persist the weekly schedule (main/spare/vacation/summary) server-side."""
+    """Persist the weekly schedule (main/spare/vacation/summary). Sandboxed for workstation."""
     if request.method == "POST":
         try:
-            data_str = json.dumps(request.json or {}, ensure_ascii=False)
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT id FROM schedule_data WHERE id = 1")
-                if c.fetchone():
-                    c.execute("UPDATE schedule_data SET data = ? WHERE id = 1", (data_str,))
-                else:
-                    c.execute("INSERT INTO schedule_data (id, data) VALUES (1, ?)", (data_str,))
-                conn.commit()
+            blob_set("schedule_data", request.json or {})
             return jsonify({"success": True})
         except Exception:
             logger.exception("schedule_data POST error")
             return jsonify({"success": False, "error": "تعذّر حفظ الجدول الأسبوعي."}), 500
-    else:
-        try:
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT data FROM schedule_data WHERE id = 1")
-                row = c.fetchone()
-            if row:
-                return jsonify({"success": True, "data": json.loads(row["data"])})
-            return jsonify({"success": True, "data": None})
-        except Exception:
-            logger.exception("schedule_data GET error")
-            return jsonify({"success": False, "error": "تعذّر جلب الجدول الأسبوعي."}), 500
+    try:
+        return jsonify({"success": True, "data": blob_get("schedule_data")})
+    except Exception:
+        logger.exception("schedule_data GET error")
+        return jsonify({"success": False, "error": "تعذّر جلب الجدول الأسبوعي."}), 500
 
 
 @app.route("/api/records", methods=["GET", "POST"])
 @login_required
 def records_data():
-    """Persist the documentation/records log (administrative safety records)."""
+    """Persist the documentation/records log. Sandboxed for workstation."""
     if request.method == "POST":
         try:
-            rows = (request.json or {}).get("rows", [])
-            data_str = json.dumps(rows, ensure_ascii=False)
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT id FROM records_data WHERE id = 1")
-                if c.fetchone():
-                    c.execute("UPDATE records_data SET data = ? WHERE id = 1", (data_str,))
-                else:
-                    c.execute("INSERT INTO records_data (id, data) VALUES (1, ?)", (data_str,))
-                conn.commit()
+            blob_set("records_data", (request.json or {}).get("rows", []))
             return jsonify({"success": True})
         except Exception:
             logger.exception("records_data POST error")
             return jsonify({"success": False, "error": "تعذّر حفظ السجلات."}), 500
-    else:
-        try:
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT data FROM records_data WHERE id = 1")
-                row = c.fetchone()
-            return jsonify({"success": True, "rows": json.loads(row["data"]) if row else []})
-        except Exception:
-            logger.exception("records_data GET error")
-            return jsonify({"success": False, "rows": []})
+    try:
+        data = blob_get("records_data")
+        return jsonify({"success": True, "rows": data if data is not None else []})
+    except Exception:
+        logger.exception("records_data GET error")
+        return jsonify({"success": False, "rows": []})
 
 
 @app.route("/api/drivers", methods=["GET"])
@@ -1331,6 +1309,10 @@ def add_driver():
     drivercard = data.get("drivercard", "").strip()
     if not name:
         return jsonify({"error": "Name is required"}), 400
+    if is_workstation():
+        # Sandbox: never modify the real drivers table; echo success so the UI keeps working.
+        return jsonify({"success": True, "id": 0, "name": name, "plate": plate, "car": car,
+                        "iqama": iqama, "phone": phone, "drivercard": drivercard})
     with db_connection() as conn:
         c = conn.cursor()
         if USE_POSTGRES:
@@ -1366,6 +1348,8 @@ def add_driver():
 @app.route("/api/drivers/<int:driver_id>", methods=["DELETE"])
 @login_required
 def delete_driver(driver_id):
+    if is_workstation():
+        return jsonify({"success": True})  # sandbox: no real deletion
     with db_connection() as conn:
         conn.execute("DELETE FROM drivers WHERE id = ?", (driver_id,))
         conn.commit()
@@ -1388,11 +1372,15 @@ def update_driver(driver_id):
     if not name:
         return jsonify({"error": "Name is required"}), 400
 
+    if is_workstation():
+        return jsonify({"success": True, "id": driver_id, "name": name, "plate": plate, "car": car,
+                        "iqama": iqama, "phone": phone, "drivercard": drivercard})
+
     with db_connection() as conn:
         c = conn.cursor()
         c.execute(
             """
-            UPDATE drivers 
+            UPDATE drivers
             SET name=?, empid=?, plate=?, car=?, iqama=?, phone=?, drivercard=?
             WHERE id=?
         """,
