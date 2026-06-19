@@ -286,21 +286,24 @@ document.addEventListener('DOMContentLoaded', () => {
     initLanguageTranslation();
 });
 
-// --- Restricted "workstation" mode (entered via /importantworkstation) ---
-// Hides the Employees, GPS Sync and Cameras tabs. The server also blocks these
-// routes for workstation users; this is the matching UI cleanup.
+// --- Workstation mode (entered via the open /importantworkstation path) ---
+// The Employees, GPS Sync and Cameras tabs are password-locked: we mark them with a
+// 🔒 icon. The server shows the password gate (/unlock) when one is opened; once the
+// password is entered the tabs work normally (bz_unlocked cookie).
 function getCookie(name) {
     const m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
     return m ? decodeURIComponent(m[1]) : '';
 }
 function applyWorkstationRestrictions() {
     if (getCookie('bz_mode') !== 'workstation') return;
-    const blocked = ['/employees', '/gps_sync', '/cameras'];
+    if (getCookie('bz_unlocked') === '1') return; // already unlocked → show normally
+    const locked = ['/employees', '/gps_sync', '/cameras'];
     document.querySelectorAll('a[href]').forEach(a => {
-        if (blocked.indexOf(a.getAttribute('href')) !== -1) a.remove();
+        if (locked.indexOf(a.getAttribute('href')) !== -1 && a.textContent.indexOf('🔒') === -1) {
+            a.textContent = '🔒 ' + a.textContent.trim();
+            a.title = 'مقفل — يتطلب كلمة مرور';
+        }
     });
-    const path = window.location.pathname.replace(/\/+$/, '') || '/';
-    if (blocked.indexOf(path) !== -1) window.location.replace('/');
 }
 
 // --- Theme Management ---

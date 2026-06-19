@@ -412,21 +412,21 @@ def login():
 # A separate, simple password gate. Users who enter here are authenticated but in
 # "workstation" mode: the Employees, GPS Sync and Cameras tabs are locked.
 WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
-WORKSTATION_BLOCKED = {"employees", "gps_sync", "cameras"}  # endpoint names
-
-
-def block_workstation(f):
-    """Deny workstation-mode users access to a route (redirect to home)."""
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if session.get("mode") == "workstation":
-            return redirect(url_for("index"))
-        return f(*args, **kwargs)
-    return wrapper
 
 
 def is_workstation():
     return session.get("mode") == "workstation"
+
+
+def lock_for_workstation(f):
+    """In workstation mode, this route requires the password (once per session) to unlock.
+    Full (main-login) users are never asked. Tabs: Cameras, Employees, GPS Sync."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if is_workstation() and not session.get("restricted_unlocked"):
+            return redirect(url_for("unlock_page", next=request.path))
+        return f(*args, **kwargs)
+    return wrapper
 
 
 def _row_id():
@@ -462,21 +462,40 @@ def blob_set(table, data_obj):
         conn.commit()
 
 
-@app.route("/importantworkstation", methods=["GET", "POST"])
+@app.route("/importantworkstation")
 def important_workstation():
+    """OPEN entry — no password. Logs the visitor straight into workstation mode (a sandbox
+    where edits don't affect the real site). The Cameras/Employees/GPS-Sync tabs are
+    password-locked inside it."""
+    session["authenticated"] = True
+    session.permanent = True
+    session["mode"] = "workstation"
+    session["restricted_unlocked"] = False
+    session["google_user"] = {"name": "Workstation", "email": "workstation@system.local"}
+    logger.info("Workstation open entry")
+    resp = redirect(url_for("index"))
+    secure = app.config.get("SESSION_COOKIE_SECURE", False)
+    resp.set_cookie("bz_mode", "workstation", samesite="Lax", secure=secure)
+    resp.set_cookie("bz_unlocked", "0", samesite="Lax", secure=secure)
+    return resp
+
+
+@app.route("/unlock", methods=["GET", "POST"])
+@login_required
+def unlock_page():
+    """Password gate for the locked tabs (Cameras/Employees/GPS Sync) in workstation mode."""
+    nxt = request.values.get("next", "/")
+    if not nxt.startswith("/"):
+        nxt = "/"
     if request.method == "POST":
-        password = request.form.get("password", "")
-        if hmac.compare_digest(password, WORKSTATION_PASSWORD):
-            session["authenticated"] = True
-            session.permanent = True
-            session["mode"] = "workstation"
-            session["google_user"] = {"name": "Workstation", "email": "workstation@system.local"}
-            logger.info("Workstation login")
-            resp = redirect(url_for("index"))
-            resp.set_cookie("bz_mode", "workstation", samesite="Lax", secure=app.config.get("SESSION_COOKIE_SECURE", False))
+        if hmac.compare_digest(request.form.get("password", ""), WORKSTATION_PASSWORD):
+            session["restricted_unlocked"] = True
+            resp = redirect(nxt)
+            resp.set_cookie("bz_unlocked", "1", samesite="Lax",
+                            secure=app.config.get("SESSION_COOKIE_SECURE", False))
             return resp
-        return render_template("importantworkstation.html", error="كلمة المرور غير صحيحة")
-    return render_template("importantworkstation.html")
+        return render_template("tab_lock.html", next=nxt, error="كلمة المرور غير صحيحة")
+    return render_template("tab_lock.html", next=nxt)
 
 
 @app.route("/logout")
@@ -484,6 +503,7 @@ def logout():
     session.clear()
     resp = redirect(url_for("login"))
     resp.delete_cookie("bz_mode")
+    resp.delete_cookie("bz_unlocked")
     return resp
 
 
@@ -545,7 +565,7 @@ def washing():
 
 @app.route("/employees")
 @login_required
-@block_workstation
+@lock_for_workstation
 def employees():
     google_user = session.get("google_user")
     b64_en = load_logo()
@@ -554,7 +574,7 @@ def employees():
 
 @app.route("/gps_sync")
 @login_required
-@block_workstation
+@lock_for_workstation
 def gps_sync():
     google_user = session.get("google_user")
     b64_en = load_logo()
@@ -583,7 +603,7 @@ def records_page():
 
 @app.route("/cameras")
 @login_required
-@block_workstation
+@lock_for_workstation
 def cameras_page():
     # Embeds Hik-Connect in an iframe. URL is configurable via the CAMERAS_URL env var
     # (or per-browser in the UI). Note: Hik-Connect may block iframing (X-Frame-Options).
