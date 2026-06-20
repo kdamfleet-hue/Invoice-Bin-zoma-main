@@ -767,6 +767,65 @@
 
 
 <!-- ═══════════════════════════════════════════ -->
+<!-- فريق العمل (سلايدر كروت) -->
+<!-- ═══════════════════════════════════════════ -->
+<style>
+  .team-section { max-width:1100px; margin:3rem auto 2rem; padding:0 1rem; position:relative; z-index:2; }
+  .team-section > h2 { text-align:center; font-size:2rem; font-weight:800; color:var(--brand-navy,#0C2340); margin-bottom:.4rem; }
+  .team-section .sub { text-align:center; color:var(--text-secondary,#5a6a7a); margin:0 0 1.6rem; font-weight:600; }
+  body.dark-mode .team-section > h2 { color:#fff; }
+  .team-slider { display:flex; align-items:center; gap:.6rem; }
+  .team-track { display:flex; gap:1.2rem; overflow-x:auto; scroll-snap-type:x mandatory; scroll-behavior:smooth; padding:12px 4px 22px; flex:1; scrollbar-width:none; }
+  .team-track::-webkit-scrollbar { height:0; display:none; }
+  .team-card { flex:0 0 230px; scroll-snap-align:center; background:var(--surface,#fff); border:1px solid var(--border,#eef2f5); border-radius:22px; padding:18px 16px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.08); transition:transform .3s ease, box-shadow .3s ease; }
+  .team-card:hover { transform:translateY(-6px); box-shadow:0 16px 38px rgba(12,35,64,0.18); }
+  .team-card .img-box { width:148px; height:148px; margin:0 auto 14px; border-radius:50%; overflow:hidden; border:4px solid var(--brand-gold,#c9a227); background:var(--surface-hover,#f1f5f9); }
+  .team-card .img-box img { width:100%; height:100%; object-fit:cover; display:block; }
+  .team-card .t-name { color:var(--text-primary,#1a2b49); font-size:1.02rem; font-weight:800; margin:4px 0; line-height:1.4; }
+  .team-card .t-title { color:var(--brand-gold,#c9a227); font-weight:700; font-size:.9rem; margin:2px 0 6px; }
+  .team-card .t-branch { color:var(--text-secondary,#5a6a7a); font-size:.8rem; margin:0; }
+  .team-nav { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0); border-radius:50%; width:44px; height:44px; min-width:44px; font-size:1.15rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,0.1); color:var(--brand-navy,#0C2340); transition:.25s; }
+  .team-nav:hover { background:var(--brand-navy,#0C2340); color:#fff; transform:scale(1.08); }
+  @media (max-width:520px){ .team-card{ flex-basis:200px; } }
+</style>
+<section class="team-section" id="team">
+  <h2>👥 فريق عمل فرع الدمام</h2>
+  <p class="sub">شركة بن زومة الدولية للتجارة والإنماء</p>
+  <div class="team-slider">
+    <button class="team-nav" type="button" onclick="teamMove(-1)" aria-label="السابق">&#10095;</button>
+    <div class="team-track" id="teamTrack"></div>
+    <button class="team-nav" type="button" onclick="teamMove(1)" aria-label="التالي">&#10094;</button>
+  </div>
+</section>
+<script>
+  (function () {
+    var track = document.getElementById('teamTrack');
+    if (!track) return;
+    var idx = 0, cards = [];
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+    fetch('/static/team/team.json').then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+      track.innerHTML = (list || []).map(function (p) {
+        var title = p.title ? '<p class="t-title">' + esc(p.title) + '</p>' : '';
+        return '<div class="team-card">' +
+          '<div class="img-box"><img src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy"></div>' +
+          '<p class="t-name">' + esc(p.name) + '</p>' + title +
+          '<p class="t-branch">' + esc(p.branch || '') + '</p></div>';
+      }).join('');
+      cards = Array.prototype.slice.call(track.querySelectorAll('.team-card'));
+    }).catch(function () {});
+    window.teamMove = function (dir) {
+      if (!cards.length) return;
+      idx = Math.max(0, Math.min(cards.length - 1, idx + dir));
+      cards[idx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    };
+  })();
+</script>
+
+<!-- ═══════════════════════════════════════════ -->
 <!-- قسم من نحن -->
 <!-- ═══════════════════════════════════════════ -->
 <section id="about" style="max-width:900px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
