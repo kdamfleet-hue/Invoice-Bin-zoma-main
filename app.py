@@ -386,6 +386,13 @@ def employees():
     b64_en = load_logo()
     return render_template("employees.html", google_user=google_user, b64_en=b64_en)
 
+@app.route("/fleet_dashboard")
+@login_required
+def fleet_dashboard():
+    google_user = session.get("google_user")
+    b64_en = load_logo()
+    return render_template("fleet_dashboard.html", google_user=google_user, b64_en=b64_en)
+
 
 @app.route("/gps_sync")
 @login_required

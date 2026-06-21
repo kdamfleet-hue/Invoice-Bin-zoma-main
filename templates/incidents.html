@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الحوادث والمخالفات | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css') }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
+        .inc-intro {
+            max-width: 920px; margin: -0.25rem auto 1.5rem; padding: 1rem 1.25rem;
+            border: 1px solid var(--border); border-right: 4px solid var(--accent, #c9a227);
+            border-radius: 12px; background: var(--surface);
+            color: var(--text-secondary); font-size: 0.92rem; line-height: 1.9;
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.08));
+        }
+        .inc-intro strong { color: var(--text-primary); }
+
+        .inc-toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: center; margin: 0 auto 1.25rem; max-width: 1000px; }
+        .inc-toolbar .inc-search { position: relative; flex: 1 1 280px; min-width: 220px; }
+        .inc-toolbar .inc-search input { width: 100%; padding: 11px 18px 11px 42px; border-radius: 50px; font-size: 0.95rem; }
+        .inc-toolbar .inc-search::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 1rem; }
+        .inc-toolbar select { min-width: 150px; }
+
+        #incTable { width: 100%; border-collapse: collapse; table-layout: auto; }
+        #incTable thead { position: sticky; top: 0; z-index: 5; }
+        #incTable thead th {
+            background: var(--brand-navy, #0C2340); color: #fff;
+            padding: 12px 8px; font-size: 0.78rem; font-weight: 700; text-align: center;
+            /* single Arabic words stay whole; phrases wrap at spaces — never clipped */
+            white-space: normal; word-break: keep-all; overflow: visible; overflow-wrap: normal;
+            border-bottom: 2px solid var(--accent, #c9a227);
+        }
+        #incTable tbody td { padding: 6px 5px; font-size: 0.83rem; text-align: center; border: 1px solid var(--border); vertical-align: middle; overflow: visible; }
+        #incTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
+        #incTable tbody tr:hover td { background: var(--surface-hover); }
+        /* severity tint on the row's leading edge */
+        #incTable tbody tr.sev-عالية td:first-child { box-shadow: inset 4px 0 0 #dc2626; }
+        #incTable tbody tr.sev-متوسطة td:first-child { box-shadow: inset 4px 0 0 #d97706; }
+        #incTable tbody tr.sev-منخفضة td:first-child { box-shadow: inset 4px 0 0 #16a34a; }
+
+        .inc-in { width: 100%; border: none; background: transparent; color: var(--text-primary); font-family: inherit; font-size: 0.83rem; text-align: center; outline: none; padding: 5px 4px; border-radius: 6px; transition: var(--trans); }
+        .inc-in:focus { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent, #c9a227); position: relative; z-index: 6; }
+        textarea.inc-in { resize: vertical; min-height: 34px; text-align: right; line-height: 1.5; }
+        td.col-details { text-align: right; }
+        select.inc-in { text-align: center; font-weight: 700; }
+
+        /* severity select colors (also readable in B&W via the bold text) */
+        select.sev-sel.sev-عالية { color: #b91c1c; }
+        select.sev-sel.sev-متوسطة { color: #b45309; }
+        select.sev-sel.sev-منخفضة { color: #15803d; }
+        body.dark-mode select.sev-sel.sev-عالية { color: #fca5a5; }
+        body.dark-mode select.sev-sel.sev-متوسطة { color: #fcd34d; }
+        body.dark-mode select.sev-sel.sev-منخفضة { color: #86efac; }
+
+        .att-btn { background: transparent; border: 1px solid var(--border-strong, #c9a227); color: var(--accent, #c9a227); border-radius: 8px; padding: 4px 9px; cursor: pointer; font-size: 0.8rem; font-weight: 700; white-space: nowrap; transition: var(--trans); }
+        .att-btn:hover { background: var(--accent, #c9a227); color: #fff; }
+        .att-btn.has { background: rgba(201,162,39,.14); }
+
+        .inc-del { background: transparent; border: 1px solid var(--border-strong, #c33); color: #c0392b; border-radius: 8px; padding: 4px 9px; cursor: pointer; font-size: 0.85rem; font-weight: 700; transition: var(--trans); }
+        .inc-del:hover { background: #c0392b; color: #fff; }
+
+        .inc-empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-weight: 700; }
+        .inc-count { text-align: center; color: var(--text-muted); font-size: 0.88rem; margin: 0.25rem 0 1rem; }
+
+        /* attachments modal list */
+        .att-row { display: flex; align-items: center; gap: .6rem; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; background: var(--surface); }
+        .att-row .att-name { flex: 1; text-align: right; font-size: .88rem; word-break: break-all; }
+        .att-row .att-size { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+        .att-row button { border: none; border-radius: 7px; padding: 5px 9px; cursor: pointer; font-size: .8rem; font-weight: 700; }
+        .att-view { background: rgba(59,130,246,.14); color: #1d4ed8; }
+        .att-dl { background: rgba(16,185,129,.14); color: #047857; }
+        .att-rm { background: rgba(239,68,68,.14); color: #b91c1c; }
+
+        @media (max-width: 768px) { .bz-stats { grid-template-columns: repeat(2, 1fr); } .inc-toolbar select { flex: 1 1 45%; min-width: 0; } }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/search">🔍 بحث</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/incidents" class="active">🚨 الحوادث والمخالفات</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+        <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <datalist id="driverNames"></datalist>
+
+    <div class="bz-shell">
+
+    <h2 class="bz-section-title">🚨 الحوادث والمخالفات — قسم الحركة</h2>
+
+    <div class="inc-intro">
+        <strong>سجل الحوادث والمخالفات الإداري.</strong>
+        يوثّق كل واقعة (حادث، مخالفة مرورية أو جسيمة، إنذار، تحقيق إداري، استلام وتسليم، صيانة) برقم مرجع وتاريخ ومستوى خطورة ومسؤول وحالة إجراء —
+        مع إمكانية <strong>إرفاق المستندات (PDF/صور) داخل النظام</strong> فتبقى محفوظة بشكل دائم. هذا السجل مرجعية رسمية تحمي قسم الحركة عند أي مساءلة.
+    </div>
+
+    <!-- Stats -->
+    <div class="bz-stats">
+        <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي الوقائع</div></div>
+        <div class="bz-stat"><div class="num" id="statHigh" style="color:#dc2626;">0</div><div class="label">🔴 خطورة عالية</div></div>
+        <div class="bz-stat"><div class="num" id="statOpen">0</div><div class="label">مفتوحة / قيد المعالجة</div></div>
+        <div class="bz-stat"><div class="num" id="statClosed">0</div><div class="label">مغلقة</div></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="inc-toolbar">
+        <div class="inc-search">
+            <input type="text" id="searchInput" placeholder="ابحث بالمرجع أو الاسم أو اللوحة أو النوع أو الوصف..." oninput="renderTable()">
+        </div>
+        <select id="filterType" class="inc-in" onchange="renderTable()" title="فلترة حسب النوع" style="max-width:190px;"><option value="">كل الأنواع</option></select>
+        <select id="filterSeverity" class="inc-in" onchange="renderTable()" title="فلترة حسب الخطورة" style="max-width:160px;">
+            <option value="">كل المستويات</option><option value="عالية">عالية</option><option value="متوسطة">متوسطة</option><option value="منخفضة">منخفضة</option>
+        </select>
+        <select id="filterStatus" class="inc-in" onchange="renderTable()" title="فلترة حسب الحالة" style="max-width:170px;">
+            <option value="">كل الحالات</option><option value="مفتوح">مفتوح</option><option value="قيد المعالجة">قيد المعالجة</option><option value="مغلق">مغلق</option>
+        </select>
+        <button class="btn-primary" onclick="addIncident('top')">➕ تسجيل واقعة</button>
+    </div>
+
+    <div class="inc-count" id="incCount">0 واقعة</div>
+
+    <!-- Table -->
+    <div class="card" id="incPrintArea">
+    <div class="table-wrapper">
+        <table id="incTable" class="bz-fit">
+            <colgroup>
+                <col style="width:3%"><col style="width:9%"><col style="width:8%"><col style="width:9%"><col style="width:8%">
+                <col style="width:11%"><col style="width:8%"><col style="width:8%"><col style="width:14%"><col style="width:8%">
+                <col style="width:8%"><col style="width:6%"><col style="width:8%"><col style="width:4%">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th><span class="nb">رقم</span> <span class="nb">المرجع</span></th>
+                    <th><span class="nb">التاريخ</span></th>
+                    <th><span class="nb">نوع</span> <span class="nb">الواقعة</span></th>
+                    <th><span class="nb">مستوى</span> <span class="nb">الخطورة</span></th>
+                    <th><span class="nb">الموظف</span></th>
+                    <th><span class="nb">رقم</span> <span class="nb">الهوية</span></th>
+                    <th><span class="nb">رقم</span> <span class="nb">اللوحة</span></th>
+                    <th><span class="nb">الوصف</span></th>
+                    <th><span class="nb">حالة</span> <span class="nb">الإجراء</span></th>
+                    <th><span class="nb">المسؤول</span></th>
+                    <th><span class="nb">المرفقات</span></th>
+                    <th><span class="nb">ملاحظات</span></th>
+                    <th><span class="nb">حذف</span></th>
+                </tr>
+            </thead>
+            <tbody id="incBody"></tbody>
+        </table>
+    </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+        <button class="btn-primary" onclick="addIncident('bottom')">➕ تسجيل واقعة في الأسفل</button>
+        <button class="btn-submit-gold" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+        <button class="btn-submit-orange" onclick="shareIncidents()">📤 مشاركة / تصدير</button>
+        <button class="btn-outline" onclick="saveState(true)">💾 حفظ يدوي</button>
+    </div>
+
+    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">سجل الحوادث والمخالفات — قسم الحركة، فرع الدمام</footer>
+
+    <!-- Attachments modal -->
+    <div class="modal-backdrop" id="attModal">
+        <div class="modal-content-custom" style="max-width:620px;text-align:right;">
+            <h2 class="bz-section-title" style="margin-top:0;">📎 مرفقات الواقعة <span id="attRefLabel" style="font-size:.85rem;color:var(--text-muted);font-weight:600;"></span></h2>
+            <div id="attList" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;"></div>
+            <label class="btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+                ➕ إضافة ملف (PDF / صورة)
+                <input type="file" id="attInput" accept="image/*,application/pdf" multiple style="display:none;" onchange="onAttUpload(event)">
+            </label>
+            <div style="margin-top:.6rem;font-size:.8rem;color:var(--text-muted);line-height:1.7;">
+                الحد: <strong>2MB لكل ملف</strong>، حتى <strong>6 ملفات</strong> للواقعة. تُحفظ المرفقات <strong>داخل قاعدة البيانات</strong> فتبقى دائمة على الاستضافة.
+            </div>
+            <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.25rem;">
+                <button class="btn-primary" onclick="closeCustomModal('attModal')">تم ✅</button>
+            </div>
+        </div>
+    </div>
+
+    </div><!-- /bz-shell -->
+
+<script>
+    // ===== Column model (text columns; attachments handled separately) =====
+    const COLS = [
+        { key: 'ref',         label: 'رقم المرجع' },
+        { key: 'date',        label: 'التاريخ' },
+        { key: 'type',        label: 'نوع الواقعة' },
+        { key: 'severity',    label: 'مستوى الخطورة' },
+        { key: 'name',        label: 'الموظف' },
+        { key: 'iqama',       label: 'رقم الهوية' },
+        { key: 'plate',       label: 'رقم اللوحة' },
+        { key: 'details',     label: 'الوصف' },
+        { key: 'status',      label: 'حالة الإجراء' },
+        { key: 'responsible', label: 'المسؤول' },
+        { key: 'notes',       label: 'ملاحظات' }
+    ];
+    const TYPES = ['حادث جسيم', 'مخالفة مرورية', 'مخالفة جسيمة', 'إنذار', 'تحقيق إداري', 'استلام وتسليم', 'صيانة دورية', 'أخرى'];
+    const SEVERITIES = ['عالية', 'متوسطة', 'منخفضة'];
+    const STATUSES = ['مفتوح', 'قيد المعالجة', 'مغلق'];
+    const LS_KEY = 'binZomahIncidents';
+    const MAX_FILE_BYTES = 2 * 1024 * 1024;   // 2 MB per file
+    const MAX_FILES = 6;
+
+    let incidents = [];
+    let saveTimer = null;
+    let attIdx = -1;          // which incident's attachments modal is open
+
+    function blankIncident() {
+        const o = {};
+        COLS.forEach(c => o[c.key] = '');
+        o.status = 'مفتوح';
+        o.severity = 'متوسطة';
+        o.attachments = [];
+        return o;
+    }
+
+    function normalize(rows) {
+        if (!Array.isArray(rows)) return [];
+        return rows.map(function (row) {
+            const o = blankIncident();
+            if (row && typeof row === 'object' && !Array.isArray(row)) {
+                COLS.forEach(c => { o[c.key] = row[c.key] == null ? '' : String(row[c.key]); });
+                o.attachments = Array.isArray(row.attachments) ? row.attachments.filter(a => a && a.data) : [];
+            } else if (Array.isArray(row)) {
+                COLS.forEach((c, i) => { o[c.key] = row[i] == null ? '' : String(row[i]); });
+            }
+            if (!o.severity) o.severity = 'متوسطة';
+            if (!o.status) o.status = 'مفتوح';
+            return o;
+        });
+    }
+
+    function init() {
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+        if (window.FleetData) { FleetData.fillDatalist('driverNames').catch(() => {}); }
+        const ft = document.getElementById('filterType');
+        TYPES.forEach(function (t) { const opt = document.createElement('option'); opt.value = t; opt.textContent = t; ft.appendChild(opt); });
+
+        fetch('/api/incidents')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success && Array.isArray(data.rows) && data.rows.length) {
+                    incidents = normalize(data.rows);
+                } else {
+                    incidents = WS ? [] : loadLocal();
+                }
+                renderTable();
+            })
+            .catch(() => { incidents = WS ? [] : loadLocal(); renderTable(); });
+    }
+
+    function loadLocal() {
+        const saved = localStorage.getItem(LS_KEY);
+        if (saved) { try { return normalize(JSON.parse(saved)); } catch (e) { return []; } }
+        return [];
+    }
+
+    // ===== Render =====
+    function passesFilter(r, q, ftype, fsev, fstatus) {
+        if (ftype && r.type !== ftype) return false;
+        if (fsev && r.severity !== fsev) return false;
+        if (fstatus && r.status !== fstatus) return false;
+        if (q) {
+            const hay = [r.ref, r.name, r.plate, r.type, r.details, r.iqama, r.responsible, r.notes].join(' ').toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    }
+
+    function buildSelect(key, value, options, cls) {
+        let html = '<select class="inc-in ' + cls + '" data-key="' + key + '">';
+        options.forEach(function (opt) {
+            const sel = (opt === value) ? ' selected' : '';
+            html += '<option value="' + escapeHtml(opt) + '"' + sel + '>' + escapeHtml(opt) + '</option>';
+        });
+        if (value && options.indexOf(value) === -1) {
+            html += '<option value="' + escapeHtml(value) + '" selected>' + escapeHtml(value) + '</option>';
+        }
+        html += '</select>';
+        return html;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('incBody');
+        const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+        const ftype = document.getElementById('filterType').value;
+        const fsev = document.getElementById('filterSeverity').value;
+        const fstatus = document.getElementById('filterStatus').value;
+
+        let html = '';
+        let shown = 0;
+        incidents.forEach(function (r, idx) {
+            if (!passesFilter(r, q, ftype, fsev, fstatus)) return;
+            shown++;
+            const attN = (r.attachments || []).length;
+            html += '<tr data-idx="' + idx + '" class="sev-' + escapeHtml(r.severity || 'متوسطة') + '">'
+                + '<td>' + shown + '</td>'
+                + '<td><input type="text" class="inc-in" data-key="ref" value="' + escapeHtml(r.ref) + '" placeholder="INC-..."></td>'
+                + '<td><input type="date" class="inc-in" data-key="date" value="' + escapeHtml(r.date) + '"></td>'
+                + '<td>' + buildSelect('type', r.type, TYPES, 'inc-type') + '</td>'
+                + '<td>' + buildSelect('severity', r.severity || 'متوسطة', SEVERITIES, 'sev-sel sev-' + escapeHtml(r.severity || 'متوسطة')) + '</td>'
+                + '<td><input type="text" class="inc-in" list="driverNames" data-key="name" value="' + escapeHtml(r.name) + '" placeholder="الاسم"></td>'
+                + '<td><input type="text" class="inc-in" data-key="iqama" value="' + escapeHtml(r.iqama) + '" placeholder="الهوية"></td>'
+                + '<td><input type="text" class="inc-in" data-key="plate" value="' + escapeHtml(r.plate) + '" placeholder="اللوحة"></td>'
+                + '<td class="col-details"><textarea class="inc-in" data-key="details" rows="1" placeholder="وصف الواقعة">' + escapeHtml(r.details) + '</textarea></td>'
+                + '<td>' + buildSelect('status', r.status || 'مفتوح', STATUSES, 'inc-status') + '</td>'
+                + '<td><input type="text" class="inc-in" data-key="responsible" value="' + escapeHtml(r.responsible) + '" placeholder="المسؤول"></td>'
+                + '<td><button class="att-btn' + (attN ? ' has' : '') + '" onclick="openAttachments(' + idx + ')" title="إدارة المرفقات">📎 ' + attN + '</button></td>'
+                + '<td><input type="text" class="inc-in" data-key="notes" value="' + escapeHtml(r.notes) + '" placeholder="ملاحظات"></td>'
+                + '<td><button class="inc-del" onclick="deleteIncident(' + idx + ')" title="حذف الواقعة">🗑</button></td>'
+                + '</tr>';
+        });
+
+        if (!shown) {
+            const msg = incidents.length ? 'لا توجد وقائع مطابقة للبحث/الفلترة.' : 'لا توجد وقائع بعد — اضغط «تسجيل واقعة» للبدء.';
+            html = '<tr><td colspan="14" class="inc-empty">' + escapeHtml(msg) + '</td></tr>';
+        }
+        tbody.innerHTML = html;
+
+        document.getElementById('incCount').textContent = shown + ' واقعة معروضة' + (shown !== incidents.length ? ' من ' + incidents.length : '');
+        updateStats();
+    }
+
+    function updateStats() {
+        document.getElementById('statTotal').textContent = incidents.length;
+        document.getElementById('statHigh').textContent = incidents.filter(r => r.severity === 'عالية').length;
+        document.getElementById('statOpen').textContent = incidents.filter(r => r.status === 'مفتوح' || r.status === 'قيد المعالجة').length;
+        document.getElementById('statClosed').textContent = incidents.filter(r => r.status === 'مغلق').length;
+    }
+
+    // ===== Inline editing =====
+    document.addEventListener('input', function (e) {
+        const el = e.target;
+        if (!el.classList || !el.classList.contains('inc-in')) return;
+        const tr = el.closest('tr[data-idx]');
+        if (!tr) return;
+        const idx = parseInt(tr.getAttribute('data-idx'), 10);
+        const key = el.getAttribute('data-key');
+        if (isNaN(idx) || !key || !incidents[idx]) return;
+
+        incidents[idx][key] = el.value;
+
+        if (key === 'severity') {
+            tr.className = 'sev-' + el.value;
+            el.className = 'inc-in sev-sel sev-' + el.value;
+        }
+        if (key === 'name' && window.FleetData) {
+            const rec = FleetData.byName(el.value.trim());
+            if (rec) {
+                if (!incidents[idx].iqama && rec.iqama && rec.iqama !== 'None') incidents[idx].iqama = String(rec.iqama);
+                if (!incidents[idx].plate && rec.plate && rec.plate !== 'None') incidents[idx].plate = String(rec.plate);
+                const iqamaEl = tr.querySelector('[data-key="iqama"]');
+                const plateEl = tr.querySelector('[data-key="plate"]');
+                if (iqamaEl && !iqamaEl.value) iqamaEl.value = incidents[idx].iqama;
+                if (plateEl && !plateEl.value) plateEl.value = incidents[idx].plate;
+            }
+        }
+        if (key === 'status' || key === 'severity') updateStats();
+        scheduleSave();
+    });
+
+    // ===== CRUD =====
+    function genRef() {
+        const d = new Date();
+        const ymd = '' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+        let max = 0;
+        incidents.forEach(function (r) {
+            const m = String(r.ref || '').match(/-(\d+)$/);
+            if (m) { const n = parseInt(m[1], 10); if (n > max) max = n; }
+        });
+        return 'INC-' + ymd + '-' + String(max + 1).padStart(3, '0');
+    }
+
+    function addIncident(where) {
+        const inc = blankIncident();
+        inc.date = new Date().toISOString().slice(0, 10);
+        inc.ref = genRef();
+        if (where === 'bottom') incidents.push(inc); else incidents.unshift(inc);
+        document.getElementById('searchInput').value = '';
+        document.getElementById('filterType').value = '';
+        document.getElementById('filterSeverity').value = '';
+        document.getElementById('filterStatus').value = '';
+        renderTable();
+        scheduleSave();
+        showToast('تم تسجيل واقعة جديدة', 'success');
+    }
+
+    function deleteIncident(idx) {
+        const r = incidents[idx];
+        if (!r) return;
+        const label = r.ref || r.name || r.type || ('واقعة #' + (idx + 1));
+        if (!confirm('هل تريد حذف هذه الواقعة؟\n\n' + label + '\n(سيتم حذف مرفقاتها أيضاً)')) return;
+        incidents.splice(idx, 1);
+        renderTable();
+        scheduleSave();
+        showToast('تم حذف الواقعة', 'info');
+    }
+
+    // ===== Attachments (stored in-DB as base64 data URLs) =====
+    function humanSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+    }
+    function approxBytes(att) { return att.size || Math.round(((att.data || '').length) * 0.75); }
+
+    function openAttachments(idx) {
+        attIdx = idx;
+        const r = incidents[idx];
+        if (!r) return;
+        document.getElementById('attRefLabel').textContent = r.ref ? ('— ' + r.ref) : '';
+        renderAttList();
+        document.getElementById('attInput').value = '';
+        if (typeof openCustomModal === 'function') openCustomModal('attModal');
+    }
+
+    function renderAttList() {
+        const r = incidents[attIdx];
+        const box = document.getElementById('attList');
+        if (!r) { box.innerHTML = ''; return; }
+        const list = r.attachments || [];
+        if (!list.length) { box.innerHTML = '<div style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:.5rem;">لا توجد مرفقات بعد.</div>'; return; }
+        box.innerHTML = list.map(function (a, i) {
+            const icon = (a.mime || '').indexOf('pdf') >= 0 ? '📄' : '🖼️';
+            return '<div class="att-row">'
+                + '<span style="font-size:1.1rem;">' + icon + '</span>'
+                + '<span class="att-name">' + escapeHtml(a.name || ('ملف ' + (i + 1))) + '</span>'
+                + '<span class="att-size">' + humanSize(approxBytes(a)) + '</span>'
+                + '<button class="att-view" onclick="viewAtt(' + i + ')">عرض</button>'
+                + '<button class="att-dl" onclick="downloadAtt(' + i + ')">تنزيل</button>'
+                + '<button class="att-rm" onclick="removeAtt(' + i + ')">حذف</button>'
+                + '</div>';
+        }).join('');
+    }
+
+    function onAttUpload(event) {
+        const r = incidents[attIdx];
+        if (!r) return;
+        r.attachments = r.attachments || [];
+        const files = Array.prototype.slice.call(event.target.files || []);
+        let queued = 0;
+        files.forEach(function (file) {
+            if (r.attachments.length + queued >= MAX_FILES) { showToast('الحد الأقصى ' + MAX_FILES + ' ملفات للواقعة', 'error'); return; }
+            if (file.size > MAX_FILE_BYTES) { showToast('«' + file.name + '» أكبر من 2MB — لم يُضف', 'error'); return; }
+            queued++;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                r.attachments.push({ name: file.name, mime: file.type || 'application/octet-stream', size: file.size, data: e.target.result });
+                renderAttList();
+                renderTable();
+                scheduleSave();
+            };
+            reader.onerror = function () { showToast('تعذّرت قراءة «' + file.name + '»', 'error'); };
+            reader.readAsDataURL(file);
+        });
+        event.target.value = '';
+        if (queued) showToast('تتم إضافة المرفقات وحفظها…', 'info');
+    }
+
+    function dataURLtoBlob(dataurl) {
+        const parts = String(dataurl).split(',');
+        const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
+        const bstr = atob(parts[1] || '');
+        let n = bstr.length; const u8 = new Uint8Array(n);
+        while (n--) u8[n] = bstr.charCodeAt(n);
+        return new Blob([u8], { type: mime });
+    }
+
+    function viewAtt(i) {
+        const r = incidents[attIdx]; if (!r || !r.attachments[i]) return;
+        try {
+            const url = URL.createObjectURL(dataURLtoBlob(r.attachments[i].data));
+            window.open(url, '_blank');
+            setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+        } catch (e) { showToast('تعذّر فتح المرفق', 'error'); }
+    }
+
+    function downloadAtt(i) {
+        const r = incidents[attIdx]; if (!r || !r.attachments[i]) return;
+        try {
+            const a = r.attachments[i];
+            const url = URL.createObjectURL(dataURLtoBlob(a.data));
+            const link = document.createElement('a'); link.href = url; link.download = a.name || 'attachment';
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+        } catch (e) { showToast('تعذّر تنزيل المرفق', 'error'); }
+    }
+
+    function removeAtt(i) {
+        const r = incidents[attIdx]; if (!r || !r.attachments[i]) return;
+        if (!confirm('حذف هذا المرفق؟\n' + (r.attachments[i].name || ''))) return;
+        r.attachments.splice(i, 1);
+        renderAttList(); renderTable(); scheduleSave();
+    }
+
+    // ===== Persistence (debounced) =====
+    function scheduleSave() {
+        try { localStorage.setItem(LS_KEY, JSON.stringify(incidents)); } catch (e) { /* quota: attachments too large for LS — server still saves */ }
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () { saveState(false); }, 700);
+    }
+
+    function saveState(showMsg) {
+        try { localStorage.setItem(LS_KEY, JSON.stringify(incidents)); } catch (e) {}
+        fetch('/api/incidents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: incidents }) })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success) { if (showMsg) showToast('تم حفظ الوقائع بنجاح ✅', 'success'); }
+                else if (showMsg) showToast('تم الحفظ محلياً فقط — فشل الحفظ في الخادم', 'error');
+            })
+            .catch(() => { if (showMsg) showToast('خطأ في الاتصال — تم الحفظ محلياً فقط', 'error'); });
+    }
+
+    // ===== Excel export (B&W-print-safe corporate) — attachments shown as a count =====
+    async function buildIncidentsBlob() {
+        if (typeof ExcelJS === 'undefined') throw new Error('مكتبة التصدير غير محمّلة بعد');
+        const NAVY = 'FF0C2340', GOLD = 'FFC9A227', BLACK = { argb: 'FF000000' };
+        const THIN_BLACK = { style: 'thin', color: BLACK };
+        const ALL_BORDERS = { top: THIN_BLACK, bottom: THIN_BLACK, left: THIN_BLACK, right: THIN_BLACK };
+        const TL = (typeof bzTL === 'function') ? bzTL : (function (x) { return x; });
+        const headers = ['#'].concat(COLS.map(c => TL(c.label))).concat([TL('المرفقات')]);
+        const lastColIdx = headers.length;
+
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'BIN ZOMAH INTL.'; wb.created = new Date();
+        const ws = wb.addWorksheet(TL('الحوادث والمخالفات'), { views: [{ rightToLeft: true, state: 'frozen', ySplit: 2 }] });
+        ws.pageSetup = { fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, orientation: 'landscape', showGridLines: true, margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+
+        const titleRow = ws.getRow(1);
+        titleRow.getCell(1).value = TL('سجل الحوادث والمخالفات — قسم الحركة، فرع الدمام') + '  |  BIN ZOMAH INTL.';
+        ws.mergeCells(1, 1, 1, lastColIdx);
+        const titleCell = ws.getCell(1, 1);
+        titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+        titleCell.alignment = { vertical: 'middle', horizontal: 'center', readingOrder: 'rtl' };
+        titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+        titleRow.height = 30;
+
+        const headerRow = ws.getRow(2);
+        headers.forEach(function (h, i) {
+            const cell = headerRow.getCell(i + 1);
+            cell.value = h;
+            cell.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true, readingOrder: 'rtl' };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+            cell.border = { top: THIN_BLACK, left: THIN_BLACK, right: THIN_BLACK, bottom: { style: 'medium', color: { argb: GOLD } } };
+        });
+        headerRow.height = 26;
+
+        incidents.forEach(function (r, idx) {
+            const row = ws.getRow(3 + idx);
+            const vals = [idx + 1, r.ref, r.date, TL(r.type), TL(r.severity), r.name, r.iqama, r.plate, r.details, TL(r.status), r.responsible, r.notes, (r.attachments || []).length + ' ملف'];
+            const zebra = (idx % 2 === 1);
+            vals.forEach(function (val, ci) {
+                const cell = row.getCell(ci + 1);
+                cell.value = (val == null ? '' : val);
+                cell.font = { name: 'Tajawal', size: 10, color: BLACK };
+                const isText = (ci === 8); // الوصف
+                cell.alignment = { vertical: 'middle', horizontal: isText ? 'right' : 'center', wrapText: true, readingOrder: 'rtl' };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra ? 'FFF2F2F2' : 'FFFFFFFF' } };
+                cell.border = ALL_BORDERS;
+            });
+            row.height = 24;
+        });
+
+        if (!incidents.length) {
+            const row = ws.getRow(3);
+            for (let c = 1; c <= lastColIdx; c++) { const cell = row.getCell(c); cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; cell.border = ALL_BORDERS; }
+            row.height = 24;
+        }
+
+        const footRowNum = 3 + Math.max(incidents.length, 1) + 1;
+        const footRow = ws.getRow(footRowNum);
+        footRow.getCell(1).value = TL('أُعدّ بواسطة قسم الحركة — فرع الدمام') + ' — ' + new Date().toISOString().slice(0, 10);
+        ws.mergeCells(footRowNum, 1, footRowNum, lastColIdx);
+        const footCell = ws.getCell(footRowNum, 1);
+        footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: 'FF555555' } };
+        footCell.alignment = { horizontal: 'right', readingOrder: 'rtl' };
+
+        const widths = [5, 16, 13, 16, 13, 18, 14, 14, 30, 13, 16, 18, 10];
+        widths.forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
+
+        const outBuffer = await wb.xlsx.writeBuffer();
+        return new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    }
+
+    const XLSX_NAME = 'الحوادث_والمخالفات_الدمام.xlsx';
+
+    async function exportXlsx() {
+        if (typeof ExcelJS === 'undefined') { showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info'); return; }
+        const btn = document.querySelector('.btn-submit-gold');
+        const oldText = btn ? btn.innerHTML : '';
+        if (btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
+        try {
+            const blob = await buildIncidentsBlob();
+            if (typeof bzDownload === 'function') bzDownload(blob, XLSX_NAME); else saveAs(blob, XLSX_NAME);
+            showToast('تم تصدير ملف الإكسل بنجاح ✅', 'success');
+        } catch (e) { showToast('حدث خطأ أثناء التصدير: ' + e.message, 'error'); }
+        finally { if (btn) { btn.innerHTML = oldText; btn.disabled = false; } }
+    }
+
+    function shareIncidents() {
+        if (typeof bzShare !== 'function') { showToast('أداة المشاركة غير متاحة حالياً', 'error'); return; }
+        bzShare(buildIncidentsBlob, {
+            filename: XLSX_NAME,
+            subject: 'سجل الحوادث والمخالفات — قسم الحركة، فرع الدمام',
+            pdfElement: document.getElementById('incPrintArea'),
+            pdfOrientation: 'landscape',
+            waMessage: 'سجل الحوادث والمخالفات — قسم الحركة، فرع الدمام (شركة بن زومة)'
+        });
+    }
+
+    window.addEventListener('load', init);
+</script>
+</body>
+</html>
