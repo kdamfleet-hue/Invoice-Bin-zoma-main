@@ -115,6 +115,8 @@
         #employeesTable thead tr:first-child th.idx-head { position: sticky; right: 0; }
         .emp-search { flex: 1; min-width: 200px; max-width: 360px; }
         .emp-search input { padding: 9px 14px; }
+        .emp-filter { min-width: 170px; max-width: 250px; }
+        .emp-filter select { padding: 9px 14px; cursor: pointer; }
         .emp-count { font-weight: 700; color: var(--text-secondary); white-space: nowrap; }
         .emp-hint { font-size: .82rem; color: var(--text-muted); margin: -.4rem 0 .8rem; }
     </style>
@@ -151,6 +153,7 @@
 
         <div class="emp-toolbar">
             <div class="emp-search"><input type="text" id="empSearch" placeholder="🔍 ابحث باسم الموظف أو الإقامة أو اللوحة..." oninput="filterEmployees()"></div>
+            <div class="emp-filter"><select id="empJobFilter" onchange="filterEmployees()" title="فلترة حسب الوظيفة"><option value="">كل الوظائف</option></select></div>
             <button class="btn-primary" id="viewToggleBtn" onclick="toggleView()">📊 عرض كامل (كل الأعمدة)</button>
             <span class="emp-count" id="empCount"></span>
             <span style="flex:1"></span>
@@ -225,6 +228,7 @@
             }
             document.getElementById('employeesTable').classList.add('compact'); // start compact = no side scroll
             updateCount();
+            populateJobFilter();
         });
 
         function buildHeaderRow() {
@@ -254,14 +258,38 @@
 
         function filterEmployees() {
             const q = (document.getElementById('empSearch').value || '').trim().toLowerCase();
+            const jobSel = document.getElementById('empJobFilter');
+            const job = jobSel ? jobSel.value : '';
             let shown = 0;
             document.querySelectorAll('#employeesBody tr').forEach(tr => {
                 let match = !q;
                 if (q) match = Array.from(tr.querySelectorAll('input')).some(inp => (inp.value || '').toLowerCase().indexOf(q) !== -1);
+                if (match && job) {
+                    const jinp = tr.querySelector('input[data-col="6"]'); // 6 = المسمى الوظيفي
+                    match = !!jinp && (jinp.value || '').trim() === job;
+                }
                 tr.style.display = match ? '' : 'none';
                 if (match) shown++;
             });
             updateCount(shown);
+        }
+
+        // Auto-populate the job filter from the actual data (column 6 = المسمى الوظيفي),
+        // with a count per job, sorted in Arabic. Keeps the current selection if still valid.
+        function populateJobFilter() {
+            const sel = document.getElementById('empJobFilter');
+            if (!sel) return;
+            const prev = sel.value;
+            const counts = {};
+            document.querySelectorAll('#employeesBody tr').forEach(tr => {
+                const inp = tr.querySelector('input[data-col="6"]');
+                const job = inp ? (inp.value || '').trim() : '';
+                if (job) counts[job] = (counts[job] || 0) + 1;
+            });
+            const jobs = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'ar'));
+            sel.innerHTML = '<option value="">كل الوظائف</option>' +
+                jobs.map(j => `<option value="${esc(j)}">${esc(j)} (${counts[j]})</option>`).join('');
+            sel.value = (prev && counts[prev]) ? prev : '';
         }
 
         function updateCount(visible) {
@@ -414,6 +442,14 @@
                 persistLocal();
                 autoSaveServer(); // WS-only server autosave (debounced)
                 maybeAutofill(e.target);
+            }
+        });
+
+        // Keep the job filter list in sync when a job cell (col 6) is edited or a row added/removed
+        document.addEventListener('change', (e) => {
+            if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' &&
+                e.target.closest('#employeesBody') && Number(e.target.dataset.col) === 6) {
+                populateJobFilter();
             }
         });
 
