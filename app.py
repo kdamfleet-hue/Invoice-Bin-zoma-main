@@ -14,6 +14,7 @@ import base64
 import requests
 import json
 import re
+import html
 from datetime import datetime
 from functools import wraps
 
@@ -461,11 +462,31 @@ def _row_id():
     return 2 if is_workstation() else 1
 
 
+def _safe_tbl(table):
+    """Table names are interpolated into SQL (identifiers can't be parameterized), so
+    validate they are plain identifiers — makes injection via a table name impossible."""
+    if not isinstance(table, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
+        raise ValueError("invalid table name: %r" % (table,))
+    return table
+
+
+def _loads_blob(row):
+    """Parse a blob row's JSON, tolerating corrupt/invalid data instead of raising 500."""
+    if not row:
+        return None
+    try:
+        return json.loads(row["data"])
+    except (ValueError, TypeError):
+        logger.warning("Corrupt JSON blob encountered; returning None")
+        return None
+
+
 def blob_get(table):
     """Read a single-row JSON blob.
     Main site reads id=1. The workstation reads ONLY its own id=2 sandbox and NEVER
     falls back to id=1 — so /importantworkstation starts EMPTY instead of mirroring the
     real site's data."""
+    table = _safe_tbl(table)
     rid = _row_id()
     with db_connection() as conn:
         c = conn.cursor()
@@ -474,11 +495,12 @@ def blob_get(table):
         if not row and rid != 1 and not is_workstation():
             c.execute("SELECT data FROM %s WHERE id = 1" % table)
             row = c.fetchone()
-    return json.loads(row["data"]) if row else None
+    return _loads_blob(row)
 
 
 def blob_set(table, data_obj):
     """Write a single-row JSON blob to the mode-specific row (id=2 for workstation)."""
+    table = _safe_tbl(table)
     rid = _row_id()
     data_str = json.dumps(data_obj, ensure_ascii=False)
     with db_connection() as conn:
@@ -585,15 +607,17 @@ def _ws_meta_set(k, v):
 
 def _ws_get2(table):
     """Read the workstation (id=2) blob for a table, or None."""
+    table = _safe_tbl(table)
     with db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT data FROM %s WHERE id = 2" % table)
         row = c.fetchone()
-    return json.loads(row["data"]) if row else None
+    return _loads_blob(row)
 
 
 def _ws_put2(table, value):
     """Upsert the workstation (id=2) blob for a table."""
+    table = _safe_tbl(table)
     data_str = json.dumps(value, ensure_ascii=False)
     with db_connection() as conn:
         c = conn.cursor()
@@ -671,6 +695,7 @@ def workstation_unlock():
         session["ws_unlocked"] = True
         resp = redirect(nxt)
         resp.set_cookie("ws_unlocked", "1", path=WS_PREFIX, samesite="Lax",
+                        httponly=True,
                         secure=app.config.get("SESSION_COOKIE_SECURE", False))
         return resp
     return render_template("tab_lock.html", next=nxt, error="كلمة المرور غير صحيحة")
@@ -863,6 +888,8 @@ MAX_TEMPLATE_SIZE = 16 * 1024 * 1024  # 16 MB
 @app.route("/api/upload_template/<tab>", methods=["POST"])
 @login_required
 def upload_template(tab):
+    if is_workstation():
+        return jsonify({"error": "غير متاح في محطة العمل"}), 403
     if tab not in VALID_TABS:
         return jsonify({"error": "Invalid tab name"}), 400
     if "file" not in request.files:
@@ -896,6 +923,8 @@ def list_templates():
 @app.route("/api/delete_template/<tab>", methods=["DELETE"])
 @login_required
 def delete_template(tab):
+    if is_workstation():
+        return jsonify({"error": "غير متاح في محطة العمل"}), 403
     if tab not in VALID_TABS:
         return jsonify({"error": "Invalid tab"}), 400
     user_path = os.path.join(TEMPLATE_DIR, f"{tab}_template.xlsx")
@@ -1472,7 +1501,8 @@ def _build_alert_email_html(alerts):
             "<td style='padding:9px 12px;border-bottom:1px solid #eee;white-space:nowrap;'>%s</td>"
             "<td style='padding:9px 12px;border-bottom:1px solid #eee;color:%s;font-weight:700;white-space:nowrap;'>%s · %s</td>"
             "</tr>"
-        ) % (a["name"], a["plate"] or "—", a["doc"], a["date"], c, a["label"], days_txt(a))
+        ) % (html.escape(str(a["name"])), html.escape(str(a["plate"] or "—")),
+         html.escape(str(a["doc"])), html.escape(str(a["date"])), c, a["label"], days_txt(a))
 
     return (
         "<div style='font-family:Tahoma,Arial,sans-serif;direction:rtl;text-align:right;background:#f4f6fb;padding:22px;'>"
@@ -2474,6 +2504,7 @@ M: +966 53 975 7659 &nbsp;|&nbsp; E: damfleet@bz.sa
 
 
 def _build_html_compose(subject, body_text):
+    body_text = html.escape(body_text or "")  # user-provided → escape for the HTML email
     return f"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>

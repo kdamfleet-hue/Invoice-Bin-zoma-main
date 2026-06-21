@@ -864,7 +864,7 @@ function translateDOM(lang) {
     function walk(node) {
         if (node.nodeType === Node.TEXT_NODE) {
             const trimmed = node.nodeValue.trim();
-            if (trimmed) {
+            if (trimmed && node.parentElement) {
                 if (dict[trimmed]) {
                     if (!node.parentElement.hasAttribute('data-orig-text')) {
                         node.parentElement.setAttribute('data-orig-text', trimmed);
@@ -973,7 +973,7 @@ function translateSubtree(node, lang) {
     
     if (node.nodeType === Node.TEXT_NODE) {
         const trimmed = node.nodeValue.trim();
-        if (trimmed && dict[trimmed]) {
+        if (trimmed && dict[trimmed] && node.parentElement) {
             if (!node.parentElement.hasAttribute('data-orig-text')) {
                 node.parentElement.setAttribute('data-orig-text', trimmed);
             }
@@ -1173,6 +1173,8 @@ window.FleetData = (function () {
             });
             if (typeof opts.onFill === 'function') opts.onFill(rec);
         }
+        if (nameEl.dataset.bzAutofillBound === '1') return; // avoid duplicate listeners on repeat calls
+        nameEl.dataset.bzAutofillBound = '1';
         nameEl.addEventListener('change', apply);
         nameEl.addEventListener('input', apply);
     }
@@ -1250,6 +1252,7 @@ function bzEnsureHtml2pdf() {
 
 /** Render a DOM element to a PDF Blob (Arabic-safe; rasterizes the element). */
 window.bzElementToPdfBlob = async function (element, orientation) {
+    if (!element) throw new Error('bzElementToPdfBlob: no element provided');
     await bzEnsureHtml2pdf();
     const opt = {
         margin: 6, image: { type: 'jpeg', quality: 0.95 },
