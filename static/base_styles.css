@@ -551,15 +551,27 @@ body.dark-mode .glass-surface, body.dark-mode .card {
 /* Remove the old floating user/logout badge (logout lives in the top bar) */
 .user-badge { display: none !important; }
 
-/* Fit-to-width tables: show every column at once, no horizontal scrollbar.
-   Add class "bz-fit" to a <table>. Cells wrap; the focused input grows for editing. */
-.bz-fit { table-layout: fixed; width: 100%; border-collapse: collapse; }
-.bz-fit th, .bz-fit td { overflow: hidden; word-break: break-word; }
+/* Fit-to-width tables: every column gets the width its content needs, so headers
+   and values are always fully readable — no clipping, no mid-word breaks.
+   Add class "bz-fit" to a <table>. Long phrases wrap at spaces; the focused input grows. */
+.bz-fit { table-layout: auto; width: 100%; border-collapse: collapse; }
+.bz-fit th, .bz-fit td {
+    overflow: visible;            /* never clip text */
+    white-space: normal;          /* allow wrapping at spaces */
+    word-break: normal;           /* keep words intact */
+    overflow-wrap: break-word;    /* only break a token if it truly cannot fit */
+    vertical-align: middle;
+}
+.bz-fit thead th {
+    font-size: .74rem; line-height: 1.3; white-space: normal;   /* single words stay whole; phrases wrap at spaces */
+    padding: 8px 7px;
+}
+.bz-fit td { font-size: .76rem; }
 .bz-fit td input, .bz-fit td select, .bz-fit td textarea {
     width: 100%; min-width: 0; border: none; background: transparent; text-align: center;
-    font: inherit; font-size: .74rem; padding: 5px 3px; box-shadow: none; border-radius: 0; text-overflow: ellipsis;
+    font: inherit; font-size: .76rem; padding: 5px 4px; box-shadow: none; border-radius: 0;
+    text-overflow: ellipsis;
 }
-.bz-fit thead th { font-size: .7rem; white-space: normal; line-height: 1.25; padding: 6px 3px; }
 .bz-fit td input:focus, .bz-fit td textarea:focus {
     background: var(--surface); outline: 2px solid var(--accent); outline-offset: -2px;
     position: relative; z-index: 5; min-width: 160px; font-size: .9rem;

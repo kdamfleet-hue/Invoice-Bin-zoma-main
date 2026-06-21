@@ -20,18 +20,27 @@
         }
         #employeesTable {
             border-collapse: collapse;
-            white-space: nowrap;
+            /* table-layout:auto + wrapping inherited from .bz-fit so every header
+               (e.g. الموديل / الحمولة) is fully readable — no clipping, no mid-word cut */
+            white-space: normal;
             min-width: 100%;
         }
-        /* Compact view (default): fit all key columns to page width, no side scroll */
-        #employeesTable.compact { width: 100%; min-width: 0; table-layout: fixed; white-space: normal; }
+        /* Compact view (default): fit all key columns to page width, no side scroll.
+           Keep table-layout:auto so each column sizes to its own header/content
+           (fixed layout forced narrow columns that cut single-word headers). */
+        #employeesTable.compact { width: 100%; min-width: 0; white-space: normal; }
         #employeesTable.compact input { min-width: 0; }
         #employeesTable th,
         #employeesTable td {
             border: 1px solid var(--border);
             padding: 6px 8px;
             text-align: center;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
+            /* never clip; wrap multi-word headers at spaces, keep single words whole */
+            white-space: normal;
+            word-break: normal;
+            overflow: visible;
+            overflow-wrap: break-word;
         }
         #employeesTable thead th {
             background-color: var(--brand-navy, #0C2340);
@@ -40,6 +49,14 @@
             position: sticky;
             top: 0;
             z-index: 2;
+            /* keep headers readable & intact: الموديل / الطراز / الماركة stay whole,
+               phrases like «حمولة المركبة (عدد الركاب)» wrap cleanly at spaces */
+            font-size: 0.76rem;
+            line-height: 1.3;
+            white-space: normal;
+            word-break: normal;
+            overflow: visible;
+            overflow-wrap: break-word;
         }
         #employeesTable thead tr:first-child th {
             position: static;

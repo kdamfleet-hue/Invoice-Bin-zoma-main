@@ -37,8 +37,18 @@
             font-size: 0.9rem;
             border: 1px solid var(--brand-navy);
             border-bottom: 3px solid var(--brand-gold);
-            white-space: nowrap;
+            /* On-screen readability: let long headers wrap cleanly at spaces
+               instead of being clipped/cut mid-word by the fixed layout. */
+            white-space: normal;
+            word-break: normal;
+            overflow-wrap: break-word;
+            overflow: visible;
+            line-height: 1.3;
         }
+        /* Long header "عدد فلاتر الزيت والديزل والهواء" needs more room than its
+           28% colgroup share under table-layout:fixed; reduce header font a touch
+           so every header string is fully visible without ugly mid-word breaks. */
+        .excel-table.bz-fit .excel-header { font-size: 0.82rem; }
         .excel-rownum {
             text-align: center;
             font-weight: 700;
@@ -65,9 +75,13 @@
         }
         .excel-table tbody tr:nth-child(even) td { background: var(--surface-hover); }
         .excel-table tbody tr:nth-child(even) td.excel-input { background: var(--surface-hover); }
-        /* Fit tables to page width with no horizontal scroll (DESIGN_SYSTEM). */
-        .excel-table-container { overflow-x: visible !important; }
-        .excel-table.bz-fit { table-layout: fixed; }
+        /* Fit tables to page width; allow horizontal scroll only on very narrow
+           screens so nothing is ever clipped (text stays fully readable). */
+        .excel-table-container { overflow-x: auto; }
+        /* Auto layout so each column sizes to its content: single-word headers
+           (السابق/المستهلك/المتبقي/الموديل…) stay whole, long phrases wrap at spaces.
+           overflow:visible so nothing is clipped at the rounded edge. */
+        .excel-table.bz-fit { table-layout: auto; overflow: visible; }
         .excel-table.bz-fit input { min-width: 0; }
         .add-filter-cell { text-align:center; padding: 8px !important; border: 1px solid var(--border); }
         .btn-del {

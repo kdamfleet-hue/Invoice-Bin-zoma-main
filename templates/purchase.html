@@ -44,6 +44,26 @@
             margin: 1.5rem auto 0 auto;
         }
 
+        /* On-screen readability for the multi-column bz-fit tables (parts/repairs/
+           tires/batteries/summary). The .excel-table base style clips with
+           overflow:hidden (for rounded corners) which can cut header text; for the
+           bz-fit tables we make overflow visible so single-word Arabic headers
+           (الموديل / الحمولة / المسافة …) are never cut and multi-word headers wrap
+           at spaces. table-layout:auto (from bz-fit) sizes each column to content.
+           Export logic / data are untouched. */
+        .excel-table.bz-fit { overflow: visible; }
+        .excel-table.bz-fit thead th {
+            white-space: normal;
+            word-break: normal;
+            overflow-wrap: break-word;
+            overflow: visible;
+        }
+        /* The blue full-width section bar (e.g. "البطاريات", "ملخص الإجماليات")
+           should stay on one line — it has ample room across all columns. */
+        .excel-table.bz-fit thead th.excel-header {
+            white-space: nowrap;
+        }
+
         .section-title {
             background: var(--accent);
             color: #fff;

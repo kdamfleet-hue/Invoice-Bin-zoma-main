@@ -9,23 +9,28 @@
     <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
     <style>
         /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
-        /* No horizontal scroll — fit every column to the page width (bz-fit). */
-        .wash-table-wrap { overflow-x: visible; }
-        #washTable { border-collapse: collapse; width: 100%; table-layout: fixed; }
+        /* Let bz-fit size each column to its content; allow horizontal scroll on
+           very narrow screens instead of clipping header/cell text. */
+        .wash-table-wrap { overflow-x: auto; }
+        #washTable { border-collapse: collapse; width: 100%; table-layout: auto; }
         #washTable thead { position: sticky; top: 0; z-index: 5; }
         #washTable thead th {
             background: var(--brand-navy, #0C2340);
             color: #fff; padding: 12px 8px; font-size: 0.8rem; font-weight: 700;
-            text-align: center; white-space: nowrap; border-bottom: 2px solid var(--accent, #c9a227);
+            text-align: center; white-space: normal; word-break: normal;
+            overflow-wrap: break-word; border-bottom: 2px solid var(--accent, #c9a227);
         }
         #washTable thead th.col-id { text-align: center; }
         #washTable thead th.col-plate { text-align: right; }
         #washTable thead th.col-type { text-align: right; }
         #washTable thead th.col-driver { text-align: right; }
         #washTable thead th.col-month { text-align: center; }
-        #washTable thead th { word-break: break-word; }
+        /* normal word-break keeps single Arabic words (e.g. المجموع) whole;
+           multi-word headers still wrap at their spaces. */
+        #washTable thead th { word-break: normal; overflow-wrap: break-word; }
         #washTable thead th.col-total { background: var(--accent, #c9a227); color: #0C2340; }
-        #washTable td, #washTable th { overflow: hidden; }
+        /* visible (not hidden) so no header/cell text is ever clipped on screen. */
+        #washTable td, #washTable th { overflow: visible; }
         /* Current-month emphasis: a gold underline + bold so it reads even in B&W on screen */
         #washTable thead th.col-month.current-month {
             background: var(--accent, #c9a227); color: #0C2340; font-weight: 900;
