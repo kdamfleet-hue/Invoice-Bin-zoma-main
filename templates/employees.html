@@ -29,7 +29,9 @@
            Keep table-layout:auto so each column sizes to its own header/content
            (fixed layout forced narrow columns that cut single-word headers). */
         #employeesTable.compact { width: 100%; min-width: 0; white-space: normal; }
-        #employeesTable.compact input { min-width: 0; }
+        /* give each compact column a readable floor so single-word headers (الموديل/الحمولة)
+           are never squeezed narrow enough to wrap; columns scroll if they exceed the page */
+        #employeesTable.compact input { min-width: 88px; }
         #employeesTable th,
         #employeesTable td {
             border: 1px solid var(--border);
@@ -54,9 +56,9 @@
             font-size: 0.76rem;
             line-height: 1.3;
             white-space: normal;
-            word-break: normal;
+            word-break: keep-all;
             overflow: visible;
-            overflow-wrap: break-word;
+            overflow-wrap: normal;
         }
         #employeesTable thead tr:first-child th {
             position: static;
