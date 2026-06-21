@@ -513,37 +513,61 @@ def _ws_meta_set(k, v):
         conn.commit()
 
 
+def _ws_get2(table):
+    """Read the workstation (id=2) blob for a table, or None."""
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT data FROM %s WHERE id = 2" % table)
+        row = c.fetchone()
+    return json.loads(row["data"]) if row else None
+
+
+def _ws_put2(table, value):
+    """Upsert the workstation (id=2) blob for a table."""
+    data_str = json.dumps(value, ensure_ascii=False)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id FROM %s WHERE id = 2" % table)
+        if c.fetchone():
+            c.execute("UPDATE %s SET data = ? WHERE id = 2" % table, (data_str,))
+        else:
+            c.execute("INSERT INTO %s (id, data) VALUES (2, ?)" % table, (data_str,))
+        conn.commit()
+
+
+def _ws_is_empty(value):
+    """True if a stored blob carries NO real rows — covers a missing row, [], {}, and an
+    'empty shell' object like {title, date, main:[], spare:[], vacation:[], summary:{}} that a
+    stray autosave may have written (this is why a tab can look permanently empty)."""
+    if value is None:
+        return True
+    if isinstance(value, list):
+        return len(value) == 0
+    if isinstance(value, dict):
+        for v in value.values():
+            if isinstance(v, (list, dict)) and len(v) > 0:
+                return False
+        return True  # only scalars (title/date) or empty containers → no rows
+    return False
+
+
 def _ws_write_examples():
-    """Write the FAKE example data into the workstation id=2 stores (explicit id=2)."""
+    """Overwrite ALL workstation id=2 stores with the FAKE example data (used by 🧪)."""
     for table, value in WS_EXAMPLE_DATA.items():
-        data_str = json.dumps(value, ensure_ascii=False)
-        with db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT id FROM %s WHERE id = 2" % table)
-            if c.fetchone():
-                c.execute("UPDATE %s SET data = ? WHERE id = 2" % table, (data_str,))
-            else:
-                c.execute("INSERT INTO %s (id, data) VALUES (2, ?)" % table, (data_str,))
-            conn.commit()
+        _ws_put2(table, value)
 
 
 def ensure_ws_seeded():
-    """Self-healing seed: on every workstation page load, fill ONLY the stores that are
-    currently EMPTY (id=2) from the example data — existing data the user typed is preserved.
-    Skipped entirely if the user explicitly emptied the sandbox with the 🗑️ button
-    (ws_cleared flag), so a deliberate reset stays empty."""
+    """Self-healing seed: on every workstation page load, fill any store that is EMPTY
+    (missing OR an empty/empty-shell blob) from the example data, while PRESERVING any store
+    that holds real rows the user typed. Skipped entirely if the user emptied the sandbox with
+    the 🗑️ button (ws_cleared flag), so a deliberate reset stays empty."""
     try:
         if _ws_meta_get("ws_cleared") == "1":
             return
         for table, value in WS_EXAMPLE_DATA.items():
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT data FROM %s WHERE id = 2" % table)
-                if c.fetchone():
-                    continue  # already has data → keep it
-                c.execute("INSERT INTO %s (id, data) VALUES (2, ?)" % table,
-                          (json.dumps(value, ensure_ascii=False),))
-                conn.commit()
+            if _ws_is_empty(_ws_get2(table)):
+                _ws_put2(table, value)
     except Exception:
         logger.exception("ensure_ws_seeded error")
 
