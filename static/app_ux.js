@@ -324,6 +324,20 @@ function applyWorkstationRestrictions() {
         if (h === '/logout' || h.indexOf('/static') === 0 || h.indexOf('/api') === 0 || h.indexOf('//') === 0) return;
         a.setAttribute('href', WS_PREFIX + (h === '/' ? '' : h));
     });
+    // 3) inject a workstation-only "clear all data" button so the user can wipe the
+    //    sandbox to a truly empty start (removes any leftover id=2 data from earlier use).
+    const actions = document.querySelector('.bz-topbar .bz-actions');
+    if (actions && !document.getElementById('wsResetBtn')) {
+        const btn = document.createElement('button');
+        btn.id = 'wsResetBtn';
+        btn.type = 'button';
+        btn.className = 'bz-icon-btn';
+        btn.title = 'تفريغ كل بيانات محطة العمل (بداية فارغة) — لا يؤثر على الموقع الأساسي';
+        btn.textContent = '🗑️';
+        btn.style.cssText = 'background:rgba(220,38,38,.18);border-color:rgba(220,38,38,.45);';
+        btn.addEventListener('click', window.bzResetWorkstation);
+        actions.insertBefore(btn, actions.firstChild);
+    }
     // 2) lock the sensitive tabs until unlocked
     if (getCookie('ws_unlocked') === '1') return;
     [WS_PREFIX + '/employees', WS_PREFIX + '/gps_sync', WS_PREFIX + '/cameras', WS_PREFIX + '/tracking'].forEach(p => {
@@ -335,6 +349,25 @@ function applyWorkstationRestrictions() {
         });
     });
 }
+
+// Wipe every workstation (id=2) store + this browser's ws: cache, then reload empty.
+// Workstation-only; the main site never sees this button or endpoint.
+window.bzResetWorkstation = async function () {
+    if (!inWorkstation()) return;
+    if (!window.confirm('تفريغ كل بيانات محطة العمل؟\n\nسيُحذف كل ما أُدخل في هذا الرابط (الموظفون، الجدول، الغسيل، السائقون، الزيوت، الورشة، طلب الشراء، السجلات) ويبدأ فارغاً.\n\nالموقع الأساسي لن يتأثر إطلاقاً.')) return;
+    try {
+        // '/api/ws_reset' is rewritten to /importantworkstation/api/ws_reset by the fetch wrapper.
+        await fetch('/api/ws_reset', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    } catch (e) { /* best-effort */ }
+    // Also drop this browser's ws:-prefixed cached copies (bypass the patched instance methods).
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.indexOf('ws:') === 0) Storage.prototype.removeItem.call(localStorage, k);
+        }
+    } catch (e) { /* ignore */ }
+    window.location.reload();
+};
 
 // --- Theme Management ---
 function initThemeToggle() {

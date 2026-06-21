@@ -231,6 +231,8 @@
             var DISPLAY_LIMIT = 100;
             var allEmployees = [];   // normalized objects
             var dataReady = false;
+            // Workstation sandbox: start EMPTY and let the user add entries that persist on the server.
+            var WS = window.location.pathname.indexOf('/importantworkstation') === 0;
 
             var inputEl = document.getElementById('searchInput');
             var gridEl  = document.getElementById('resultsGrid');
@@ -427,6 +429,7 @@
             }
 
             // Load employees: server first, then static seed file.
+            // In the workstation the static seed is SKIPPED so the tab starts EMPTY.
             function loadData() {
                 fetch('/api/employees', { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.ok ? r.json() : null; })
@@ -435,18 +438,87 @@
                             activate(data.rows);
                             return;
                         }
-                        // Fallback to the static seed file.
+                        if (WS) { activate([]); return; } // workstation: empty start, no static seed
+                        // Fallback to the static seed file (main site only).
                         fetch('/static/employees_default.json')
                             .then(function (r) { return r.ok ? r.json() : []; })
                             .then(function (rows) { activate(rows); })
                             .catch(loadFailed);
                     })
                     .catch(function () {
+                        if (WS) { activate([]); return; } // workstation: empty start even on error
                         fetch('/static/employees_default.json')
                             .then(function (r) { return r.ok ? r.json() : []; })
                             .then(function (rows) { activate(rows); })
                             .catch(loadFailed);
                     });
+            }
+
+            // ── Workstation-only: add an employee record in the same card format ──────────
+            // Appends a 46-column row to the shared server store (/api/employees, id=2) so it
+            // persists and is immediately searchable (and shared with the Employees tab).
+            function injectAddUI() {
+                var hero = document.querySelector('.search-hero');
+                if (!hero || document.getElementById('addEntryWrap')) return;
+                var wrap = document.createElement('div');
+                wrap.id = 'addEntryWrap';
+                wrap.style.cssText = 'max-width:1200px;margin:0 auto 1.25rem;padding:0 20px;';
+                var fields = [
+                    ['af_name', 'الاسم'], ['af_iqama', 'رقم الإقامة'], ['af_empid', 'الرقم الوظيفي'],
+                    ['af_job', 'الوظيفة'], ['af_phone', 'الجوال'], ['af_plate', 'رقم اللوحة'],
+                    ['af_make', 'الماركة'], ['af_kind', 'الطراز'], ['af_model', 'الموديل'],
+                    ['af_iqamaExp', 'تاريخ انتهاء الإقامة']
+                ];
+                var inputs = fields.map(function (f) {
+                    var type = f[0] === 'af_iqamaExp' ? 'date' : 'text';
+                    return '<div class="vc-field"><span class="vc-label">' + esc(f[1]) + '</span>' +
+                        '<input id="' + f[0] + '" type="' + type + '" style="padding:8px 10px;border:1.5px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text-primary);font-family:inherit;font-size:.95rem;"></div>';
+                }).join('');
+                wrap.innerHTML =
+                    '<button id="addEntryToggle" type="button" class="filter-pill" style="background:var(--brand-gold);color:var(--brand-navy);border-color:var(--brand-gold);font-size:1rem;">➕ إضافة بيانات</button>' +
+                    '<div id="addEntryForm" style="display:none;margin-top:1rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm);">' +
+                    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px 14px;">' + inputs + '</div>' +
+                    '<div style="display:flex;gap:.6rem;justify-content:flex-start;margin-top:14px;">' +
+                    '<button id="addEntrySave" type="button" class="btn-submit-gold">💾 حفظ وإضافة</button>' +
+                    '<button id="addEntryCancel" type="button" class="filter-pill">إلغاء</button>' +
+                    '</div></div>';
+                hero.parentNode.insertBefore(wrap, hero.nextSibling);
+                var form = document.getElementById('addEntryForm');
+                document.getElementById('addEntryToggle').addEventListener('click', function () {
+                    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+                });
+                document.getElementById('addEntryCancel').addEventListener('click', function () { form.style.display = 'none'; });
+                document.getElementById('addEntrySave').addEventListener('click', addEntry);
+            }
+
+            function addEntry() {
+                var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+                var row = new Array(46).fill('');
+                row[COL.empid] = g('af_empid'); row[COL.iqama] = g('af_iqama'); row[COL.name] = g('af_name');
+                row[COL.job] = g('af_job'); row[COL.phone] = g('af_phone'); row[COL.plate] = g('af_plate');
+                row[COL.iqamaExp] = g('af_iqamaExp'); row[COL.make] = g('af_make'); row[COL.kind] = g('af_kind'); row[COL.model] = g('af_model');
+                if (!row[COL.name] && !row[COL.iqama]) {
+                    if (window.showToast) showToast('أدخل الاسم أو رقم الإقامة على الأقل', 'error');
+                    return;
+                }
+                // Read current rows, append, and persist the whole set back to the server.
+                fetch('/api/employees', { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (d) {
+                        var rows = (d && d.success && Array.isArray(d.rows)) ? d.rows : [];
+                        rows.push(row);
+                        return fetch('/api/employees', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ rows: rows })
+                        }).then(function () { return rows; });
+                    })
+                    .then(function (rows) {
+                        activate(rows);
+                        ['af_name', 'af_iqama', 'af_empid', 'af_job', 'af_phone', 'af_plate', 'af_make', 'af_kind', 'af_model', 'af_iqamaExp']
+                            .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+                        if (window.showToast) showToast('تمت إضافة البيانات وحفظها على الخادم', 'success');
+                    })
+                    .catch(function () { if (window.showToast) showToast('تعذّر حفظ البيانات على الخادم', 'error'); });
             }
 
             function loadFailed() {
@@ -460,10 +532,14 @@
                 }
             }
 
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', loadData);
-            } else {
+            function start() {
+                if (WS) injectAddUI();   // workstation only: show the "add data" form
                 loadData();
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', start);
+            } else {
+                start();
             }
         })();
     </script>

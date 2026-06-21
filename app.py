@@ -1193,6 +1193,32 @@ def workshop_data():
         return jsonify({"success": False, "data": None})
 
 
+# All id=2 stores used by the workstation sandbox. Used by the reset endpoint below.
+WS_BLOB_TABLES = [
+    "employees", "schedule_data", "washing_schedule", "records_data",
+    "drivers_ws", "oils_data", "purchase_data", "workshop_data",
+]
+
+
+@app.route("/api/ws_reset", methods=["POST"])
+@login_required
+def ws_reset():
+    """Wipe EVERY workstation (id=2) store so /importantworkstation starts truly empty.
+    Workstation-only: the main site can never reach this (guard + path-based mirror)."""
+    if not is_workstation():
+        return jsonify({"success": False, "error": "workstation only"}), 404
+    try:
+        with db_connection() as conn:
+            c = conn.cursor()
+            for t in WS_BLOB_TABLES:
+                c.execute("DELETE FROM %s WHERE id = 2" % t)
+            conn.commit()
+        return jsonify({"success": True})
+    except Exception:
+        logger.exception("ws_reset error")
+        return jsonify({"success": False}), 500
+
+
 @app.route("/api/drivers", methods=["GET"])
 @login_required
 def get_drivers():
