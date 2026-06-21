@@ -604,6 +604,20 @@ body.dark-mode .glass-surface, body.dark-mode .card {
     .bz-topbar .bz-nav { order: 3; }
 }
 
+/* Phones/tablets: wide data tables must stay READABLE, never squeeze the text into "…".
+   Giving each editable cell a usable minimum width makes the columns wide enough to read,
+   so the table grows past the screen and scrolls horizontally inside its wrapper
+   (overflow-x:auto) instead of cramming 12+ columns into ~375px. Headers still wrap inside
+   their own column. Applies on both the main site and the workstation (same .bz-fit tables).
+   Desktop (>920px) is unchanged — it keeps the fit-to-width, no-scroll layout. */
+@media (max-width: 920px) {
+    .bz-fit td input, .bz-fit td select { min-width: 96px; }
+    .bz-fit td textarea { min-width: 150px; }
+    /* keep genuinely narrow columns compact: washing ✓/✗ months, row number, actions */
+    .bz-fit td.cell-wash, .bz-fit td.col-idx, .bz-fit td.col-act,
+    .bz-fit td.cell-wash input { min-width: 0; }
+}
+
 /* ==========================================================================
    PRINT — clean A4 output (hide chrome, show only content)
    ========================================================================== */
