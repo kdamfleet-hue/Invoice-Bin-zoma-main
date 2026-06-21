@@ -7,7 +7,17 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <style>
-        /* Page-local layout only — colors/components come from base_styles.css */
+        /* ====================================================================
+           LOGIN — page-local presentation only. Brand tokens come from
+           base_styles.css (:root --brand-navy / --brand-gold). Scoped here.
+           ==================================================================== */
+        :root {
+            --bz-navy: var(--brand-navy, #0C2340);
+            --bz-navy-2: var(--brand-navy-2, #16335c);
+            --bz-gold: var(--brand-gold, #c9a227);
+            --bz-gold-soft: var(--brand-gold-soft, #e3c766);
+        }
+        html, body { height: 100%; }
         body {
             display: flex;
             align-items: center;
@@ -17,46 +27,126 @@
             padding: 24px;
             box-sizing: border-box;
             overflow: hidden;
-            background: linear-gradient(135deg, var(--brand-navy, #0C2340) 0%, var(--brand-navy-2, #16335c) 100%);
+            font-family: inherit;
+            background:
+                radial-gradient(1200px 600px at 70% -10%, rgba(201,162,39,0.10), transparent 60%),
+                linear-gradient(135deg, var(--bz-navy) 0%, var(--bz-navy-2) 100%);
         }
+
+        /* Background video + dark scrim so foreground text is always readable */
+        .bz-bg-video {
+            position: fixed; inset: 0;
+            width: 100%; height: 100%;
+            z-index: -100;
+            object-fit: cover;
+            opacity: 0.30;
+        }
+        .bz-scrim {
+            position: fixed; inset: 0;
+            z-index: -90;
+            pointer-events: none;
+            background:
+                radial-gradient(900px 700px at 50% 35%, rgba(12,35,64,0.35), rgba(8,16,32,0.82) 75%),
+                linear-gradient(180deg, rgba(8,16,32,0.55) 0%, rgba(8,16,32,0.78) 100%);
+        }
+
+        /* Language toggle — clearly visible, top corner, reuses global toggle */
+        .bz-lang-toggle {
+            position: fixed;
+            top: 18px;
+            inset-inline-end: 18px;
+            z-index: 50;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(201,162,39,0.55);
+            background: rgba(12,35,64,0.55);
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: background .2s ease, border-color .2s ease, transform .15s ease;
+        }
+        .bz-lang-toggle:hover {
+            background: rgba(201,162,39,0.20);
+            border-color: var(--bz-gold);
+            transform: translateY(-1px);
+        }
+        .bz-lang-toggle .globe { font-size: 1rem; line-height: 1; }
+
         .login-card {
-            padding: 3rem 2.75rem;
+            padding: 3rem 2.75rem 1.6rem;
             border-radius: 24px;
             text-align: center;
-            max-width: 420px;
+            max-width: 430px;
             width: 100%;
             z-index: 2;
             position: relative;
-            box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+            background: rgba(255,255,255,0.96);
+            border: 1px solid rgba(255,255,255,0.6);
+            box-shadow:
+                0 24px 70px rgba(0,0,0,0.55),
+                inset 0 0 0 1px rgba(255,255,255,0.05);
+        }
+        /* Slim gold accent bar at the top of the card */
+        .login-card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 5px;
+            border-radius: 24px 24px 0 0;
+            background: linear-gradient(90deg, var(--bz-gold) 0%, var(--bz-gold-soft) 50%, var(--bz-gold) 100%);
         }
         @media (max-width: 480px) {
-            .login-card { padding: 2rem 1.5rem; }
+            .login-card { padding: 2.2rem 1.5rem 1.4rem; }
         }
+
+        /* Crisp logo: capped real size, never upscaled past native res */
         .login-card .site-logo {
-            max-width: 280px;
-            width: 80%;
-            margin: 0 auto 18px;
+            max-width: 240px;
+            width: 70%;
+            height: auto;
+            margin: 6px auto 16px;
             display: block;
+            image-rendering: -webkit-optimize-contrast;
         }
         .login-card h2 {
-            margin: 0 0 6px;
-            color: var(--text-primary);
+            margin: 0 0 4px;
+            color: var(--bz-navy);
             font-size: 1.9rem;
             font-weight: 800;
         }
         .login-card .brand-line {
-            color: var(--accent);
+            color: var(--bz-navy);
             font-weight: 900;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
             font-size: 0.95rem;
-            margin-bottom: 18px;
+            margin-bottom: 14px;
+            position: relative;
+            display: inline-block;
+            padding-bottom: 8px;
+        }
+        .login-card .brand-line::after {
+            content: "";
+            position: absolute;
+            left: 50%; bottom: 0;
+            width: 56px; height: 3px;
+            transform: translateX(-50%);
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--bz-gold), var(--bz-gold-soft));
         }
         .login-card p.subtitle {
-            color: var(--text-muted);
-            margin-bottom: 2rem;
+            color: #475569;
+            margin: 14px 0 2rem;
             font-size: 1.02rem;
             line-height: 1.6;
         }
+
         .login-form {
             display: flex;
             flex-direction: column;
@@ -64,35 +154,92 @@
             text-align: right;
         }
         .login-form label {
-            color: var(--text-primary);
+            color: var(--bz-navy);
             font-weight: 700;
             margin-top: 12px;
             font-size: 0.95rem;
         }
+        .login-form input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 13px 14px;
+            border-radius: 12px;
+            border: 1.5px solid #d6deea;
+            background: #f7f9fc;
+            color: var(--bz-navy);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        .login-form input::placeholder { color: #97a3b6; }
+        .login-form input:focus {
+            outline: none;
+            background: #fff;
+            border-color: var(--bz-gold);
+            box-shadow: 0 0 0 3px rgba(201,162,39,0.18);
+        }
         .login-form button[type="submit"] {
-            margin-top: 22px;
+            margin-top: 24px;
             width: 100%;
             font-size: 1.1rem;
-            padding: 13px;
+            font-weight: 800;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            color: #fff;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, var(--bz-navy) 0%, var(--bz-navy-2) 100%);
+            box-shadow: 0 8px 20px rgba(12,35,64,0.35);
+            transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
         }
+        .login-form button[type="submit"]:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.06);
+            box-shadow: 0 10px 26px rgba(12,35,64,0.45);
+        }
+        .login-form button[type="submit"]:active { transform: translateY(0); }
+
         .login-error {
-            margin-top: 16px;
+            margin-top: 18px;
             text-align: center;
             font-weight: 700;
-            color: var(--danger, #ef4444);
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #b42318;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.30);
             border-radius: 10px;
-            padding: 10px;
+            padding: 11px 12px;
             font-size: 0.95rem;
+            line-height: 1.5;
         }
+
+        /* Support / contact footer inside the card */
+        .login-footer {
+            margin-top: 22px;
+            padding-top: 14px;
+            border-top: 1px solid #e6ebf2;
+            color: #64748b;
+            font-size: 0.82rem;
+            line-height: 1.7;
+        }
+        .login-footer .dept { color: var(--bz-navy); font-weight: 800; }
+        .login-footer a { color: var(--bz-navy); text-decoration: none; font-weight: 700; }
+        .login-footer a:hover { color: var(--bz-gold); }
     </style>
 </head>
 <body>
 
-    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.25;">
+    <video autoplay muted loop playsinline class="bz-bg-video">
         <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
     </video>
+    <div class="bz-scrim" aria-hidden="true"></div>
+
+    <!-- Language toggle: reuses the global EN/AR mechanism from app_ux.js if present -->
+    <button type="button" id="loginLangToggle" class="bz-lang-toggle"
+            aria-label="تبديل اللغة / Switch language">
+        <span class="globe" aria-hidden="true">&#127760;</span>
+        <span id="loginLangLabel">EN</span>
+    </button>
 
     <!-- Intro Video Splash Screen -->
     <div id="introContainer" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0a0a1a; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
@@ -154,9 +301,45 @@
             <button type="submit" class="btn-primary">تسجيل الدخول</button>
 
             {% if error %}
-            <div class="login-error">{{ error }}</div>
+            <div class="login-error" role="alert">{{ error }}</div>
             {% endif %}
         </form>
+
+        <div class="login-footer">
+            <span class="dept">قسم الحركة — Movement &amp; Support</span><br>
+            للمساعدة في الدخول، تواصل مع الدعم الفني · BIN ZOMAH INTL. — فرع الدمام
+        </div>
     </div>
+
+    <script>
+        // Language toggle: prefer the global EN/AR system (app_ux.js); fall back
+        // to a lightweight localStorage + reload so the button always works.
+        (function () {
+            var btn = document.getElementById('loginLangToggle');
+            var label = document.getElementById('loginLangLabel');
+            if (!btn) return;
+
+            function currentLang() {
+                if (typeof window.bzLang === 'function') return window.bzLang();
+                return localStorage.getItem('lang') || 'ar';
+            }
+            function refreshLabel() {
+                if (label) label.textContent = currentLang() === 'ar' ? 'EN' : 'AR';
+            }
+            refreshLabel();
+
+            btn.addEventListener('click', function () {
+                if (typeof window.toggleLanguage === 'function') {
+                    window.toggleLanguage();
+                } else {
+                    var next = currentLang() === 'ar' ? 'en' : 'ar';
+                    localStorage.setItem('lang', next);
+                    document.documentElement.lang = next;
+                    document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr';
+                }
+                refreshLabel();
+            });
+        })();
+    </script>
 </body>
 </html>

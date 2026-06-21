@@ -5,73 +5,213 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>الجدول الأسبوعي | شركة بن زومة</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
   <script defer src="{{ url_for('static', filename='app_ux.js') }}"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <style>
-    /* Page-specific layout only — colors/fonts/buttons come from base_styles.css */
-    .sched-toolbar { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin:1rem 0; }
-    .sched-toolbar .spacer { flex:1; }
-    .sched-date { display:flex; align-items:center; gap:.5rem; font-weight:700; }
-    .sched-date input { width:auto; padding:8px 12px; }
-
-    /* On screen: columns size to content (.bz-fit) so every header/value is fully readable.
-       Allow horizontal scroll instead of clipping; rounded corners preserved via overflow-x. */
-    .sched-table-wrap { width:100%; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-sm); background:var(--surface); overflow-x:auto; overflow-y:visible; }
-    table.sched { border-collapse:collapse; width:100%; }
-    table.sched th, table.sched td { border:1px solid var(--border-strong); padding:0; text-align:center; overflow:visible; }
-    table.sched thead th {
-      background:#BDD7EE; color:#0f2747; font-weight:700; font-size:.74rem;
-      /* single-word titles (الموديل/الحمولة) never break mid-word — the column grows to fit them;
-         long phrases (تاريخ انتهاء الفحص الدوري) wrap cleanly at spaces so the table stays compact */
-      padding:6px 8px; white-space:normal; line-height:1.35; word-break:keep-all; overflow-wrap:normal;
+    /* ════════════════════════════════════════════════════════════════════
+       PREMIUM DARK NAVY + GOLD RESKIN — scoped to .sched-premium.
+       Visual/presentation only: no data, IDs, handlers, or logic changed.
+       The global nav (.bz-topbar) is left untouched.
+       ════════════════════════════════════════════════════════════════════ */
+    .sched-premium {
+      --navy:#0D1B2E; --navy2:#152640; --navy3:#1E3557;
+      --p-blue:#2558A8; --p-gold:#C89B3C; --p-gold2:#E8B84B;
+      --p-red:#C0392B; --p-orange:#D35400; --p-green:#1A7A4A; --p-green2:#21A85E;
+      --p-brown:#6B3A1F; --p-text:#E8EDF4; --p-muted:#8BA3C0;
+      --p-card:#152640; --p-border:rgba(200,155,60,0.25); --p-row-alt:rgba(37,88,168,0.08);
+      font-family:'Tajawal',sans-serif;
+      background:var(--navy); color:var(--p-text);
+      border-radius:16px; padding:20px 22px 28px; margin-top:14px;
+      border:1px solid var(--p-border); box-shadow:0 10px 40px rgba(0,0,0,.45);
+      direction:rtl;
     }
-    /* group header band (بيانات الموظف / بيانات المركبات) */
-    table.sched thead th.grp { font-size:.82rem; font-weight:800; letter-spacing:.3px; padding:7px 2px; }
-    table.sched thead th.grp-emp { background:#0C2340; color:#fff; }
-    table.sched thead th.grp-veh { background:#c9a227; color:#1a1500; }
-    body.dark-mode table.sched thead th { background:#1e3a5f; color:#dbe9ff; }
-    body.dark-mode table.sched thead th.grp-emp { background:#0C2340; color:#fff; }
-    body.dark-mode table.sched thead th.grp-veh { background:#8a6f1a; color:#fff; }
-    table.sched td { vertical-align:middle; }
-    table.sched td input {
+    .sched-premium ::-webkit-scrollbar { width:7px; height:7px; }
+    .sched-premium ::-webkit-scrollbar-track { background:var(--navy2); }
+    .sched-premium ::-webkit-scrollbar-thumb { background:var(--p-gold); border-radius:4px; }
+
+    /* page section title */
+    .sched-premium .bz-section-title,
+    .sched-premium #schedTitle {
+      color:var(--p-gold2); font-weight:800; border:none;
+    }
+
+    /* ── BRAND STRIP inside the premium card ─────────────────── */
+    .sp-brandstrip {
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+      background:linear-gradient(135deg,var(--navy2),var(--navy3));
+      border:1px solid var(--p-border); border-radius:12px;
+      padding:12px 18px; margin-bottom:18px; border-bottom:2px solid var(--p-gold);
+    }
+    .sp-brandstrip .sp-bl { display:flex; align-items:center; gap:12px; }
+    .sp-logo { width:42px; height:42px; background:var(--p-gold); border-radius:9px; display:flex;
+      align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+    .sp-bt h1 { font-size:15px; font-weight:800; color:var(--p-text); margin:0; line-height:1.25; }
+    .sp-bt span { font-size:12px; color:var(--p-gold); font-weight:600; }
+    .sp-week { background:rgba(200,155,60,.15); border:1px solid var(--p-border); border-radius:8px;
+      padding:7px 14px; font-size:13px; color:var(--p-gold2); font-weight:700; }
+
+    /* ── TOOLBAR (restyled, IDs/handlers untouched) ──────────── */
+    .sched-premium .sched-toolbar { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin:0 0 18px; }
+    .sched-premium .sched-toolbar .spacer { flex:1; }
+    .sched-premium .sched-date { display:flex; align-items:center; gap:.5rem; font-weight:700; color:var(--p-gold2); }
+    .sched-premium .sched-date input {
+      width:auto; padding:7px 12px; background:rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.15); color:var(--p-text); border-radius:8px; box-shadow:none;
+    }
+    .sched-premium .sched-date input:focus { border-color:var(--p-gold); box-shadow:none; background:rgba(255,255,255,.10); }
+    .sched-premium .hint { font-size:.82rem; color:var(--p-muted); }
+
+    /* premium buttons (re-skin the existing classes ONLY within the card) */
+    .sched-premium .btn-primary,
+    .sched-premium .btn-submit-gold,
+    .sched-premium .btn-submit-orange,
+    .sched-premium .btn-outline {
+      font-family:'Tajawal',sans-serif; font-weight:700; font-size:.86rem;
+      padding:8px 15px; border-radius:9px; cursor:pointer; transition:all .2s;
+      display:inline-flex; align-items:center; gap:6px; box-shadow:none; border:none;
+    }
+    .sched-premium .btn-primary { background:var(--p-gold); color:var(--navy); }
+    .sched-premium .btn-primary:hover { background:var(--p-gold2); box-shadow:none; transform:translateY(-1px); }
+    .sched-premium .btn-submit-gold { background:linear-gradient(135deg,var(--p-gold),#A87C28); color:var(--navy); }
+    .sched-premium .btn-submit-gold:hover { background:var(--p-gold2); }
+    .sched-premium .btn-submit-orange { background:linear-gradient(135deg,var(--p-orange),#8B2500); color:#fff; }
+    .sched-premium .btn-submit-orange:hover { filter:brightness(1.12); }
+    .sched-premium .btn-outline { background:rgba(255,255,255,.07); color:var(--p-text); border:1px solid rgba(255,255,255,.15); }
+    .sched-premium .btn-outline:hover { background:rgba(255,255,255,.13); border-color:var(--p-gold); }
+
+    /* ── STAT CARDS (wired to real computed values in JS) ────── */
+    .sp-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:13px; margin-bottom:20px; }
+    .sp-stat { background:var(--p-card); border:1px solid var(--p-border); border-radius:12px;
+      padding:16px 15px; position:relative; overflow:hidden; transition:transform .2s, box-shadow .2s; }
+    .sp-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.3); }
+    .sp-stat::before { content:''; position:absolute; top:0; right:0; width:4px; height:100%;
+      background:var(--sp-accent,var(--p-gold)); border-radius:0 12px 12px 0; }
+    .sp-stat .ico { font-size:22px; margin-bottom:6px; }
+    .sp-stat .val { font-size:30px; font-weight:800; color:var(--p-gold2); line-height:1; }
+    .sp-stat .lbl { font-size:11.5px; color:var(--p-muted); margin-top:4px; font-weight:600; }
+    .sp-stat.blue   { --sp-accent:var(--p-blue); }   .sp-stat.blue .val   { color:#74B9FF; }
+    .sp-stat.green  { --sp-accent:var(--p-green2); }  .sp-stat.green .val  { color:#55EFC4; }
+    .sp-stat.orange { --sp-accent:var(--p-orange); }  .sp-stat.orange .val { color:#FF9F43; }
+    .sp-stat.brown  { --sp-accent:var(--p-brown); }   .sp-stat.brown .val  { color:#FDCB6E; }
+    .sp-stat.red    { --sp-accent:var(--p-red); }     .sp-stat.red .val    { color:#FF6B6B; }
+
+    /* ── ALERT BAR ───────────────────────────────────────────── */
+    .sp-alert { background:rgba(192,57,43,.15); border:1px solid rgba(192,57,43,.4); border-radius:10px;
+      padding:10px 16px; margin-bottom:18px; display:flex; align-items:center; gap:10px;
+      font-size:13px; font-weight:700; color:#FF6B6B; }
+    .sp-alert.hidden { display:none; }
+
+    /* ── SECTION TITLES ──────────────────────────────────────── */
+    .sched-premium .sec-title { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin:1.6rem 0 .7rem; }
+    .sched-premium .sec-title h2 { font-size:1.06rem; margin:0; display:flex; align-items:center; gap:.5rem; color:var(--p-gold2); font-weight:700; }
+    .sched-premium .sec-title.spare h2::before { content:'⚠️'; }
+    .sched-premium .sec-title.vac h2::before { content:'🌴'; }
+    .sched-premium .sec-title.spare h2 { color:#FF9F43; }
+    .sched-premium .sec-title.vac h2 { color:#55EFC4; }
+
+    /* ── TABS (every existing table stays reachable) ─────────── */
+    .sp-tabs { display:flex; gap:4px; border-bottom:1px solid var(--p-border); margin-bottom:2px; flex-wrap:wrap; }
+    .sp-tab { padding:9px 16px; font-family:'Tajawal',sans-serif; font-size:13px; font-weight:700;
+      color:var(--p-muted); background:none; border:none; cursor:pointer;
+      border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .2s; }
+    .sp-tab.active { color:var(--p-gold2); border-bottom-color:var(--p-gold); }
+    .sp-tab:hover:not(.active) { color:var(--p-text); }
+    .sp-panel { display:none; }
+    .sp-panel.active { display:block; }
+    .sp-chip { display:inline-flex; align-items:center; justify-content:center; background:rgba(200,155,60,.2);
+      color:var(--p-gold2); border-radius:20px; padding:1px 8px; font-size:11px; font-weight:700; margin-right:4px; }
+    .sp-chip.red { background:rgba(192,57,43,.25); color:#FF6B6B; }
+
+    /* ── TABLES ──────────────────────────────────────────────── */
+    .sched-premium .sched-table-wrap {
+      width:100%; border:1px solid var(--p-border); border-radius:12px;
+      box-shadow:none; background:var(--p-card); overflow-x:auto; overflow-y:visible;
+    }
+    .sched-premium table.sched { border-collapse:collapse; width:100%; }
+    .sched-premium table.sched th,
+    .sched-premium table.sched td { border:1px solid rgba(255,255,255,.07); padding:0; text-align:center; overflow:visible; }
+    .sched-premium table.sched thead th {
+      background:rgba(0,0,0,.28); color:var(--p-gold2); font-weight:700; font-size:.73rem;
+      padding:8px 8px; white-space:normal; line-height:1.35; word-break:keep-all; overflow-wrap:normal;
+      border-bottom:1px solid var(--p-border);
+    }
+    .sched-premium table.sched thead th.grp { font-size:.82rem; font-weight:800; letter-spacing:.3px; padding:7px 2px; }
+    .sched-premium table.sched thead th.grp-emp { background:linear-gradient(90deg,var(--p-blue),#1A3D7A); color:#fff; }
+    .sched-premium table.sched thead th.grp-veh { background:linear-gradient(90deg,#8a6f1a,#5D4910); color:#FFE9AE; }
+    .sched-premium table.sched td { vertical-align:middle; }
+    .sched-premium table.sched td input {
       width:100%; min-width:0; border:none; background:transparent; text-align:center;
-      padding:6px 2px; font-size:.72rem; color:var(--text-primary); box-shadow:none; border-radius:0; font-family:inherit; text-overflow:ellipsis;
+      padding:7px 2px; font-size:.72rem; color:var(--p-text); box-shadow:none; border-radius:0;
+      font-family:'Tajawal',sans-serif; text-overflow:ellipsis;
     }
-    table.sched td input:focus { background:var(--accent-glow); outline:2px solid var(--accent); outline-offset:-2px; position:relative; z-index:3; }
-    table.sched td.col-idx { background:var(--surface-hover); font-weight:700; font-size:.72rem; }
-    /* Expired / soon-to-expire date highlighting */
-    table.sched td.exp-bad input { background:#fde2e2; color:#b91c1c; font-weight:800; }
-    table.sched td.exp-warn input { background:#fef3c7; color:#92400e; font-weight:800; }
-    body.dark-mode table.sched td.exp-bad input { background:rgba(220,38,38,.30); color:#fca5a5; }
-    body.dark-mode table.sched td.exp-warn input { background:rgba(245,158,11,.24); color:#fcd34d; }
-    .col-act-wrap { display:flex; gap:3px; justify-content:center; align-items:center; }
-    .row-notify { background:#dcfce7; color:#15803d; border:none; width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:.85rem; line-height:1; }
-    .row-notify:hover { background:#16a34a; color:#fff; }
-    body.dark-mode .row-notify { background:rgba(22,163,74,.20); color:#86efac; }
-    .exp-legend { display:flex; gap:1rem; flex-wrap:wrap; font-size:.8rem; color:var(--text-secondary); margin:.4rem 0 .2rem; }
-    .exp-legend span { display:inline-flex; align-items:center; gap:5px; }
-    .exp-legend i { width:14px; height:14px; border-radius:3px; display:inline-block; }
-    table.sched tbody tr:nth-child(even) td:not(.col-idx) { background:rgba(0,0,0,0.015); }
-    body.dark-mode table.sched tbody tr:nth-child(even) td:not(.col-idx) { background:rgba(255,255,255,0.02); }
-    .row-del { background:#fef2f2; color:#dc2626; border:none; width:26px; height:26px; border-radius:6px; cursor:pointer; font-weight:800; }
-    body.dark-mode .row-del { background:rgba(220,38,38,.15); color:#f87171; }
-    .row-del:hover { background:#dc2626; color:#fff; }
+    .sched-premium table.sched td input::placeholder { color:var(--p-muted); }
+    .sched-premium table.sched td input:focus {
+      background:rgba(200,155,60,.18); outline:2px solid var(--p-gold); outline-offset:-2px;
+      position:relative; z-index:3; color:#fff;
+    }
+    .sched-premium table.sched td.col-idx {
+      background:rgba(0,0,0,.22); font-weight:800; font-size:.74rem; color:var(--p-gold2);
+    }
+    .sched-premium table.sched tbody tr { transition:background .15s; }
+    .sched-premium table.sched tbody tr:nth-child(even) td:not(.col-idx):not(.exp-bad):not(.exp-warn) { background:var(--p-row-alt); }
+    .sched-premium table.sched tbody tr:hover td:not(.exp-bad):not(.exp-warn) { background:rgba(37,88,168,.16); }
 
-    .sec-title { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin:1.6rem 0 .7rem; }
-    .sec-title h2 { font-size:1.15rem; margin:0; display:flex; align-items:center; gap:.5rem; }
-    .sec-title.spare h2::before { content:'⚠️'; }
-    .sec-title.vac h2::before { content:'🌴'; }
+    /* Expired / soon — aligned to reference red / orange + days hint */
+    .sched-premium table.sched td.exp-bad  input { background:rgba(192,57,43,.30);  color:#FF8A80; font-weight:800; }
+    .sched-premium table.sched td.exp-warn input { background:rgba(211,84,0,.26);   color:#FFC078; font-weight:800; }
+    .sched-premium table.sched td.exp-soon input { color:#FDE68A; font-weight:700; }
+    .sched-premium td.exp-bad, .sched-premium td.exp-warn, .sched-premium td.exp-soon { position:relative; }
+    .sched-premium td.exp-bad::after, .sched-premium td.exp-warn::after, .sched-premium td.exp-soon::after {
+      content:attr(data-days); position:absolute; bottom:1px; left:3px;
+      font-size:8.5px; font-weight:800; pointer-events:none; opacity:.9;
+    }
+    .sched-premium td.exp-bad::after  { color:#FF8A80; }
+    .sched-premium td.exp-warn::after { color:#FFC078; }
+    .sched-premium td.exp-soon::after { color:#FDE68A; }
 
-    .summary-card { margin-top:1.5rem; }
-    .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.8rem; }
-    .sum-box { border:1px solid var(--border); border-radius:12px; padding:14px; text-align:center; background:var(--surface); }
-    .sum-box label { display:block; font-size:.8rem; color:var(--text-secondary); font-weight:700; margin-bottom:6px; }
-    .sum-box .v { font-size:1.6rem; font-weight:900; color:var(--accent); }
-    .sum-box.vac { border-color:var(--brand-gold); background:rgba(201,162,39,.06); }
-    .sign-block { margin-top:1.5rem; text-align:center; color:var(--text-secondary); }
-    .sign-block .dept { font-weight:800; color:var(--text-primary); margin-top:6px; }
-    .hint { font-size:.82rem; color:var(--text-muted); }
+    /* job badge styling on the editable <input> (موصل=blue / موزع=green) */
+    .sched-premium table.sched td.job-mosil input { background:rgba(37,88,168,.25); color:#9CD0FF; font-weight:700; border-radius:14px; }
+    .sched-premium table.sched td.job-mozaa input { background:rgba(26,122,74,.25); color:#7DEFC9; font-weight:700; border-radius:14px; }
+    /* plate badge styling on the editable <input> */
+    .sched-premium table.sched td.plate-cell input {
+      background:rgba(37,88,168,.22); color:#CFE3FF; font-weight:700; letter-spacing:.5px; border-radius:8px;
+    }
+
+    /* ── ACTION BUTTONS ──────────────────────────────────────── */
+    .sched-premium .col-act-wrap { display:flex; gap:3px; justify-content:center; align-items:center; }
+    .sched-premium .row-notify { background:rgba(33,168,94,.20); color:#7DEFC9; border:none; width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:.85rem; line-height:1; }
+    .sched-premium .row-notify:hover { background:#16a34a; color:#fff; }
+    .sched-premium .row-del { background:rgba(192,57,43,.18); color:#FF8A80; border:none; width:26px; height:26px; border-radius:6px; cursor:pointer; font-weight:800; }
+    .sched-premium .row-del:hover { background:#dc2626; color:#fff; }
+
+    /* ── LEGEND ──────────────────────────────────────────────── */
+    .sched-premium .exp-legend { display:flex; gap:1rem; flex-wrap:wrap; font-size:.8rem; color:var(--p-muted); margin:.4rem 0 .2rem; }
+    .sched-premium .exp-legend span { display:inline-flex; align-items:center; gap:5px; }
+    .sched-premium .exp-legend i { width:14px; height:14px; border-radius:3px; display:inline-block; }
+
+    /* ── SUMMARY (green section like the reference) ──────────── */
+    .sched-premium .summary-card.card {
+      margin-top:1.5rem; background:linear-gradient(135deg,#0F2A1A 0%,#1F3C2A 100%);
+      border:1px solid rgba(33,168,94,.3); border-radius:14px; box-shadow:none; padding:20px 22px;
+    }
+    .sched-premium .summary-card h3 { color:#55EFC4; }
+    .sched-premium .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.8rem; }
+    .sched-premium .sum-box {
+      border:1px solid rgba(33,168,94,.25); border-radius:10px; padding:14px; text-align:center;
+      background:rgba(33,168,94,.10);
+    }
+    .sched-premium .sum-box label { display:block; font-size:.8rem; color:var(--p-muted); font-weight:700; margin-bottom:6px; }
+    .sched-premium .sum-box .v { font-size:1.7rem; font-weight:900; color:#55EFC4; }
+    .sched-premium .sum-box.vac { border-color:var(--p-gold); background:rgba(200,155,60,.10); }
+    .sched-premium .sum-box.vac .v { color:var(--p-gold2); }
+    .sched-premium .summary-card .btn-outline { background:rgba(255,255,255,.07); color:var(--p-text); border:1px solid rgba(255,255,255,.15); }
+
+    /* ── SIGNATURE / FOOTER ──────────────────────────────────── */
+    .sched-premium .sign-block { margin-top:1.5rem; text-align:center; color:var(--p-muted);
+      border-top:1px solid var(--p-border); padding-top:16px; }
+    .sched-premium .sign-block .dept { font-weight:800; color:var(--p-gold2); margin-top:6px; }
 
     /* "Send to all via WhatsApp" modal */
     .wa-all-list { display:flex; flex-direction:column; gap:.45rem; max-height:55vh; overflow-y:auto; }
@@ -79,6 +219,16 @@
       border:1px solid var(--border); border-radius:10px; padding:8px 12px; background:var(--surface); }
     .wa-all-info { display:flex; flex-direction:column; gap:2px; text-align:start; }
     .wa-all-info strong { font-size:.92rem; }
+
+    @media print {
+      .sched-premium { background:#fff; color:#000; border:none; box-shadow:none; }
+      .sched-toolbar, .sp-tabs { display:none !important; }
+      .sp-panel { display:block !important; }
+    }
+    @media (max-width:768px) {
+      .sched-premium { padding:14px; }
+      .sp-stats { grid-template-columns:repeat(2,1fr); }
+    }
   </style>
 </head>
 <body>
@@ -109,7 +259,18 @@
   </header>
 
   <div class="bz-shell">
-    <h2 class="bz-section-title" id="schedTitle">جدول تحديث مركبات وموصلين و موزعين الأسبوعي فرع الدمام-2026</h2>
+    <div class="sched-premium">
+    <!-- Branded strip (presentation only) -->
+    <div class="sp-brandstrip">
+      <div class="sp-bl">
+        <div class="sp-logo">🚛</div>
+        <div class="sp-bt">
+          <h1 id="schedTitle" class="bz-section-title">جدول تحديث مركبات وموصلين و موزعين الأسبوعي فرع الدمام-2026</h1>
+          <span>قسم الحركة — فرع الدمام — BIN ZOMAH INTL.</span>
+        </div>
+      </div>
+      <div class="sp-week" id="schedWeekBadge">📅 الجدول الأسبوعي</div>
+    </div>
 
     <div class="sched-toolbar">
       <div class="sched-date">📅 تاريخ الجدول: <input type="date" id="schedDate"></div>
@@ -122,10 +283,25 @@
       <button class="btn-outline" onclick="window.print()">🖨️ طباعة</button>
     </div>
 
+    <!-- STAT CARDS (wired to real computed values in updateSummary / refreshStats) -->
+    <div class="sp-stats">
+      <div class="sp-stat">       <div class="ico">👷</div><div class="val" id="statDrivers">0</div><div class="lbl">عدد السائقين</div></div>
+      <div class="sp-stat blue">  <div class="ico">🔵</div><div class="val" id="statDelivery">0</div><div class="lbl">الموصلين</div></div>
+      <div class="sp-stat green"> <div class="ico">🟢</div><div class="val" id="statDistributors">0</div><div class="lbl">الموزعين</div></div>
+      <div class="sp-stat orange"><div class="ico">🚚</div><div class="val" id="statLorries">0</div><div class="lbl">اللواري</div></div>
+      <div class="sp-stat">       <div class="ico">🚐</div><div class="val" id="statDinas">0</div><div class="lbl">الدينات</div></div>
+      <div class="sp-stat brown"> <div class="ico">🏖️</div><div class="val" id="statVacation">0</div><div class="lbl">في إجازة</div></div>
+      <div class="sp-stat red">   <div class="ico">⚠️</div><div class="val" id="statExpiring">0</div><div class="lbl">وثائق منتهية / قريبة</div></div>
+      <div class="sp-stat orange"><div class="ico">🛠️</div><div class="val" id="statSpare">0</div><div class="lbl">اسبير / معطلة</div></div>
+    </div>
+
+    <!-- ALERT BAR -->
+    <div class="sp-alert hidden" id="schedAlertBar">⚠️ <span id="schedAlertMsg"></span></div>
+
     <!-- Summary -->
     <div class="card summary-card">
       <div class="flex-between" style="margin-bottom:.8rem;">
-        <h3 style="margin:0;">ملخص الأعداد</h3>
+        <h3 style="margin:0;">📊 ملخص الأعداد</h3>
         <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="recomputeSummary()">↻ حساب تلقائي من الجداول</button>
       </div>
       <div class="summary-grid">
@@ -138,36 +314,66 @@
       </div>
     </div>
 
-    <!-- Main table -->
-    <div class="sec-title"><h2>📋 الجدول الرئيسي</h2></div>
-    <div class="exp-legend">
-      <span><i style="background:#fde2e2;border:1px solid #b91c1c;"></i> تاريخ منتهٍ</span>
-      <span><i style="background:#fef3c7;border:1px solid #92400e;"></i> ينتهي خلال 30 يوماً</span>
-      <span>📲 إشعار السائق ببياناته عبر واتساب</span>
-    </div>
-    <div class="sched-table-wrap" id="mainPrintArea">
-      <table class="sched bz-fit"><thead id="headMain"></thead><tbody id="bodyMain"></tbody></table>
+    <!-- TABS — every existing table stays reachable and editable -->
+    <div class="sp-tabs">
+      <button class="sp-tab active" id="tabBtnMain" onclick="switchSchedTab('main',this)">🚛 الجدول الرئيسي <span class="sp-chip" id="chipMain">0</span></button>
+      <button class="sp-tab" id="tabBtnSpare" onclick="switchSchedTab('spare',this)">🛠️ الاسبير والمعطلة <span class="sp-chip red" id="chipSpare">0</span></button>
+      <button class="sp-tab" id="tabBtnVac" onclick="switchSchedTab('vacation',this)">🌴 الإجازات <span class="sp-chip" id="chipVac">0</span></button>
+      <button class="sp-tab" id="tabBtnExp" onclick="switchSchedTab('expired',this)">🔴 تنبيهات الانتهاء <span class="sp-chip red" id="chipExp">0</span></button>
     </div>
 
-    <!-- Spare / broken -->
-    <div class="sec-title spare"><h2>بيان المركبات الاسبير والمعطلة</h2>
-      <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="addRow('spare')">➕ إضافة</button></div>
-    <div class="sched-table-wrap">
-      <table class="sched bz-fit"><thead id="headSpare"></thead><tbody id="bodySpare"></tbody></table>
+    <!-- TAB: MAIN -->
+    <div class="sp-panel active" id="spPanel-main">
+      <div class="sec-title"><h2>📋 الجدول الرئيسي</h2></div>
+      <div class="exp-legend">
+        <span><i style="background:rgba(192,57,43,.5);border:1px solid #FF8A80;"></i> تاريخ منتهٍ</span>
+        <span><i style="background:rgba(211,84,0,.5);border:1px solid #FFC078;"></i> ينتهي خلال 30 يوماً</span>
+        <span><i style="background:rgba(253,230,138,.4);border:1px solid #FDE68A;"></i> خلال 90 يوماً</span>
+        <span>📲 إشعار السائق ببياناته عبر واتساب</span>
+      </div>
+      <div class="sched-table-wrap" id="mainPrintArea">
+        <table class="sched bz-fit"><thead id="headMain"></thead><tbody id="bodyMain"></tbody></table>
+      </div>
     </div>
 
-    <!-- Vacation -->
-    <div class="sec-title vac"><h2>السائقون في إجازة (هذا الأسبوع)</h2>
-      <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="addRow('vacation')">➕ إضافة سائق في إجازة</button></div>
-    <p class="hint" style="margin:-4px 0 8px;">أضف سائقاً وعدّل بياناته — يزداد العدد تلقائياً في الملخص.</p>
-    <div class="sched-table-wrap">
-      <table class="sched bz-fit"><thead id="headVac"></thead><tbody id="bodyVac"></tbody></table>
+    <!-- TAB: SPARE / broken -->
+    <div class="sp-panel" id="spPanel-spare">
+      <div class="sec-title spare"><h2>بيان المركبات الاسبير والمعطلة</h2>
+        <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="addRow('spare')">➕ إضافة</button></div>
+      <div class="sched-table-wrap">
+        <table class="sched bz-fit"><thead id="headSpare"></thead><tbody id="bodySpare"></tbody></table>
+      </div>
+    </div>
+
+    <!-- TAB: VACATION -->
+    <div class="sp-panel" id="spPanel-vacation">
+      <div class="sec-title vac"><h2>السائقون في إجازة (هذا الأسبوع)</h2>
+        <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="addRow('vacation')">➕ إضافة سائق في إجازة</button></div>
+      <p class="hint" style="margin:-4px 0 8px;">أضف سائقاً وعدّل بياناته — يزداد العدد تلقائياً في الملخص.</p>
+      <div class="sched-table-wrap">
+        <table class="sched bz-fit"><thead id="headVac"></thead><tbody id="bodyVac"></tbody></table>
+      </div>
+    </div>
+
+    <!-- TAB: EXPIRED (computed view derived from existing main+spare data) -->
+    <div class="sp-panel" id="spPanel-expired">
+      <div class="sec-title"><h2>🔴 الوثائق المنتهية أو القريبة من الانتهاء (خلال 90 يوماً)</h2></div>
+      <div class="sched-table-wrap">
+        <table class="sched">
+          <thead><tr>
+            <th>السائق</th><th>الرقم الوظيفي</th><th>اللوحة</th>
+            <th>نوع الوثيقة</th><th>تاريخ الانتهاء</th><th>الحالة</th><th>أيام متبقية</th>
+          </tr></thead>
+          <tbody id="bodyExp"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="sign-block">
       <div>تم إعداد هذا الجدول بواسطة قسم الحركة</div>
       <div class="dept">قسم الحركة</div>
       <div>خالد بن محمد الغامدي</div>
+    </div>
     </div>
   </div>
 
@@ -288,8 +494,20 @@
         cols.forEach(c => {
           const v = escapeHtml(row[c.key] || '');
           const listAttr = c.key === 'name' ? ' list="driverNames"' : '';
-          const cls = c.date ? dateStatusVal(row[c.key]) : '';
-          html += `<td class="${cls}"><input type="text" value="${v}" data-sec="${section}" data-i="${idx}" data-k="${c.key}"${listAttr}></td>`;
+          // presentation-only cell classes: date status (with days hint) + job/plate badge look
+          let cls = '';
+          let dataAttr = '';
+          if (c.date) {
+            cls = dateStatusVal(row[c.key]);
+            const dh = daysHint(row[c.key]);
+            if (cls && dh) dataAttr = ` data-days="${dh}"`;
+          } else if (c.key === 'job') {
+            const j = (row.job || '').trim();
+            cls = j === 'موصل' ? 'job-mosil' : j === 'موزع' ? 'job-mozaa' : '';
+          } else if (c.key === 'plate') {
+            cls = (row.plate || '').trim() ? 'plate-cell' : '';
+          }
+          html += `<td class="${cls}"${dataAttr}><input type="text" value="${v}" data-sec="${section}" data-i="${idx}" data-k="${c.key}"${listAttr}></td>`;
         });
         html += `<td class="col-act"><div class="col-act-wrap"><button class="row-notify" title="إشعار السائق عبر واتساب" onclick="notifyDriver('${section}',${idx})">📲</button><button class="row-del" title="حذف" onclick="deleteRow('${section}',${idx})">✕</button></div></td>`;
         tr.innerHTML = html;
@@ -333,16 +551,31 @@
       renderBody('body' + cap(section), state[section], section);
     }
 
-    // ---- date expiry status (Gregorian only; Hijri/blank ignored) ----
-    function dateStatusVal(val) {
+    // ---- date expiry diff in days (Gregorian only; null when not a valid date) ----
+    function dateDiffDays(val) {
       const m = String(val || '').trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-      if (!m) return '';
-      const y = +m[1]; if (y < 2000 || y > 2100) return '';
-      const d = new Date(y, +m[2] - 1, +m[3]); if (isNaN(d.getTime())) return '';
+      if (!m) return null;
+      const y = +m[1]; if (y < 2000 || y > 2100) return null;
+      const d = new Date(y, +m[2] - 1, +m[3]); if (isNaN(d.getTime())) return null;
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const diff = Math.round((d - today) / 86400000);
+      return Math.round((d - today) / 86400000);
+    }
+    // ---- date expiry status (presentation classes) ----
+    // exp-bad (منتهٍ) / exp-warn (≤30) kept as before; exp-soon (≤90) added for the gold tier
+    function dateStatusVal(val) {
+      const diff = dateDiffDays(val);
+      if (diff === null) return '';
       if (diff < 0) return 'exp-bad';
       if (diff <= 30) return 'exp-warn';
+      if (diff <= 90) return 'exp-soon';
+      return '';
+    }
+    // ---- small days-remaining hint shown under a date cell ----
+    function daysHint(val) {
+      const diff = dateDiffDays(val);
+      if (diff === null) return '';
+      if (diff < 0) return 'منتهٍ';
+      if (diff <= 90) return diff + 'ي';
       return '';
     }
 
@@ -391,6 +624,91 @@
       document.getElementById('sumDistributors').textContent = pick(s.distributors, c.distributors);
       document.getElementById('sumVacation').textContent = c.vacation; // editable via vacation table
       state.summary = Object.assign({}, s, { vacation: String(c.vacation) });
+      refreshStatsAndAlerts(c, s);
+    }
+
+    // ---- premium stat cards + alert bar + expired tab (presentation only) ----
+    function expiringList() {
+      // documents in main + spare expiring within 90 days (incl. expired), derived from real state
+      const docs = [
+        { k: 'drivercard', lbl: 'بطاقة السائق' },
+        { k: 'inspect',    lbl: 'الفحص الدوري' },
+        { k: 'license',    lbl: 'رخصة السير' },
+        { k: 'opcard',     lbl: 'بطاقة التشغيل' },
+      ];
+      const out = [];
+      const scan = rows => rows.forEach(r => docs.forEach(d => {
+        const diff = dateDiffDays(r[d.k]);
+        if (diff !== null && diff <= 90) {
+          out.push({ name: r.name || '—', empid: r.empid || '—', plate: r.plate || '—',
+            doc: d.lbl, date: r[d.k], days: diff });
+        }
+      }));
+      scan(state.main); scan(state.spare);
+      out.sort((a, b) => a.days - b.days);
+      return out;
+    }
+
+    function refreshStatsAndAlerts(c, s) {
+      const pick = (v, comp) => (v != null && v !== '' ? v : comp);
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      set('statDrivers', pick(s.drivers, c.drivers));
+      set('statDelivery', pick(s.delivery, c.delivery));
+      set('statDistributors', pick(s.distributors, c.distributors));
+      set('statLorries', pick(s.lorries, c.lorries));
+      set('statDinas', pick(s.dinas, c.dinas));
+      set('statVacation', c.vacation);
+      set('statSpare', state.spare.length);
+      const exp = expiringList();
+      set('statExpiring', exp.length);
+      // tab chips
+      set('chipMain', state.main.length);
+      set('chipSpare', state.spare.length);
+      set('chipVac', state.vacation.length);
+      set('chipExp', exp.length);
+      // alert bar
+      const bar = document.getElementById('schedAlertBar');
+      if (bar) {
+        if (exp.length > 0) {
+          bar.classList.remove('hidden');
+          document.getElementById('schedAlertMsg').textContent =
+            `يوجد ${exp.length} وثيقة منتهية أو تنتهي خلال 90 يوماً — يرجى المراجعة`;
+        } else { bar.classList.add('hidden'); }
+      }
+      renderExpiredTab(exp);
+    }
+
+    function renderExpiredTab(exp) {
+      const tb = document.getElementById('bodyExp');
+      if (!tb) return;
+      tb.innerHTML = '';
+      exp.forEach(r => {
+        const cls = r.days < 0 ? 'exp-bad' : r.days <= 30 ? 'exp-warn' : 'exp-soon';
+        const status = r.days < 0 ? '🔴 منتهٍ' : r.days <= 30 ? '🟠 عاجل' : '🟡 قريب';
+        const daysTxt = r.days < 0 ? `منتهٍ منذ ${Math.abs(r.days)} يوم` : `${r.days} يوم`;
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          `<td style="padding:8px 10px;font-weight:700;">${escapeHtml(r.name)}</td>` +
+          `<td style="padding:8px 10px;">${escapeHtml(r.empid)}</td>` +
+          `<td style="padding:8px 10px;"><span style="background:rgba(37,88,168,.22);color:#CFE3FF;border-radius:8px;padding:3px 10px;font-weight:700;">${escapeHtml(r.plate)}</span></td>` +
+          `<td style="padding:8px 10px;font-weight:600;">${escapeHtml(r.doc)}</td>` +
+          `<td class="${cls}" style="padding:8px 10px;font-weight:800;">${escapeHtml(r.date)}</td>` +
+          `<td style="padding:8px 10px;">${status}</td>` +
+          `<td style="padding:8px 10px;font-weight:700;color:var(--p-gold2);">${daysTxt}</td>`;
+        tb.appendChild(tr);
+      });
+      if (!exp.length) {
+        tb.innerHTML = `<tr><td colspan="7" style="padding:16px;color:var(--p-muted);">لا توجد وثائق منتهية أو قريبة من الانتهاء خلال 90 يوماً ✅</td></tr>`;
+      }
+    }
+
+    // ---- premium tabs (every existing table stays reachable & editable) ----
+    function switchSchedTab(name, btn) {
+      document.querySelectorAll('.sp-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.sp-panel').forEach(p => p.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const panel = document.getElementById('spPanel-' + name);
+      if (panel) panel.classList.add('active');
     }
     function recomputeSummary() {
       const c = computeCounts();
@@ -596,6 +914,9 @@
 
     // ===== Share / export (Excel + PDF via email / WhatsApp) =====
     function shareSchedule() {
+      // ensure the main table panel is visible so the PDF (mainPrintArea) renders correctly
+      const mainBtn = document.getElementById('tabBtnMain');
+      switchSchedTab('main', mainBtn);
       bzShare(buildScheduleBlob, {
         filename: scheduleFileName(),
         subject: state.title || 'الجدول الأسبوعي — شركة بن زومة',
