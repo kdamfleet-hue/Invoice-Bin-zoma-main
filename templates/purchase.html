@@ -727,6 +727,7 @@
                     let currentSerial = parseInt(localStorage.getItem('poSerialCounter')) || 102;
                     localStorage.setItem('poSerialCounter', currentSerial + 1);
                     document.getElementById('poSerial').value = currentSerial + 1;
+                    if (typeof WS !== 'undefined' && WS) wsSavePO(); // persist new serial server-side (WS only)
                 } else showToast('خطأ: ' + (data.error || 'تعذّر إنشاء الملف'), 'error');
             } catch (e) { showToast('خطأ: ' + e, 'error'); }
             if (btn) { btn.disabled = false; btn.innerText = originalText || '📥 استخراج الطلب (Excel)'; }
@@ -782,6 +783,7 @@
                         let currentSerial = parseInt(localStorage.getItem('poSerialCounter')) || 102;
                         localStorage.setItem('poSerialCounter', currentSerial + 1);
                         document.getElementById('poSerial').value = currentSerial + 1;
+                        if (typeof WS !== 'undefined' && WS) wsSavePO(); // persist new serial server-side (WS only)
                     }
                     else showToast('خطأ: ' + data.error, 'error');
                 } else showToast('خطأ: ' + poData.error, 'error');
@@ -802,9 +804,115 @@
             return Array.from(document.querySelectorAll('.cc-email')).map(i => i.value.trim()).filter(v => v);
         }
 
+        // ── Workstation sandbox (/importantworkstation) light PO-draft persistence ──
+        // MAIN site ("/") is untouched: WS is false there, so every block below is skipped.
+        // Local computation is robust against script-timing (vs. relying only on window.BZ_WS).
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+        // Restore a previously-saved PO draft object into the live form (WS only).
+        function wsRestorePO(d) {
+            if (!d || typeof d !== 'object') return;
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
+            setVal('poSerial', d.serial); setVal('poDriver', d.driver); setVal('poBranch', d.branch);
+            setVal('poJob', d.job); setVal('poCar', d.car); setVal('poPlate', d.plate);
+            setVal('poModel', d.model); setVal('odometer', d.odometer); setVal('poPhone', d.phone);
+            setVal('poEmpid', d.empid); setVal('poDate', d.date); setVal('poNotes', d.notes);
+            if (d.summary) {
+                setVal('sumParts', d.summary.parts_total || ''); setVal('sumRepairs', d.summary.repairs_total || '');
+                setVal('sumTires', d.summary.tires_total || ''); setVal('sumBatteries', d.summary.batteries_total || '');
+            }
+            // Rebuild dynamic table rows from saved arrays (re-uses the existing add* builders).
+            (d.parts || []).forEach(p => {
+                addPartRow(); const tr = document.querySelector('#partsTable tbody tr:last-child');
+                tr.querySelector('.p-desc').value = p.desc || ''; tr.querySelector('.p-qty').value = p.qty || '';
+                tr.querySelector('.p-price').value = p.price || ''; tr.querySelector('.p-val').value = p.val || '';
+                tr.querySelector('.p-notes').value = p.notes || '';
+            });
+            (d.repairs || []).forEach(r => {
+                addRepairRow(); const tr = document.querySelector('#repairsTable tbody tr:last-child');
+                tr.querySelector('.r-desc').value = r.desc || ''; tr.querySelector('.r-val').value = r.val || '';
+                tr.querySelector('.r-notes').value = r.notes || '';
+            });
+            (d.tires || []).forEach(t => {
+                addTireRow(); const tr = document.querySelector('#tiresTable tbody tr:last-child');
+                tr.querySelector('.ti-date').value = t.date || ''; tr.querySelector('.ti-count').value = t.count || '';
+                tr.querySelector('.ti-front').value = t.front || ''; tr.querySelector('.ti-back').value = t.back || '';
+                tr.querySelector('.ti-prev').value = t.prev || ''; tr.querySelector('.ti-curr').value = t.curr || '';
+                tr.querySelector('.ti-dist').value = t.dist || '';
+            });
+            (d.batteries || []).forEach(b => {
+                addBatteryRow(); const tr = document.querySelector('#batteriesTable tbody tr:last-child');
+                tr.querySelector('.b-desc').value = b.desc || ''; tr.querySelector('.b-count').value = b.count || '';
+                tr.querySelector('.b-size').value = b.size || ''; tr.querySelector('.b-amp').value = b.amp || '';
+                tr.querySelector('.b-price').value = b.price || ''; tr.querySelector('.b-date').value = b.date || '';
+            });
+            recalcSummary();
+        }
+
+        // Debounced autosave of the whole draft (+ serial counter) to the WS server store.
+        let _wsPoSaveTimer = null;
+        function wsSavePO() {
+            if (!WS) return;
+            clearTimeout(_wsPoSaveTimer);
+            _wsPoSaveTimer = setTimeout(() => {
+                const payload = collectPOData();
+                // Persist the running serial counter alongside the draft so reload restores it.
+                payload.serialCounter = parseInt(localStorage.getItem('poSerialCounter')) || 102;
+                // Literal '/api/...' so app_ux.js routes it to /importantworkstation/api/... in WS.
+                fetch('/api/purchase_data', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            }, 700);
+        }
+
         window.onload = async () => {
             await fetchDrivers();
             document.getElementById('poDate').valueAsDate = new Date();
+
+            if (WS) {
+                // WS: load this sandbox's own persisted draft (id=2). Empty start when none.
+                let saved = null;
+                try {
+                    const res = await fetch('/api/purchase_data');
+                    const j = await res.json();
+                    if (j && j.success && j.data) saved = j.data;
+                } catch (e) { saved = null; }
+
+                // Serial counter: prefer the server-persisted value, else localStorage, else 102.
+                let serialNum = (saved && saved.serialCounter) ||
+                                parseInt(localStorage.getItem('poSerialCounter')) || 102;
+                localStorage.setItem('poSerialCounter', serialNum);
+                document.getElementById('poSerial').value = serialNum;
+
+                if (saved) {
+                    wsRestorePO(saved);
+                } else {
+                    // No saved draft → start blank, just like a fresh PO form.
+                    addPartRow(); addRepairRow(); addTireRow(); addBatteryRow();
+                }
+
+                // Autosave the draft on any input within the form area (debounced).
+                const formArea = document.getElementById('poFormArea');
+                if (formArea) formArea.addEventListener('input', wsSavePO);
+
+                // Wire autofill exactly like the main path, then finish (skip original block below).
+                if (window.FleetData && typeof FleetData.attachAutofill === 'function') {
+                    FleetData.attachAutofill({
+                        name: 'poDriver',
+                        fields: { car: 'poCar', plate: 'poPlate', empid: 'poEmpid', phone: 'poPhone' },
+                        onFill: (rec) => {
+                            if (rec && rec.car) {
+                                const m = String(rec.car).match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+                                if (m && !document.getElementById('poModel').value) document.getElementById('poModel').value = m[1];
+                            }
+                        }
+                    });
+                }
+                return;
+            }
+
+            // ── Original main-site behavior (WS false) — byte-for-byte unchanged ──
             let serialNum = parseInt(localStorage.getItem('poSerialCounter')) || 102;
             document.getElementById('poSerial').value = serialNum;
             addPartRow(); addRepairRow(); addTireRow(); addBatteryRow();

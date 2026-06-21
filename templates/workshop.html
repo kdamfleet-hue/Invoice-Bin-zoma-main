@@ -228,6 +228,43 @@
     const LS_KEY = 'workshop_report_v4';
     let driversData = [];
 
+    // --- Workstation sandbox (mirror) detection. Local + robust against script timing. ---
+    // On MAIN "/" this is false -> original localStorage behavior is used unchanged.
+    const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+    // Debounced server autosave for the workstation (matches the other tabs' ~600-800ms).
+    let _wsSaveTimer = null;
+    function wsSaveWorkshopData(state) {
+        if (_wsSaveTimer) clearTimeout(_wsSaveTimer);
+        _wsSaveTimer = setTimeout(() => {
+            // Literal '/api/...' URL so app_ux.js rewrites it to the workstation store.
+            fetch('/api/workshop_data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(state) // POST body = the state object directly
+            }).catch(() => { /* offline — keep typing, retried on next change */ });
+        }, 700);
+    }
+
+    // Apply a saved workshop state object to the form (shared by LS load + server load).
+    function applyWorkshopState(data) {
+        if (!data) return;
+        document.getElementById('reportDate').value = data.date || '';
+        document.getElementById('driverName').value = data.driver || '';
+        document.getElementById('carType').value = data.car || '';
+        document.getElementById('carPlate').value = data.plate || '';
+        document.getElementById('carModel').value = data.model || '';
+        document.getElementById('carKm').value = data.km || '';
+        document.getElementById('sigTech').value = data.sigTech || '';
+        document.getElementById('sigManager').value = data.sigManager || '';
+        if (data.notes && data.notes.length === 10) {
+            for (let i = 1; i <= 10; i++) {
+                document.getElementById('note_'+i).value = data.notes[i-1].n || '';
+                document.getElementById('sol_'+i).value = data.notes[i-1].s || '';
+            }
+        }
+    }
+
     // Populate plate datalist from /api/drivers (live backend data)
     async function fetchDrivers() {
         try {
@@ -299,28 +336,35 @@
                 s: document.getElementById('sol_'+i).value
             });
         }
+        if (WS) {
+            // Workstation: persist the same state object to the server (debounced), not localStorage.
+            wsSaveWorkshopData(data);
+            return;
+        }
         localStorage.setItem(LS_KEY, JSON.stringify(data));
     }
 
-    function loadData() {
+    async function loadData() {
+        if (WS) {
+            // Workstation: load from server only (skip localStorage seeding). null -> blank rows.
+            try {
+                const res = await fetch('/api/workshop_data');
+                if (res.ok) {
+                    const j = await res.json();
+                    if (j && j.success && j.data) {
+                        applyWorkshopState(j.data);
+                        return;
+                    }
+                }
+            } catch (e) { /* offline — fall through to blank default */ }
+            // No persisted data yet -> keep the blank rows, just default the date.
+            document.getElementById('reportDate').valueAsDate = new Date();
+            return;
+        }
         const raw = localStorage.getItem(LS_KEY);
         if(raw) {
             try {
-                const data = JSON.parse(raw);
-                document.getElementById('reportDate').value = data.date || '';
-                document.getElementById('driverName').value = data.driver || '';
-                document.getElementById('carType').value = data.car || '';
-                document.getElementById('carPlate').value = data.plate || '';
-                document.getElementById('carModel').value = data.model || '';
-                document.getElementById('carKm').value = data.km || '';
-                document.getElementById('sigTech').value = data.sigTech || '';
-                document.getElementById('sigManager').value = data.sigManager || '';
-                if(data.notes && data.notes.length === 10) {
-                    for(let i=1; i<=10; i++) {
-                        document.getElementById('note_'+i).value = data.notes[i-1].n || '';
-                        document.getElementById('sol_'+i).value = data.notes[i-1].s || '';
-                    }
-                }
+                applyWorkshopState(JSON.parse(raw));
             } catch(e){}
         } else {
             document.getElementById('reportDate').valueAsDate = new Date();
@@ -633,7 +677,7 @@
 
     window.addEventListener('load', async () => {
         renderTable();
-        loadData();
+        await loadData(); // async now (server load in WS); await keeps populate-before-autofill ordering
         await fetchDrivers();
 
         // Shared autofill engine: picking a driver name fills plate + car type

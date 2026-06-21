@@ -237,17 +237,20 @@
     }
 
     async function loadData() {
+      // detect workstation sandbox locally (robust against script timing)
+      const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
       // 1) server  2) localStorage  3) static default file
       let data = null;
       try {
         const r = await fetch('/api/schedule_data');
         if (r.ok) { const j = await r.json(); if (j.success && j.data) data = j.data; }
       } catch (e) {}
-      if (!data) {
+      // WS: skip localStorage & static-file fallbacks so an empty server response stays EMPTY
+      if (!data && !WS) {
         const ls = localStorage.getItem(LS_KEY);
         if (ls) { try { data = JSON.parse(ls); } catch (e) {} }
       }
-      if (!data) {
+      if (!data && !WS) {
         try { const r = await fetch('/static/schedule_data.json'); if (r.ok) data = await r.json(); } catch (e) {}
       }
       if (!data) data = { title: document.getElementById('schedTitle').textContent, date: '', main: [], spare: [], vacation: [], summary: {} };

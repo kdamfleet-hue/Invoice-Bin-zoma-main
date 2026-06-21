@@ -280,7 +280,7 @@
             const idx = tbody.children.length + 1;
             tr.innerHTML = buildRowHtml(idx, []);
             tbody.appendChild(tr);
-            if (save) persistLocal();
+            if (save) { persistLocal(); autoSaveServer(); } // WS-only server autosave
             updateCount();
         }
 
@@ -289,6 +289,7 @@
             btn.closest('tr').remove();
             reindex();
             persistLocal();
+            autoSaveServer(); // WS-only server autosave
             updateCount();
         }
 
@@ -328,9 +329,11 @@
 
         // Load order: server (POST contract) -> static default -> localStorage cache.
         async function loadEmployees() {
+            // WS = workstation sandbox; computed locally for robust script-timing detection
+            const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
             let rows = null;
 
-            // 1) Server is the source of truth
+            // 1) Server is the source of truth (empty in WS on first load)
             try {
                 const res = await fetch('/api/employees', { headers: { 'Accept': 'application/json' } });
                 if (res.ok) {
@@ -339,8 +342,8 @@
                 }
             } catch (e) { /* backend may not be ready yet */ }
 
-            // 2) Static seed file
-            if (!rows || rows.length === 0) {
+            // 2) Static seed file — skipped in WS so the tab starts empty
+            if ((!rows || rows.length === 0) && !WS) {
                 try {
                     const res = await fetch('/static/employees_default.json');
                     if (res.ok) {
@@ -350,8 +353,8 @@
                 } catch (e) { /* ignore */ }
             }
 
-            // 3) Local cache fallback
-            if (!rows || rows.length === 0) {
+            // 3) Local cache fallback — skipped in WS so the tab starts empty
+            if ((!rows || rows.length === 0) && !WS) {
                 try {
                     const saved = localStorage.getItem(LS_EMPLOYEES_KEY);
                     if (saved) {
@@ -365,6 +368,23 @@
                 renderRows(rows);
                 persistLocal();
             }
+        }
+
+        // WS-only debounced server autosave: POSTs current rows to the isolated
+        // workstation store (id=2). On main site (WS false) this is a no-op so
+        // behavior stays byte-for-byte unchanged.
+        let _autoSaveTimer = null;
+        function autoSaveServer() {
+            const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+            if (!WS) return; // main site: unchanged, no autosave
+            clearTimeout(_autoSaveTimer);
+            _autoSaveTimer = setTimeout(() => {
+                fetch('/api/employees', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rows: collectRows() })
+                }).catch(() => { /* best-effort autosave */ });
+            }, 700); // debounce ~700ms like the other tabs
         }
 
         async function saveToServer() {
@@ -392,6 +412,7 @@
             if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' &&
                 e.target.closest('#employeesBody')) {
                 persistLocal();
+                autoSaveServer(); // WS-only server autosave (debounced)
                 maybeAutofill(e.target);
             }
         });
@@ -470,6 +491,7 @@
                 }
             }
             persistLocal();
+            autoSaveServer(); // WS-only server autosave
         });
 
         // Translate helper (Arabic header -> English when EN is active)

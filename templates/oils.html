@@ -1178,7 +1178,47 @@
             }
         }
 
+        // Workstation sandbox flag (computed locally for robustness vs. script timing).
+        const OILS_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+        // WS: debounced server autosave to /api/oils_data (id=2 isolated store).
+        // The app_ux.js fetch wrapper rewrites the literal '/api/' prefix to the
+        // workstation path, so we MUST use a literal '/api/oils_data' URL here.
+        function saveOilsToServer() {
+            clearTimeout(window._oilsServerSaveTimer);
+            window._oilsServerSaveTimer = setTimeout(() => {
+                const rows = [];
+                document.querySelectorAll('#oilsBody tr').forEach(tr => {
+                    const inputs = tr.querySelectorAll('input');
+                    if(inputs.length > 0) {
+                        const rowData = [];
+                        inputs.forEach(inp => rowData.push(inp.value));
+                        rows.push(rowData);
+                    }
+                });
+                const filters = [];
+                document.querySelectorAll('#filtersBody tr').forEach(tr => {
+                    const inputs = tr.querySelectorAll('input');
+                    if(inputs.length > 0) {
+                        const rowData = [];
+                        inputs.forEach(inp => rowData.push(inp.value));
+                        filters.push(rowData);
+                    }
+                });
+                const titleEl = document.getElementById('oilsTitle');
+                const payload = { title: titleEl ? titleEl.value : '', oils: rows, filters: filters };
+                fetch('/api/oils_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            }, 700);
+        }
+
         function saveToLocalStorage() {
+            // WS: persist to the server (isolated id=2 store), NOT localStorage.
+            if(OILS_WS) { saveOilsToServer(); return; }
+
             const rows = [];
             document.querySelectorAll('#oilsBody tr').forEach(tr => {
                 const inputs = tr.querySelectorAll('input');
@@ -1204,6 +1244,41 @@
 
             const titleVal = document.getElementById('oilsTitle').value;
             localStorage.setItem('excel_oils_title', titleVal);
+        }
+
+        // WS: empty start + load this sandbox's own persisted data from the server.
+        async function loadOilsFromServer() {
+            const oBody = document.getElementById('oilsBody');
+            const fBody = document.getElementById('filtersBody');
+            // (A) EMPTY START — drop all hardcoded rows before fetching.
+            if(oBody) oBody.innerHTML = '';
+            if(fBody) fBody.innerHTML = '';
+            try {
+                const res = await fetch('/api/oils_data');
+                const json = await res.json();
+                const data = json && json.data;
+                if(data) {
+                    // (B) SERVER LOAD — rebuild tables from persisted data, if any.
+                    if(oBody && Array.isArray(data.oils)) {
+                        data.oils.forEach((r, idx) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = ROW_TEMPLATE(idx + 1, r);
+                            oBody.appendChild(tr);
+                        });
+                    }
+                    if(fBody && Array.isArray(data.filters)) {
+                        data.filters.forEach((r) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = FILTER_ROW_TEMPLATE(0, 0, r);
+                            fBody.appendChild(tr);
+                        });
+                        renumberFilterRows();
+                    }
+                    const titleEl = document.getElementById('oilsTitle');
+                    if(titleEl && typeof data.title === 'string') titleEl.value = data.title;
+                }
+                // data null -> leave tables empty.
+            } catch(e) { console.error('Failed to load oils data from server', e); }
         }
         
         function loadFromLocalStorage() {
@@ -1293,7 +1368,12 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            loadFromLocalStorage();
+            // WS: empty start + load from server; MAIN site keeps original localStorage path.
+            if(OILS_WS) {
+                loadOilsFromServer().then(updateTotalLiters);
+            } else {
+                loadFromLocalStorage();
+            }
             updateTotalLiters();
             initFleetData();
             document.querySelectorAll('#oilsBody tr').forEach(tr => {

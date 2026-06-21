@@ -333,6 +333,21 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS records_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Workstation-only blob stores (id=2 sandbox). Additive & never seeded, so the
+            # /importantworkstation namespace starts EMPTY and persists what the user types.
+            # The MAIN site (/) never reads or writes these.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS drivers_ws (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS oils_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS purchase_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS workshop_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             db.commit()
 
             # Safe migration: add drivercard to older tables that lack it.
@@ -435,13 +450,16 @@ def _row_id():
 
 
 def blob_get(table):
-    """Read a single-row JSON blob. Workstation reads id=2, seeded-view from id=1 — never writing id=1."""
+    """Read a single-row JSON blob.
+    Main site reads id=1. The workstation reads ONLY its own id=2 sandbox and NEVER
+    falls back to id=1 — so /importantworkstation starts EMPTY instead of mirroring the
+    real site's data."""
     rid = _row_id()
     with db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT data FROM %s WHERE id = ?" % table, (rid,))
         row = c.fetchone()
-        if not row and rid != 1:
+        if not row and rid != 1 and not is_workstation():
             c.execute("SELECT data FROM %s WHERE id = 1" % table)
             row = c.fetchone()
     return json.loads(row["data"]) if row else None
@@ -1119,9 +1137,70 @@ def records_data():
         return jsonify({"success": False, "rows": []})
 
 
+# ── Workstation-only tab state (oils / purchase / workshop) ───────────────────
+# These tabs have NO server storage on the main site (hardcoded rows + localStorage).
+# For the /importantworkstation sandbox they persist a single JSON object on the server
+# (id=2 via blob_get/blob_set). On the main site (id=1) these rows stay empty/unused —
+# the main pages never POST here, so the main site keeps its original behavior.
+@app.route("/api/oils_data", methods=["GET", "POST"])
+@login_required
+def oils_data():
+    if request.method == "POST":
+        try:
+            blob_set("oils_data", request.json or {})
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("oils_data POST error")
+            return jsonify({"success": False}), 500
+    try:
+        return jsonify({"success": True, "data": blob_get("oils_data")})
+    except Exception:
+        logger.exception("oils_data GET error")
+        return jsonify({"success": False, "data": None})
+
+
+@app.route("/api/purchase_data", methods=["GET", "POST"])
+@login_required
+def purchase_data():
+    if request.method == "POST":
+        try:
+            blob_set("purchase_data", request.json or {})
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("purchase_data POST error")
+            return jsonify({"success": False}), 500
+    try:
+        return jsonify({"success": True, "data": blob_get("purchase_data")})
+    except Exception:
+        logger.exception("purchase_data GET error")
+        return jsonify({"success": False, "data": None})
+
+
+@app.route("/api/workshop_data", methods=["GET", "POST"])
+@login_required
+def workshop_data():
+    if request.method == "POST":
+        try:
+            blob_set("workshop_data", request.json or {})
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("workshop_data POST error")
+            return jsonify({"success": False}), 500
+    try:
+        return jsonify({"success": True, "data": blob_get("workshop_data")})
+    except Exception:
+        logger.exception("workshop_data GET error")
+        return jsonify({"success": False, "data": None})
+
+
 @app.route("/api/drivers", methods=["GET"])
 @login_required
 def get_drivers():
+    if is_workstation():
+        # Workstation: isolated, server-persistent driver list (id=2). Starts EMPTY.
+        lst = blob_get("drivers_ws") or []
+        lst = sorted(lst, key=lambda d: d.get("id", 0), reverse=True)
+        return jsonify(lst)
     with db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM drivers ORDER BY id DESC")
@@ -1320,9 +1399,14 @@ def add_driver():
     if not name:
         return jsonify({"error": "Name is required"}), 400
     if is_workstation():
-        # Sandbox: never modify the real drivers table; echo success so the UI keeps working.
-        return jsonify({"success": True, "id": 0, "name": name, "plate": plate, "car": car,
-                        "iqama": iqama, "phone": phone, "drivercard": drivercard})
+        # Workstation: persist to the isolated drivers_ws blob (id=2). Real table untouched.
+        lst = blob_get("drivers_ws") or []
+        new_id = max([d.get("id", 0) for d in lst], default=0) + 1
+        row = {"id": new_id, "name": name, "empid": empid, "plate": plate, "car": car,
+               "iqama": iqama, "phone": phone, "drivercard": drivercard}
+        lst.append(row)
+        blob_set("drivers_ws", lst)
+        return jsonify({"success": True, **row})
     with db_connection() as conn:
         c = conn.cursor()
         if USE_POSTGRES:
@@ -1359,7 +1443,10 @@ def add_driver():
 @login_required
 def delete_driver(driver_id):
     if is_workstation():
-        return jsonify({"success": True})  # sandbox: no real deletion
+        # Workstation: remove from the isolated drivers_ws blob (id=2). Real table untouched.
+        lst = [d for d in (blob_get("drivers_ws") or []) if d.get("id") != driver_id]
+        blob_set("drivers_ws", lst)
+        return jsonify({"success": True})
     with db_connection() as conn:
         conn.execute("DELETE FROM drivers WHERE id = ?", (driver_id,))
         conn.commit()
@@ -1383,6 +1470,14 @@ def update_driver(driver_id):
         return jsonify({"error": "Name is required"}), 400
 
     if is_workstation():
+        # Workstation: update inside the isolated drivers_ws blob (id=2). Real table untouched.
+        lst = blob_get("drivers_ws") or []
+        for d in lst:
+            if d.get("id") == driver_id:
+                d.update({"name": name, "empid": empid, "plate": plate, "car": car,
+                          "iqama": iqama, "phone": phone, "drivercard": drivercard})
+                break
+        blob_set("drivers_ws", lst)
         return jsonify({"success": True, "id": driver_id, "name": name, "plate": plate, "car": car,
                         "iqama": iqama, "phone": phone, "drivercard": drivercard})
 

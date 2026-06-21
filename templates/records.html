@@ -262,6 +262,11 @@
 
     // ===== Load on open =====
     function init() {
+        // Sandbox detection (local + robust against script-timing). In WS the tab must
+        // start GUARANTEED-EMPTY, so we skip any localStorage fallback (defends against
+        // a stale ws: cache); main keeps its original localStorage fallback unchanged.
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
         if (window.FleetData) {
             FleetData.fillDatalist('driverNames').catch(err => console.error('FleetData datalist', err));
         }
@@ -279,13 +284,15 @@
                 if (data && data.success && Array.isArray(data.rows) && data.rows.length) {
                     records = normalize(data.rows);
                 } else {
-                    records = loadLocal();
+                    // WS: empty start (no localStorage seed); main: original fallback
+                    records = WS ? [] : loadLocal();
                 }
                 renderTable();
             })
             .catch(err => {
                 console.error('Failed to load /api/records', err);
-                records = loadLocal();
+                // WS: empty start even on fetch error; main: original fallback
+                records = WS ? [] : loadLocal();
                 renderTable();
             });
     }

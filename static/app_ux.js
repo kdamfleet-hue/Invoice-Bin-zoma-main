@@ -4,12 +4,17 @@
  * Page Transitions, Idle Session Timeout, and Bilingual Translation.
  */
 
+// Global flag: are we inside the open /importantworkstation sandbox? Every tab uses this
+// to start EMPTY and persist to the server (id=2) instead of showing the main site's data.
+// Purely path-based, so the main site (/) is never affected — even in the same browser.
+window.BZ_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
 // Isolate the workstation namespace's browser storage from the main site, so edits made
 // under /importantworkstation (employees, schedule, Excel cache, etc.) can NEVER bleed
 // into the real site's cached data. Runs first, before any tab code touches localStorage.
 (function () {
     try {
-        if (window.location.pathname.indexOf('/importantworkstation') !== 0) return;
+        if (!window.BZ_WS) return;
         var ls = window.localStorage, ns = 'ws:';
         var g = ls.getItem.bind(ls), s = ls.setItem.bind(ls), r = ls.removeItem.bind(ls);
         ls.getItem = function (k) { return g(ns + k); };
@@ -903,6 +908,9 @@ window.FleetData = (function () {
     async function load() {
         if (_cache) return _cache;
         if (_promise) return _promise;
+        // Workstation is a blank slate: no preloaded fleet registry → no autofill/suggestions
+        // from the real data. The user enters everything manually (saved to the server).
+        if (window.BZ_WS) { _cache = []; return _cache; }
         _promise = fetch('/static/fleet_data.json')
             .then(function (r) { return r.ok ? r.json() : []; })
             .then(function (rows) { _cache = Array.isArray(rows) ? rows : []; return _cache; })

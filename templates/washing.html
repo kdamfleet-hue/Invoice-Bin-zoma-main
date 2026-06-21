@@ -210,6 +210,8 @@
     }
 
     function init() {
+        // Detect the isolated workstation sandbox locally (robust against script-timing).
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
         // Populate the driver datalist + load fleet records for plate-based autofill
         if (window.FleetData) {
             FleetData.fillDatalist('driversList').catch(err => console.error('FleetData datalist', err));
@@ -220,6 +222,9 @@
             .then(data => {
                 if (data.success && data.vehicles && data.vehicles.length > 0) {
                     vehicles = data.vehicles;
+                } else if (WS) {
+                    // Workstation: empty server => empty grid (no localStorage / no WASHING_VEHICLES seed).
+                    vehicles = [];
                 } else {
                     const saved = localStorage.getItem('washingSchedule2026');
                     if (saved) {
@@ -233,11 +238,16 @@
             })
             .catch(err => {
                 console.error('Failed to load from server', err);
-                const saved = localStorage.getItem('washingSchedule2026');
-                if (saved) {
-                    try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                if (WS) {
+                    // Workstation: never seed from localStorage/defaults on error — keep it empty.
+                    vehicles = [];
                 } else {
-                    vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                    const saved = localStorage.getItem('washingSchedule2026');
+                    if (saved) {
+                        try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                    } else {
+                        vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                    }
                 }
                 renderTable();
                 updateStats();
@@ -307,10 +317,20 @@
         }
     }
 
+    // Debounced server autosave used only in the workstation sandbox (~700ms, like other tabs).
+    let _wsSaveTimer = null;
+    function wsAutosave() {
+        if (_wsSaveTimer) clearTimeout(_wsSaveTimer);
+        _wsSaveTimer = setTimeout(() => saveState(false), 700); // background POST /api/washing_data
+    }
+
     function toggle(vi, mi) {
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
         vehicles[vi].m[mi] = vehicles[vi].m[mi] ? 0 : 1;
         renderTable(document.getElementById('searchInput').value);
         updateStats();
+        // Workstation: persist cell toggles to the server (debounced). Main "/" unchanged.
+        if (WS) wsAutosave();
     }
 
     function filterTable() {
