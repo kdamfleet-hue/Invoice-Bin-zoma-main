@@ -337,6 +337,9 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS incidents_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Workstation-only blob stores (id=2 sandbox). Additive & never seeded, so the
             # /importantworkstation namespace starts EMPTY and persists what the user types.
             # The MAIN site (/) never reads or writes these.
@@ -442,6 +445,7 @@ WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
 WS_TABS = {
     "": "index", "dashboard": "dashboard", "schedule": "schedule", "oils": "oils", "purchase": "purchase",
     "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
+    "incidents": "incidents",
     "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync", "cameras": "cameras",
 }
 WS_LOCKED = {"employees", "gps_sync", "cameras", "tracking"}
@@ -780,6 +784,12 @@ def search_page():
 @login_required
 def records_page():
     return render_template("records.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/incidents")
+@login_required
+def incidents_page():
+    return render_template("incidents.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
 @app.route("/cameras")
@@ -1315,6 +1325,30 @@ def records_data():
         return jsonify({"success": True, "rows": data if data is not None else []})
     except Exception:
         logger.exception("records_data GET error")
+        return jsonify({"success": False, "rows": []})
+
+
+@app.route("/api/incidents", methods=["GET", "POST"])
+@login_required
+def incidents_data():
+    """Persist the incidents/violations log (with in-DB base64 attachments). Sandboxed for workstation."""
+    if request.method == "POST":
+        try:
+            rows = (request.json or {}).get("rows", [])
+            blob_set("incidents_data", rows)
+            atts = sum(len(r.get("attachments", []) or []) for r in rows if isinstance(r, dict))
+            _audit_add("تحديث", "سجل الحوادث والمخالفات",
+                       len(rows) if isinstance(rows, list) else None,
+                       ("%d مرفق" % atts) if atts else "")
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("incidents_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ سجل الحوادث."}), 500
+    try:
+        data = blob_get("incidents_data")
+        return jsonify({"success": True, "rows": data if data is not None else []})
+    except Exception:
+        logger.exception("incidents_data GET error")
         return jsonify({"success": False, "rows": []})
 
 

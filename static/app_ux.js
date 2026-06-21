@@ -295,6 +295,7 @@ const translations = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    injectGlobalNavLinks();
     applyWorkstationRestrictions();
     initThemeToggle();
     injectTopographicBackground();
@@ -315,6 +316,22 @@ function getCookie(name) {
     const m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
     return m ? decodeURIComponent(m[1]) : '';
 }
+// Inject the "الحوادث والمخالفات" tab into every top-bar nav from one place, so the link
+// stays consistent site-wide without editing each template. Runs BEFORE the workstation
+// rewrite so its href is prefixed automatically inside /importantworkstation. Additive only —
+// the main site is unaffected apart from gaining this link.
+function injectGlobalNavLinks() {
+    const nav = document.querySelector('.bz-topbar .bz-nav');
+    if (!nav) return;
+    if (nav.querySelector('a[href$="/incidents"]')) return; // already there (e.g. the incidents page)
+    const a = document.createElement('a');
+    a.setAttribute('href', '/incidents');
+    a.textContent = '🚨 الحوادث والمخالفات';
+    const afterRecords = nav.querySelector('a[href$="/records"]');
+    if (afterRecords && afterRecords.nextSibling) nav.insertBefore(a, afterRecords.nextSibling);
+    else nav.appendChild(a);
+}
+
 function applyWorkstationRestrictions() {
     if (!inWorkstation()) return; // MAIN SITE: do nothing at all
     // 1) keep every internal nav link inside the workstation prefix
