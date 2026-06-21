@@ -528,12 +528,22 @@ def _ws_write_examples():
 
 
 def ensure_ws_seeded():
-    """On the first-ever workstation visit, fill id=2 with example data (once).
-    The 'ws_init' flag means 'already handled' so a later reset stays empty."""
+    """Self-healing seed: on every workstation page load, fill ONLY the stores that are
+    currently EMPTY (id=2) from the example data — existing data the user typed is preserved.
+    Skipped entirely if the user explicitly emptied the sandbox with the 🗑️ button
+    (ws_cleared flag), so a deliberate reset stays empty."""
     try:
-        if _ws_meta_get("ws_init") is None:
-            _ws_write_examples()
-            _ws_meta_set("ws_init", "1")
+        if _ws_meta_get("ws_cleared") == "1":
+            return
+        for table, value in WS_EXAMPLE_DATA.items():
+            with db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT data FROM %s WHERE id = 2" % table)
+                if c.fetchone():
+                    continue  # already has data → keep it
+                c.execute("INSERT INTO %s (id, data) VALUES (2, ?)" % table,
+                          (json.dumps(value, ensure_ascii=False),))
+                conn.commit()
     except Exception:
         logger.exception("ensure_ws_seeded error")
 
@@ -1273,7 +1283,7 @@ def ws_reset():
             for t in WS_BLOB_TABLES:
                 c.execute("DELETE FROM %s WHERE id = 2" % t)
             conn.commit()
-        _ws_meta_set("ws_init", "1")  # mark handled so it won't auto-reseed → stays empty
+        _ws_meta_set("ws_cleared", "1")  # user emptied it on purpose → don't auto-reseed
         return jsonify({"success": True})
     except Exception:
         logger.exception("ws_reset error")
@@ -1289,7 +1299,7 @@ def ws_seed():
         return jsonify({"success": False, "error": "workstation only"}), 404
     try:
         _ws_write_examples()
-        _ws_meta_set("ws_init", "1")
+        _ws_meta_set("ws_cleared", "0")  # examples are wanted again → allow auto-seed
         return jsonify({"success": True})
     except Exception:
         logger.exception("ws_seed error")
