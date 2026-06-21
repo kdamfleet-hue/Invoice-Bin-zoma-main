@@ -63,6 +63,27 @@
         .excel-table.bz-fit thead th.excel-header {
             white-space: nowrap;
         }
+        /* Narrow screens: the base CSS widens each editable cell (min-width) so the
+           multi-column bz-fit tables (up to 9 cols) become wider than the viewport.
+           Make each such table scroll HORIZONTALLY inside its own bordered, rounded
+           box instead of overflowing/clipping. display:block is required for a
+           <table> to honour overflow-x; the inner table reverts to table layout so
+           sizing/headers are unchanged. Desktop (>920px) keeps the no-scroll
+           fit-to-width layout untouched. Export/PDF logic is not affected. */
+        @media (max-width: 920px) {
+            .excel-table.bz-fit {
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                border-radius: 8px;
+            }
+            .excel-table.bz-fit thead,
+            .excel-table.bz-fit tbody {
+                display: table;
+                width: 100%;
+                table-layout: auto;
+            }
+        }
 
         .section-title {
             background: var(--accent);
