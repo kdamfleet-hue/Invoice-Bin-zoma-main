@@ -297,6 +297,7 @@ const translations = {
 document.addEventListener('DOMContentLoaded', () => {
     injectGlobalNavLinks();
     applyWorkstationRestrictions();
+    buildEnterpriseShell();
     initThemeToggle();
     injectTopographicBackground();
     injectUXContainers();
@@ -330,6 +331,122 @@ function injectGlobalNavLinks() {
     const afterRecords = nav.querySelector('a[href$="/records"]');
     if (afterRecords && afterRecords.nextSibling) nav.insertBefore(a, afterRecords.nextSibling);
     else nav.appendChild(a);
+}
+
+// ===== Enterprise unified shell (deep-dark + right sidebar + rich topbar) =====
+// Built from one place so every tab gets the same chrome. The sidebar is CLONED from
+// the page's existing horizontal nav (so links + active state + workstation prefix/lock
+// all stay correct). Defensive: only runs on pages that have a .bz-topbar (skips the
+// dashboard — it has its own shell — plus login/lock pages). Adds NO fabricated data.
+function buildEnterpriseShell() {
+    try {
+        const topbar = document.querySelector('.bz-topbar');
+        if (!topbar) return;                               // dashboard / login / tab_lock → skip
+        if (document.querySelector('.bz-sidebar')) return; // already built (defensive)
+
+        document.body.classList.add('bz-enterprise');
+        if (localStorage.getItem('bz_side_collapsed') === '1') document.body.classList.add('side-collapsed');
+
+        // ---- sidebar (cloned from the horizontal nav) ----
+        let navHtml = '';
+        topbar.querySelectorAll('.bz-nav a').forEach(a => {
+            const txt = (a.textContent || '').trim();
+            const sp = txt.indexOf(' ');
+            const icon = sp > 0 ? txt.slice(0, sp) : '•';
+            const label = sp > 0 ? txt.slice(sp + 1).trim() : txt;
+            const cls = a.classList.contains('active') ? ' class="active"' : '';
+            navHtml += `<a href="${a.getAttribute('href')}"${cls}><span class="si">${icon}</span><span class="slab">${escapeHtml(label)}</span></a>`;
+        });
+        const aside = document.createElement('aside');
+        aside.className = 'bz-sidebar';
+        aside.innerHTML =
+            '<div class="side-brand"><img src="/static/nav_logo.png" alt="BIN ZOMAH"><div class="brand-text"><b>BIN ZOMAH INTL.</b><span>نظام إدارة الأسطول والتوثيق</span></div></div>' +
+            '<nav>' + navHtml + '</nav>' +
+            '<div class="side-foot"><button type="button" id="bzSideCollapse" title="طي/توسيع القائمة"><span>⇆</span><span class="slab">طي القائمة</span></button></div>';
+        document.body.appendChild(aside);
+        const collapseBtn = document.getElementById('bzSideCollapse');
+        if (collapseBtn) collapseBtn.addEventListener('click', () => {
+            const c = document.body.classList.toggle('side-collapsed');
+            try { localStorage.setItem('bz_side_collapsed', c ? '1' : '0'); } catch (e) {}
+        });
+
+        // ---- enrich the topbar ----
+        const actions = topbar.querySelector('.bz-actions');
+        const brand = topbar.querySelector('.bz-brand');
+
+        if (brand && !document.getElementById('bzBurger')) {
+            const burger = document.createElement('button');
+            burger.id = 'bzBurger'; burger.type = 'button'; burger.className = 'bz-icon-btn bz-side-burger';
+            burger.title = 'القائمة'; burger.textContent = '☰';
+            burger.addEventListener('click', () => aside.classList.toggle('open'));
+            brand.parentNode.insertBefore(burger, brand);
+        }
+
+        if (!document.getElementById('bzTopSearch')) {
+            const sw = document.createElement('div');
+            sw.className = 'bz-top-search';
+            sw.innerHTML = '<span class="si">🔍</span><input id="bzTopSearch" type="text" placeholder="بحث سريع في هذه الصفحة…">';
+            topbar.insertBefore(sw, actions || null);
+            document.getElementById('bzTopSearch').addEventListener('input', function () { bzQuickFilter(this.value); });
+        }
+
+        if (actions) {
+            if (!document.getElementById('bzBell')) {
+                const bell = document.createElement('a');
+                bell.id = 'bzBell'; bell.className = 'bz-top-ico'; bell.href = '/dashboard#alerts';
+                bell.title = 'تنبيهات الوثائق'; bell.textContent = '🔔';
+                actions.insertBefore(bell, actions.firstChild);
+            }
+            if (!document.getElementById('bzUser')) {
+                const user = document.createElement('div');
+                user.id = 'bzUser'; user.className = 'bz-top-user';
+                user.innerHTML = '<div class="u-meta"><b id="bzUserName">—</b><span>إدارة الأسطول</span></div><div class="u-av" id="bzUserAv">BZ</div>';
+                actions.appendChild(user);
+            }
+        }
+
+        // fill the user chip + alerts badge from REAL data only (best-effort; no fabrication)
+        fetch('/api/whoami', { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : null)
+            .then(j => {
+                if (!j) return;
+                const nm = document.getElementById('bzUserName'); if (nm && j.name) nm.textContent = j.name;
+                const av = document.getElementById('bzUserAv'); if (av && j.name) av.textContent = ((j.name.trim()[0]) || 'B');
+            }).catch(() => {});
+        fetch('/api/expiry_alerts_preview', { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : null)
+            .then(j => {
+                const bell = document.getElementById('bzBell');
+                if (j && bell && j.total > 0) bell.innerHTML = '🔔<span class="badge-dot">' + (j.total > 99 ? '99+' : j.total) + '</span>';
+            }).catch(() => {});
+    } catch (e) { console.error('enterprise shell error', e); }
+}
+
+// Top-bar quick search: forward into the page's own search box when present (keeps its
+// filtering/counters correct); otherwise generically hide non-matching rows of the
+// largest table (checks both text cells and input/select values).
+function bzQuickFilter(q) {
+    const known = ['empSearch', 'searchInput', 'assetSearch', 'seInput'];
+    for (const id of known) {
+        const el = document.getElementById(id);
+        if (el) { el.value = q; el.dispatchEvent(new Event('input', { bubbles: true })); return; }
+    }
+    const term = (q || '').trim().toLowerCase();
+    let best = null, bestN = -1;
+    document.querySelectorAll('table').forEach(t => {
+        const n = t.querySelectorAll('tbody tr').length;
+        if (n > bestN) { bestN = n; best = t; }
+    });
+    if (!best) return;
+    best.querySelectorAll('tbody tr').forEach(tr => {
+        if (!term) { tr.style.display = ''; return; }
+        let hit = (tr.textContent || '').toLowerCase().indexOf(term) !== -1;
+        if (!hit) {
+            const f = tr.querySelectorAll('input,textarea,select');
+            for (let i = 0; i < f.length; i++) { if ((f[i].value || '').toLowerCase().indexOf(term) !== -1) { hit = true; break; } }
+        }
+        tr.style.display = hit ? '' : 'none';
+    });
 }
 
 function applyWorkstationRestrictions() {

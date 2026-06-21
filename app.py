@@ -1363,6 +1363,15 @@ def audit_log_data():
         return jsonify({"success": True, "rows": []})
 
 
+@app.route("/api/whoami", methods=["GET"])
+@login_required
+def whoami():
+    """The signed-in identity for the top bar (real session user — no fabricated name)."""
+    gu = session.get("google_user") or {}
+    name = gu.get("name") or ("محطة العمل" if is_workstation() else "مستخدم النظام")
+    return jsonify({"name": name, "role": "إدارة الأسطول والتوثيق"})
+
+
 # ── Automatic document-expiry email alerts ────────────────────────────────────
 # Read-only scan of the schedule + employees blobs for documents that expired or expire
 # soon, formatted into a branded email. Recipients come from the request (manual "send now")
