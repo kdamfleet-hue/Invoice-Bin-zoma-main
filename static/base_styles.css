@@ -641,18 +641,31 @@ body.dark-mode .glass-surface, body.dark-mode .card {
    re-theme automatically. The fixed sidebar + body padding avoids any DOM surgery.
    ========================================================================== */
 body.bz-enterprise {
-    --bg-color: #0b1329; --surface: #0f1a36; --surface-hover: #16224a;
+    --bg-color: #0a1020; --surface: #0f1a36; --surface-hover: #16224a;
     --border: #1e2a4a; --border-strong: #2b3a63;
     --text-primary: #e8eefc; --text-secondary: #9fb0d0; --text-muted: #6b7da0;
     --accent: #3b82f6; --accent-gradient: linear-gradient(135deg, #3b82f6, #60a5fa); --accent-glow: rgba(59,130,246,.28);
     --glass-bg: rgba(15,26,54,.72); --glass-border: rgba(255,255,255,.06);
-    --shadow-sm: 0 2px 4px rgba(0,0,0,.4); --shadow-md: 0 10px 15px -3px rgba(0,0,0,.5); --shadow-lg: 0 25px 50px -12px rgba(0,0,0,.6);
+    --shadow-sm: 0 2px 6px rgba(0,0,0,.45); --shadow-md: 0 10px 30px rgba(0,0,0,.45); --shadow-lg: 0 25px 60px -12px rgba(0,0,0,.65);
     --skeleton-start: #16224a; --skeleton-end: #1e2a4a;
+    /* premium gold accents reused across the shell (sparingly) */
+    --bz-gold: #c9a227; --bz-gold-soft: #e3c766; --bz-gold-glow: rgba(201,162,39,.30);
+    --bz-hairline: rgba(255,255,255,.06); --bz-toplight: linear-gradient(180deg, rgba(255,255,255,.035), transparent);
     --bz-side-w: 256px;
     background-image: none !important;
     padding: 0 !important;
     padding-right: var(--bz-side-w) !important;  /* القائمة الجانبية ثابتة دائماً على اليمين في كل التبويبات (موضع فيزيائي مستقل عن اتجاه الصفحة) */
     transition: padding .25s ease;
+}
+/* Subtle, never-flat enterprise background — deep navy-charcoal radial+linear depth */
+html.bz-enterprise-html, body.bz-enterprise { color: var(--text-primary); }
+body.bz-enterprise {
+    background-color: var(--bg-color) !important;
+    background-image:
+        radial-gradient(1200px 700px at 100% 0%, rgba(59,130,246,.10), transparent 60%),
+        radial-gradient(1000px 600px at 0% 100%, rgba(201,162,39,.06), transparent 55%),
+        linear-gradient(160deg, #0a1020 0%, #0d1530 100%) !important;
+    background-attachment: fixed !important;
 }
 body.bz-enterprise.side-collapsed { --bz-side-w: 74px; }
 
@@ -724,3 +737,266 @@ body.side-collapsed .bz-sidebar nav a { justify-content: center; padding: 11px 0
     body.bz-enterprise .bz-top-search { display: none; }
     body.bz-enterprise .bz-top-user .u-meta { display: none; }
 }
+
+/* ==========================================================================
+   ENTERPRISE REFINEMENT LAYER — elite deep-dark polish (additive only)
+   Everything below is scoped to body.bz-enterprise so the light/default and
+   dark-mode themes are untouched. Refines surfaces, buttons, sidebar, topbar,
+   tables, inputs + a premium dark scrollbar. Gold is used sparingly for luxe.
+   Does NOT touch @media print, the workstation rules, or .nb/keep-all rules.
+   ========================================================================== */
+
+/* ---- Cards & surfaces: premium gradient + hairline + soft shadow + lift ---- */
+body.bz-enterprise .glass-surface,
+body.bz-enterprise .card {
+    background:
+        var(--bz-toplight),
+        linear-gradient(180deg, #111e3e 0%, #0f1a36 100%) !important;
+    border: 1px solid var(--bz-hairline);
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: transform .3s cubic-bezier(.16,1,.3,1), box-shadow .3s cubic-bezier(.16,1,.3,1), border-color .3s cubic-bezier(.16,1,.3,1);
+}
+body.bz-enterprise .glass-surface:hover,
+body.bz-enterprise .card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,.12);
+    box-shadow: 0 16px 40px rgba(0,0,0,.45);
+}
+
+/* ---- Stat cards: gold key numbers, premium frame ---- */
+body.bz-enterprise .bz-stat {
+    background: var(--bz-toplight), linear-gradient(180deg, #111e3e 0%, #0f1a36 100%);
+    border: 1px solid var(--bz-hairline);
+    box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    transition: transform .3s cubic-bezier(.16,1,.3,1), border-color .3s ease, box-shadow .3s ease;
+}
+body.bz-enterprise .bz-stat:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.12); box-shadow: 0 16px 40px rgba(0,0,0,.42); }
+
+/* ---- Section title: gold marker bar ---- */
+body.bz-enterprise .bz-section-title { border-bottom-color: var(--bz-hairline); }
+body.bz-enterprise .bz-section-title::before {
+    background: linear-gradient(180deg, var(--bz-gold-soft), var(--bz-gold));
+    box-shadow: 0 0 12px var(--bz-gold-glow);
+}
+
+/* ---- Buttons: tactile, inset highlight, glow on hover, scale on press ---- */
+body.bz-enterprise .btn-primary {
+    background: var(--accent-gradient);
+    box-shadow: 0 6px 18px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.22);
+}
+body.bz-enterprise .btn-primary:hover {
+    box-shadow: 0 10px 26px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.32);
+    filter: brightness(1.06);
+}
+body.bz-enterprise .btn-primary:active { transform: scale(.97); }
+
+body.bz-enterprise .btn-outline {
+    background: rgba(255,255,255,.03);
+    border: 1px solid var(--bz-hairline);
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+body.bz-enterprise .btn-outline:hover {
+    background: rgba(255,255,255,.08);
+    border-color: rgba(255,255,255,.18);
+    color: #fff;
+}
+body.bz-enterprise .btn-outline:active { transform: scale(.97); }
+
+body.bz-enterprise .btn-danger {
+    background: rgba(239,68,68,.12);
+    border: 1px solid rgba(239,68,68,.28);
+    color: #fca5a5;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+body.bz-enterprise .btn-danger:hover { background: #ef4444; color: #fff; border-color: #ef4444; box-shadow: 0 6px 18px rgba(239,68,68,.32); }
+body.bz-enterprise .btn-danger:active { transform: scale(.97); }
+
+/* Gold premium CTAs — refine the existing gold/orange submit variants */
+body.bz-enterprise .btn-submit-gold {
+    background: linear-gradient(135deg, var(--bz-gold-soft) 0%, var(--bz-gold) 100%);
+    color: #2a2207;
+    box-shadow: 0 6px 18px var(--bz-gold-glow), inset 0 1px 0 rgba(255,255,255,.35);
+}
+body.bz-enterprise .btn-submit-gold:hover { filter: brightness(1.06); box-shadow: 0 10px 26px var(--bz-gold-glow), inset 0 1px 0 rgba(255,255,255,.45); }
+body.bz-enterprise .btn-submit-gold:active { transform: scale(.97); }
+body.bz-enterprise .btn-submit-orange { box-shadow: 0 6px 18px rgba(234,88,12,.30), inset 0 1px 0 rgba(255,255,255,.25); }
+body.bz-enterprise .btn-submit-orange:hover { filter: brightness(1.06); }
+body.bz-enterprise .btn-submit-orange:active { transform: scale(.97); }
+
+/* ---- Sidebar: refined brand, nav, active indicator (blue+gold), collapse ---- */
+body.bz-enterprise .bz-sidebar {
+    background:
+        radial-gradient(120% 60% at 100% 0%, rgba(59,130,246,.08), transparent 60%),
+        linear-gradient(180deg, #0d182f 0%, #0a1428 100%);
+    border-left: 1px solid var(--bz-hairline);
+    box-shadow: -1px 0 0 rgba(255,255,255,.02);
+}
+body.bz-enterprise .bz-sidebar .side-brand {
+    border-bottom: 1px solid var(--bz-hairline);
+    position: relative;
+}
+body.bz-enterprise .bz-sidebar .side-brand::after {
+    content: ''; position: absolute; bottom: -1px; right: .9rem; left: .9rem; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--bz-gold), transparent); opacity: .7;
+}
+body.bz-enterprise .bz-sidebar .side-brand b { letter-spacing: .2px; }
+body.bz-enterprise .bz-sidebar nav a {
+    position: relative;
+    border-inline-start: 3px solid transparent;
+    transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+body.bz-enterprise .bz-sidebar nav a:hover {
+    background: rgba(255,255,255,.055);
+    color: #fff;
+    border-inline-start-color: rgba(201,162,39,.5);
+}
+body.bz-enterprise .bz-sidebar nav a.active {
+    background: linear-gradient(90deg, rgba(59,130,246,.16), rgba(59,130,246,.04));
+    color: #bcd4ff;
+    border-inline-start-color: var(--accent);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+/* gold tick on the active item (sits on the inline-start edge, RTL-correct) */
+body.bz-enterprise .bz-sidebar nav a.active::before {
+    content: ''; position: absolute; inset-inline-start: -3px; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 18px; border-radius: 3px;
+    background: linear-gradient(180deg, var(--bz-gold-soft), var(--bz-gold));
+    box-shadow: 0 0 10px var(--bz-gold-glow);
+}
+body.bz-enterprise .bz-sidebar nav a .si { color: inherit; }
+body.bz-enterprise .bz-sidebar .side-foot { border-top: 1px solid var(--bz-hairline); }
+body.bz-enterprise .bz-sidebar .side-foot button {
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--bz-hairline);
+    transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+body.bz-enterprise .bz-sidebar .side-foot button:hover {
+    background: rgba(201,162,39,.12);
+    border-color: rgba(201,162,39,.32);
+    color: #fff;
+}
+/* collapsed (icon-only) state — center icons, gold active glow stays */
+body.bz-enterprise.side-collapsed .bz-sidebar nav a.active {
+    background: rgba(59,130,246,.16);
+    border-inline-start-color: transparent;
+}
+body.bz-enterprise.side-collapsed .bz-sidebar nav a .si {
+    border-radius: 10px;
+}
+body.bz-enterprise.side-collapsed .bz-sidebar nav a.active .si {
+    color: #fff;
+}
+
+/* ---- Topbar: refined glass header + premium widgets ---- */
+body.bz-enterprise .bz-topbar {
+    background: linear-gradient(180deg, rgba(13,23,48,.92), rgba(11,20,42,.82));
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border-bottom: 1px solid var(--bz-hairline);
+    box-shadow: 0 1px 0 rgba(255,255,255,.03), 0 8px 24px rgba(0,0,0,.30);
+}
+/* keep the slim gold underline accent */
+body.bz-enterprise .bz-topbar::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--bz-gold), transparent); opacity: .55; pointer-events: none;
+}
+body.bz-enterprise .bz-topbar { position: sticky; }
+body.bz-enterprise .bz-topbar .bz-brand-text strong { color: #fff; }
+body.bz-enterprise .bz-topbar .bz-brand-text span { color: var(--bz-gold-soft); }
+
+body.bz-enterprise .bz-top-search input {
+    background: rgba(255,255,255,.035);
+    border: 1px solid var(--bz-hairline);
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+body.bz-enterprise .bz-top-search input:focus {
+    border-color: var(--accent);
+    background: rgba(255,255,255,.05);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+body.bz-enterprise .bz-top-ico {
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--bz-hairline);
+    transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
+}
+body.bz-enterprise .bz-top-ico:hover { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.16); transform: translateY(-1px); }
+body.bz-enterprise .bz-top-user { border-inline-start: 1px solid var(--bz-hairline); }
+body.bz-enterprise .bz-top-user .u-av {
+    box-shadow: 0 4px 12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.25);
+    border: 1px solid rgba(255,255,255,.12);
+}
+
+/* ---- Tables: premium dark data grids (hairline rows, subtle header) ---- */
+body.bz-enterprise .table-wrapper {
+    border: 1px solid var(--bz-hairline);
+    background: linear-gradient(180deg, #111e3e, #0f1a36);
+    box-shadow: 0 10px 30px rgba(0,0,0,.3);
+}
+body.bz-enterprise th {
+    background: linear-gradient(180deg, #16234a, #121d3c);
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--bz-hairline);
+}
+body.bz-enterprise td {
+    border-bottom: 1px solid rgba(255,255,255,.045);
+    color: var(--text-primary);
+}
+body.bz-enterprise tr:hover td { background: rgba(59,130,246,.06); }
+body.bz-enterprise .drivers-table th { color: var(--brand-gold-soft, #e3c766); }
+body.bz-enterprise .drivers-table tr:hover td { background: rgba(201,162,39,.06); }
+/* .bz-fit gold-tinted header underline, hairline cells — keep-all/.nb intact (untouched) */
+body.bz-enterprise .bz-fit thead th { border-bottom: 1px solid rgba(201,162,39,.22); }
+body.bz-enterprise .bz-fit td { border-bottom: 1px solid rgba(255,255,255,.045); }
+
+/* ---- Inputs: dark premium fields with focus ring ---- */
+body.bz-enterprise input,
+body.bz-enterprise select,
+body.bz-enterprise textarea {
+    background: rgba(255,255,255,.035);
+    border: 1px solid var(--bz-hairline);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.25);
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+body.bz-enterprise input::placeholder,
+body.bz-enterprise textarea::placeholder { color: var(--text-muted); }
+body.bz-enterprise input:hover,
+body.bz-enterprise select:hover,
+body.bz-enterprise textarea:hover { border-color: rgba(255,255,255,.16); }
+body.bz-enterprise input:focus,
+body.bz-enterprise select:focus,
+body.bz-enterprise textarea:focus {
+    border-color: var(--accent);
+    background: rgba(255,255,255,.05);
+    box-shadow: 0 0 0 3px var(--accent-glow), inset 0 1px 2px rgba(0,0,0,.2);
+}
+/* keep the in-table editable cells transparent (preserve .bz-fit behavior) */
+body.bz-enterprise .bz-fit td input,
+body.bz-enterprise .bz-fit td select,
+body.bz-enterprise .bz-fit td textarea {
+    background: transparent; border: none; box-shadow: none;
+}
+body.bz-enterprise .bz-fit td input:focus,
+body.bz-enterprise .bz-fit td textarea:focus {
+    background: var(--surface); outline: 2px solid var(--accent); outline-offset: -2px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.45);
+}
+
+/* ---- Premium custom scrollbar for dark surfaces ---- */
+body.bz-enterprise { scrollbar-width: thin; scrollbar-color: #2b3a63 transparent; }
+body.bz-enterprise *::-webkit-scrollbar { width: 10px; height: 10px; }
+body.bz-enterprise *::-webkit-scrollbar-track { background: transparent; }
+body.bz-enterprise *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #2b3a63, #1e2a4a);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+body.bz-enterprise *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #3a4d80, #283864);
+    background-clip: padding-box;
+}
+body.bz-enterprise *::-webkit-scrollbar-corner { background: transparent; }

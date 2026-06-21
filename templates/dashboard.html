@@ -104,11 +104,59 @@
         .filters { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .9rem; align-items: center; }
         .chip {
             border: 1px solid var(--d-border); background: rgba(255,255,255,.04); color: var(--d-text-2);
-            padding: 6px 13px; border-radius: 999px; font-size: .78rem; font-weight: 700; cursor: pointer; transition: .15s;
+            padding: 6px 13px; border-radius: 999px; font-size: .78rem; font-weight: 700; cursor: pointer;
+            transition: .2s cubic-bezier(.4,0,.2,1); display: inline-flex; align-items: center; gap: 5px;
         }
-        .chip:hover { background: rgba(255,255,255,.09); }
-        .chip.on { background: var(--gold); color: var(--navy); border-color: var(--gold); }
-        .chip .c-n { opacity: .7; font-weight: 800; margin-inline-start: 4px; }
+        .chip:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.16); transform: translateY(-1px); }
+        .chip:active { transform: scale(.97); }
+        .chip.on { background: var(--gold); color: var(--navy); border-color: var(--gold); box-shadow: 0 4px 14px rgba(201,162,39,.28); }
+        .chip .c-n {
+            opacity: .85; font-weight: 800; margin-inline-start: 4px; font-variant-numeric: tabular-nums;
+            background: rgba(0,0,0,.18); padding: 0 7px; border-radius: 999px; min-width: 18px; text-align: center;
+        }
+        .chip.on .c-n { background: rgba(255,255,255,.28); opacity: 1; }
+
+        /* alerts helper sentence */
+        .al-help {
+            font-size: .78rem; color: var(--d-muted); line-height: 1.6; margin: -.4rem 0 1rem;
+            display: flex; align-items: center; gap: .5rem;
+        }
+        .al-help::before { content: 'ℹ️'; font-size: .9rem; }
+
+        /* alerts summary strip — premium severity stat chips */
+        .al-summary {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: .7rem; margin-bottom: 1rem;
+        }
+        .al-stat {
+            position: relative; overflow: hidden; cursor: pointer;
+            background: linear-gradient(160deg, var(--d-card) 0%, var(--d-card-2) 100%);
+            border: 1px solid var(--d-border); border-radius: 16px; padding: 14px 16px;
+            display: flex; align-items: center; gap: .8rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,.35);
+            transition: .3s cubic-bezier(.4,0,.2,1);
+        }
+        .al-stat::before {
+            content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 4px;
+            background: var(--sev, var(--gold)); opacity: .95;
+        }
+        .al-stat::after {
+            content: ''; position: absolute; inset: 0; pointer-events: none;
+            background: linear-gradient(180deg, rgba(255,255,255,.035), transparent 60%);
+        }
+        .al-stat:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.14); box-shadow: 0 16px 38px rgba(0,0,0,.45); }
+        .al-stat.on { border-color: var(--sev, var(--gold)); box-shadow: 0 0 0 1px var(--sev, var(--gold)), 0 16px 38px rgba(0,0,0,.45); }
+        .al-stat .as-ic {
+            width: 42px; height: 42px; flex: 0 0 42px; border-radius: 12px; font-size: 1.25rem;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,.05); border: 1px solid var(--d-border);
+        }
+        .al-stat .as-body { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+        .al-stat .as-n { font-size: 1.7rem; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+        .al-stat .as-l { font-size: .76rem; color: var(--d-muted); font-weight: 700; white-space: nowrap; }
+        .al-stat.sev-expired { --sev: var(--red); } .al-stat.sev-expired .as-n { color: #fca5a5; }
+        .al-stat.sev-d30 { --sev: var(--amber); } .al-stat.sev-d30 .as-n { color: #fcd34d; }
+        .al-stat.sev-d90 { --sev: var(--yellow); } .al-stat.sev-d90 .as-n { color: #fde68a; }
+        .al-stat.sev-valid { --sev: var(--green); } .al-stat.sev-valid .as-n { color: #6ee7b7; }
 
         .dtable-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--d-border); }
         table.dtable { width: 100%; border-collapse: collapse; font-size: .82rem; }
@@ -120,13 +168,44 @@
         table.dtable tbody td { padding: 10px 12px; border-bottom: 1px solid var(--d-border-2); color: var(--d-text); vertical-align: middle; }
         table.dtable tbody tr:hover td { background: rgba(255,255,255,.03); }
         table.dtable .plate { font-family: monospace; direction: ltr; unicode-bidi: plaintext; display: inline-block; font-weight: 700; }
-        .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; }
-        .st-expired { background: rgba(239,68,68,.15); color: #fca5a5; }
-        .st-d30 { background: rgba(245,158,11,.16); color: #fcd34d; }
-        .st-d90 { background: rgba(234,179,8,.14); color: #fde68a; }
-        .st-valid { background: rgba(16,185,129,.15); color: #6ee7b7; }
-        .st-unknown { background: rgba(255,255,255,.07); color: var(--d-muted); }
-        .days-left { font-variant-numeric: tabular-nums; font-size: .72rem; color: var(--d-muted); }
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
+            font-size: .72rem; font-weight: 800; white-space: nowrap; line-height: 1.4;
+            border: 1px solid transparent;
+        }
+        .badge .b-ic { font-size: .76rem; line-height: 1; }
+        .badge .b-sep { opacity: .5; font-weight: 600; }
+        .badge .b-days { font-weight: 700; font-variant-numeric: tabular-nums; opacity: .92; }
+        .st-expired { background: rgba(239,68,68,.15); color: #fca5a5; border-color: rgba(239,68,68,.32); }
+        .st-d30 { background: rgba(245,158,11,.16); color: #fcd34d; border-color: rgba(245,158,11,.30); }
+        .st-d90 { background: rgba(234,179,8,.14); color: #fde68a; border-color: rgba(234,179,8,.28); }
+        .st-valid { background: rgba(16,185,129,.15); color: #6ee7b7; border-color: rgba(16,185,129,.30); }
+        .st-unknown { background: rgba(255,255,255,.07); color: var(--d-muted); border-color: var(--d-border); }
+        .days-left { font-variant-numeric: tabular-nums; font-size: .74rem; font-weight: 700; color: var(--d-muted); }
+        .days-left.du-expired { color: #fca5a5; } .days-left.du-d30 { color: #fcd34d; }
+        .days-left.du-d90 { color: #fde68a; } .days-left.du-valid { color: #6ee7b7; }
+
+        /* severity color bar on row edge */
+        table.dtable tbody td.sev-cell { position: relative; padding-inline-start: 16px; }
+        table.dtable tbody td.sev-cell::before {
+            content: ''; position: absolute; inset-inline-start: 0; top: 4px; bottom: 4px; width: 4px;
+            border-radius: 0 3px 3px 0; background: var(--row-sev, transparent);
+        }
+        tr.sev-expired { --row-sev: var(--red); } tr.sev-d30 { --row-sev: var(--amber); }
+        tr.sev-d90 { --row-sev: var(--yellow); } tr.sev-valid { --row-sev: var(--green); }
+        tr.sev-unknown { --row-sev: rgba(255,255,255,.12); }
+        table.dtable tbody tr.sev-expired:hover td { background: rgba(239,68,68,.05); }
+
+        /* record-type indicator pill */
+        .rtype {
+            display: inline-flex; align-items: center; gap: 5px; font-size: .7rem; font-weight: 700;
+            color: var(--d-text-2); padding: 2px 9px; border-radius: 999px;
+            background: rgba(255,255,255,.04); border: 1px solid var(--d-border); white-space: nowrap;
+        }
+        .rtype.rt-vehicle { color: #93c5fd; background: rgba(59,130,246,.10); border-color: rgba(59,130,246,.24); }
+        .rtype.rt-person { color: #c4b5fd; background: rgba(139,92,246,.10); border-color: rgba(139,92,246,.24); }
+        .al-name { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+        .al-name b { font-weight: 700; color: var(--d-text); }
 
         /* ---- Charts ---- */
         .bar-row { display: flex; align-items: center; gap: .6rem; margin-bottom: .55rem; font-size: .8rem; }
@@ -262,6 +341,8 @@
             <!-- Alerts -->
             <div class="dash-h" id="alerts">🚨 مركز تنبيهات الوثائق <span class="sub" id="alSub"></span></div>
             <section class="panel">
+                <div class="al-help">يعرض هذا المركز حالة صلاحية وثائق المركبات والموظفين، مرتّبة حسب الأولوية، مع المدة المتبقية حتى الانتهاء.</div>
+                <div class="al-summary" id="alSummary"></div>
                 <div id="alMailBar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.7rem .8rem;background:var(--d-card-2);border:1px solid var(--d-border);border-radius:12px;">
                     <span style="font-weight:700;font-size:.84rem;">📧 إرسال تنبيهات الوثائق بالبريد:</span>
                     <input id="alMailTo" type="text" placeholder="بريد المستلمين (افصل بفاصلة)" style="flex:1;min-width:220px;background:var(--d-bg2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:8px 12px;font:inherit;font-size:.82rem;outline:none;">
@@ -487,10 +568,43 @@
     ALERTS.sort(function (a, b) { return a.st.rank - b.st.rank || ((a.st.days == null ? 1e9 : a.st.days) - (b.st.days == null ? 1e9 : b.st.days)); });
   }
 
+  // presentation-only helpers (no data changes)
+  var ST_ICON = { expired: '🔴', d30: '🟠', d90: '🟡', valid: '🟢', unknown: '⚪' };
+  var VEH_DOCS = { 'الفحص الدوري': 1, 'رخصة السير': 1, 'بطاقة التشغيل': 1, 'بطاقة السائق': 1 };
+  function recType(a) {
+    // derived presentation: vehicle docs OR a plate present => مركبة, otherwise موظف
+    if (VEH_DOCS[a.doc] || (a.plate && a.plate !== '')) return { cls: 'rt-vehicle', ic: '🚚', t: 'مركبة' };
+    return { cls: 'rt-person', ic: '👤', t: 'موظف' };
+  }
+  function badgeHTML(st) {
+    var ic = ST_ICON[st.key] || '⚪';
+    var dt = fmtDays(st);
+    var sep = (dt && dt !== '—') ? '<span class="b-sep"> · </span><span class="b-days">' + esc(dt) + '</span>' : '';
+    return '<span class="badge ' + st.cls + '"><span class="b-ic">' + ic + '</span>' + esc(st.label) + sep + '</span>';
+  }
+
   var alFilter = 'attention'; // attention = expired+d30+d90
   function renderAlerts() {
     var counts = { expired: 0, d30: 0, d90: 0, valid: 0, unknown: 0 };
     ALERTS.forEach(function (a) { counts[a.st.key]++; });
+    // premium summary strip (uses existing counts; chips also act as filters)
+    var sumDefs = [
+      { k: 'expired', sev: 'sev-expired', ic: '🔴', t: 'منتهية', n: counts.expired },
+      { k: 'd30', sev: 'sev-d30', ic: '🟠', t: '≤ 30 يوم', n: counts.d30 },
+      { k: 'd90', sev: 'sev-d90', ic: '🟡', t: '≤ 90 يوم', n: counts.d90 },
+      { k: 'valid', sev: 'sev-valid', ic: '🟢', t: 'سارية', n: counts.valid }
+    ];
+    var alSum = $('alSummary');
+    if (alSum) {
+      alSum.innerHTML = sumDefs.map(function (d) {
+        return '<div class="al-stat ' + d.sev + (alFilter === d.k ? ' on' : '') + '" data-k="' + d.k + '">' +
+          '<div class="as-ic">' + d.ic + '</div>' +
+          '<div class="as-body"><span class="as-n">' + d.n + '</span><span class="as-l">' + d.t + '</span></div></div>';
+      }).join('');
+      Array.prototype.forEach.call(alSum.querySelectorAll('.al-stat'), function (c) {
+        c.onclick = function () { alFilter = c.getAttribute('data-k'); renderAlerts(); };
+      });
+    }
     var defs = [
       { k: 'attention', t: 'تحتاج إجراء', n: counts.expired + counts.d30 + counts.d90 },
       { k: 'expired', t: '🔴 منتهية', n: counts.expired },
@@ -513,8 +627,15 @@
     $('alSub').textContent = list.length + ' وثيقة';
     if (!list.length) { $('alBody').innerHTML = '<tr><td colspan="6" class="empty-hint">لا توجد وثائق في هذا التصنيف ✓</td></tr>'; return; }
     $('alBody').innerHTML = list.slice(0, 400).map(function (a) {
-      return '<tr><td>' + esc(a.name) + '</td><td><span class="plate">' + esc(a.plate || '—') + '</span></td><td>' + esc(a.doc) +
-        '</td><td>' + esc(a.date) + '</td><td class="days-left">' + fmtDays(a.st) + '</td><td><span class="badge ' + a.st.cls + '">' + a.st.label + '</span></td></tr>';
+      var rt = recType(a);
+      return '<tr class="sev-' + a.st.key + '">' +
+        '<td class="sev-cell"><div class="al-name"><b>' + esc(a.name) + '</b>' +
+          '<span class="rtype ' + rt.cls + '">' + rt.ic + ' ' + rt.t + '</span></div></td>' +
+        '<td><span class="plate">' + esc(a.plate || '—') + '</span></td>' +
+        '<td>' + esc(a.doc) + '</td>' +
+        '<td>' + esc(a.date) + '</td>' +
+        '<td class="days-left du-' + a.st.key + '">' + esc(fmtDays(a.st)) + '</td>' +
+        '<td>' + badgeHTML(a.st) + '</td></tr>';
     }).join('');
   }
 

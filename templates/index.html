@@ -9,28 +9,106 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <style>
+        /* ════════════════════════════════════════════════
+           HOMEPAGE — elite enterprise SaaS polish (BIN ZOMAH INTL.)
+           Visual layer only. No token edits in base_styles.css.
+           ════════════════════════════════════════════════ */
+
+        /* Premium HERO around the existing brand identity + title */
+        .bz-hero {
+            position: relative;
+            z-index: 2;
+            max-width: 1000px;
+            width: 95%;
+            margin: 1.5rem auto 2.5rem;
+            padding: 3rem 2rem 2.75rem;
+            border-radius: 24px;
+            text-align: center;
+            overflow: hidden;
+            background:
+                radial-gradient(1200px 420px at 50% -10%, rgba(59,130,246,0.16), transparent 60%),
+                linear-gradient(180deg, rgba(255,255,255,0.05), transparent 55%),
+                linear-gradient(160deg, #0d1530, #0a1020);
+            border: 1px solid rgba(255,255,255,0.07);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        .bz-hero::before {
+            content: "";
+            position: absolute;
+            inset: -40% -20% auto -20%;
+            height: 80%;
+            background: radial-gradient(600px 300px at 30% 0%, rgba(201,162,39,0.12), transparent 70%);
+            pointer-events: none;
+            animation: bzHeroGlow 9s ease-in-out infinite alternate;
+        }
+        @keyframes bzHeroGlow {
+            0%   { transform: translateX(-6%) translateY(0); opacity: .75; }
+            100% { transform: translateX(6%) translateY(2%); opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .bz-hero::before { animation: none; }
+        }
+        .bz-hero > * { position: relative; z-index: 1; }
+
+        .bz-hero-logo {
+            display: inline-flex;
+            margin-bottom: 1.5rem;
+        }
+        .bz-hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            margin-bottom: 1.1rem;
+            border-radius: 50px;
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            color: #e3c766;
+            background: rgba(201,162,39,0.10);
+            border: 1px solid rgba(201,162,39,0.35);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+        .bz-hero-eyebrow strong { color: #f4e3a6; font-weight: 900; letter-spacing: 0.02em; }
+        .bz-hero-eyebrow span { color: rgba(227,199,102,0.85); font-weight: 700; }
+        .bz-hero-divider {
+            width: 64px;
+            height: 3px;
+            margin: 1.1rem auto 0;
+            border-radius: 3px;
+            background: linear-gradient(90deg, transparent, #c9a227, #e3c766, #c9a227, transparent);
+        }
+
         /* Page-specific layout only (tokens from base_styles.css) */
         .header-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 0 auto 2rem auto;
-            width: 95%;
-            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
             z-index: 2;
         }
 
         .header-title {
-            color: var(--text-primary);
+            color: #ffffff;
             text-align: center;
+            font-size: clamp(2.1rem, 5vw, 3.2rem);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            margin: 0;
+            background: linear-gradient(180deg, #ffffff 0%, #cdd9f3 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .header-subtitle { text-align: center; margin-bottom: 1.5rem; color: var(--text-secondary); }
+        .header-subtitle { text-align: center; margin: 0.9rem 0 1.6rem; color: rgba(203,213,225,0.85); font-weight: 600; font-size: 1.05rem; }
 
         .nav-buttons {
             display: flex;
             gap: 1rem;
-            margin-bottom: 2rem;
+            margin-bottom: 0;
             flex-wrap: wrap;
             justify-content: center;
         }
@@ -80,8 +158,123 @@
         }
         .fab-btn:hover { transform: scale(1.1) rotate(10deg); }
 
+        /* ── Premium invoice form cards (dark design language) ── */
+        #invoiceArea.grid-container { margin-top: 0.5rem; }
+        #invoiceArea .card {
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.035), transparent 60%),
+                linear-gradient(160deg, #0f1a36, #111a33);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+            transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease;
+        }
+        #invoiceArea .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(201,162,39,0.30);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07);
+        }
+        #invoiceArea .card label { color: #f1f5f9; }
+        #invoiceArea .card input,
+        #invoiceArea .card select,
+        #invoiceArea .card textarea {
+            background: rgba(8,13,28,0.55);
+            border: 1px solid rgba(255,255,255,0.09);
+            color: #f8fafc;
+            border-radius: 10px;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+        }
+        #invoiceArea .card input::placeholder,
+        #invoiceArea .card textarea::placeholder { color: rgba(148,163,184,0.7); }
+        #invoiceArea .card input:focus,
+        #invoiceArea .card select:focus,
+        #invoiceArea .card textarea:focus {
+            outline: none;
+            border-color: rgba(59,130,246,0.7);
+            background: rgba(8,13,28,0.75);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.28);
+        }
+        #invoiceArea .card input[readonly] { cursor: default; }
+
+        /* ── Theme-aware premium sections (من نحن / تواصل معنا / footer) ── */
+        .bz-section {
+            max-width: 900px;
+            margin: 3rem auto;
+            padding: 2.75rem;
+            z-index: 2;
+            position: relative;
+            border-radius: 20px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.025), transparent 55%),
+                var(--surface);
+            box-shadow: 0 16px 44px rgba(0,0,0,0.10);
+            border: 1px solid var(--border);
+        }
+        body.dark-mode .bz-section {
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.035), transparent 55%),
+                linear-gradient(160deg, #0f1a36, #111a33);
+            border-color: rgba(255,255,255,0.07);
+            box-shadow: 0 16px 44px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .bz-section--narrow { max-width: 700px; }
+        .bz-section h2 {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+        }
+        .bz-section-divider {
+            width: 56px; height: 3px; margin: -0.6rem auto 1.4rem; border-radius: 3px;
+            background: linear-gradient(90deg, transparent, var(--brand-gold, #c9a227), transparent);
+        }
+        .bz-about-body { color: var(--text-secondary); font-size: 1rem; line-height: 2; text-align: center; }
+        .bz-about-body p { margin-bottom: 1rem; }
+        .bz-about-body strong { color: var(--text-primary); }
+        .bz-about-meta { color: var(--text-muted); font-size: 0.9rem; }
+        .bz-about-meta a { color: var(--accent); font-weight: bold; text-decoration: none; }
+        .bz-about-meta a:hover { text-decoration: underline; }
+
+        .bz-contact-sub { text-align: center; color: var(--text-muted); margin-bottom: 2rem; }
+        .bz-contact-list { display: flex; flex-direction: column; gap: 1.2rem; align-items: center; }
+        .bz-contact-card {
+            display: flex; align-items: center; gap: 14px; text-decoration: none;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            padding: 1rem 1.6rem; border-radius: 14px; width: 100%; max-width: 420px;
+            transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        .bz-contact-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--brand-gold, #c9a227);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.14);
+        }
+        body.dark-mode .bz-contact-card:hover { box-shadow: 0 12px 28px rgba(0,0,0,0.45); }
+        .bz-contact-card .ico { font-size: 1.7rem; }
+        .bz-contact-card .lbl { font-weight: 700; color: var(--text-secondary); font-size: 0.9rem; }
+        .bz-contact-card .val { color: var(--text-primary); font-size: 1.02rem; direction: ltr; font-weight: 700; }
+
+        .bz-footer {
+            text-align: center;
+            padding: 24px 20px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            margin-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+        .bz-footer::before {
+            content: "";
+            display: block;
+            width: 48px; height: 3px; margin: 0 auto 16px; border-radius: 3px;
+            background: linear-gradient(90deg, transparent, var(--brand-gold, #c9a227), transparent);
+        }
+
+        @media (max-width: 600px) { .bz-section { padding: 1.75rem 1.25rem; } }
         @media (max-width: 768px) {
             .header-title { font-size: 1.8rem; }
+            .bz-hero { padding: 2.25rem 1.25rem 2rem; }
         }
     </style>
 
@@ -120,11 +313,15 @@
 
     <div class="bz-shell">
 
+    <section class="bz-hero">
+
     <div class="header-container">
 
-    <div class="logo" style="text-align: center; margin-bottom: 2rem;">
+    <div class="bz-hero-logo logo" style="text-align: center;">
         <img src="{{ url_for('static', filename='main_logo.png') }}" alt="Bin Zomah Intl Logo" style="height: 132px; background:#ffffff; padding:16px 30px; border-radius:18px; box-shadow:0 12px 34px rgba(0,0,0,0.38);">
     </div>
+
+    <div class="bz-hero-eyebrow"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
 
     {% if google_user %}
     <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1001; backdrop-filter: blur(5px);">
@@ -143,6 +340,10 @@
         </div>
 
     </div>
+
+    <div class="bz-hero-divider"></div>
+
+    </section>
 
     <div class="grid-container" id="invoiceArea">
         <!-- 1. اسم السائق -->
@@ -779,21 +980,29 @@
 <!-- ═══════════════════════════════════════════ -->
 <style>
   .team-section { max-width:1100px; margin:3rem auto 2rem; padding:0 1rem; position:relative; z-index:2; }
-  .team-section > h2 { text-align:center; font-size:2rem; font-weight:800; color:var(--brand-navy,#0C2340); margin-bottom:.4rem; }
+  .team-section > h2 { text-align:center; font-size:2rem; font-weight:800; letter-spacing:-0.01em; color:var(--text-primary,#0C2340); margin-bottom:.4rem; }
   .team-section .sub { text-align:center; color:var(--text-secondary,#5a6a7a); margin:0 0 1.6rem; font-weight:600; }
   body.dark-mode .team-section > h2 { color:#fff; }
   .team-slider { display:flex; align-items:center; gap:.6rem; }
   .team-track { display:flex; gap:1.2rem; overflow-x:auto; scroll-snap-type:x mandatory; scroll-behavior:smooth; padding:12px 4px 22px; flex:1; scrollbar-width:none; }
   .team-track::-webkit-scrollbar { height:0; display:none; }
-  .team-card { flex:0 0 230px; scroll-snap-align:center; background:var(--surface,#fff); border:1px solid var(--border,#eef2f5); border-radius:22px; padding:18px 16px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.08); transition:transform .3s ease, box-shadow .3s ease; }
-  .team-card:hover { transform:translateY(-6px); box-shadow:0 16px 38px rgba(12,35,64,0.18); }
-  .team-card .img-box { width:148px; height:148px; margin:0 auto 14px; border-radius:50%; overflow:hidden; border:4px solid var(--brand-gold,#c9a227); background:var(--surface-hover,#f1f5f9); }
+  .team-card { flex:0 0 230px; scroll-snap-align:center;
+    background:linear-gradient(180deg, rgba(255,255,255,0.035), transparent 55%), var(--surface,#fff);
+    border:1px solid var(--border,#eef2f5); border-radius:22px; padding:18px 16px; text-align:center;
+    box-shadow:0 10px 30px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition:transform .3s cubic-bezier(0.16,1,0.3,1), box-shadow .3s ease, border-color .3s ease; }
+  .team-card:hover { transform:translateY(-6px); border-color:rgba(201,162,39,0.40); box-shadow:0 18px 42px rgba(12,35,64,0.22); }
+  body.dark-mode .team-card { border-color:rgba(255,255,255,0.07); }
+  .team-card .img-box { width:148px; height:148px; margin:0 auto 14px; border-radius:50%; overflow:hidden;
+    border:4px solid var(--brand-gold,#c9a227); background:var(--surface-hover,#f1f5f9);
+    box-shadow:0 0 0 1px rgba(201,162,39,0.35), 0 8px 22px rgba(201,162,39,0.18); }
   .team-card .img-box img { width:100%; height:100%; object-fit:cover; display:block; }
   .team-card .t-name { color:var(--text-primary,#1a2b49); font-size:1.02rem; font-weight:800; margin:4px 0; line-height:1.4; }
   .team-card .t-title { color:var(--brand-gold,#c9a227); font-weight:700; font-size:.9rem; margin:2px 0 6px; }
   .team-card .t-branch { color:var(--text-secondary,#5a6a7a); font-size:.8rem; margin:0; }
-  .team-nav { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0); border-radius:50%; width:44px; height:44px; min-width:44px; font-size:1.15rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,0.1); color:var(--brand-navy,#0C2340); transition:.25s; }
-  .team-nav:hover { background:var(--brand-navy,#0C2340); color:#fff; transform:scale(1.08); }
+  .team-nav { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0); border-radius:50%; width:46px; height:46px; min-width:46px; font-size:1.15rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(0,0,0,0.12); color:var(--text-primary,#0C2340); transition:transform .25s cubic-bezier(0.34,1.56,0.64,1), background .25s ease, color .25s ease, border-color .25s ease; }
+  .team-nav:hover { background:var(--brand-gold,#c9a227); color:#1a1407; border-color:var(--brand-gold,#c9a227); transform:scale(1.08); }
+  .team-nav:active { transform:scale(0.97); }
   @media (max-width:520px){ .team-card{ flex-basis:200px; } }
 </style>
 <section class="team-section" id="team">
@@ -836,22 +1045,23 @@
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم من نحن -->
 <!-- ═══════════════════════════════════════════ -->
-<section id="about" style="max-width:900px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
-    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:1.5rem;">🏢 من نحن</h2>
-    <div style="color:#3A4A5A; font-size:1rem; line-height:2; text-align:center;">
-        <p style="margin-bottom:1rem;">
-            <strong style="color:#1A3A5C;">شركة بن زومة للتجارة الدولية والإنماء المحدودة</strong> — فرع الدمام، قسم الحركة والنقل.
+<section id="about" class="bz-section">
+    <h2>🏢 من نحن</h2>
+    <div class="bz-section-divider"></div>
+    <div class="bz-about-body">
+        <p>
+            <strong>شركة بن زومة للتجارة الدولية والإنماء المحدودة</strong> — فرع الدمام، قسم الحركة والنقل.
         </p>
-        <p style="margin-bottom:1rem;">
+        <p>
             نحن فريق متخصص في إدارة الأسطول والمركبات، نعمل على تقديم حلول ذكية ومتكاملة لإدارة حركة السيارات والسائقين بكفاءة عالية.
         </p>
-        <p style="margin-bottom:1rem;">
-            يُدار هذا النظام الإلكتروني بواسطة <strong style="color:#1A3A5C;">قسم الحركة</strong>، ويهدف إلى أتمام جميع العمليات اليومية من فوترة وصيانة وتتبع وجداول، مما يضمن سير العمل بسلاسة ودقة.
+        <p>
+            يُدار هذا النظام الإلكتروني بواسطة <strong>قسم الحركة</strong>، ويهدف إلى أتمام جميع العمليات اليومية من فوترة وصيانة وتتبع وجداول، مما يضمن سير العمل بسلاسة ودقة.
         </p>
-        <p style="color:#6B7B8D; font-size:0.9rem;">
+        <p class="bz-about-meta">
             📍 المملكة العربية السعودية — فرع الدمام<br>
             الموقع الرسمي للشركة<br>
-            🌐 <a href="https://bz.sa" target="_blank" style="color:#1A3A5C; font-weight:bold;">bz.sa</a>
+            🌐 <a href="https://bz.sa" target="_blank">bz.sa</a>
         </p>
     </div>
 </section>
@@ -859,28 +1069,29 @@
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم تواصل معنا -->
 <!-- ═══════════════════════════════════════════ -->
-<section id="contact" style="max-width:700px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
-    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:0.5rem;">📞 تواصل معنا</h2>
-    <p style="text-align:center; color:#6B7B8D; margin-bottom:2rem;">قسم الحركة — مسؤول النظام: خالد بن محمد الغامدي</p>
-    <div style="display:flex; flex-direction:column; gap:1.2rem; align-items:center;">
-        <a href="mailto:damfleet@bz.sa" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''">
-            <span style="font-size:1.8rem;">📧</span>
+<section id="contact" class="bz-section bz-section--narrow">
+    <h2>📞 تواصل معنا</h2>
+    <div class="bz-section-divider"></div>
+    <p class="bz-contact-sub">قسم الحركة — مسؤول النظام: خالد بن محمد الغامدي</p>
+    <div class="bz-contact-list">
+        <a href="mailto:damfleet@bz.sa" class="bz-contact-card">
+            <span class="ico">📧</span>
             <div>
-                <div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">البريد الإلكتروني</div>
-                <div style="color:#3A4A5A; font-size:1rem; direction:ltr;">damfleet@bz.sa</div>
+                <div class="lbl">البريد الإلكتروني</div>
+                <div class="val">damfleet@bz.sa</div>
             </div>
         </a>
-        <a href="https://wa.me/966570310909?text=مرحباً" target="_blank" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''">
-            <span style="font-size:1.8rem;">📱</span>
+        <a href="https://wa.me/966570310909?text=مرحباً" target="_blank" class="bz-contact-card">
+            <span class="ico">📱</span>
             <div>
-                <div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">الجوال / واتساب</div>
-                <div style="color:#3A4A5A; font-size:1rem; direction:ltr;">0570310909</div>
+                <div class="lbl">الجوال / واتساب</div>
+                <div class="val">0570310909</div>
             </div>
         </a>
     </div>
 </section>
 
-<footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
+<footer class="bz-footer">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
 
 
     <div class="modal-backdrop" id="emailModal">
