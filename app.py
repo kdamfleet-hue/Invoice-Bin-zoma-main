@@ -537,17 +537,19 @@ def _ws_put2(table, value):
 
 def _ws_is_empty(value):
     """True if a stored blob carries NO real rows — covers a missing row, [], {}, and an
-    'empty shell' object like {title, date, main:[], spare:[], vacation:[], summary:{}} that a
-    stray autosave may have written (this is why a tab can look permanently empty)."""
+    'empty shell' object like {title, date:'', main:[], spare:[], vacation:[], summary:{vacation:'0'}}
+    that a stray autosave may have written (this is why a tab can look permanently empty).
+    Rows live ONLY in LIST fields (main/spare/vacation/oils/filters/parts/…); scalar and dict
+    fields (title, date, summary) are metadata and never count as data."""
     if value is None:
         return True
     if isinstance(value, list):
         return len(value) == 0
     if isinstance(value, dict):
         for v in value.values():
-            if isinstance(v, (list, dict)) and len(v) > 0:
+            if isinstance(v, list) and len(v) > 0:
                 return False
-        return True  # only scalars (title/date) or empty containers → no rows
+        return True  # no non-empty list field → no rows
     return False
 
 
