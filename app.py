@@ -14,6 +14,7 @@ import base64
 import requests
 import json
 import re
+from datetime import datetime
 from functools import wraps
 
 try:
@@ -333,6 +334,9 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS records_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Workstation-only blob stores (id=2 sandbox). Additive & never seeded, so the
             # /importantworkstation namespace starts EMPTY and persists what the user types.
             # The MAIN site (/) never reads or writes these.
@@ -481,6 +485,68 @@ def blob_set(table, data_obj):
         else:
             c.execute("INSERT INTO %s (id, data) VALUES (?, ?)" % table, (rid, data_str))
         conn.commit()
+
+
+# ── Audit log (append-only; never edited or deleted from the UI) ──────────────
+# Records WHO changed WHAT and WHEN. Sandboxed per mode (id=1 main / id=2 workstation).
+# Rapid auto-saves of the same target by the same user within a short window are coalesced
+# into one row (bumping its time + count) so the trail stays meaningful, not flooded.
+AUDIT_MAX = 1000
+AUDIT_COALESCE_SEC = 600
+
+
+def _audit_get():
+    rid = _row_id()
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT data FROM audit_log WHERE id = ?", (rid,))
+        row = c.fetchone()
+    try:
+        return json.loads(row["data"]) if row else []
+    except Exception:
+        return []
+
+
+def _audit_write(log):
+    rid = _row_id()
+    data_str = json.dumps(log[-AUDIT_MAX:], ensure_ascii=False)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id FROM audit_log WHERE id = ?", (rid,))
+        if c.fetchone():
+            c.execute("UPDATE audit_log SET data = ? WHERE id = ?", (data_str, rid))
+        else:
+            c.execute("INSERT INTO audit_log (id, data) VALUES (?, ?)", (rid, data_str))
+        conn.commit()
+
+
+def _audit_add(action, target, count=None, detail=""):
+    """Best-effort audit entry. A logging failure must NEVER break the underlying save."""
+    try:
+        who = "محطة العمل" if is_workstation() else ((session.get("google_user") or {}).get("name") or "النظام")
+        now = datetime.now()
+        log = _audit_get()
+        last = log[-1] if log else None
+        if last and last.get("action") == action and last.get("target") == target and last.get("user") == who:
+            try:
+                delta = (now - datetime.strptime(last["ts"], "%Y-%m-%d %H:%M:%S")).total_seconds()
+            except Exception:
+                delta = AUDIT_COALESCE_SEC + 1
+            if 0 <= delta <= AUDIT_COALESCE_SEC:
+                last["ts"] = now.strftime("%Y-%m-%d %H:%M:%S")
+                last["count"] = count
+                last["detail"] = detail
+                last["hits"] = last.get("hits", 1) + 1
+                _audit_write(log)
+                return
+        log.append({
+            "ts": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "user": who, "action": action, "target": target,
+            "count": count, "detail": detail, "hits": 1,
+        })
+        _audit_write(log)
+    except Exception:
+        logger.exception("audit_add failed")
 
 
 # ── Workstation example/demo data (FAKE — for the open sandbox only) ──────────
@@ -1172,7 +1238,9 @@ def washing_data():
     # Workstation mode writes/reads an isolated copy (id=2); the real data (id=1) is untouched.
     if request.method == "POST":
         try:
-            blob_set("washing_schedule", (request.json or {}).get("vehicles", []))
+            vehicles = (request.json or {}).get("vehicles", [])
+            blob_set("washing_schedule", vehicles)
+            _audit_add("تحديث", "جدول الغسيل", len(vehicles) if isinstance(vehicles, list) else None)
             return jsonify({"success": True})
         except Exception:
             logger.exception("washing_data POST error")
@@ -1193,7 +1261,9 @@ def employees_data():
     """Persist the branch employees grid (array of 46-column string rows). Sandboxed for workstation."""
     if request.method == "POST":
         try:
-            blob_set("employees", (request.json or {}).get("rows", []))
+            rows = (request.json or {}).get("rows", [])
+            blob_set("employees", rows)
+            _audit_add("تحديث", "بيانات الموظفين", len(rows) if isinstance(rows, list) else None)
             return jsonify({"success": True})
         except Exception:
             logger.exception("employees_data POST error")
@@ -1212,7 +1282,10 @@ def schedule_data():
     """Persist the weekly schedule (main/spare/vacation/summary). Sandboxed for workstation."""
     if request.method == "POST":
         try:
-            blob_set("schedule_data", request.json or {})
+            sd = request.json or {}
+            blob_set("schedule_data", sd)
+            _n = (len(sd.get("main", []) or []) + len(sd.get("spare", []) or [])) if isinstance(sd, dict) else None
+            _audit_add("تحديث", "الجدول الأسبوعي", _n)
             return jsonify({"success": True})
         except Exception:
             logger.exception("schedule_data POST error")
@@ -1230,7 +1303,9 @@ def records_data():
     """Persist the documentation/records log. Sandboxed for workstation."""
     if request.method == "POST":
         try:
-            blob_set("records_data", (request.json or {}).get("rows", []))
+            rows = (request.json or {}).get("rows", [])
+            blob_set("records_data", rows)
+            _audit_add("تحديث", "سجل التوثيق", len(rows) if isinstance(rows, list) else None)
             return jsonify({"success": True})
         except Exception:
             logger.exception("records_data POST error")
@@ -1241,6 +1316,17 @@ def records_data():
     except Exception:
         logger.exception("records_data GET error")
         return jsonify({"success": False, "rows": []})
+
+
+@app.route("/api/audit_log", methods=["GET"])
+@login_required
+def audit_log_data():
+    """Read-only audit trail. Append-only by design — there is no edit/delete endpoint."""
+    try:
+        return jsonify({"success": True, "rows": _audit_get()})
+    except Exception:
+        logger.exception("audit_log GET error")
+        return jsonify({"success": True, "rows": []})
 
 
 # ── Workstation-only tab state (oils / purchase / workshop) ───────────────────

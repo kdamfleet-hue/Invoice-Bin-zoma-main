@@ -236,6 +236,7 @@
             <a href="#charts"><span class="ic">📈</span> الرسوم البيانية</a>
             <a href="#search"><span class="ic">🔎</span> البحث والفلاتر</a>
             <a href="#history"><span class="ic">🕒</span> سجل التحديثات</a>
+            <a href="#audit"><span class="ic">📝</span> سجل التدقيق</a>
             <div class="side-title">التبويبات</div>
             <nav id="quickLinks"></nav>
         </aside>
@@ -343,6 +344,23 @@
                         • تُحفظ آخر 6 نسخ كاملة قابلة للاستعادة؛ والأقدم يبقى كسجل (تاريخ + ملخص التغييرات).<br>
                         <span style="color:var(--gold-soft)">ملاحظة:</span> هذه اللوحة <b>تقرأ بياناتك فقط</b> ولا تعدّلها أبداً إلا عند ضغطك زر «استعادة».
                     </div>
+                </div>
+            </section>
+
+            <!-- Audit log (server-side, immutable) -->
+            <div class="dash-h" id="audit">📝 سجل التدقيق (Audit Log) <span class="sub" id="auSub"></span></div>
+            <section class="panel">
+                <div class="muted-note" style="margin-bottom:.85rem;">
+                    سجل <b>غير قابل للحذف أو التعديل</b> — يوثّق كل عملية حفظ على الخادم: <b>مَن</b> غيّر <b>ماذا</b> و<b>متى</b>.
+                    (يُحفظ على الخادم بشكل منفصل عن «سجل التحديثات» المحلي أعلاه، وتُجمَّع عمليات الحفظ المتتالية للسجل نفسه في سطر واحد.)
+                </div>
+                <div class="dtable-wrap">
+                    <table class="dtable">
+                        <thead><tr>
+                            <th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>السجل المتأثر</th><th>التفاصيل</th>
+                        </tr></thead>
+                        <tbody id="auBody"><tr><td colspan="5" class="empty-hint">جارٍ التحميل…</td></tr></tbody>
+                    </table>
                 </div>
             </section>
 
@@ -741,6 +759,23 @@
     }).catch(function () { alert('تعذّرت الاستعادة. حاول مرة أخرى.'); });
   };
 
+  // ---------- audit log (server-side, read-only, append-only) ----------
+  function loadAudit() {
+    getJSON('/api/audit_log').then(function (j) {
+      var rows = (j && j.rows) ? j.rows : [];
+      var body = $('auBody'); if (!body) return;
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="empty-hint">لا توجد عمليات مُسجّلة بعد — ستظهر هنا تلقائياً عند أي حفظ.</td></tr>'; $('auSub').textContent = ''; return; }
+      $('auSub').textContent = rows.length + ' عملية';
+      body.innerHTML = rows.slice().reverse().slice(0, 300).map(function (e) {
+        var hits = (e.hits && e.hits > 1) ? ' <span class="days-left">(' + e.hits + ' حفظ)</span>' : '';
+        var det = (e.count != null) ? ('عدد العناصر: ' + e.count) : (e.detail || '—');
+        return '<tr><td class="days-left">' + esc(e.ts || '') + '</td><td>' + esc(e.user || '—') +
+          '</td><td><span class="badge st-valid">' + esc(e.action || '') + '</span></td><td>' + esc(e.target || '') +
+          '</td><td>' + esc(det) + hits + '</td></tr>';
+      }).join('');
+    });
+  }
+
   // ---------- top meta + quick links ----------
   function weekNo(d) { var t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7)); var w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7); }
   function topMeta() {
@@ -761,7 +796,7 @@
     var links = Array.prototype.slice.call(document.querySelectorAll('.dash-side a[href^="#"]'));
     links.forEach(function (a) { a.addEventListener('click', function () { document.querySelector('.dash-side').classList.remove('open'); }); });
     window.addEventListener('scroll', function () {
-      var secs = ['overview', 'alerts', 'gps', 'charts', 'search', 'history'], cur = secs[0];
+      var secs = ['overview', 'alerts', 'gps', 'charts', 'search', 'history', 'audit'], cur = secs[0];
       secs.forEach(function (s) { var el = $(s); if (el && el.getBoundingClientRect().top < 140) cur = s; });
       links.forEach(function (a) { a.classList.toggle('active', a.getAttribute('href') === '#' + cur); });
     }, { passive: true });
@@ -769,7 +804,7 @@
 
   // ---------- init ----------
   function init() {
-    topMeta(); quickLinks(); wireNav();
+    topMeta(); quickLinks(); wireNav(); loadAudit();
     $('seInput').addEventListener('input', renderSearch);
     ['seJob', 'seType', 'seStatus'].forEach(function (id) { $(id).addEventListener('change', renderSearch); });
 
