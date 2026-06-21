@@ -262,6 +262,12 @@
             <!-- Alerts -->
             <div class="dash-h" id="alerts">🚨 مركز تنبيهات الوثائق <span class="sub" id="alSub"></span></div>
             <section class="panel">
+                <div id="alMailBar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.7rem .8rem;background:var(--d-card-2);border:1px solid var(--d-border);border-radius:12px;">
+                    <span style="font-weight:700;font-size:.84rem;">📧 إرسال تنبيهات الوثائق بالبريد:</span>
+                    <input id="alMailTo" type="text" placeholder="بريد المستلمين (افصل بفاصلة)" style="flex:1;min-width:220px;background:var(--d-bg2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:8px 12px;font:inherit;font-size:.82rem;outline:none;">
+                    <button class="chip on" id="alMailBtn" onclick="sendExpiryMail()">إرسال الآن</button>
+                    <span class="muted-note" id="alMailHint" style="width:100%;margin-top:2px;">…</span>
+                </div>
                 <div class="filters" id="alFilters"></div>
                 <div class="dtable-wrap">
                     <table class="dtable">
@@ -759,6 +765,38 @@
     }).catch(function () { alert('تعذّرت الاستعادة. حاول مرة أخرى.'); });
   };
 
+  // ---------- expiry email alerts ----------
+  function loadMailPreview() {
+    getJSON('/api/expiry_alerts_preview').then(function (j) {
+      var hint = $('alMailHint'); if (!hint || !j) return;
+      var dr = (j.default_recipients && j.default_recipients.length) ? j.default_recipients.join('، ') : '';
+      if (dr && $('alMailTo') && !$('alMailTo').value) $('alMailTo').value = dr;
+      var parts = [(j.total || 0) + ' وثيقة تحتاج إجراءً الآن'];
+      if (!j.mail_configured) parts.push('<span style="color:#fca5a5">⚠ البريد غير مُهيّأ على الخادم (اضبط MAIL_USERNAME / MAIL_PASSWORD)</span>');
+      else parts.push('للإرسال التلقائي اليومي: اضبط ALERT_RECIPIENTS و ALERT_CRON_KEY وشغّل مجدولاً على <code>/api/cron/expiry_alerts?key=…</code>');
+      hint.innerHTML = parts.join(' • ');
+    });
+  }
+  window.sendExpiryMail = function () {
+    var to = (($('alMailTo') && $('alMailTo').value) || '').trim();
+    var btn = $('alMailBtn'), hint = $('alMailHint');
+    if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
+    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to }) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        var msg;
+        if (res.success) msg = '<span style="color:#6ee7b7">✓ أُرسل التنبيه (' + (res.count || 0) + ' وثيقة) إلى: ' + esc((res.recipients || []).join('، ')) + '</span>';
+        else if (res.reason === 'mail_not_configured') msg = '<span style="color:#fca5a5">⚠ البريد غير مُهيّأ على الخادم — اضبط MAIL_USERNAME و MAIL_PASSWORD.</span>';
+        else if (res.reason === 'no_recipients') msg = '<span style="color:#fcd34d">أدخل بريد مستلم واحد على الأقل.</span>';
+        else if (res.reason === 'no_alerts') msg = '<span style="color:#6ee7b7">لا توجد وثائق تحتاج تنبيهاً حالياً ✓</span>';
+        else msg = '<span style="color:#fca5a5">تعذّر الإرسال' + (res.error ? ': ' + esc(res.error) : '') + '</span>';
+        if (hint) hint.innerHTML = msg;
+        if (window.showToast && res.success) showToast('تم إرسال التنبيه بالبريد', 'success');
+      })
+      .catch(function () { if (hint) hint.innerHTML = '<span style="color:#fca5a5">تعذّر الاتصال بالخادم.</span>'; })
+      .finally(function () { if (btn) { btn.disabled = false; btn.textContent = 'إرسال الآن'; } });
+  };
+
   // ---------- audit log (server-side, read-only, append-only) ----------
   function loadAudit() {
     getJSON('/api/audit_log').then(function (j) {
@@ -805,6 +843,7 @@
   // ---------- init ----------
   function init() {
     topMeta(); quickLinks(); wireNav(); loadAudit();
+    if (WS) { var mb = $('alMailBar'); if (mb) mb.style.display = 'none'; } else loadMailPreview();
     $('seInput').addEventListener('input', renderSearch);
     ['seJob', 'seType', 'seStatus'].forEach(function (id) { $(id).addEventListener('change', renderSearch); });
 

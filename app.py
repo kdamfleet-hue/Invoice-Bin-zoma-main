@@ -1329,6 +1329,210 @@ def audit_log_data():
         return jsonify({"success": True, "rows": []})
 
 
+# ── Automatic document-expiry email alerts ────────────────────────────────────
+# Read-only scan of the schedule + employees blobs for documents that expired or expire
+# soon, formatted into a branded email. Recipients come from the request (manual "send now")
+# or the ALERT_RECIPIENTS env var (scheduled cron). Sending uses the existing Flask-Mail
+# config; if SMTP isn't configured the endpoint reports the reason instead of failing.
+ALERT_RECIPIENTS = [e.strip() for e in os.environ.get("ALERT_RECIPIENTS", "").split(",") if e.strip()]
+ALERT_CRON_KEY = os.environ.get("ALERT_CRON_KEY", "")
+
+
+def _parse_iso_date(s):
+    if not isinstance(s, str):
+        return None
+    m = re.match(r"^\s*(\d{4})-(\d{2})-(\d{2})\s*$", s)
+    if not m:
+        return None
+    try:
+        y, mo, da = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if y < 2000 or y > 2100:
+            return None
+        return datetime(y, mo, da)
+    except Exception:
+        return None
+
+
+def _collect_expiry_alerts(window_days=90):
+    """Return the list of documents expiring within `window_days` (or already expired)."""
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    out = []
+
+    def add(name, plate, doc, dstr):
+        d = _parse_iso_date(dstr)
+        if not d:
+            return
+        days = (d - today).days
+        if days > window_days:
+            return
+        if days < 0:
+            key, label = "expired", "منتهي"
+        elif days <= 30:
+            key, label = "d30", "≤ 30 يوم"
+        else:
+            key, label = "d90", "≤ 90 يوم"
+        out.append({"name": name or "—", "plate": plate or "", "doc": doc,
+                    "date": dstr, "days": days, "key": key, "label": label})
+
+    sd = blob_get("schedule_data") or {}
+    if isinstance(sd, dict):
+        for sect in ("main", "spare"):
+            for r in (sd.get(sect) or []):
+                if not isinstance(r, dict):
+                    continue
+                nm, pl = r.get("name"), r.get("plate")
+                add(nm, pl, "الفحص الدوري", r.get("inspect"))
+                add(nm, pl, "رخصة السير", r.get("license"))
+                add(nm, pl, "بطاقة التشغيل", r.get("opcard"))
+                add(nm, pl, "بطاقة السائق", r.get("drivercard"))
+
+    emps = blob_get("employees") or []
+    if isinstance(emps, list):
+        for row in emps:
+            if not isinstance(row, list):
+                continue
+            nm = (row[2] if len(row) > 2 else "") or (row[3] if len(row) > 3 else "")
+            pl = row[9] if len(row) > 9 else ""
+            if len(row) > 10:
+                add(nm, pl, "انتهاء الإقامة", row[10])
+            if len(row) > 11:
+                add(nm, pl, "انتهاء الجواز", row[11])
+
+    rank = {"expired": 0, "d30": 1, "d90": 2}
+    out.sort(key=lambda a: (rank.get(a["key"], 9), a["days"]))
+    return out
+
+
+def _build_alert_email_html(alerts):
+    counts = {"expired": 0, "d30": 0, "d90": 0}
+    for a in alerts:
+        counts[a["key"]] = counts.get(a["key"], 0) + 1
+    today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    def days_txt(a):
+        d = a["days"]
+        if d < 0:
+            return "منذ %d يوم" % abs(d)
+        if d == 0:
+            return "اليوم"
+        return "خلال %d يوم" % d
+
+    colors = {"expired": "#dc2626", "d30": "#d97706", "d90": "#ca8a04"}
+    rows = ""
+    for a in alerts[:120]:
+        c = colors.get(a["key"], "#6b7280")
+        rows += (
+            "<tr>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;direction:ltr;font-family:monospace;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;white-space:nowrap;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;color:%s;font-weight:700;white-space:nowrap;'>%s · %s</td>"
+            "</tr>"
+        ) % (a["name"], a["plate"] or "—", a["doc"], a["date"], c, a["label"], days_txt(a))
+
+    return (
+        "<div style='font-family:Tahoma,Arial,sans-serif;direction:rtl;text-align:right;background:#f4f6fb;padding:22px;'>"
+        "<div style='max-width:760px;margin:auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e6e9f0;'>"
+        "<div style='background:#0C2340;padding:18px 24px;border-bottom:4px solid #c9a227;'>"
+        "<div style='color:#fff;font-size:18px;font-weight:800;'>BIN ZOMAH INTL. — شركة بن زومة</div>"
+        "<div style='color:#c9a227;font-size:13px;font-weight:700;'>تنبيه وثائق الأسطول — فرع الدمام</div></div>"
+        "<div style='padding:20px 24px;'>"
+        "<p style='color:#334;font-size:14px;margin:0 0 16px;'>ملخّص الوثائق التي تحتاج إجراءً حتى تاريخ <b>%s</b>:</p>"
+        "<div style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;'>"
+        "<div style='flex:1;min-width:150px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;text-align:center;'>"
+        "<div style='font-size:26px;font-weight:800;color:#dc2626;'>%d</div><div style='font-size:12px;color:#991b1b;'>🔴 منتهية</div></div>"
+        "<div style='flex:1;min-width:150px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;text-align:center;'>"
+        "<div style='font-size:26px;font-weight:800;color:#d97706;'>%d</div><div style='font-size:12px;color:#92400e;'>🟠 خلال 30 يوم</div></div>"
+        "<div style='flex:1;min-width:150px;background:#fefce8;border:1px solid #fef08a;border-radius:10px;padding:12px;text-align:center;'>"
+        "<div style='font-size:26px;font-weight:800;color:#ca8a04;'>%d</div><div style='font-size:12px;color:#854d0e;'>🟡 خلال 90 يوم</div></div>"
+        "</div>"
+        "<table style='width:100%%;border-collapse:collapse;font-size:13px;color:#222;'>"
+        "<thead><tr style='background:#0C2340;color:#fff;'>"
+        "<th style='padding:10px 12px;text-align:right;'>الاسم</th>"
+        "<th style='padding:10px 12px;text-align:right;'>اللوحة</th>"
+        "<th style='padding:10px 12px;text-align:right;'>الوثيقة</th>"
+        "<th style='padding:10px 12px;text-align:right;'>تاريخ الانتهاء</th>"
+        "<th style='padding:10px 12px;text-align:right;'>الحالة</th></tr></thead>"
+        "<tbody>%s</tbody></table>"
+        "<p style='color:#94a3b8;font-size:11px;margin-top:18px;'>هذه رسالة آلية من نظام إدارة الأسطول — شركة بن زومة. الرجاء عدم الرد عليها.</p>"
+        "</div></div></div>"
+    ) % (today_str, counts.get("expired", 0), counts.get("d30", 0), counts.get("d90", 0), rows)
+
+
+def _send_expiry_alert_email(recipients):
+    alerts = _collect_expiry_alerts()
+    attention = [a for a in alerts if a["key"] in ("expired", "d30", "d90")]
+    if not attention:
+        return {"sent": False, "reason": "no_alerts", "count": 0}
+    if not app.config.get("MAIL_USERNAME") or not app.config.get("MAIL_PASSWORD"):
+        return {"sent": False, "reason": "mail_not_configured", "count": len(attention)}
+    recipients = [r for r in (recipients or []) if r]
+    if not recipients:
+        return {"sent": False, "reason": "no_recipients", "count": len(attention)}
+    try:
+        msg = Message(
+            subject="🚨 تنبيه وثائق الأسطول — شركة بن زومة (فرع الدمام)",
+            recipients=recipients,
+            html=_build_alert_email_html(attention),
+            sender=app.config.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME"),
+        )
+        mail.send(msg)
+        return {"sent": True, "count": len(attention), "recipients": recipients}
+    except Exception as e:
+        logger.exception("send expiry alert email failed")
+        return {"sent": False, "reason": "send_error", "error": str(e), "count": len(attention)}
+
+
+@app.route("/api/expiry_alerts_preview", methods=["GET"])
+@login_required
+def expiry_alerts_preview():
+    """Counts + list the server sees (lets the dashboard show what WOULD be emailed)."""
+    try:
+        alerts = _collect_expiry_alerts()
+        attention = [a for a in alerts if a["key"] in ("expired", "d30", "d90")]
+        counts = {"expired": 0, "d30": 0, "d90": 0}
+        for a in attention:
+            counts[a["key"]] += 1
+        return jsonify({"success": True, "counts": counts, "total": len(attention),
+                        "mail_configured": bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD")),
+                        "default_recipients": ALERT_RECIPIENTS})
+    except Exception:
+        logger.exception("expiry preview error")
+        return jsonify({"success": False, "counts": {}, "total": 0})
+
+
+@app.route("/api/send_expiry_alerts", methods=["POST"])
+@login_required
+def send_expiry_alerts():
+    """Manual 'send now' from the dashboard. Recipients from the request or ALERT_RECIPIENTS."""
+    body = request.json or {}
+    recips = body.get("recipients") or ALERT_RECIPIENTS
+    if isinstance(recips, str):
+        recips = [e.strip() for e in re.split(r"[,;\s]+", recips) if e.strip()]
+    res = _send_expiry_alert_email(recips)
+    if res.get("sent"):
+        _audit_add("إرسال", "تنبيهات الوثائق بالبريد", res.get("count"),
+                   "إلى: " + ", ".join(res.get("recipients", [])))
+    return jsonify({"success": res.get("sent", False), **res})
+
+
+@app.route("/api/cron/expiry_alerts", methods=["GET", "POST"])
+def cron_expiry_alerts():
+    """Token-protected trigger for an external daily scheduler (ArabCord cron / cron-job.org).
+    Not login-protected; guarded by ALERT_CRON_KEY. Uses ALERT_RECIPIENTS for the recipient list."""
+    key = request.args.get("key", "")
+    if not key and request.is_json:
+        key = (request.json or {}).get("key", "")
+    if not ALERT_CRON_KEY or not hmac.compare_digest(str(key), ALERT_CRON_KEY):
+        return jsonify({"success": False, "error": "unauthorized"}), 401
+    res = _send_expiry_alert_email(ALERT_RECIPIENTS)
+    if res.get("sent"):
+        _audit_add("إرسال تلقائي", "تنبيهات الوثائق بالبريد", res.get("count"),
+                   "مجدول — إلى: " + ", ".join(res.get("recipients", [])))
+    return jsonify({"success": res.get("sent", False), **res})
+
+
 # ── Workstation-only tab state (oils / purchase / workshop) ───────────────────
 # These tabs have NO server storage on the main site (hardcoded rows + localStorage).
 # For the /importantworkstation sandbox they persist a single JSON object on the server
