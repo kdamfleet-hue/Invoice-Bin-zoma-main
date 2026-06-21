@@ -342,7 +342,7 @@ function applyWorkstationRestrictions() {
         seedBtn.id = 'wsSeedBtn';
         seedBtn.type = 'button';
         seedBtn.className = 'bz-icon-btn';
-        seedBtn.title = 'تعبئة كل التبويبات ببيانات أمثلة وهمية — لا يؤثر على الموقع الأساسي';
+        seedBtn.title = 'تعبئة كل التبويبات ببيانات أمثلة — لا يؤثر على الموقع الأساسي';
         seedBtn.textContent = '🧪';
         seedBtn.style.cssText = 'background:rgba(201,162,39,.20);border-color:rgba(201,162,39,.5);';
         seedBtn.addEventListener('click', window.bzSeedWorkstation);
@@ -383,7 +383,7 @@ window.bzResetWorkstation = async function () {
 // Workstation-only; the main site never sees this button or endpoint.
 window.bzSeedWorkstation = async function () {
     if (!inWorkstation()) return;
-    if (!window.confirm('تعبئة كل تبويبات محطة العمل ببيانات أمثلة وهمية؟\n\nبيانات تجريبية فقط للعرض (تستبدل ما هو موجود في المحطة).\n\nالموقع الأساسي لن يتأثر إطلاقاً.')) return;
+    if (!window.confirm('تعبئة كل تبويبات محطة العمل ببيانات أمثلة؟')) return;
     try {
         await fetch('/api/ws_seed', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     } catch (e) { /* best-effort */ }
