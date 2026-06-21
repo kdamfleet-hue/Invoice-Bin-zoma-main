@@ -8,6 +8,7 @@
     <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <!-- washing fallback seed (provides window.WASHING_VEHICLES if the API is empty) -->
     <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
         /* ============================================================
            Executive Dashboard — deep-dark premium identity (read-only).
@@ -178,6 +179,25 @@
         .pct-bar { height: 8px; border-radius: 6px; background: rgba(255,255,255,.06); overflow: hidden; margin-top: 8px; }
         .pct-bar > i { display: block; height: 100%; border-radius: 6px; }
 
+        /* ---- GPS live map ---- */
+        .gps-stats { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: .85rem; }
+        .gps-stat { background: var(--d-card-2); border: 1px solid var(--d-border); border-radius: 12px; padding: 10px 16px; min-width: 130px; }
+        .gps-stat b { font-size: 1.5rem; font-weight: 900; display: block; line-height: 1; font-variant-numeric: tabular-nums; }
+        .gps-stat span { font-size: .72rem; color: var(--d-muted); }
+        .gps-wrap { position: relative; }
+        #dashMap { position: relative; z-index: 1; height: 400px; width: 100%; border-radius: 12px; border: 1px solid var(--d-border); background: var(--d-bg2); }
+        .gps-overlay {
+            position: absolute; inset: 0; z-index: 500; display: flex; flex-direction: column; gap: .7rem;
+            align-items: center; justify-content: center; text-align: center; padding: 1.5rem;
+            background: rgba(8,12,20,.82); border-radius: 12px; color: var(--d-text);
+        }
+        .gps-overlay.hidden { display: none; }
+        .gps-overlay .gi { font-size: 2.4rem; }
+        .gps-spinner { width: 38px; height: 38px; border: 4px solid var(--d-border); border-top-color: var(--gold); border-radius: 50%; animation: bz-spin .9s linear infinite; }
+        @keyframes bz-spin { to { transform: rotate(360deg); } }
+        .leaflet-popup-content { font-family: 'Tajawal','Cairo',sans-serif; }
+        .dmark { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 10px; color: #fff; }
+
         @media (max-width: 900px) {
             .grid-2 { grid-template-columns: 1fr; }
             .dash-burger { display: inline-flex; }
@@ -212,6 +232,7 @@
             <div class="side-title">الأقسام</div>
             <a href="#overview" class="active"><span class="ic">📊</span> نظرة عامة</a>
             <a href="#alerts"><span class="ic">🚨</span> مركز التنبيهات</a>
+            <a href="#gps"><span class="ic">🛰️</span> التتبع المباشر</a>
             <a href="#charts"><span class="ic">📈</span> الرسوم البيانية</a>
             <a href="#search"><span class="ic">🔎</span> البحث والفلاتر</a>
             <a href="#history"><span class="ic">🕒</span> سجل التحديثات</a>
@@ -248,6 +269,24 @@
                         </tr></thead>
                         <tbody id="alBody"></tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- GPS live map -->
+            <div class="dash-h" id="gps">🛰️ التتبع المباشر للأسطول <span class="sub" id="gpsSub"></span></div>
+            <section class="panel">
+                <div class="gps-stats">
+                    <div class="gps-stat"><b id="gpsTotal" style="color:#fff">0</b><span>مركبات على الخريطة</span></div>
+                    <div class="gps-stat"><b id="gpsOnline" style="color:#6ee7b7">0</b><span>🟢 نشطة الآن</span></div>
+                    <div class="gps-stat"><b id="gpsOffline" style="color:#fca5a5">0</b><span>🔴 متوقفة</span></div>
+                    <div class="gps-stat" style="flex:1;min-width:auto;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;background:transparent;border:none;">
+                        <button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>
+                        <a class="chip" id="gpsFull" href="/tracking" style="text-decoration:none;">↗ التتبع الكامل</a>
+                    </div>
+                </div>
+                <div class="gps-wrap">
+                    <div id="dashMap"></div>
+                    <div class="gps-overlay" id="gpsOverlay"><div class="gps-spinner"></div><div>جارٍ تجهيز الخريطة…</div></div>
                 </div>
             </section>
 
@@ -722,7 +761,7 @@
     var links = Array.prototype.slice.call(document.querySelectorAll('.dash-side a[href^="#"]'));
     links.forEach(function (a) { a.addEventListener('click', function () { document.querySelector('.dash-side').classList.remove('open'); }); });
     window.addEventListener('scroll', function () {
-      var secs = ['overview', 'alerts', 'charts', 'search', 'history'], cur = secs[0];
+      var secs = ['overview', 'alerts', 'gps', 'charts', 'search', 'history'], cur = secs[0];
       secs.forEach(function (s) { var el = $(s); if (el && el.getBoundingClientRect().top < 140) cur = s; });
       links.forEach(function (a) { a.classList.toggle('active', a.getAttribute('href') === '#' + cur); });
     }, { passive: true });
@@ -741,6 +780,81 @@
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
+<!-- ===== GPS live map (reuses /api/gps; read-only; gracefully degrades) ===== -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+  var WS = location.pathname.indexOf('/importantworkstation') === 0;
+  var PREFIX = WS ? '/importantworkstation' : '';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  var map = null, markers = [];
+  var full = $('gpsFull'); if (full) full.href = PREFIX + '/tracking';
+
+  function overlay(html) { var o = $('gpsOverlay'); if (!o) return; if (!html) { o.classList.add('hidden'); return; } o.classList.remove('hidden'); o.innerHTML = html; }
+  function initMap() {
+    if (map || typeof L === 'undefined') return;
+    map = L.map('dashMap', { zoomControl: true, attributionControl: true }).setView([26.4207, 50.0888], 10);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(map);
+  }
+  function norm(it) {
+    var lat = it.lat != null ? it.lat : it.latitude, lng = it.lng != null ? it.lng : it.longitude;
+    var online = !!(it.online || it.is_online || it.status === 'moving' || it.status === 'idling');
+    return { id: (it.id != null ? it.id : (it.asset_id != null ? it.asset_id : '')), name: (it.name || it.plate_number || it.plate || 'مركبة'), lat: lat, lng: lng, online: online };
+  }
+  function render(items) {
+    markers.forEach(function (m) { try { map.removeLayer(m); } catch (e) {} }); markers = [];
+    var assets = (items || []).map(norm);
+    var online = assets.filter(function (a) { return a.online; }).length;
+    $('gpsTotal').textContent = assets.length; $('gpsOnline').textContent = online; $('gpsOffline').textContent = assets.length - online;
+    $('gpsSub').textContent = assets.length + ' مركبة';
+    var pts = [];
+    assets.forEach(function (a) {
+      if (a.lat != null && a.lng != null && map) {
+        var col = a.online ? '#10b981' : '#ef4444';
+        var ic = L.divIcon({ className: '', html: '<div class="dmark" style="background:' + col + '">' + esc(String(a.id)) + '</div>' });
+        markers.push(L.marker([a.lat, a.lng], { icon: ic }).addTo(map).bindPopup('<b>' + esc(a.name) + '</b><br>الحالة: ' + (a.online ? 'نشط 🟢' : 'متوقف 🔴')));
+        pts.push([a.lat, a.lng]);
+      }
+    });
+    if (pts.length) { try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 }); } catch (e) {} }
+    return assets.length;
+  }
+  window.gpsRefresh = function () {
+    if (!map) return;
+    overlay('<div class="gps-spinner"></div><div>جارٍ جلب مواقع الأسطول…</div>');
+    fetch('/api/gps', { headers: { 'Accept': 'application/json' } }).then(function (r) {
+      return r.json().then(function (d) { return { ok: r.ok, d: d }; }).catch(function () { return { ok: r.ok, d: null }; });
+    }).then(function (res) {
+      if (!res.ok || (res.d && res.d.error)) {
+        var msg = (res.d && res.d.error) ? res.d.error : 'تعذّر جلب المواقع';
+        overlay('<div class="gi">📡</div><div style="font-weight:800">تعذّر عرض الخريطة</div><div style="color:var(--d-muted);font-size:.82rem;max-width:340px">' + esc(msg) + '</div><button class="chip" onclick="gpsRefresh()">🔄 إعادة المحاولة</button>');
+        return;
+      }
+      var items = Array.isArray(res.d) ? res.d : (res.d && (Array.isArray(res.d.assets) ? res.d.assets : Array.isArray(res.d.items) ? res.d.items : []));
+      var n = render(items || []);
+      if (!n) overlay('<div class="gi">🚗</div><div style="font-weight:800">لا توجد مركبات لعرضها الآن</div><button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>');
+      else overlay(null);
+    }).catch(function () {
+      overlay('<div class="gi">📡</div><div style="font-weight:800">تعذّر الاتصال بخدمة التتبع</div><button class="chip" onclick="gpsRefresh()">🔄 إعادة المحاولة</button>');
+    });
+  };
+  function start() {
+    if (WS) {
+      // tracking is a password-locked tab in the workstation — keep the dashboard consistent with that lock.
+      overlay('<div class="gi">🔒</div><div style="font-weight:800">التتبع المباشر مُقفل في محطة العمل</div><div style="color:var(--d-muted);font-size:.82rem">افتحه من تبويب «التتبع» بكلمة المرور.</div>');
+      return;
+    }
+    initMap();
+    if (!map) { overlay('<div class="gi">🗺️</div><div>تعذّر تحميل الخريطة</div>'); return; }
+    setTimeout(function () { try { map.invalidateSize(); } catch (e) {} }, 250);
+    window.gpsRefresh();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 </script>
 </body>
