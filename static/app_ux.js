@@ -337,6 +337,16 @@ function applyWorkstationRestrictions() {
         btn.style.cssText = 'background:rgba(220,38,38,.18);border-color:rgba(220,38,38,.45);';
         btn.addEventListener('click', window.bzResetWorkstation);
         actions.insertBefore(btn, actions.firstChild);
+        // "fill example data" button next to it
+        const seedBtn = document.createElement('button');
+        seedBtn.id = 'wsSeedBtn';
+        seedBtn.type = 'button';
+        seedBtn.className = 'bz-icon-btn';
+        seedBtn.title = 'تعبئة كل التبويبات ببيانات أمثلة وهمية — لا يؤثر على الموقع الأساسي';
+        seedBtn.textContent = '🧪';
+        seedBtn.style.cssText = 'background:rgba(201,162,39,.20);border-color:rgba(201,162,39,.5);';
+        seedBtn.addEventListener('click', window.bzSeedWorkstation);
+        actions.insertBefore(seedBtn, actions.firstChild);
     }
     // 2) lock the sensitive tabs until unlocked
     if (getCookie('ws_unlocked') === '1') return;
@@ -360,6 +370,24 @@ window.bzResetWorkstation = async function () {
         await fetch('/api/ws_reset', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     } catch (e) { /* best-effort */ }
     // Also drop this browser's ws:-prefixed cached copies (bypass the patched instance methods).
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.indexOf('ws:') === 0) Storage.prototype.removeItem.call(localStorage, k);
+        }
+    } catch (e) { /* ignore */ }
+    window.location.reload();
+};
+
+// Fill every workstation tab with realistic FAKE example data (demo), then reload.
+// Workstation-only; the main site never sees this button or endpoint.
+window.bzSeedWorkstation = async function () {
+    if (!inWorkstation()) return;
+    if (!window.confirm('تعبئة كل تبويبات محطة العمل ببيانات أمثلة وهمية؟\n\nبيانات تجريبية فقط للعرض (تستبدل ما هو موجود في المحطة).\n\nالموقع الأساسي لن يتأثر إطلاقاً.')) return;
+    try {
+        await fetch('/api/ws_seed', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    } catch (e) { /* best-effort */ }
+    // Drop local ws: caches so the freshly-seeded server data shows on reload.
     try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
             const k = localStorage.key(i);

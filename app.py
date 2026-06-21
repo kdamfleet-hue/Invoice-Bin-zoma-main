@@ -348,6 +348,10 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS workshop_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Tiny key/value flags for the workstation (e.g. "did we auto-seed example data?").
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)"
+            )
             db.commit()
 
             # Safe migration: add drivercard to older tables that lack it.
@@ -479,10 +483,66 @@ def blob_set(table, data_obj):
         conn.commit()
 
 
+# ── Workstation example/demo data (FAKE — for the open sandbox only) ──────────
+# Loaded once from ws_example_data.json. The MAIN site never touches any of this.
+WS_EXAMPLE_PATH = os.path.join(os.path.dirname(__file__), "ws_example_data.json")
+try:
+    with open(WS_EXAMPLE_PATH, encoding="utf-8") as _wsf:
+        WS_EXAMPLE_DATA = json.load(_wsf)
+except Exception as _e:
+    logger.warning("ws_example_data.json not loaded: %s", _e)
+    WS_EXAMPLE_DATA = {}
+
+
+def _ws_meta_get(k):
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT v FROM ws_meta WHERE k = ?", (k,))
+        row = c.fetchone()
+    return row["v"] if row else None
+
+
+def _ws_meta_set(k, v):
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT k FROM ws_meta WHERE k = ?", (k,))
+        if c.fetchone():
+            c.execute("UPDATE ws_meta SET v = ? WHERE k = ?", (v, k))
+        else:
+            c.execute("INSERT INTO ws_meta (k, v) VALUES (?, ?)", (k, v))
+        conn.commit()
+
+
+def _ws_write_examples():
+    """Write the FAKE example data into the workstation id=2 stores (explicit id=2)."""
+    for table, value in WS_EXAMPLE_DATA.items():
+        data_str = json.dumps(value, ensure_ascii=False)
+        with db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT id FROM %s WHERE id = 2" % table)
+            if c.fetchone():
+                c.execute("UPDATE %s SET data = ? WHERE id = 2" % table, (data_str,))
+            else:
+                c.execute("INSERT INTO %s (id, data) VALUES (2, ?)" % table, (data_str,))
+            conn.commit()
+
+
+def ensure_ws_seeded():
+    """On the first-ever workstation visit, fill id=2 with example data (once).
+    The 'ws_init' flag means 'already handled' so a later reset stays empty."""
+    try:
+        if _ws_meta_get("ws_init") is None:
+            _ws_write_examples()
+            _ws_meta_set("ws_init", "1")
+    except Exception:
+        logger.exception("ensure_ws_seeded error")
+
+
 @app.route(WS_PREFIX)
 @app.route(WS_PREFIX + "/<path:sub>")
 def workstation_page(sub=""):
     """Open workstation pages under the prefix. The 3 sensitive tabs require the password."""
+    ensure_ws_seeded()  # first visit fills the sandbox with fake example data
     seg = sub.strip("/").split("/")[0] if sub else ""
     if seg == "api":
         return ("", 404)  # API served by the mirrored /importantworkstation/api/* rules
@@ -1213,9 +1273,26 @@ def ws_reset():
             for t in WS_BLOB_TABLES:
                 c.execute("DELETE FROM %s WHERE id = 2" % t)
             conn.commit()
+        _ws_meta_set("ws_init", "1")  # mark handled so it won't auto-reseed → stays empty
         return jsonify({"success": True})
     except Exception:
         logger.exception("ws_reset error")
+        return jsonify({"success": False}), 500
+
+
+@app.route("/api/ws_seed", methods=["POST"])
+@login_required
+def ws_seed():
+    """Fill EVERY workstation (id=2) store with the FAKE example data (demo).
+    Workstation-only: the main site can never reach this."""
+    if not is_workstation():
+        return jsonify({"success": False, "error": "workstation only"}), 404
+    try:
+        _ws_write_examples()
+        _ws_meta_set("ws_init", "1")
+        return jsonify({"success": True})
+    except Exception:
+        logger.exception("ws_seed error")
         return jsonify({"success": False}), 500
 
 
