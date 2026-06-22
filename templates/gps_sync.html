@@ -83,6 +83,19 @@
             font-weight: 900;
             font-size: .9rem;
         }
+    /* ── تبويبات فرعية داخل تبويب GPS ── */
+    .gps-subtabs { display:flex; gap:.4rem; flex-wrap:wrap; margin:.2rem 0 1.2rem; border-bottom:1px solid var(--border); }
+    .gps-subtab {
+      background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-1px;
+      color:var(--text-secondary); font-family:inherit; font-size:.92rem; font-weight:700; cursor:pointer;
+      padding:10px 16px; border-radius:10px 10px 0 0; transition:var(--trans);
+    }
+    .gps-subtab:hover { color:var(--text-primary); background:var(--surface-hover); }
+    .gps-subtab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .gps-tabpanel { display:none; }
+    .gps-tabpanel.active { display:block; animation:gpsFade .25s ease; }
+    @keyframes gpsFade { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+    .gps-frame { width:100%; height:calc(100vh - 230px); min-height:620px; border:1px solid var(--border); border-radius:14px; background:#0d1117; display:block; }
     </style>
 </head>
 
@@ -119,8 +132,15 @@
 
     <div class="bz-shell">
 
-        <h2 class="bz-section-title">📡 مزامنة كشف أجهزة GPS</h2>
+        <h2 class="bz-section-title">📡 كشف ومزامنة أجهزة GPS</h2>
 
+        <div class="gps-subtabs">
+            <button type="button" class="gps-subtab active" onclick="gpsTab('sync', this)">📥 المزامنة</button>
+            <button type="button" class="gps-subtab" onclick="gpsTab('devices', this)">🛰️ كشف أجهزة التتبع</button>
+            <button type="button" class="gps-subtab" onclick="gpsTab('dashboard', this)">📊 لوحة المؤشرات</button>
+        </div>
+
+        <div class="gps-tabpanel active" id="tp-sync">
         <div class="bz-stats">
             <div class="bz-stat">
                 <div class="num" id="statMatches">0</div>
@@ -180,6 +200,14 @@
                 </ol>
                 <a href="/tracking" class="btn-outline" style="text-decoration:none; display:block; text-align:center; margin-top:1.25rem;">🛰️ الانتقال إلى التتبع المباشر</a>
             </div>
+        </div>
+        </div><!-- /tp-sync -->
+
+        <div class="gps-tabpanel" id="tp-devices">
+            <iframe class="gps-frame" data-src="/gps_devices" title="كشف أجهزة التتبع"></iframe>
+        </div>
+        <div class="gps-tabpanel" id="tp-dashboard">
+            <iframe class="gps-frame" data-src="/gps_dashboard" title="لوحة مؤشرات GPS"></iframe>
         </div>
 
         <footer style="text-align:center; padding: 24px 0; color:var(--text-muted); font-weight:bold; margin-top:32px; border-top: 1px solid var(--border);">
@@ -278,6 +306,22 @@
                 waMessage: bzTL('مرفق كشف أجهزة GPS المحدّث — شركة بن زومة')
             });
         });
+
+        // ── تبديل التبويبات الفرعية للـGPS مع تحميل كسول للإطارات (يحترم بادئة محطة العمل) ──
+        function gpsTab(name, btn) {
+            document.querySelectorAll('.gps-subtab').forEach(function (b) { b.classList.remove('active'); });
+            document.querySelectorAll('.gps-tabpanel').forEach(function (p) { p.classList.remove('active'); });
+            if (btn) btn.classList.add('active');
+            var panel = document.getElementById('tp-' + name);
+            if (!panel) return;
+            panel.classList.add('active');
+            var frame = panel.querySelector('iframe.gps-frame');
+            if (frame && !frame.getAttribute('src')) {
+                var prefix = location.pathname.indexOf('/importantworkstation') === 0 ? '/importantworkstation' : '';
+                frame.setAttribute('src', prefix + frame.getAttribute('data-src'));
+            }
+        }
+        window.gpsTab = gpsTab;
     </script>
 
 </body>

@@ -447,7 +447,8 @@ WS_TABS = {
     "": "index", "dashboard": "dashboard", "kpis": "kpis", "schedule": "schedule", "oils": "oils", "purchase": "purchase",
     "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
     "incidents": "incidents",
-    "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync", "cameras": "cameras",
+    "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync",
+    "gps_dashboard": "gps_dashboard", "gps_devices": "gps_devices", "cameras": "cameras",
 }
 WS_LOCKED = {"employees", "gps_sync", "cameras", "tracking"}
 
@@ -749,6 +750,20 @@ def dashboard():
 def kpis():
     # Static strategic KPI reference page (descriptive only — no data binding).
     return render_template("kpis.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/gps_dashboard")
+@login_required
+def gps_dashboard():
+    # GPS fleet KPI dashboard (sub-tab of the GPS page).
+    return render_template("gps_dashboard.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/gps_devices")
+@login_required
+def gps_devices():
+    # GPS tracking-device inventory (active / broken / issue) — sub-tab of the GPS page.
+    return render_template("gps_devices.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
 @app.route("/oils")

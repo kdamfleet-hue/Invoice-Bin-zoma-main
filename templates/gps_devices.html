@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>كشف أجهزة GPS | فرع الدمام 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #21262d;
+    --accent: #00c9a7;
+    --accent-dim: rgba(0,201,167,0.12);
+    --warn: #f59e0b;
+    --warn-dim: rgba(245,158,11,0.12);
+    --danger: #ef4444;
+    --danger-dim: rgba(239,68,68,0.12);
+    --text: #e6edf3;
+    --text-sub: #8b949e;
+    --text-muted: #484f58;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    direction: rtl;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent), #007cf0);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.01em;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-sub);
+    margin-top: 1px;
+  }
+
+  .header-badge {
+    background: var(--accent-dim);
+    border: 1px solid rgba(0,201,167,0.3);
+    color: var(--accent);
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  /* ── Main Layout ── */
+  main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* ── Stats Grid ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 3px;
+    height: 100%;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+
+  .stat-card.total::before { background: #60a5fa; }
+  .stat-card.active::before { background: var(--accent); }
+  .stat-card.broken::before { background: var(--danger); }
+  .stat-card.issue::before { background: var(--warn); }
+
+  .stat-card:hover { border-color: #30363d; }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-sub);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-card.total .stat-value { color: #60a5fa; }
+  .stat-card.active .stat-value { color: var(--accent); }
+  .stat-card.broken .stat-value { color: var(--danger); }
+  .stat-card.issue .stat-value { color: var(--warn); }
+
+  .stat-pct {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .stat-icon {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 28px;
+    opacity: 0.15;
+  }
+
+  /* ── Brand Distribution ── */
+  .brand-bar-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    margin-bottom: 28px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-sub);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  .brand-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-name {
+    font-size: 13px;
+    color: var(--text);
+    width: 80px;
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+
+  .brand-track {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .brand-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+  }
+
+  .brand-count {
+    font-size: 13px;
+    color: var(--text-sub);
+    width: 36px;
+    text-align: left;
+    font-weight: 600;
+  }
+
+  /* ── Search + Filter Bar ── */
+  .controls-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+
+  .search-box {
+    flex: 1;
+    position: relative;
+  }
+
+  .search-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 16px;
+    pointer-events: none;
+  }
+
+  .search-box input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    font-size: 14px;
+    padding: 10px 42px 10px 16px;
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color 0.2s;
+    direction: rtl;
+  }
+
+  .search-box input:focus { border-color: var(--accent); }
+  .search-box input::placeholder { color: var(--text-muted); }
+
+  .filter-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .filter-btn:hover { border-color: #30363d; color: var(--text); }
+
+  .filter-btn.active-btn {
+    background: var(--accent-dim);
+    border-color: rgba(0,201,167,0.4);
+    color: var(--accent);
+  }
+
+  .filter-btn.active-all { background: rgba(96,165,250,0.12); border-color: rgba(96,165,250,0.4); color: #60a5fa; }
+  .filter-btn.active-broken { background: var(--danger-dim); border-color: rgba(239,68,68,0.4); color: var(--danger); }
+  .filter-btn.active-issue { background: var(--warn-dim); border-color: rgba(245,158,11,0.4); color: var(--warn); }
+
+  /* ── Table ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .table-header-bar {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .count-label {
+    font-size: 13px;
+    color: var(--text-sub);
+  }
+
+  .count-num {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead tr {
+    background: var(--surface2);
+  }
+
+  th {
+    padding: 11px 16px;
+    text-align: right;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+
+  th:hover { color: var(--text-sub); }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+
+  td {
+    padding: 12px 16px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .row-num {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 32px;
+  }
+
+  .plate-badge {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+    letter-spacing: 0.02em;
+    font-feature-settings: "tnum";
+    background: var(--surface2);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    display: inline-block;
+  }
+
+  .brand-tag {
+    font-size: 12px;
+    color: var(--text-sub);
+  }
+
+  .model-text {
+    font-size: 12px;
+    color: var(--text-sub);
+  }
+
+  .year-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    font-feature-settings: "tnum";
+  }
+
+  .type-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    background: rgba(96,165,250,0.1);
+    color: #93c5fd;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .status-active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid rgba(0,201,167,0.25);
+  }
+
+  .status-broken {
+    background: var(--danger-dim);
+    color: #fca5a5;
+    border: 1px solid rgba(239,68,68,0.2);
+  }
+
+  .status-issue {
+    background: var(--warn-dim);
+    color: #fcd34d;
+    border: 1px solid rgba(245,158,11,0.2);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .status-active .status-dot { background: var(--accent); }
+  .status-broken .status-dot { background: #ef4444; }
+  .status-issue .status-dot { background: var(--warn); animation: pulse 2s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .since-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    max-width: 100px;
+    white-space: normal;
+    line-height: 1.3;
+  }
+
+  /* ── Empty State ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 28px 24px;
+    color: var(--text-muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .controls-bar { flex-direction: column; }
+    .filter-btns { flex-wrap: wrap; }
+    header { padding: 0 16px; }
+    main { padding: 20px 12px; }
+  }
+
+  @media (max-width: 600px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .stat-value { font-size: 28px; }
+    td, th { padding: 10px 10px; }
+    .plate-badge { font-size: 12px; }
+    .serial-text { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📡</div>
+    <div>
+      <div class="logo-text">كشف أجهزة GPS</div>
+      <div class="logo-sub">فرع الدمام — 2026</div>
+    </div>
+  </div>
+  <div class="header-badge">76 مركبة</div>
+</header>
+
+<main>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card total">
+      <div class="stat-icon">🚗</div>
+      <div class="stat-label">إجمالي المركبات</div>
+      <div class="stat-value">76</div>
+      <div class="stat-pct">فرع الدمام كامل</div>
+    </div>
+    <div class="stat-card active">
+      <div class="stat-icon">✅</div>
+      <div class="stat-label">أجهزة نشطة</div>
+      <div class="stat-value" id="activeCount">12</div>
+      <div class="stat-pct">15.8% من الإجمالي</div>
+    </div>
+    <div class="stat-card broken">
+      <div class="stat-icon">❌</div>
+      <div class="stat-label">أجهزة معطلة</div>
+      <div class="stat-value" id="brokenCount">53</div>
+      <div class="stat-pct">69.7% من الإجمالي</div>
+    </div>
+    <div class="stat-card issue">
+      <div class="stat-icon">⚠️</div>
+      <div class="stat-label">يوجد مشكلة</div>
+      <div class="stat-value" id="issueCount">11</div>
+      <div class="stat-pct">14.5% من الإجمالي</div>
+    </div>
+  </div>
+
+  <!-- Brand Distribution -->
+  <div class="brand-bar-section">
+    <div class="section-title">توزيع الماركات</div>
+    <div class="brand-bars">
+      <div class="brand-row">
+        <div class="brand-name">ايسوزو</div>
+        <div class="brand-track"><div class="brand-fill" style="width:47%; background:linear-gradient(90deg,#00c9a7,#007cf0);"></div></div>
+        <div class="brand-count">36</div>
+      </div>
+      <div class="brand-row">
+        <div class="brand-name">متسوبيشي</div>
+        <div class="brand-track"><div class="brand-fill" style="width:25%; background:linear-gradient(90deg,#a78bfa,#7c3aed);"></div></div>
+        <div class="brand-count">19</div>
+      </div>
+      <div class="brand-row">
+        <div class="brand-name">سوزوكي</div>
+        <div class="brand-track"><div class="brand-fill" style="width:9%; background:linear-gradient(90deg,#f59e0b,#d97706);"></div></div>
+        <div class="brand-count">7</div>
+      </div>
+      <div class="brand-row">
+        <div class="brand-name">تويوتا</div>
+        <div class="brand-track"><div class="brand-fill" style="width:5%; background:linear-gradient(90deg,#ef4444,#b91c1c);"></div></div>
+        <div class="brand-count">4</div>
+      </div>
+      <div class="brand-row">
+        <div class="brand-name">أخرى</div>
+        <div class="brand-track"><div class="brand-fill" style="width:13%; background:linear-gradient(90deg,#8b949e,#484f58);"></div></div>
+        <div class="brand-count">10</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-bar">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="ابحث برقم اللوحة، الماركة، أو الطراز..." oninput="filterTable()">
+    </div>
+    <div class="filter-btns">
+      <button class="filter-btn active-all" onclick="setFilter('all', this)">الكل (76)</button>
+      <button class="filter-btn" onclick="setFilter('نشط', this)">✅ نشط (12)</button>
+      <button class="filter-btn" onclick="setFilter('معطلة', this)">❌ معطلة (53)</button>
+      <button class="filter-btn" onclick="setFilter('مشكله', this)">⚠️ مشكلة (11)</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div class="table-header-bar">
+      <div class="section-title" style="margin:0">قائمة المركبات</div>
+      <div class="count-label">عرض <span class="count-num" id="showingCount">76</span> مركبة</div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>رقم اللوحة</th>
+            <th>نوع التسجيل</th>
+            <th>الماركة</th>
+            <th>الطراز</th>
+            <th>سنة الصنع</th>
+            <th>الرقم التسلسلي</th>
+            <th>حالة الجهاز</th>
+            <th>المدة</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyState" class="empty-state" style="display:none;">
+      <div class="icon">🔍</div>
+      <p>لا توجد نتائج مطابقة للبحث</p>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  فرع الدمام · بن زومة للتجارة الدولية والتنمية · كشف أجهزة التتبع GPS 2026
+</footer>
+
+<script>
+const vehicles = [
+  {num:1, plate:"ر و د 1693", type:"خاص", brand:"سوزوكي", model:"DZIRE", year:2025, serial:"966200220", hull:"151666SA26ZFDF3MA", status:"نشط", since:""},
+  {num:2, plate:"ر ل ر 5062", type:"خاص", brand:"سوزوكي", model:"ديز اير", year:2025, serial:"709509020", hull:"491185RG18C6MBHZF", status:"معطلة", since:"منذ شهر"},
+  {num:3, plate:"أ ر ع 2232", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2020, serial:"386860810", hull:"001887LK5P6G7B6JL", status:"معطلة", since:"منذ عامين"},
+  {num:4, plate:"أ ر ع 2233", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2020, serial:"886860810", hull:"006751LK5P6G7B6JL", status:"معطلة", since:"منذ عامين"},
+  {num:5, plate:"أ ر ع 2234", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2020, serial:"196860810", hull:"006674LK2P6G7B6JL", status:"معطلة", since:"منذ أربع سنوات"},
+  {num:6, plate:"أ ر ع 2240", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2020, serial:"427860810", hull:"006675LK4P6G7B6JL", status:"مشكله", since:"منذ ستة أشهر"},
+  {num:7, plate:"أ ر ل 5580", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2015, serial:"322761410", hull:"13259P7F3457JAMLP", status:"نشط", since:"منذ ثلاثة أشهر"},
+  {num:8, plate:"أ ر ه 2769", type:"نقل خاص", brand:"تويوتا", model:"بكب غماره", year:2009, serial:"12052900", hull:"190004703G12AS0MR", status:"معطلة", since:"منذ ثلاث سنوات"},
+  {num:9, plate:"أ ر ه 3213", type:"نقل خاص", brand:"تويوتا", model:"بكب غمارتين", year:2009, serial:"619501900", hull:"093023257G12ES0MR", status:"معطلة", since:"منذ عامين"},
+  {num:10, plate:"أ ر و 4071", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2022, serial:"74841910", hull:"00570NWP3456LP2RS", status:"مشكله", since:"منذ ثلاثة أشهر"},
+  {num:11, plate:"أ ر و 4084", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2022, serial:"960941910", hull:"00565NWP3452LP2RS", status:"معطلة", since:"منذ ١٠ أشهر"},
+  {num:12, plate:"أ ر و 4085", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2022, serial:"211941910", hull:"00567NWP3456LP2RS", status:"معطلة", since:"منذ عامين"},
+  {num:13, plate:"أ ر و 4139", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2023, serial:"395065910", hull:"000011PW137M5K1RS", status:"نشط", since:"قبل شهرين"},
+  {num:14, plate:"أ ر و 4140", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2023, serial:"826065910", hull:"000010PW135M5K1RS", status:"معطلة", since:""},
+  {num:15, plate:"أ ر و 4141", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2023, serial:"186065910", hull:"000009PW139M5K1RS", status:"معطلة", since:""},
+  {num:16, plate:"أ س ح 8670", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2023, serial:"379167910", hull:"006802PXPK6G7B6JL", status:"معطلة", since:""},
+  {num:17, plate:"أ س ح 8714", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2023, serial:"29819910", hull:"006976PXPK6G7B6JL", status:"مشكله", since:""},
+  {num:18, plate:"أ س ح 8715", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2023, serial:"539819910", hull:"006908PK4P6G7B6JL", status:"معطلة", since:""},
+  {num:19, plate:"أ س ح 8717", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2023, serial:"949819910", hull:"006913PK8P6G7B6JL", status:"معطلة", since:""},
+  {num:20, plate:"أ س ر 8873", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2023, serial:"203480020", hull:"015483PXPK6G7B6JL", status:"معطلة", since:""},
+  {num:21, plate:"أ س ط 6745", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2016, serial:"11809610", hull:"023461GK0L6CUK6JL", status:"نشط", since:""},
+  {num:22, plate:"أ س ق 7774", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2015, serial:"178838410", hull:"013917FK2L6CUK6JL", status:"معطلة", since:""},
+  {num:23, plate:"أ س ق 7775", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2016, serial:"490809610", hull:"023671GK0L6CUK6JL", status:"معطلة", since:""},
+  {num:24, plate:"أ س ق 7776", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2016, serial:"831809610", hull:"010877LXGK6CUK6JL", status:"معطلة", since:""},
+  {num:25, plate:"أ س ق 7821", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2016, serial:"787571510", hull:"003041LXGK6CUK6JL", status:"مشكله", since:""},
+  {num:26, plate:"أ س ق 7920", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2016, serial:"621809610", hull:"023502LXGK6CUK6JL", status:"معطلة", since:""},
+  {num:27, plate:"أ س ك 7730", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2016, serial:"641809610", hull:"010949GK9L6CUK6JL", status:"معطلة", since:""},
+  {num:28, plate:"أ س ل 8850", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2016, serial:"451809610", hull:"010601GK2L6CUK6JL", status:"نشط", since:""},
+  {num:29, plate:"أ س م 8013", type:"نقل عام", brand:"ايسوزو", model:"صندوق مغلق", year:2023, serial:"17554020", hull:"000452PW137M6M1RS", status:"معطلة", since:""},
+  {num:30, plate:"أ س م 8015", type:"نقل عام", brand:"ايسوزو", model:"صندوق مغلق", year:2023, serial:"698454020", hull:"000455PW132M6M1RS", status:"معطلة", since:""},
+  {num:31, plate:"أ س م 8021", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2023, serial:"538754020", hull:"000530PW131M6M1RS", status:"مشكله", since:""},
+  {num:32, plate:"أ س م 8022", type:"نقل عام", brand:"ايسوزو", model:"صندوق مغلق", year:2023, serial:"978754020", hull:"000451PW135M6M1RS", status:"معطلة", since:""},
+  {num:33, plate:"أ س م 8023", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2023, serial:"277754020", hull:"000531PW133M6M1RS", status:"معطلة", since:""},
+  {num:34, plate:"أ س م 8024", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2023, serial:"358754020", hull:"000573PW138M6M1RS", status:"معطلة", since:""},
+  {num:35, plate:"أ س م 8025", type:"نقل عام", brand:"ايسوزو", model:"صندوق", year:2023, serial:"968754020", hull:"000572PW136M6M1RS", status:"معطلة", since:""},
+  {num:36, plate:"أ س م 8029", type:"نقل عام", brand:"ايسوزو", model:"صندوق مغلق", year:2023, serial:"537954020", hull:"000532PW135M6M1RS", status:"نشط", since:""},
+  {num:37, plate:"أ س م 8031", type:"نقل عام", brand:"ايسوزو", model:"صندوق مغلق", year:2023, serial:"317954020", hull:"000454PW130M6M1RS", status:"معطلة", since:""},
+  {num:38, plate:"أ س م 8033", type:"نقل عام", brand:"ايسوزو", model:"صندوق مغلق", year:2023, serial:"207954020", hull:"000457PW136M6M1RS", status:"مشكله", since:""},
+  {num:39, plate:"أ س م 8035", type:"نقل عام", brand:"ايسوزو", model:"صندوق مغلق", year:2023, serial:"776954020", hull:"000571PW134M6M1RS", status:"معطلة", since:""},
+  {num:40, plate:"أ ص ق 6853", type:"نقل عام", brand:"ايسوزو", model:"صندوق مغلق", year:2024, serial:"739131120", hull:"10055P7R3453JAMLP", status:"معطلة", since:""},
+  {num:41, plate:"أ ص ق 6855", type:"نقل عام", brand:"ايسوزو", model:"صندوق مغلق", year:2024, serial:"761431120", hull:"08752P7R3454JAMLP", status:"معطلة", since:""},
+  {num:42, plate:"أ و ب 2759", type:"نقل خاص", brand:"ايسوزو", model:"بكب غمارتين", year:2013, serial:"91202310", hull:"013141DT4T33MPAEL", status:"نشط", since:""},
+  {num:43, plate:"أ و ب 2760", type:"نقل خاص", brand:"ايسوزو", model:"بكب غمارتين", year:2013, serial:"512202310", hull:"011969DT4T33MPAEL", status:"معطلة", since:""},
+  {num:44, plate:"ب أ ب 6953", type:"نقل خاص", brand:"ايسوزو", model:"بكب غمارتين", year:2015, serial:"169804410", hull:"012696FT3319MPAEL", status:"معطلة", since:""},
+  {num:45, plate:"ب ب ق 4866", type:"نقل خاص", brand:"ايسوزو", model:"بكب غمارتين", year:2016, serial:"601482510", hull:"026930GT3314MPAEL", status:"مشكله", since:""},
+  {num:46, plate:"ب ب ق 4868", type:"نقل خاص", brand:"ايسوزو", model:"بكب غمارتين", year:2016, serial:"912482510", hull:"026933XGT331MPAEL", status:"معطلة", since:""},
+  {num:47, plate:"ب ح ل 4434", type:"نقل خاص", brand:"سايك موتور", model:"تي 60 بيك اب", year:2020, serial:"308047710", hull:"043803LA2A11LSFAM", status:"معطلة", since:""},
+  {num:48, plate:"ب ح ل 4435", type:"نقل خاص", brand:"سايك موتور", model:"تي 06 بيك اب", year:2020, serial:"418047710", hull:"043834LA2A11LSFAM", status:"نشط", since:""},
+  {num:49, plate:"ب ح ل 4436", type:"نقل خاص", brand:"سايك موتور", model:"تي 60 بيك اب", year:2020, serial:"228047710", hull:"043817LA2A11LSFAM", status:"معطلة", since:""},
+  {num:50, plate:"ب ح ه 5088", type:"نقل خاص", brand:"ايسوزو", model:"بكب غماره", year:2016, serial:"487059510", hull:"018583GT2C34MPAEL", status:"معطلة", since:""},
+  {num:51, plate:"ب د ل 7207", type:"نقل خاص", brand:"ايسوزو", model:"بكب غمارتين", year:2018, serial:"305759610", hull:"006084JT3312MPAEL", status:"مشكله", since:""},
+  {num:52, plate:"ب د ل 7208", type:"نقل خاص", brand:"ايسوزو", model:"بكب غمارتين", year:2018, serial:"965759610", hull:"006086JT3316MPAEL", status:"معطلة", since:""},
+  {num:53, plate:"ب ر ل 3098", type:"نقل خاص", brand:"متسوبيشي", model:"بكب غمارتين", year:2020, serial:"644535710", hull:"203557LH9K35MMBMG", status:"نشط", since:""},
+  {num:54, plate:"ب ر ل 3099", type:"نقل خاص", brand:"متسوبيشي", model:"بكب غمارتين", year:2020, serial:"174535710", hull:"203574LH9K35MMBMG", status:"معطلة", since:""},
+  {num:55, plate:"ب س ل 5541", type:"نقل خاص", brand:"جريت وول", model:"غمارتين", year:2022, serial:"129726810", hull:"656521NB191LGWCBE", status:"معطلة", since:""},
+  {num:56, plate:"ب ص ب 5125", type:"نقل خاص", brand:"رينو", model:"فان", year:2022, serial:"766440910", hull:"025817NG49SRB18VF", status:"معطلة", since:""},
+  {num:57, plate:"ب ص ب 5129", type:"نقل خاص", brand:"رينو", model:"فان", year:2022, serial:"58440910", hull:"025896NG49SRB18VF", status:"مشكله", since:""},
+  {num:58, plate:"ب ص ط 9959", type:"نقل خاص", brand:"ايسوزو", model:"بكب غماره", year:2022, serial:"94714910", hull:"004896NB3413GEL3M", status:"معطلة", since:""},
+  {num:59, plate:"ب ط س 3258", type:"نقل خاص", brand:"ايسوزو", model:"بكب غماره", year:2023, serial:"661111020", hull:"001224PB3411GEL3M", status:"معطلة", since:""},
+  {num:60, plate:"ب ط س 3259", type:"نقل خاص", brand:"ايسوزو", model:"بكب غماره", year:2023, serial:"881111020", hull:"000556XPB341GEL3M", status:"نشط", since:""},
+  {num:61, plate:"ب ط س 3261", type:"نقل خاص", brand:"ايسوزو", model:"بكب غماره", year:2023, serial:"442111020", hull:"001252PB3416GEL3M", status:"معطلة", since:""},
+  {num:62, plate:"ب ط س 3262", type:"نقل خاص", brand:"ايسوزو", model:"بكب غماره", year:2023, serial:"662111020", hull:"000933PB3413GEL3M", status:"معطلة", since:""},
+  {num:63, plate:"ب ط س 3263", type:"نقل خاص", brand:"ايسوزو", model:"بكب غماره", year:2023, serial:"882111020", hull:"001024PB3414GEL3M", status:"مشكله", since:""},
+  {num:64, plate:"ب ط س 3417", type:"نقل خاص", brand:"ايسوزو", model:"بكب غمارتين", year:2023, serial:"885442020", hull:"004661PB3313GEL3M", status:"معطلة", since:""},
+  {num:65, plate:"ب ط س 3478", type:"نقل خاص", brand:"ايسوزو", model:"بكب غمارتين", year:2023, serial:"777482020", hull:"004439PB3312GEL3M", status:"معطلة", since:""},
+  {num:66, plate:"ح ع ن 2874", type:"خاص", brand:"تويوتا", model:"كورول", year:2015, serial:"812220410", hull:"5062702F2HE9RKLBB", status:"نشط", since:""},
+  {num:67, plate:"ح ي و 5746", type:"خاص", brand:"كيا", model:"سيراتيو", year:2016, serial:"653965510", hull:"5514480G4110KNAFJ", status:"معطلة", since:""},
+  {num:68, plate:"د د و 4282", type:"خاص", brand:"هيونداي", model:"اكسنت", year:2018, serial:"679743610", hull:"292013JU6B41KMHCT", status:"معطلة", since:""},
+  {num:69, plate:"ر د ب 4650", type:"خاص", brand:"تويوتا", model:"فورتشنر", year:2022, serial:"317833910", hull:"0031489N4FS8MHFDB", status:"معطلة", since:""},
+  {num:70, plate:"ر ل ر 5063", type:"خاص", brand:"سوزوكي", model:"ديز اير", year:2024, serial:"719509020", hull:"491156RG11C6MBHZF", status:"مشكله", since:""},
+  {num:71, plate:"س د ي 2475", type:"خاص", brand:"سوزوكي", model:"BALENO", year:2026, serial:"340707220", hull:"59952TGB23MBHWBAC", status:"معطلة", since:""},
+  {num:72, plate:"س د ي 2487", type:"خاص", brand:"سوزوكي", model:"BALENO", year:2026, serial:"841707220", hull:"65629TGB24MBHWBAC", status:"معطلة", since:""},
+  {num:73, plate:"ر ل ر 5094", type:"خاص", brand:"سوزوكي", model:"ديز اير", year:2024, serial:"280609020", hull:"507383RG16C6MBHZF", status:"نشط", since:""},
+  {num:74, plate:"ر ل ر 5062", type:"خاص", brand:"سوزوكي", model:"ديز اير", year:2024, serial:"709509020", hull:"491185RG18C6MBHZF", status:"معطلة", since:""},
+  {num:75, plate:"أ ص أ 7810", type:"نقل عام", brand:"هينو", model:"شاحنة بصندوق", year:2023, serial:"829737020", hull:"019277PK8F2JHHZCL", status:"معطلة", since:""},
+  {num:77, plate:"ر ل ر 5059", type:"نقل خاص", brand:"سوزوكي", model:"ديز اير", year:2024, serial:"598509020", hull:"517277RG12C6MBHZF", status:"معطلة", since:""},
+];
+
+let currentFilter = 'all';
+
+function statusPill(status) {
+  const s = status.trim();
+  if (s === 'نشط') {
+    return `<span class="status-pill status-active"><span class="status-dot"></span>نشط</span>`;
+  } else if (s === 'معطلة') {
+    return `<span class="status-pill status-broken"><span class="status-dot"></span>معطلة</span>`;
+  } else {
+    return `<span class="status-pill status-issue"><span class="status-dot"></span>مشكلة</span>`;
+  }
+}
+
+function filterTable() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  let count = 0;
+
+  vehicles.forEach(v => {
+    const matchFilter =
+      currentFilter === 'all' ||
+      (currentFilter === 'نشط' && v.status === 'نشط') ||
+      (currentFilter === 'معطلة' && v.status === 'معطلة') ||
+      (currentFilter === 'مشكله' && v.status !== 'نشط' && v.status !== 'معطلة');
+
+    const matchSearch =
+      !q ||
+      v.plate.toLowerCase().includes(q) ||
+      v.brand.toLowerCase().includes(q) ||
+      v.model.toLowerCase().includes(q) ||
+      String(v.year).includes(q) ||
+      v.serial.includes(q);
+
+    if (matchFilter && matchSearch) {
+      count++;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="row-num">${v.num}</td>
+        <td><span class="plate-badge">${v.plate}</span></td>
+        <td><span class="type-badge">${v.type}</span></td>
+        <td class="brand-tag">${v.brand}</td>
+        <td class="model-text">${v.model}</td>
+        <td class="year-text">${v.year}</td>
+        <td class="serial-text" style="font-size:11px;color:var(--text-muted);font-family:monospace;">${v.serial}</td>
+        <td>${statusPill(v.status)}</td>
+        <td class="since-text">${v.since || '—'}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  });
+
+  document.getElementById('showingCount').textContent = count;
+  document.getElementById('emptyState').style.display = count === 0 ? 'block' : 'none';
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.className = 'filter-btn';
+  });
+  if (f === 'all') btn.classList.add('active-all');
+  else if (f === 'نشط') btn.classList.add('active-btn');
+  else if (f === 'معطلة') btn.classList.add('active-broken');
+  else btn.classList.add('active-issue');
+  filterTable();
+}
+
+// Initial render
+filterTable();
+</script>
+</body>
+</html>
