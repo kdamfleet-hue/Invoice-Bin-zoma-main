@@ -1,6 +1,6 @@
 /* Bin Zomah Fleet — Service Worker (PWA offline support).
    Cache the app shell; never cache API calls (keeps data fresh + workstation isolation). */
-const CACHE = 'binzomah-v4';
+const CACHE = 'binzomah-v5';
 const SHELL = [
   '/',
   '/static/base_styles.css',
@@ -43,9 +43,9 @@ self.addEventListener('fetch', (e) => {
         .catch(() => caches.match(req).then((m) => m || caches.match('/')))
     );
   } else if (/\.(css|js)$/i.test(url.pathname)) {
-    // Network-first for CSS/JS so design/code updates show IMMEDIATELY when online (cache = offline fallback).
+    // Network-first for CSS/JS; bypass the HTTP cache (cache:'reload') so updates show IMMEDIATELY when online.
     e.respondWith(
-      fetch(req)
+      fetch(new Request(req.url, { cache: 'reload' }))
         .then((r) => { if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); } return r; })
         .catch(() => caches.match(req))
     );
