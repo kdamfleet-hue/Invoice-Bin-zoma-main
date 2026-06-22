@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="bz-lux">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap">
     <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <style>
         /* Page-specific layout only (tokens from base_styles.css) */
@@ -82,8 +85,81 @@
         }
     </style>
 
+    <!-- ============================================================
+         "Corporate Elegance" luxury skin — charcoal + muted gold.
+         SCOPED to the invoice homepage (body.bz-lux); rethemes via
+         design tokens so all cards/inputs/tables/modals follow along.
+         Brand topbar/sidebar stay navy+gold. NO data/content change.
+         ============================================================ -->
+    <style>
+      /* token override — `html` prefix beats body.dark-mode so the luxury skin always wins */
+      html body.bz-lux {
+        /* 60% — deep charcoal canvas */
+        --bg-color: #1A1A1A;
+        /* 30% — warm-grey containers */
+        --surface: #2D2D2D; --surface-hover: #363636;
+        --glass-bg: rgba(45,45,45,.85); --glass-border: rgba(197,160,89,.16);
+        --border: #3a3a3a; --border-strong: #4d4d4d;
+        /* text */
+        --text-primary: #F4F4F4; --text-secondary: #B0B0B0; --text-muted: #8c8c8c;
+        /* 10% — muted gold accent (replaces the bright blue) */
+        --accent: #C5A059; --accent-gradient: linear-gradient(135deg, #C5A059, #d8b87a);
+        --accent-glow: rgba(197,160,89,.26);
+        --brand-gold: #C5A059; --brand-gold-soft: #e0c489;
+        /* soft, deep shadows for elevation on a dark surface */
+        --shadow-sm: 0 2px 4px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+        --shadow-md: 0 12px 22px -6px rgba(0,0,0,.5);
+        --shadow-lg: 0 26px 52px -14px rgba(0,0,0,.65);
+        --skeleton-start: #2D2D2D; --skeleton-end: #3a3a3a;
+      }
+      /* paint the REAL page canvas on <html>: base forces body{background:transparent!important},
+         and <html> is what actually shows behind the centered shell — !important to win over it
+         and over html.dark-mode. Scoped via .bz-lux on <html> (homepage only). */
+      html.bz-lux {
+        background-color: #1A1A1A !important;
+        background-image:
+          radial-gradient(at 0% 0%, rgba(197,160,89,.06) 0, transparent 55%),
+          radial-gradient(at 100% 100%, rgba(197,160,89,.04) 0, transparent 55%) !important;
+        background-attachment: fixed;
+      }
+      /* refined Arabic typography — lighter weights read as "diplomatic luxury" */
+      body.bz-lux, body.bz-lux * { font-family: 'Cairo','IBM Plex Sans Arabic','Tajawal',sans-serif; }
+      body.bz-lux .header-title { font-weight: 300; letter-spacing: .5px; font-size: clamp(1.9rem, 5vw, 2.7rem); color: var(--text-primary); }
+      body.bz-lux .header-title::after { content: ''; display: block; width: 64px; height: 3px; margin: .75rem auto 0; background: linear-gradient(90deg, transparent, var(--accent), transparent); border-radius: 3px; }
+      body.bz-lux .header-subtitle { color: var(--text-secondary); font-weight: 400; letter-spacing: .2px; }
+      body.bz-lux .card label { font-weight: 600; letter-spacing: .2px; }
+      /* cards: charcoal glass — overrides base's white-glass !important */
+      body.bz-lux .glass-surface, body.bz-lux .card { background: rgba(45,45,45,.82) !important; border-color: var(--border); border-radius: 14px; }
+      /* inputs: softer corners + a gold focus ring */
+      body.bz-lux input, body.bz-lux select, body.bz-lux textarea { border-radius: 8px; }
+      body.bz-lux input:focus, body.bz-lux select:focus, body.bz-lux textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-sm); }
+      /* primary actions: muted gold with dark text (the 10% accent) */
+      body.bz-lux .btn-primary, body.bz-lux .btn-add, body.bz-lux .fab-btn { color: #1a1a1a; }
+      body.bz-lux .btn-submit-gold { background: var(--accent-gradient); color: #1a1a1a; box-shadow: 0 6px 16px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.25); }
+      /* secondary CTAs: elegant gold outline that fills on hover */
+      body.bz-lux .btn-submit-orange { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); box-shadow: none; }
+      body.bz-lux .btn-submit-orange:hover { background: var(--accent-gradient); color: #1a1a1a; border-color: transparent; filter: none; }
+      /* table hover whisper instead of blue tint */
+      body.bz-lux .drivers-table tr:hover td { background: rgba(197,160,89,.06); }
+      /* logo plate + deeper team shadows on charcoal; gold team-nav hover */
+      body.bz-lux .logo img { box-shadow: 0 16px 40px rgba(0,0,0,.55); }
+      body.bz-lux .team-section > h2 { color: var(--text-primary); font-weight: 700; }
+      body.bz-lux .team-card { box-shadow: 0 14px 34px rgba(0,0,0,.5); }
+      body.bz-lux .team-nav { background: var(--surface); color: var(--text-primary); border-color: var(--border); }
+      body.bz-lux .team-nav:hover { background: var(--accent); color: #1a1a1a; }
+      /* "من نحن" / "تواصل معنا" / footer — these have inline white backgrounds + navy text
+         (and JS hover that resets to a light tint), so they need !important to follow the skin */
+      body.bz-lux #about, body.bz-lux #contact { background: var(--surface) !important; border-color: var(--border) !important; box-shadow: 0 14px 34px rgba(0,0,0,.5) !important; }
+      body.bz-lux #about *, body.bz-lux #contact * { color: var(--text-secondary) !important; }
+      body.bz-lux #about h2, body.bz-lux #contact h2, body.bz-lux #about strong, body.bz-lux #contact a div:last-child { color: var(--text-primary) !important; }
+      body.bz-lux #about a { color: var(--accent) !important; }
+      body.bz-lux #contact a { background: var(--surface-hover) !important; border: 1px solid var(--border) !important; }
+      body.bz-lux #contact a:hover { background: #3f3f3f !important; }
+      body.bz-lux footer { color: var(--text-secondary) !important; border-top-color: var(--border) !important; }
+    </style>
+
 </head>
-<body>
+<body class="bz-lux">
 
     <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3; display: none;">
         <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
