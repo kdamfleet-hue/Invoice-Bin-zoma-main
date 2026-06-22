@@ -10,6 +10,8 @@ from contextlib import contextmanager
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.cell.cell import MergedCell as MC
 import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_apscheduler import APScheduler
 import base64
 import requests
 import json
@@ -160,6 +162,32 @@ app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
 mail = Mail(app)
 
+# APScheduler setup for background jobs
+class Config:
+    SCHEDULER_API_ENABLED = True
+
+app.config.from_object(Config())
+scheduler = APScheduler()
+scheduler.init_app(app)
+
+def send_daily_alerts():
+    """Send a daily summary email to the admin."""
+    try:
+        msg = Message(
+            subject="Daily Fleet Management Alert",
+            sender=app.config["MAIL_USERNAME"],
+            recipients=[app.config["MAIL_USERNAME"]],
+            body="This is an automated daily alert from the Bin Zomah Fleet Management System."
+        )
+        mail.send(msg)
+        logger.info("Daily alert email sent.")
+    except Exception as e:
+        logger.error("Failed to send daily alert: %s", e)
+
+# Schedule the daily job at 18:00 (user‑selected time)
+scheduler.add_job(id="daily_alert", func=send_daily_alerts, trigger="cron", hour=18, minute=0)
+scheduler.start()
+
 # OAuth configuration removed
 
 
@@ -188,6 +216,14 @@ def init_db():
     """Initialize database tables if they don't exist."""
     with app.app_context():
         with db_connection() as db:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'user'
+                )
+            """)
             db.execute("""
                 CREATE TABLE IF NOT EXISTS drivers (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -285,45 +321,53 @@ def init_db():
 init_db()
 
 
-# Security Decorator
+# Security Decorators
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get("authenticated"):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
-
     return decorated_function
+
+
+def require_role(*allowed_roles):
+    """Decorator that restricts access to users whose session['role'] is in allowed_roles."""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            role = session.get("role")
+            if role not in allowed_roles:
+                logger.warning("Access denied for role %s on %s", role, request.path)
+                return jsonify({"error": "Access denied"}), 403
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("authenticated"):
         return redirect(url_for("index"))
-        
+    
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         
-        master_user = os.environ.get("ADMIN_USERNAME", "admin")
-        master_pass = os.environ.get("MASTER_PASSWORD")
-        
-        allowed_users = [master_user, "admin"]
-        
-        if not master_pass:
-            logger.error("MASTER_PASSWORD environment variable is not set!")
-            return render_template("login.html", error="خطأ في إعداد النظام. يرجى التواصل مع المدير.")
-            
-        if username in allowed_users and password == master_pass:
+        # Try to authenticate against the users table
+        with db_connection() as db:
+            row = db.execute("SELECT password_hash, role FROM users WHERE username = ?", (username,)).fetchone()
+        if row and check_password_hash(row["password_hash"], password):
             session["authenticated"] = True
             session.permanent = True
-            session["google_user"] = {"name": username, "email": "admin@system.local"}
-            logger.info("Successful login")
+            session["google_user"] = {"name": username, "email": f"{username}@system.local"}
+            session["role"] = row["role"]
+            logger.info("Successful login for user %s with role %s", username, row["role"])
             return redirect(url_for("index"))
         else:
-            logger.warning("Failed login attempt")
+            logger.warning("Failed login attempt for user %s", username)
             return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة")
-            
+    
     return render_template("login.html")
 
 
