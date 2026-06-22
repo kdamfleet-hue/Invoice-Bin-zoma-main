@@ -364,6 +364,14 @@
   }
 
   var alFilter = 'attention'; // attention = expired+d30+d90
+  // Helper to generate unique ID for each alert
+  function getAlertId(a) {
+    return btoa(a.name + '|' + a.doc + '|' + a.date);
+  }
+  // Load resolved alerts and notes from localStorage
+  var resolvedSet = new Set(JSON.parse(localStorage.getItem('resolvedAlerts') || '[]'));
+  var alertNotes = JSON.parse(localStorage.getItem('alertNotes') || '{}');
+
   function renderAlerts() {
     var counts = { expired: 0, d30: 0, d90: 0, valid: 0, unknown: 0 };
     ALERTS.forEach(function (a) { counts[a.st.key]++; });
@@ -373,19 +381,9 @@
       { k: 'd30', t: '🟠 ≤ 30 يوم', n: counts.d30 },
       { k: 'd90', t: '🟡 ≤ 90 يوم', n: counts.d90 },
       { k: 'valid', t: '🟢 سارية', n: counts.valid },
+      { k: 'resolved', t: 'المقيدة', n: resolvedSet.size },
       { k: 'all', t: 'الكل', n: ALERTS.length }
     ];
-    $('alFilters').innerHTML = defs.map(function (d) {
-      return '<span class="chip ' + (alFilter === d.k ? 'on' : '') + '" data-k="' + d.k + '">' + d.t + '<span class="c-n">' + d.n + '</span></span>';
-    }).join('');
-    Array.prototype.forEach.call($('alFilters').querySelectorAll('.chip'), function (c) {
-      c.onclick = function () { alFilter = c.getAttribute('data-k'); renderAlerts(); };
-    });
-    var list = ALERTS.filter(function (a) {
-      if (alFilter === 'all') return true;
-      if (alFilter === 'attention') return a.st.rank <= 2;
-      return a.st.key === alFilter;
-    });
     
         if($('t-alerts-count')) $('t-alerts-count').textContent = list.length + ' وثيقة';
         if($('bellCount')) $('bellCount').textContent = counts.expired + counts.d30;
@@ -398,28 +396,11 @@
         });
         
         if (!list.length) { $('t-alerts').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">لا توجد وثائق ✓</p>'; return; }
-        $('t-alerts').innerHTML = list.slice(0, 50).map(function (a) {
-          var bg = 'bg-gray-50 border-gray-200', text = 'text-gray-800', badgeBg = 'bg-gray-500', icon = 'fa-file-lines';
-          if(a.st.key === 'expired') { bg = 'bg-red-50 border-red-500'; badgeBg = 'bg-danger'; icon = 'fa-triangle-exclamation'; }
-          else if(a.st.key === 'd30') { bg = 'bg-orange-50 border-orange-500'; badgeBg = 'bg-orange-500'; icon = 'fa-bell'; }
-          else if(a.st.key === 'd90') { bg = 'bg-yellow-50 border-yellow-500'; badgeBg = 'bg-yellow-500'; icon = 'fa-clock'; }
-          else if(a.st.key === 'valid') { bg = 'bg-green-50 border-green-500'; badgeBg = 'bg-accent'; icon = 'fa-circle-check'; }
-          
-          var details = [];
-          if (a.plate) details.push('<i class="fa-solid fa-car-side opacity-70"></i> ' + esc(a.plate));
-          if (a.vtype) details.push(esc(a.vtype));
-          if (a.job) details.push('<i class="fa-solid fa-user-tie opacity-70"></i> ' + esc(a.job));
-          var detailsStr = details.length ? '<p class="text-xs text-gray-500 mt-1 flex gap-3 flex-wrap">' + details.join(' | ') + '</p>' : '';
-          
-          return '<div class="p-3 border-r-4 rounded flex flex-col md:flex-row md:justify-between md:items-center gap-2 transition-all hover:shadow-md ' + bg + '">' +
-            '<div class="flex-1">' +
-              '<p class="text-sm font-bold flex items-center gap-2 ' + text + '">' +
-                 '<i class="fa-solid ' + icon + '"></i> ' + esc(a.doc) + ' ' +
-                 '<span class="text-xs font-normal opacity-80 border border-current px-1.5 py-0.5 rounded">ينتهي: ' + esc(a.date) + '</span>' +
-              '</p>' +
-              '<p class="text-[13px] font-medium text-gray-700 mt-1"><i class="fa-solid fa-user opacity-70"></i> ' + esc(a.name) + '</p>' +
-              detailsStr +
-            '</div>' +
+            '<td>${esc(a.doc)}</td>' +
+            '<td><input type="date" class="date-input" value="${a.date}" data-index="${i}" onchange="updateAlertDate(this)"></td>' +
+            '<td class="days-left">${fmtDays(a.st)}</td>' +
+            '<td><select class="status-select" data-index="${i}" onchange="updateAlertStatus(this)"><option value="valid" ${a.st.key === 'valid' ? 'selected' : ''}>سارية</option><option value="d30" ${a.st.key === 'd30' ? 'selected' : ''}>≤30 يوم</option><option value="d90" ${a.st.key === 'd90' ? 'selected' : ''}>≤90 يوم</option><option value="expired" ${a.st.key === 'expired' ? 'selected' : ''}>منتهية</option></select></td>' +
+            '<td><button class="btn-outline" onclick="saveAlert(${i})">💾 حفظ</button></td>' +
             '<div class="text-left">' +
               '<span class="text-xs text-white px-2 py-1 rounded shadow-sm whitespace-nowrap ' + badgeBg + '">' + a.st.label + ' (' + fmtDays(a.st) + ')</span>' +
             '</div>' +
