@@ -736,7 +736,8 @@ def load_logo():
 def index():
     google_user = session.get("google_user")
     b64_en = load_logo()
-    return render_template("index.html", google_user=google_user, b64_en=b64_en)
+    # Homepage hides the "نظام الفواتير الذكي" heading (logo takes its place); the /invoice tab shows it.
+    return render_template("index.html", google_user=google_user, b64_en=b64_en, show_invoice_title=False)
 
 
 @app.route("/dashboard")
@@ -774,7 +775,8 @@ def gps_devices():
 @login_required
 def invoice():
     # The invoice IS the homepage — alias /invoice to it (single source, no duplicate template).
-    return render_template("index.html", google_user=session.get("google_user"), b64_en=load_logo())
+    # This tab DOES show the "نظام الفواتير الذكي" heading (the homepage hides it).
+    return render_template("index.html", google_user=session.get("google_user"), b64_en=load_logo(), show_invoice_title=True)
 
 
 @app.route("/fleet_dashboard")

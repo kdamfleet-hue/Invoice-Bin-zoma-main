@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" class="bz-lux">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -62,23 +62,32 @@
         .drivers-table.bz-fit thead th { white-space: nowrap; word-break: keep-all; overflow: visible; }
         .drivers-table.bz-fit td { white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
         
-        /* Floating Action Button */
-        .fab-btn {
-            position: fixed; bottom: 25px; left: 25px; width: 60px; height: 60px;
-            border-radius: 50%; background: var(--accent-gradient); color: #fff; border: none;
-            font-size: 1.8rem; cursor: pointer; box-shadow: var(--shadow-lg);
-            z-index: 999; display: flex; align-items: center; justify-content: center; transition: var(--trans-spring);
+        /* ===== Floating macOS-style dock (bottom-left): WhatsApp + Email ===== */
+        .bz-dock {
+            position: fixed; bottom: 26px; left: 26px; z-index: 999;
+            display: flex; align-items: flex-end; gap: 14px;
         }
-        .fab-btn:hover { transform: scale(1.1) rotate(10deg); }
-
-        /* WhatsApp floating bubble (bottom-right) */
-        .wa-fab {
-            position: fixed; bottom: 25px; right: 25px; width: 56px; height: 56px;
-            border-radius: 50%; background: #25D366; color: #fff; display: flex;
-            align-items: center; justify-content: center; z-index: 999; text-decoration: none;
-            box-shadow: 0 8px 24px rgba(37,211,102,0.45); transition: transform .2s ease, box-shadow .2s ease;
+        .bz-dock-btn {
+            width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer; padding: 0;
+            display: flex; align-items: center; justify-content: center; position: relative;
+            font-size: 1.5rem; color: #fff; text-decoration: none;
+            box-shadow: 0 8px 22px rgba(0,0,0,0.45); transform-origin: bottom center;
+            transition: transform .28s cubic-bezier(0.34,1.56,0.64,1), box-shadow .28s ease;
         }
-        .wa-fab:hover { transform: scale(1.1); box-shadow: 0 10px 30px rgba(37,211,102,0.6); }
+        .bz-dock-btn.wa   { background: #25D366; }
+        .bz-dock-btn.mail { background: var(--accent-gradient, linear-gradient(135deg,#C5A059,#d8b87a)); color: #1a1a1a; }
+        /* macOS-dock magnify: whole dock lifts slightly on hover, the hovered button pops up + scales */
+        .bz-dock:hover .bz-dock-btn { transform: translateY(-2px) scale(1.06); }
+        .bz-dock .bz-dock-btn:hover { transform: translateY(-16px) scale(1.45); box-shadow: 0 18px 40px rgba(0,0,0,0.55); }
+        /* label bubble that pops above on hover */
+        .bz-dock-btn::after {
+            content: attr(data-label); position: absolute; bottom: 126%; left: 50%;
+            transform: translateX(-50%) translateY(6px) scale(.6); transform-origin: bottom center;
+            background: #2D2D2D; color: #F4F4F4; padding: 5px 11px; border-radius: 9px;
+            font-size: .72rem; font-weight: 700; white-space: nowrap; opacity: 0; pointer-events: none;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5); transition: transform .22s ease, opacity .22s ease;
+        }
+        .bz-dock-btn:hover::after { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
 
         @media (max-width: 768px) {
             .header-title { font-size: 1.8rem; }
@@ -92,54 +101,13 @@
          Brand topbar/sidebar stay navy+gold. NO data/content change.
          ============================================================ -->
     <style>
-      /* token override — `html` prefix beats body.dark-mode so the luxury skin always wins */
-      html body.bz-lux {
-        /* 60% — deep charcoal canvas */
-        --bg-color: #1A1A1A;
-        /* 30% — warm-grey containers */
-        --surface: #2D2D2D; --surface-hover: #363636;
-        --glass-bg: rgba(45,45,45,.85); --glass-border: rgba(197,160,89,.16);
-        --border: #3a3a3a; --border-strong: #4d4d4d;
-        /* text */
-        --text-primary: #F4F4F4; --text-secondary: #B0B0B0; --text-muted: #8c8c8c;
-        /* 10% — muted gold accent (replaces the bright blue) */
-        --accent: #C5A059; --accent-gradient: linear-gradient(135deg, #C5A059, #d8b87a);
-        --accent-glow: rgba(197,160,89,.26);
-        --brand-gold: #C5A059; --brand-gold-soft: #e0c489;
-        /* soft, deep shadows for elevation on a dark surface */
-        --shadow-sm: 0 2px 4px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
-        --shadow-md: 0 12px 22px -6px rgba(0,0,0,.5);
-        --shadow-lg: 0 26px 52px -14px rgba(0,0,0,.65);
-        --skeleton-start: #2D2D2D; --skeleton-end: #3a3a3a;
-      }
-      /* paint the REAL page canvas on <html>: base forces body{background:transparent!important},
-         and <html> is what actually shows behind the centered shell — !important to win over it
-         and over html.dark-mode. Scoped via .bz-lux on <html> (homepage only). */
-      html.bz-lux {
-        background-color: #1A1A1A !important;
-        background-image:
-          radial-gradient(at 0% 0%, rgba(197,160,89,.06) 0, transparent 55%),
-          radial-gradient(at 100% 100%, rgba(197,160,89,.04) 0, transparent 55%) !important;
-        background-attachment: fixed;
-      }
-      /* refined Arabic typography — lighter weights read as "diplomatic luxury" */
-      body.bz-lux, body.bz-lux * { font-family: 'Cairo','IBM Plex Sans Arabic','Tajawal',sans-serif; }
+      /* Homepage-only luxury touches — the charcoal+gold palette, the <html> canvas, and the
+         Cairo typography are now GLOBAL (static/base_styles.css), so they are not redeclared here. */
       body.bz-lux .header-title { font-weight: 300; letter-spacing: .5px; font-size: clamp(1.9rem, 5vw, 2.7rem); color: var(--text-primary); }
       body.bz-lux .header-title::after { content: ''; display: block; width: 64px; height: 3px; margin: .75rem auto 0; background: linear-gradient(90deg, transparent, var(--accent), transparent); border-radius: 3px; }
       body.bz-lux .header-subtitle { color: var(--text-secondary); font-weight: 400; letter-spacing: .2px; }
       body.bz-lux .card label { font-weight: 600; letter-spacing: .2px; }
-      /* cards: charcoal glass — overrides base's white-glass !important */
-      body.bz-lux .glass-surface, body.bz-lux .card { background: rgba(45,45,45,.82) !important; border-color: var(--border); border-radius: 14px; }
-      /* inputs: softer corners + a gold focus ring */
-      body.bz-lux input, body.bz-lux select, body.bz-lux textarea { border-radius: 8px; }
-      body.bz-lux input:focus, body.bz-lux select:focus, body.bz-lux textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-sm); }
-      /* primary actions: muted gold with dark text (the 10% accent) */
-      body.bz-lux .btn-primary, body.bz-lux .btn-add, body.bz-lux .fab-btn { color: #1a1a1a; }
-      body.bz-lux .btn-submit-gold { background: var(--accent-gradient); color: #1a1a1a; box-shadow: 0 6px 16px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.25); }
-      /* secondary CTAs: elegant gold outline that fills on hover */
-      body.bz-lux .btn-submit-orange { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); box-shadow: none; }
-      body.bz-lux .btn-submit-orange:hover { background: var(--accent-gradient); color: #1a1a1a; border-color: transparent; filter: none; }
-      /* table hover whisper instead of blue tint */
+      /* (cards, inputs, and gold buttons are themed globally in base_styles.css) */
       body.bz-lux .drivers-table tr:hover td { background: rgba(197,160,89,.06); }
       /* logo plate + deeper team shadows on charcoal; gold team-nav hover */
       body.bz-lux .logo img { box-shadow: 0 16px 40px rgba(0,0,0,.55); }
@@ -171,7 +139,8 @@
         <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
       </div>
       <nav class="bz-nav">
-        <a href="/" class="active">🏠 الرئيسية</a>
+        <a href="/"{% if show_invoice_title is not defined or not show_invoice_title %} class="active"{% endif %}>🏠 الرئيسية</a>
+        <a href="/invoice"{% if show_invoice_title is defined and show_invoice_title %} class="active"{% endif %}>🧾 الفاتورة الذكية</a>
         <a href="/dashboard" style="background:var(--brand-gold);color:var(--brand-navy);border-color:var(--brand-gold);font-weight:800;">🎯 لوحة الإدارة</a>
         <a href="/purchase">🛒 طلب شراء</a>
         <a href="/schedule">📋 الجدول الأسبوعي</a>
@@ -196,19 +165,21 @@
     <div class="header-container">
 
     <div class="logo" style="text-align: center; margin-bottom: 2rem;">
-        <img src="{{ url_for('static', filename='main_logo.png') }}" alt="Bin Zomah Intl Logo" style="height: 132px; background:#ffffff; padding:16px 30px; border-radius:18px; box-shadow:0 12px 34px rgba(0,0,0,0.38);">
+        <img src="{{ url_for('static', filename='main_logo.png') }}" alt="Bin Zomah Intl Logo" style="height: {% if not (show_invoice_title is not defined or show_invoice_title) %}176px{% else %}132px{% endif %}; background:#ffffff; padding:16px 30px; border-radius:18px; box-shadow:0 12px 34px rgba(0,0,0,0.38);">
     </div>
 
     {% if google_user %}
-    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1001; backdrop-filter: blur(5px);">
+    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1001; backdrop-filter: blur(5px);">
         <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
-        <span style="font-weight: bold; color: #1A3A5C; font-size: 0.9rem;">{{ google_user.name }}</span>
+        <span style="font-weight: bold; color: var(--text-primary); font-size: 0.9rem;">{{ google_user.name }}</span>
         <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">تسجيل خروج</a>
     </div>
     {% endif %}
 
+    {% if show_invoice_title is not defined or show_invoice_title %}
     <h1 class="header-title">نظام الفواتير الذكي</h1>
         <p class="header-subtitle">اختر السائق وسيتم تعبئة البيانات تلقائياً</p>
+    {% endif %}
 
     </div>
 
@@ -907,12 +878,13 @@
         </div>
     </div>
 
-<!-- Compose Email FAB -->
-<button id="composeFab" onclick="openCustomModal('composeModal')" class="fab-btn" title="إنشاء رسالة">✉️</button>
-
-<a href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" class="wa-fab" title="تواصل عبر واتساب" aria-label="واتساب">
-    <svg viewBox="0 0 32 32" width="30" height="30" fill="#fff" aria-hidden="true"><path d="M16.04 4C9.96 4 5.02 8.94 5.02 15.02c0 1.96.51 3.86 1.49 5.54L4.9 27l6.6-1.73a11 11 0 0 0 4.54.98h.01c6.08 0 11.02-4.94 11.02-11.02C27.07 8.94 22.12 4 16.04 4zm0 20.18h-.01a9.14 9.14 0 0 1-4.65-1.27l-.33-.2-3.92 1.03 1.05-3.82-.22-.34a9.12 9.12 0 0 1-1.4-4.87c0-5.05 4.11-9.16 9.17-9.16 2.45 0 4.75.96 6.48 2.69a9.1 9.1 0 0 1 2.68 6.48c0 5.05-4.11 9.16-9.16 9.16zm5.03-6.86c-.28-.14-1.63-.8-1.88-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.59.07-.28-.14-1.16-.43-2.21-1.36-.82-.73-1.37-1.63-1.53-1.91-.16-.28-.02-.43.12-.57.13-.13.28-.32.41-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.44-.46-.61-.46l-.52-.01c-.18 0-.46.07-.7.34-.25.28-.93.91-.93 2.22s.96 2.58 1.09 2.76c.14.18 1.88 2.87 4.56 4.02.64.28 1.13.44 1.52.56.64.2 1.22.17 1.68.1.51-.08 1.63-.67 1.86-1.31.23-.64.23-1.19.16-1.31-.07-.12-.25-.19-.53-.33z"/></svg>
-</a>
+<!-- Floating macOS-style dock (bottom-left): WhatsApp + Email -->
+<div class="bz-dock" aria-label="إجراءات سريعة">
+    <a class="bz-dock-btn wa" href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" data-label="واتساب" title="تواصل عبر واتساب" aria-label="واتساب">
+        <svg viewBox="0 0 32 32" width="26" height="26" fill="#fff" aria-hidden="true"><path d="M16.04 4C9.96 4 5.02 8.94 5.02 15.02c0 1.96.51 3.86 1.49 5.54L4.9 27l6.6-1.73a11 11 0 0 0 4.54.98h.01c6.08 0 11.02-4.94 11.02-11.02C27.07 8.94 22.12 4 16.04 4zm0 20.18h-.01a9.14 9.14 0 0 1-4.65-1.27l-.33-.2-3.92 1.03 1.05-3.82-.22-.34a9.12 9.12 0 0 1-1.4-4.87c0-5.05 4.11-9.16 9.17-9.16 2.45 0 4.75.96 6.48 2.69a9.1 9.1 0 0 1 2.68 6.48c0 5.05-4.11 9.16-9.16 9.16zm5.03-6.86c-.28-.14-1.63-.8-1.88-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.59.07-.28-.14-1.16-.43-2.21-1.36-.82-.73-1.37-1.63-1.53-1.91-.16-.28-.02-.43.12-.57.13-.13.28-.32.41-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.44-.46-.61-.46l-.52-.01c-.18 0-.46.07-.7.34-.25.28-.93.91-.93 2.22s.96 2.58 1.09 2.76c.14.18 1.88 2.87 4.56 4.02.64.28 1.13.44 1.52.56.64.2 1.22.17 1.68.1.51-.08 1.63-.67 1.86-1.31.23-.64.23-1.19.16-1.31-.07-.12-.25-.19-.53-.33z"/></svg>
+    </a>
+    <button id="composeFab" class="bz-dock-btn mail" onclick="openCustomModal('composeModal')" data-label="إرسال بالإيميل" title="إرسال عبر الإيميل" aria-label="إرسال عبر الإيميل">✉️</button>
+</div>
 
 <div class="modal-backdrop" id="composeModal">
     <div class="modal-content-custom">

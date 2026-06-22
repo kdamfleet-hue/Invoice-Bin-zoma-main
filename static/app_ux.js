@@ -372,7 +372,6 @@ function buildEnterpriseShell() {
         if (document.querySelector('.bz-sidebar')) return; // already built (defensive)
 
         document.body.classList.add('bz-enterprise');
-        if (localStorage.getItem('bz_side_collapsed') === '1') document.body.classList.add('side-collapsed');
 
         // ---- sidebar (cloned from the horizontal nav) ----
         let navHtml = '';
@@ -388,14 +387,8 @@ function buildEnterpriseShell() {
         aside.className = 'bz-sidebar';
         aside.innerHTML =
             '<div class="side-brand"><img src="/static/nav_logo.png" alt="BIN ZOMAH"><div class="brand-text"><b>BIN ZOMAH INTL.</b><span>نظام إدارة الأسطول والتوثيق</span></div></div>' +
-            '<nav>' + navHtml + '</nav>' +
-            '<div class="side-foot"><button type="button" id="bzSideCollapse" title="طي/توسيع القائمة"><span>⇆</span><span class="slab">طي القائمة</span></button></div>';
+            '<nav>' + navHtml + '</nav>';
         document.body.appendChild(aside);
-        const collapseBtn = document.getElementById('bzSideCollapse');
-        if (collapseBtn) collapseBtn.addEventListener('click', () => {
-            const c = document.body.classList.toggle('side-collapsed');
-            try { localStorage.setItem('bz_side_collapsed', c ? '1' : '0'); } catch (e) {}
-        });
 
         // ---- enrich the topbar ----
         const actions = topbar.querySelector('.bz-actions');
