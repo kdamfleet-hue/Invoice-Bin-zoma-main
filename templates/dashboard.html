@@ -312,7 +312,7 @@
             <div class="meta" id="topMeta" style="font-size:.82rem;color:var(--d-text-2);margin:.2rem 0 .1rem;line-height:1.6;">—</div>
 
             <!-- Overview / KPIs -->
-            <div class="dash-h" id="overview">نظرة عامة تنفيذية <span class="sub" id="ovSub">جارٍ التحميل…</span></div>
+            <div class="dash-h" id="overview">نظرة عامة تنفيذية <span class="sub" id="ovSub"></span></div>
             <section class="kpi-grid" id="kpiGrid"></section>
 
             <div class="grid-2" style="margin-top:1.1rem;">
@@ -661,8 +661,6 @@
     var parts = Object.keys(byType).sort(function (a, b) { return byType[b] - byType[a]; }).slice(0, 6)
       .map(function (k) { return esc(k) + ': <b>' + byType[k] + '</b>'; });
     $('fleetMini').innerHTML = parts.length ? parts.join(' &nbsp;•&nbsp; ') : '—';
-
-    $('ovSub').textContent = 'آخر قراءة: ' + new Date().toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
   }
 
   // ---------- charts ----------
@@ -921,7 +919,8 @@
   function weekNo(d) { var t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7)); var w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7); }
   function topMeta() {
     var now = new Date();
-    $('topMeta').innerHTML = 'التاريخ: <b>' + now.toLocaleDateString('ar-EG', { dateStyle: 'medium' }) + '</b> &nbsp;|&nbsp; الأسبوع <b>' + weekNo(now) + '</b>';
+    var tm = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    $('topMeta').innerHTML = 'التاريخ: <b>' + now.toLocaleDateString('ar-EG', { dateStyle: 'medium' }) + '</b> &nbsp;·&nbsp; الوقت: <b>' + tm + '</b> &nbsp;·&nbsp; الأسبوع <b>' + weekNo(now) + '</b>';
     $('backLink').href = PREFIX + '/';
   }
   function quickLinks() {
@@ -960,7 +959,7 @@
   // ---------- init ----------
   function init() {
     var _t; try { _t = localStorage.getItem(THEME_KEY); } catch (e) {} applyTheme(_t === 'dark' ? 'dark' : 'light');
-    topMeta(); quickLinks(); wireNav(); loadAudit();
+    topMeta(); setInterval(topMeta, 1000); quickLinks(); wireNav(); loadAudit();
     if (WS) { var mb = $('alMailBar'); if (mb) mb.style.display = 'none'; } else loadMailPreview();
     $('seInput').addEventListener('input', renderSearch);
     ['seJob', 'seType', 'seStatus'].forEach(function (id) { $(id).addEventListener('change', renderSearch); });
