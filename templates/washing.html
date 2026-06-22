@@ -4,232 +4,275 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تحضير جدول الغسيل | شركة بن زومة</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Cairo', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    colors: {
+                        dark: { bg: '#080C14', card: '#111726', nav: '#0B111E' },
+                        brand: { blue: '#2563EB', gold: '#C8A45A' }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        .header-container {
-            display: flex; flex-direction: column; align-items: center;
-            margin: 0 auto 2rem auto; width: 100%; max-width: 1500px; z-index: 2;
-        }
-        .site-logo {
-            max-width: 650px; width: 90%; margin-bottom: 1rem;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); transition: var(--trans);
-        }
-        body.dark-mode .site-logo {
-            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.8)) drop-shadow(0 0 20px rgba(255,255,255,0.4));
-        }
-        .header-title { color: var(--accent); text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        body.dark-mode .header-title { color: #82aaff !important; text-shadow: 0 0 10px rgba(130,170,255,0.4); }
-        .header-subtitle { text-align: center; margin-bottom: 1.5rem; }
-        .nav-buttons { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
-
-        /* Stats Cards */
-        .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem; width: 100%; max-width: 1500px; margin: 0 auto 2rem auto; z-index: 2;
-        }
-        .stat-card {
-            background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-            padding: 1.2rem 1.5rem; text-align: center; box-shadow: var(--shadow-sm);
-            transition: var(--trans-spring);
-        }
-        .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
-        .stat-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; }
-        .stat-value { font-size: 2.2rem; font-weight: 800; }
-        .stat-green { color: #27ae60; }
-        .stat-blue { color: #3498db; }
-        .stat-amber { color: #f39c12; }
-        .stat-red { color: #e74c3c; }
-
-        /* Washing Table */
-        .wash-table-wrap {
-            width: 100%; max-width: 1500px; margin: 0 auto; overflow-x: auto; border-radius: 16px;
-            border: 1px solid var(--border); background: var(--surface);
-            box-shadow: var(--shadow-lg); z-index: 2; position: relative;
-        }
-        #washTable { min-width: 1200px; border-collapse: collapse; width: 100%; }
-        #washTable thead { position: sticky; top: 0; z-index: 5; }
-        #washTable thead th {
-            background: linear-gradient(135deg, #0C2340, #1A3A5C);
-            color: #fff; padding: 12px 8px; font-size: 0.8rem; font-weight: 700;
-            text-align: center; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1);
-        }
-        body.dark-mode #washTable thead th {
-            background: linear-gradient(135deg, #111, #1a1a2e);
-            border-color: rgba(255,255,255,0.05);
-        }
-        #washTable thead th.col-id { width: 40px; }
-        #washTable thead th.col-plate { text-align: right; min-width: 120px; }
-        #washTable thead th.col-type { text-align: right; min-width: 160px; }
-        #washTable thead th.col-driver { text-align: right; min-width: 180px; }
-        #washTable thead th.col-month { width: 52px; }
-        #washTable thead th.col-total { width: 60px; background: linear-gradient(135deg, #C8A45A, #a88540); }
-
-        #washTable tbody td {
-            padding: 8px 10px; font-size: 0.85rem; text-align: center;
-            border: 1px solid var(--border); transition: background 0.15s ease;
-        }
-        #washTable tbody td.cell-plate { text-align: right; font-weight: 700; font-family: monospace; font-size: 0.9rem; }
-        #washTable tbody td.cell-type { text-align: right; font-size: 0.8rem; color: var(--text-secondary); }
-        #washTable tbody td.cell-driver { text-align: right; font-size: 0.8rem; max-width: 200px; }
-        .driver-edit-input { width: 100%; border: none; background: transparent; color: var(--text-primary); font-family: 'Cairo', sans-serif; font-size: 0.85rem; font-weight: bold; text-align: right; outline: none; padding: 4px; transition: var(--trans); border-radius: 4px; }
-        .driver-edit-input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
-        #washTable tbody td.cell-total { font-weight: 800; font-size: 1rem; background: var(--surface-hover); }
-
-        #washTable tbody tr:hover td { background: rgba(130,170,255,0.08); }
-        body.dark-mode #washTable tbody tr:hover td { background: rgba(130,170,255,0.05); }
-        #washTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
-        #washTable tbody tr:nth-child(even):hover td { background: rgba(130,170,255,0.08); }
-
-        /* Wash status cells */
-        .cell-wash { cursor: pointer; font-size: 1.1rem; font-weight: 700; min-width: 44px; user-select: none; }
-        .cell-wash.washed {
-            background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
-            color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        }
-        .cell-wash.not-washed { color: var(--text-muted); }
-        .cell-wash:hover { opacity: 0.85; transform: scale(1.05); }
-
-        /* Action Buttons */
-        .actions-bar {
-            display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
-            margin: 2rem auto 0 auto; width: 100%; max-width: 1500px; z-index: 2;
-        }
-        .btn-action {
-            padding: 12px 28px; border-radius: 12px; border: none; font-weight: 700;
-            font-size: 1rem; cursor: pointer; display: inline-flex; align-items: center;
-            gap: 8px; transition: var(--trans-spring); font-family: 'Cairo', sans-serif;
-        }
-        .btn-export {
-            background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff;
-            box-shadow: 0 6px 20px rgba(39,174,96,0.3);
-        }
-        .btn-export:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(39,174,96,0.4); }
-        .btn-save {
-            background: linear-gradient(135deg, #3498db, #2980b9); color: #fff;
-            box-shadow: 0 6px 20px rgba(52,152,219,0.3);
-        }
-        .btn-save:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(52,152,219,0.4); }
-
-        /* Legend */
-        .legend {
-            display: flex; gap: 2rem; justify-content: center; margin-top: 1.5rem;
-            flex-wrap: wrap; z-index: 2;
-        }
-        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-secondary); }
-        .legend-dot {
-            width: 24px; height: 24px; border-radius: 6px; display: flex;
-            align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;
-        }
-        .legend-dot.green { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
-        .legend-dot.gray { background: var(--surface-hover); border: 1px solid var(--border-strong); color: var(--text-muted); }
-
-        /* Search */
-        .search-bar {
-            width: 100%; max-width: 500px; margin: 0 auto 1.5rem; position: relative; z-index: 2;
-        }
-        .search-bar input {
-            width: 100%; padding: 12px 20px 12px 44px; border-radius: 50px;
-            font-size: 1rem; background: var(--surface); border: 2px solid var(--border-strong);
-        }
-        .search-bar input:focus { border-color: var(--accent); }
-        .search-bar::before {
-            content: '🔍'; position: absolute; left: 16px; top: 50%;
-            transform: translateY(-50%); font-size: 1.1rem;
-        }
-
-        @media (max-width: 768px) {
-            body { padding: 1rem; padding-top: 4rem; }
-            .header-title { font-size: 1.8rem; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        body { font-family: 'Cairo', sans-serif; background-color: #080C14; margin: 0; }
+        .mono-num { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #080C14; }
+        ::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #374151; }
+        /* Current month glow */
+        .col-current { border-left: 1px solid rgba(37,99,235,0.25); border-right: 1px solid rgba(37,99,235,0.25); }
+        .col-current-head { background: rgba(37,99,235,0.15) !important; color: #60a5fa !important; }
+        .col-future td, .col-future-head { color: #374151 !important; }
+        /* Wash cell transitions */
+        .wash-cell { cursor: pointer; transition: all 0.15s ease; user-select: none; }
+        .wash-cell:hover { transform: scale(1.1); }
+        /* Mobile sidebar */
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 998; }
+        .sidebar-overlay.open { display: block; }
+        @media (max-width: 767px) {
+            aside.sidebar { transform: translateX(100%); position: fixed; top: 0; right: 0; bottom: 0; z-index: 999; transition: transform 0.3s ease; }
+            aside.sidebar.open { transform: translateX(0); }
         }
     </style>
 </head>
-<body>
+<body class="text-gray-100 min-h-screen flex">
     <datalist id="driversList"></datalist>
-    <button id="darkModeToggle" onclick="toggleDarkMode()" style="position:absolute;top:20px;right:20px;border:none;font-size:1.5rem;cursor:pointer;border-radius:50%;width:45px;height:45px;display:flex;align-items:center;justify-content:center;transition:var(--trans-spring);z-index:1000;box-shadow:var(--shadow-sm);backdrop-filter:blur(5px);">🌙</button>
 
-    <div class="header-container">
-        {% if b64_en %}
-        <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">
-        {% endif %}
+    <!-- Sidebar overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-                {% if google_user %}
-        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
-            <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
-            <span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
-            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
+    <!-- Sidebar -->
+    <aside class="sidebar w-64 bg-dark-nav border-l border-gray-800/50 flex flex-col justify-between hidden md:flex">
+        <div>
+            <div class="p-6 border-b border-gray-800/50 flex items-center gap-3">
+                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">BZ</div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-wide">BIN ZOMAH INTL</h1>
+                    <p class="text-[10px] text-gray-500">نظام إدارة الأسطول والتوثيق</p>
+                </div>
+            </div>
+            <nav class="p-4 space-y-1.5">
+                <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> الرئيسية
+                </a>
+                <a href="/" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="file-text" class="w-4 h-4"></i> الفواتير
+                </a>
+                <a href="/washing" class="flex items-center gap-3 px-4 py-3 bg-blue-600/10 text-blue-500 rounded-xl text-sm font-medium border-r-2 border-blue-600">
+                    <i data-lucide="droplet" class="w-4 h-4"></i> جدول الغسيل الشهري
+                </a>
+                <a href="/employees" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="users" class="w-4 h-4"></i> الموظفين والسائقين
+                </a>
+                <a href="/schedule" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="calendar" class="w-4 h-4"></i> الجدول الأسبوعي
+                </a>
+                <a href="/oils" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="fuel" class="w-4 h-4"></i> الزيوت والفلاتر
+                </a>
+                <a href="/purchase" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="shopping-cart" class="w-4 h-4"></i> طلبات الشراء
+                </a>
+                <a href="/records" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="file-check" class="w-4 h-4"></i> سجل التوثيق
+                </a>
+                <a href="/workshop" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="wrench" class="w-4 h-4"></i> الورشة
+                </a>
+                <a href="/incidents" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="alert-triangle" class="w-4 h-4"></i> الحوادث والمخالفات
+                </a>
+                <a href="/tracking" target="_blank" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i> التتبع المباشر
+                </a>
+            </nav>
         </div>
-        {% endif %}
-
-        <h1 class="header-title">🚿 تحضير جدول الغسيل</h1>
-        <p class="header-subtitle">جدول غسيل المركبات الشهري - فرع الدمام 2026</p>
-        <div class="nav-buttons">
-            <a href="/" class="btn-outline" style="text-decoration:none;">🏠 الرئيسية</a>
-            <a href="/oils" class="btn-outline" style="text-decoration:none;">📄 بيان الزيوت</a>
-            <a href="/purchase" class="btn-outline" style="text-decoration:none;">🛒 طلبات الشراء</a>
-            <a href="/schedule" class="btn-outline" style="text-decoration:none;">📋 الجدول الأسبوعي</a>
-            <a href="/tracking" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
+        <div class="p-4 border-t border-gray-800/50 space-y-2">
+            {% if google_user %}
+            <div class="flex items-center gap-2 px-3 py-2 bg-gray-800/30 rounded-xl">
+                <img src="{{ google_user.picture }}" alt="" class="w-7 h-7 rounded-full">
+                <span class="text-xs text-gray-300 truncate">{{ google_user.name }}</span>
+            </div>
+            {% endif %}
+            <a href="/logout" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-400 rounded-xl text-sm hover:bg-red-500/20 transition-all">
+                <i data-lucide="log-out" class="w-4 h-4"></i> تسجيل الخروج
+            </a>
         </div>
-    </div>
+    </aside>
 
-    <!-- Stats -->
-    <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">إجمالي المركبات</div><div class="stat-value stat-blue" id="statTotal">0</div></div>
-        <div class="stat-card"><div class="stat-label">إجمالي الغسلات</div><div class="stat-value stat-green" id="statWashes">0</div></div>
-        <div class="stat-card"><div class="stat-label">غسلات الشهر الحالي</div><div class="stat-value stat-amber" id="statCurrent">0</div></div>
-        <div class="stat-card"><div class="stat-label">لم تُغسل هذا الشهر</div><div class="stat-value stat-red" id="statPending">0</div></div>
-    </div>
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden">
 
-    <!-- Search -->
-    <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." oninput="filterTable()">
-    </div>
+        <!-- Header -->
+        <header class="bg-[#080C14]/80 backdrop-blur-md border-b border-gray-800/50 px-6 md:px-8 py-4 flex items-center justify-between sticky top-0 z-50">
+            <div class="flex items-center gap-4">
+                <button class="md:hidden p-2 text-gray-400 hover:text-white" onclick="toggleSidebar()">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <div>
+                    <h2 class="text-lg font-bold">🚿 تحضير جدول الغسيل — فرع الدمام <span class="text-xs font-normal text-gray-500 mono-num">2026</span></h2>
+                    <p class="text-[11px] text-gray-500">جدول غسيل المركبات الشهري — النقر على الخلية لتغيير الحالة</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="exportXlsx()" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-xl text-sm font-medium hover:bg-emerald-600/30 transition-all border border-emerald-600/20">
+                    <i data-lucide="download" class="w-4 h-4"></i> تصدير Excel
+                </button>
+                <button onclick="saveState()" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-400 rounded-xl text-sm font-medium hover:bg-blue-600/30 transition-all border border-blue-600/20">
+                    <i data-lucide="save" class="w-4 h-4"></i> حفظ
+                </button>
+                <div class="flex items-center gap-3 border-r border-gray-800 pr-4">
+                    <div class="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-blue-500/10">BZ</div>
+                </div>
+            </div>
+        </header>
 
-    <!-- Table -->
-    <div class="wash-table-wrap">
-        <table id="washTable">
-            <thead>
-                <tr>
-                    <th class="col-id">#</th>
-                    <th class="col-plate">رقم اللوحة</th>
-                    <th class="col-type">نوع السيارة</th>
-                    <th class="col-driver">اسم السائق</th>
-                    <th class="col-month">1</th><th class="col-month">2</th>
-                    <th class="col-month">3</th><th class="col-month">4</th>
-                    <th class="col-month">5</th><th class="col-month">6</th>
-                    <th class="col-month">7</th><th class="col-month">8</th>
-                    <th class="col-month">9</th><th class="col-month">10</th>
-                    <th class="col-month">11</th><th class="col-month">12</th>
-                    <th class="col-total">المجموع</th>
-                </tr>
-            </thead>
-            <tbody id="washBody"></tbody>
-        </table>
-    </div>
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
 
-    <!-- Legend -->
-    <div class="legend">
-        <div class="legend-item"><div class="legend-dot green">✓</div><span>تم الغسيل (استلم)</span></div>
-        <div class="legend-item"><div class="legend-dot gray">✕</div><span>لم يتم الغسيل</span></div>
-        <div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">انقر على أي خلية شهر لتغيير الحالة</div>
-    </div>
+            <!-- KPI Cards -->
+            <section class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium">إجمالي المركبات</p>
+                        <h3 class="text-2xl font-bold mt-1 mono-num" id="statTotal">0</h3>
+                    </div>
+                    <div class="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
+                        <i data-lucide="car" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium">إجمالي الغسلات</p>
+                        <h3 class="text-2xl font-bold mt-1 text-emerald-500 mono-num" id="statWashes">0</h3>
+                    </div>
+                    <div class="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
+                        <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium">غسلات الشهر الحالي</p>
+                        <h3 class="text-2xl font-bold mt-1 text-indigo-400 mono-num" id="statCurrent">0</h3>
+                    </div>
+                    <div class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">
+                        <i data-lucide="calendar" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm border-l-2 border-l-amber-500/50">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium">لم تُغسل هذا الشهر</p>
+                        <h3 class="text-2xl font-bold mt-1 text-amber-500 mono-num" id="statPending">0</h3>
+                    </div>
+                    <div class="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
+                        <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                    </div>
+                </div>
+            </section>
 
-    <!-- Actions -->
-    <div class="actions-bar">
-        <button class="btn-action btn-export" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
-        <button class="btn-action btn-save" onclick="saveState()">💾 حفظ التغييرات محلياً</button>
-    </div>
+            <!-- Search & Filter Bar -->
+            <section class="bg-dark-card border border-gray-800/40 p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div class="relative w-full md:w-80">
+                    <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </span>
+                    <input type="text" id="searchInput" placeholder="ابحث بالاسم، رقم اللوحة أو نوع السيارة..."
+                        class="w-full pl-4 pr-10 py-2 bg-[#080C14] border border-gray-800 text-sm rounded-xl focus:outline-none focus:border-blue-600 text-gray-300 transition-all"
+                        oninput="filterTable()">
+                </div>
+                <div class="flex items-center gap-3 w-full md:w-auto flex-wrap">
+                    <select id="jobFilter" class="bg-[#080C14] border border-gray-800 text-sm text-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-600 transition-all" onchange="filterTable()">
+                        <option value="">كل الوظائف</option>
+                        <option value="سائق رافعة شوكية">سائق رافعة شوكية</option>
+                        <option value="عامل تحميل وتنزيل">عامل تحميل وتنزيل</option>
+                        <option value="مندوب مبيعات جملة">مندوب مبيعات جملة</option>
+                        <option value="مشرف مبيعات جملة">مشرف مبيعات جملة</option>
+                        <option value="مصفف">مصفف</option>
+                        <option value="سائق توصيل">سائق توصيل</option>
+                        <option value="مساعد امين مخزن">مساعد أمين مخزن</option>
+                        <option value="مدير مبيعات فرع">مدير مبيعات فرع</option>
+                        <option value="مشرف سوبر ماركت">مشرف سوبر ماركت</option>
+                        <option value="مندوب مبيعات تجزئة">مندوب مبيعات تجزئة</option>
+                        <option value="مشرف مبيعات هوريكا">مشرف مبيعات هوريكا</option>
+                    </select>
+                    <div class="flex items-center gap-3 flex-1 min-w-[200px]">
+                        <span class="text-xs text-gray-400 whitespace-nowrap" id="progressLabel">التقدم:</span>
+                        <div class="flex-1 bg-[#080C14] h-2 rounded-full overflow-hidden border border-gray-800/50">
+                            <div class="bg-blue-600 h-full rounded-full transition-all duration-500" id="progressBar" style="width: 0%"></div>
+                        </div>
+                        <span class="text-xs font-semibold text-blue-400 mono-num" id="progressText">0/0</span>
+                    </div>
+                </div>
+            </section>
 
-    <footer style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
+            <!-- Washing Table -->
+            <section class="bg-dark-card border border-gray-800/40 rounded-2xl overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse text-right text-sm" id="washTable" style="min-width: 1200px;">
+                        <thead id="washHead"></thead>
+                        <tbody id="washBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Mobile Action Buttons -->
+            <section class="flex sm:hidden gap-3 justify-center">
+                <button onclick="exportXlsx()" class="flex items-center gap-2 px-5 py-3 bg-emerald-600/20 text-emerald-400 rounded-xl text-sm font-medium hover:bg-emerald-600/30 transition-all border border-emerald-600/20">
+                    <i data-lucide="download" class="w-4 h-4"></i> تصدير Excel
+                </button>
+                <button onclick="saveState()" class="flex items-center gap-2 px-5 py-3 bg-blue-600/20 text-blue-400 rounded-xl text-sm font-medium hover:bg-blue-600/30 transition-all border border-blue-600/20">
+                    <i data-lucide="save" class="w-4 h-4"></i> حفظ
+                </button>
+            </section>
+
+            <!-- Legend -->
+            <section class="flex gap-6 justify-center flex-wrap text-sm text-gray-400">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i></div>
+                    <span>تم الغسيل (استلم)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-md bg-gray-800/50 flex items-center justify-center"><div class="w-1.5 h-1.5 bg-gray-700 rounded-full"></div></div>
+                    <span>لم يتم / أيام قادمة</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-md border border-dashed border-blue-500/30 flex items-center justify-center"><i data-lucide="plus" class="w-3 h-3 text-blue-400"></i></div>
+                    <span>الشهر الحالي — انقر لتسجيل</span>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer class="text-center py-4 text-gray-600 text-xs border-t border-gray-800/30">
+                تم الإعداد بواسطة قسم الحركة (خالد الغامدي) — BIN ZOMAH INTL. &copy; 2026
+            </footer>
+        </div>
+    </main>
 
 <script>
+    // ===== Sidebar toggle for mobile =====
+    function toggleSidebar() {
+        document.querySelector('aside.sidebar').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+
+    // ===== Core Data =====
     const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    const CURRENT_MONTH = new Date().getMonth(); // 0-based
     let vehicles = [];
     let driversData = [];
+    const JOB_FILTER_VALUES = {};
 
     async function fetchDrivers() {
         try {
@@ -241,6 +284,8 @@
                 const o = document.createElement('option');
                 o.value = d.name;
                 dl.appendChild(o);
+                // Build job lookup by driver name
+                if (d.job && d.name) JOB_FILTER_VALUES[d.name.trim()] = String(d.job).trim();
             });
         } catch (err) {
             console.error('Failed to fetch drivers', err);
@@ -249,7 +294,6 @@
 
     function init() {
         fetchDrivers();
-        // Fetch from server first, fallback to local or default
         fetch('/api/washing_data')
             .then(res => res.json())
             .then(data => {
@@ -263,6 +307,7 @@
                         vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
                     }
                 }
+                renderHead();
                 renderTable();
                 updateStats();
             })
@@ -274,6 +319,7 @@
                 } else {
                     vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
                 }
+                renderHead();
                 renderTable();
                 updateStats();
             });
@@ -281,35 +327,107 @@
 
     function getTotal(v) { return v.m.reduce((a, b) => a + b, 0); }
 
+    // ===== Render Table Header (with current month glow) =====
+    function renderHead() {
+        const thead = document.getElementById('washHead');
+        let hHtml = '<tr class="bg-dark-nav border-b border-gray-800/80 text-gray-400">';
+        hHtml += '<th class="p-4 font-semibold text-center w-16 text-gray-500">#</th>';
+        hHtml += '<th class="p-4 font-semibold text-right">رقم اللوحة</th>';
+        hHtml += '<th class="p-4 font-semibold text-right">نوع السيارة</th>';
+        hHtml += '<th class="p-4 font-semibold text-right">اسم السائق</th>';
+        for (let mi = 0; mi < 12; mi++) {
+            const isCurrent = (mi === CURRENT_MONTH);
+            const isPast = (mi < CURRENT_MONTH);
+            const isFuture = (mi > CURRENT_MONTH);
+            let cls = 'p-2 font-semibold text-center mono-num w-12';
+            if (isCurrent) cls += ' col-current-head relative';
+            else if (isPast) cls += ' bg-gray-900/20';
+            else cls += ' text-gray-600';
+            hHtml += '<th class="' + cls + '">' + (mi + 1);
+            if (isCurrent) hHtml += ' <span class="inline-block w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>';
+            hHtml += '</th>';
+        }
+        hHtml += '<th class="p-4 font-semibold text-center text-blue-400 w-20">المجموع</th>';
+        hHtml += '</tr>';
+        thead.innerHTML = hHtml;
+    }
+
+    // ===== Render Table Body =====
     function renderTable(filter) {
         const tbody = document.getElementById('washBody');
-        tbody.innerHTML = '';
-        const q = (filter || '').toLowerCase();
+        const q = (filter || document.getElementById('searchInput').value || '').toLowerCase();
+        const jobFilter = (document.getElementById('jobFilter') || {}).value || '';
 
         let allHtml = '';
-        vehicles.forEach((v, idx) => {
-            if (q && !v.plate.toLowerCase().includes(q) && !v.driver.toLowerCase().includes(q) && !v.type.toLowerCase().includes(q)) return;
+        let rowNum = 0;
 
+        vehicles.forEach((v, idx) => {
+            // Text search filter
+            if (q && !v.plate.toLowerCase().includes(q) && !v.driver.toLowerCase().includes(q) && !(v.type || '').toLowerCase().includes(q)) return;
+
+            // Job filter
+            if (jobFilter) {
+                const driverJob = JOB_FILTER_VALUES[v.driver ? v.driver.trim() : ''] || '';
+                if (!driverJob.includes(jobFilter)) return;
+            }
+
+            rowNum++;
             const total = getTotal(v);
-            let html = `<tr>
-                <td>${v.id}</td>
-                <td class="cell-plate">${v.plate}</td>
-                <td class="cell-type">${v.type || '-'}</td>
-                <td class="cell-driver"><input type="text" class="driver-edit-input" list="driversList" value="${v.driver || ''}" onchange="autofillWashingDriver(this, ${idx})" title="${v.driver || ''}"></td>`;
+            const isEven = (rowNum % 2 === 0);
+
+            let html = '<tr class="hover:bg-gray-800/20 transition-all group' + (isEven ? ' bg-gray-900/10' : '') + '">';
+            html += '<td class="p-4 text-center text-gray-500 mono-num">' + rowNum + '</td>';
+            html += '<td class="p-4 font-bold tracking-wider text-gray-200 mono-num text-right">' + escHTML(v.plate) + '</td>';
+            html += '<td class="p-4 text-right"><div class="font-medium text-gray-300 text-sm">' + escHTML(v.type || '-') + '</div></td>';
+            html += '<td class="p-4 text-right"><input type="text" list="driversList" value="' + escHTML(v.driver || '') + '" onchange="autofillWashingDriver(this,' + idx + ')" class="w-full bg-transparent border-0 text-gray-400 text-sm outline-none focus:text-gray-200 focus:bg-gray-800/50 rounded px-1 py-0.5 transition-all" title="' + escHTML(v.driver || '') + '"></td>';
 
             for (let mi = 0; mi < 12; mi++) {
                 const w = v.m[mi];
-                html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}" onclick="toggle(${idx},${mi})">${w ? '✓' : ''}</td>`;
+                const isCurrent = (mi === CURRENT_MONTH);
+                const isPast = (mi < CURRENT_MONTH);
+                const isFuture = (mi > CURRENT_MONTH);
+
+                let cellCls = 'p-2 text-center wash-cell';
+                if (isCurrent) cellCls += ' col-current bg-blue-600/5';
+
+                if (w) {
+                    // Washed
+                    const bgCls = isCurrent ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-emerald-500/10 text-emerald-400';
+                    html += '<td class="' + cellCls + '" onclick="toggle(' + idx + ',' + mi + ')"><div class="mx-auto w-6 h-6 rounded-md ' + bgCls + ' flex items-center justify-center text-xs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>';
+                } else if (isCurrent) {
+                    // Current month, not washed — show dashed add button
+                    html += '<td class="' + cellCls + '" onclick="toggle(' + idx + ',' + mi + ')"><div class="mx-auto w-6 h-6 rounded-md border border-dashed border-blue-500/30 flex items-center justify-center text-gray-600 hover:border-blue-500 hover:text-blue-400 cursor-pointer transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div></td>';
+                } else if (isPast && !w) {
+                    // Past month, not washed — red subtle indicator
+                    html += '<td class="' + cellCls + ' bg-red-500/5" onclick="toggle(' + idx + ',' + mi + ')"><div class="mx-auto w-6 h-6 rounded-md bg-red-500/10 flex items-center justify-center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div></td>';
+                } else {
+                    // Future month — dim placeholder
+                    html += '<td class="' + cellCls + '" onclick="toggle(' + idx + ',' + mi + ')"><div class="w-1.5 h-1.5 bg-gray-800 rounded-full mx-auto"></div></td>';
+                }
             }
-            html += `<td class="cell-total">${total}</td></tr>`;
+
+            html += '<td class="p-4 text-center font-bold text-gray-300 mono-num">' + total + '</td>';
+            html += '</tr>';
             allHtml += html;
         });
+
+        if (!allHtml) {
+            allHtml = '<tr><td colspan="17" class="p-8 text-center text-gray-500">لا توجد مركبات مطابقة للبحث</td></tr>';
+        }
         tbody.innerHTML = allHtml;
+        // Re-init lucide icons for any new elements
+        try { lucide.createIcons(); } catch(e) {}
     }
 
+    function escHTML(s) {
+        if (typeof escapeHtml === 'function') return escapeHtml(s);
+        return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+    }
+
+    // ===== Driver autofill =====
     function updateDriver(idx, val) {
         vehicles[idx].driver = val;
-        saveState(false); // background save
+        saveState(false);
     }
 
     function autofillWashingDriver(elem, idx) {
@@ -327,25 +445,26 @@
                 changed = true;
             }
             if (changed) {
-                renderTable(document.getElementById('searchInput').value);
+                renderTable();
                 saveState(false);
             }
         }
     }
 
+    // ===== Toggle wash state =====
     function toggle(vi, mi) {
         vehicles[vi].m[mi] = vehicles[vi].m[mi] ? 0 : 1;
-        renderTable(document.getElementById('searchInput').value);
+        renderTable();
         updateStats();
     }
 
     function filterTable() {
-        renderTable(document.getElementById('searchInput').value);
+        renderTable();
     }
 
+    // ===== Stats =====
     function updateStats() {
-        const now = new Date();
-        const cm = now.getMonth(); // 0-based
+        const cm = CURRENT_MONTH;
         const totalV = vehicles.length;
         const totalW = vehicles.reduce((s, v) => s + getTotal(v), 0);
         const currentM = vehicles.filter(v => v.m[cm] === 1).length;
@@ -355,10 +474,17 @@
         document.getElementById('statWashes').textContent = totalW;
         document.getElementById('statCurrent').textContent = currentM;
         document.getElementById('statPending').textContent = pending;
+
+        // Update progress bar
+        const pct = totalV ? Math.round((currentM / totalV) * 100) : 0;
+        document.getElementById('progressBar').style.width = pct + '%';
+        document.getElementById('progressText').textContent = currentM + '/' + totalV;
+        document.getElementById('progressLabel').textContent = MONTH_NAMES[cm] + ':';
     }
 
+    // ===== Save =====
     function saveState(showMsg = true) {
-        localStorage.setItem('washingSchedule2026', JSON.stringify(vehicles)); // Keep local backup
+        localStorage.setItem('washingSchedule2026', JSON.stringify(vehicles));
         fetch('/api/washing_data', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -378,11 +504,11 @@
         });
     }
 
+    // ===== Export Excel =====
     function exportXlsx() {
-        const btn = document.querySelector('.btn-export');
-        const oldText = btn.innerHTML;
-        btn.innerHTML = '⏳ جاري المعالجة...';
-        btn.disabled = true;
+        const btn = document.querySelector('[onclick="exportXlsx()"]');
+        const oldText = btn ? btn.innerHTML : '';
+        if (btn) { btn.innerHTML = '<span class="animate-pulse">⏳ جاري المعالجة...</span>'; btn.disabled = true; }
 
         fetch('/api/generate_washing', {
             method: 'POST',
@@ -391,8 +517,7 @@
         })
         .then(res => res.json())
         .then(data => {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
+            if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
             if (data.success && data.file_b64) {
                 const link = document.createElement("a");
                 link.href = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + data.file_b64;
@@ -404,13 +529,15 @@
             }
         })
         .catch(err => {
-            btn.innerHTML = oldText;
-            btn.disabled = false;
+            if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
             showToast('خطأ في الاتصال بالسيرفر', 'error');
         });
     }
 
-    window.addEventListener('load', init);
+    window.addEventListener('load', function() {
+        init();
+        lucide.createIcons();
+    });
 </script>
 <!-- GPS Session Monitor -->
 <script>
@@ -434,4 +561,3 @@
 </script>
 </body>
 </html>
-

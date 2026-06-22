@@ -246,7 +246,8 @@
 
         </div>
     </main>
-\n<script>
+
+<script>
 (function () {
   'use strict';
   // ---------- context ----------
@@ -344,17 +345,19 @@
       VDOCS.forEach(function (doc) {
         var v = r[doc.key];
         if (!v) return;
-        ALERTS.push({ name: r.name || '—', plate: r.plate || '', doc: doc.label, date: v, st: statusOf(v) });
+        ALERTS.push({ name: r.name || '—', plate: r.plate || '', job: r.job || '', vtype: r.vtype || '', doc: doc.label, date: v, st: statusOf(v) });
       });
     });
     // employees: iqama (idx10) + passport (idx11)
     (DATA.employees || []).forEach(function (row) {
       if (!Array.isArray(row)) return;
       var nm = row[2] || row[3] || '—', pl = row[9] || '';
+      var job = row[6] || '';
+      var vtype = [row[36], row[37], row[38]].filter(Boolean).join(' ');
       [['10', 'انتهاء الإقامة'], ['11', 'انتهاء الجواز']].forEach(function (p) {
         var v = row[+p[0]];
         if (!v) return;
-        ALERTS.push({ name: nm, plate: pl, doc: p[1], date: v, st: statusOf(v) });
+        ALERTS.push({ name: nm, plate: pl, job: job, vtype: vtype, doc: p[1], date: v, st: statusOf(v) });
       });
     });
     ALERTS.sort(function (a, b) { return a.st.rank - b.st.rank || ((a.st.days == null ? 1e9 : a.st.days) - (b.st.days == null ? 1e9 : b.st.days)); });
@@ -396,18 +399,30 @@
         
         if (!list.length) { $('t-alerts').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">لا توجد وثائق ✓</p>'; return; }
         $('t-alerts').innerHTML = list.slice(0, 50).map(function (a) {
-          var bg = 'bg-gray-50 border-gray-200', text = 'text-gray-800', badgeBg = 'bg-gray-500';
-          if(a.st.key === 'expired') { bg = 'bg-red-50 border-red-500'; badgeBg = 'bg-danger'; }
-          else if(a.st.key === 'd30') { bg = 'bg-orange-50 border-orange-500'; badgeBg = 'bg-orange-500'; }
-          else if(a.st.key === 'd90') { bg = 'bg-yellow-50 border-yellow-500'; badgeBg = 'bg-yellow-500'; }
-          else if(a.st.key === 'valid') { bg = 'bg-green-50 border-green-500'; badgeBg = 'bg-accent'; }
+          var bg = 'bg-gray-50 border-gray-200', text = 'text-gray-800', badgeBg = 'bg-gray-500', icon = 'fa-file-lines';
+          if(a.st.key === 'expired') { bg = 'bg-red-50 border-red-500'; badgeBg = 'bg-danger'; icon = 'fa-triangle-exclamation'; }
+          else if(a.st.key === 'd30') { bg = 'bg-orange-50 border-orange-500'; badgeBg = 'bg-orange-500'; icon = 'fa-bell'; }
+          else if(a.st.key === 'd90') { bg = 'bg-yellow-50 border-yellow-500'; badgeBg = 'bg-yellow-500'; icon = 'fa-clock'; }
+          else if(a.st.key === 'valid') { bg = 'bg-green-50 border-green-500'; badgeBg = 'bg-accent'; icon = 'fa-circle-check'; }
           
-          return '<div class="p-3 border-r-4 rounded flex justify-between items-center ' + bg + '">' +
-            '<div>' +
-              '<p class="text-sm font-bold ' + text + '">' + esc(a.doc) + ' (' + fmtDays(a.st) + ')</p>' +
-              '<p class="text-xs text-gray-500">' + esc(a.name) + ' | ' + esc(a.plate || '') + '</p>' +
+          var details = [];
+          if (a.plate) details.push('<i class="fa-solid fa-car-side opacity-70"></i> ' + esc(a.plate));
+          if (a.vtype) details.push(esc(a.vtype));
+          if (a.job) details.push('<i class="fa-solid fa-user-tie opacity-70"></i> ' + esc(a.job));
+          var detailsStr = details.length ? '<p class="text-xs text-gray-500 mt-1 flex gap-3 flex-wrap">' + details.join(' | ') + '</p>' : '';
+          
+          return '<div class="p-3 border-r-4 rounded flex flex-col md:flex-row md:justify-between md:items-center gap-2 transition-all hover:shadow-md ' + bg + '">' +
+            '<div class="flex-1">' +
+              '<p class="text-sm font-bold flex items-center gap-2 ' + text + '">' +
+                 '<i class="fa-solid ' + icon + '"></i> ' + esc(a.doc) + ' ' +
+                 '<span class="text-xs font-normal opacity-80 border border-current px-1.5 py-0.5 rounded">ينتهي: ' + esc(a.date) + '</span>' +
+              '</p>' +
+              '<p class="text-[13px] font-medium text-gray-700 mt-1"><i class="fa-solid fa-user opacity-70"></i> ' + esc(a.name) + '</p>' +
+              detailsStr +
             '</div>' +
-            '<span class="text-xs text-white px-2 py-1 rounded ' + badgeBg + '">' + a.st.label + '</span>' +
+            '<div class="text-left">' +
+              '<span class="text-xs text-white px-2 py-1 rounded shadow-sm whitespace-nowrap ' + badgeBg + '">' + a.st.label + ' (' + fmtDays(a.st) + ')</span>' +
+            '</div>' +
           '</div>';
         }).join('');
         return;
@@ -778,7 +793,8 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
-</script>\n<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function () {
   'use strict';
@@ -850,4 +866,6 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
-</script>\n</body>\n</html>
+</script>
+</body>
+</html>
