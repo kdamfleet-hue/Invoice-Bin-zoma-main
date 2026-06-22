@@ -189,6 +189,11 @@
         .st-valid { background: var(--ok-bg); color: var(--ok-fg); }
         .st-unknown { background: var(--neutral-bg); color: var(--neutral-fg); }
         .days-left { font-variant-numeric: tabular-nums; font-size: .72rem; color: var(--d-muted); }
+        /* sortable headers + selection checkboxes for the alerts table */
+        table.dtable th.al-sort { cursor: pointer; user-select: none; transition: color .15s; }
+        table.dtable th.al-sort:hover { color: var(--gold-on-dark); }
+        table.dtable .sort-ind { font-size: .68rem; color: var(--gold-on-dark); }
+        table.dtable input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--gold); vertical-align: middle; }
 
         /* ---- Charts ---- */
         .bar-row { display: flex; align-items: center; gap: .6rem; margin-bottom: .55rem; font-size: .8rem; }
@@ -338,8 +343,9 @@
                 <div class="filters" id="alFilters"></div>
                 <div class="dtable-wrap">
                     <table class="dtable">
-                        <thead><tr>
-                            <th>الاسم</th><th>رقم اللوحة</th><th>الوثيقة</th><th>تاريخ الانتهاء</th><th>المتبقي</th><th>الحالة</th>
+                        <thead id="alHead"><tr>
+                            <th style="width:38px;text-align:center"><input type="checkbox" id="alSelectAll" onclick="toggleAllAlerts(this)" title="تحديد الكل"></th>
+                            <th class="al-sort" onclick="sortAlerts('name')">الاسم<span class="sort-ind" data-k="name"></span></th><th class="al-sort" onclick="sortAlerts('plate')">رقم اللوحة<span class="sort-ind" data-k="plate"></span></th><th class="al-sort" onclick="sortAlerts('doc')">الوثيقة<span class="sort-ind" data-k="doc"></span></th><th class="al-sort" onclick="sortAlerts('date')">تاريخ الانتهاء<span class="sort-ind" data-k="date"></span></th><th class="al-sort" onclick="sortAlerts('days')">المتبقي<span class="sort-ind" data-k="days"></span></th><th class="al-sort" onclick="sortAlerts('status')">الحالة<span class="sort-ind" data-k="status"></span></th>
                         </tr></thead>
                         <tbody id="alBody"></tbody>
                     </table>
@@ -555,6 +561,40 @@
   }
 
   var alFilter = 'attention'; // attention = expired+d30+d90
+  var alSort = { key: 'status', dir: 1 };   // sortable-table state
+  var alSelected = {};                       // selected row keys (persist across sort/filter)
+  var alCurList = [];                        // current sorted + filtered visible list
+  function alKey(a) { return (a.name || '') + '|' + (a.plate || '') + '|' + (a.doc || '') + '|' + (a.date || ''); }
+  function alVisibleList() {
+    return ALERTS.filter(function (a) {
+      if (alFilter === 'all') return true;
+      if (alFilter === 'attention') return a.st.rank <= 2;
+      return a.st.key === alFilter;
+    });
+  }
+  function alDays(a) { return a.st.days == null ? 1e9 : a.st.days; }
+  function alCompare(a, b) {
+    var k = alSort.key, d = alSort.dir;
+    if (k === 'days') return (alDays(a) - alDays(b)) * d;
+    if (k === 'status') return ((a.st.rank - b.st.rank) || (alDays(a) - alDays(b))) * d;
+    if (k === 'date') { var pa = a.date || '', pb = b.date || ''; return (pa < pb ? -1 : pa > pb ? 1 : 0) * d; }
+    return String(a[k] || '').localeCompare(String(b[k] || ''), 'ar') * d;
+  }
+  window.sortAlerts = function (k) { if (alSort.key === k) alSort.dir = -alSort.dir; else { alSort.key = k; alSort.dir = 1; } renderAlerts(); };
+  window.alRowToggle = function (cb) {
+    var a = alCurList[+cb.getAttribute('data-i')]; if (!a) return;
+    if (cb.checked) alSelected[alKey(a)] = 1; else delete alSelected[alKey(a)];
+    var sa = $('alSelectAll'); if (sa) sa.checked = alCurList.length > 0 && alCurList.every(function (x) { return alSelected[alKey(x)]; });
+    updateAlMailBtn();
+  };
+  window.toggleAllAlerts = function (cb) {
+    alCurList.forEach(function (a) { if (cb.checked) alSelected[alKey(a)] = 1; else delete alSelected[alKey(a)]; });
+    renderAlerts();
+  };
+  function updateAlMailBtn() {
+    var n = Object.keys(alSelected).length, btn = $('alMailBtn');
+    if (btn && !btn.disabled) btn.textContent = n ? ('📧 إرسال المحدد (' + n + ')') : '📧 إرسال حسب الفرز';
+  }
   function renderAlerts() {
     var counts = { expired: 0, d30: 0, d90: 0, valid: 0, unknown: 0 };
     ALERTS.forEach(function (a) { counts[a.st.key]++; });
@@ -572,17 +612,22 @@
     Array.prototype.forEach.call($('alFilters').querySelectorAll('.chip'), function (c) {
       c.onclick = function () { alFilter = c.getAttribute('data-k'); renderAlerts(); };
     });
-    var list = ALERTS.filter(function (a) {
-      if (alFilter === 'all') return true;
-      if (alFilter === 'attention') return a.st.rank <= 2;
-      return a.st.key === alFilter;
+    alCurList = alVisibleList().slice().sort(alCompare);
+    $('alSub').textContent = alCurList.length + ' وثيقة';
+    Array.prototype.forEach.call(document.querySelectorAll('#alHead .sort-ind'), function (el) {
+      el.textContent = (alSort.key === el.getAttribute('data-k')) ? (alSort.dir > 0 ? ' ▲' : ' ▼') : '';
     });
-    $('alSub').textContent = list.length + ' وثيقة';
-    if (!list.length) { $('alBody').innerHTML = '<tr><td colspan="6" class="empty-hint">لا توجد وثائق في هذا التصنيف ✓</td></tr>'; return; }
-    $('alBody').innerHTML = list.slice(0, 400).map(function (a) {
-      return '<tr><td>' + esc(a.name) + '</td><td><span class="plate">' + esc(a.plate || '—') + '</span></td><td>' + esc(a.doc) +
+    if (!alCurList.length) {
+      $('alBody').innerHTML = '<tr><td colspan="7" class="empty-hint">لا توجد وثائق في هذا التصنيف ✓</td></tr>';
+      var sa0 = $('alSelectAll'); if (sa0) sa0.checked = false; updateAlMailBtn(); return;
+    }
+    $('alBody').innerHTML = alCurList.slice(0, 400).map(function (a, i) {
+      var ck = alSelected[alKey(a)] ? ' checked' : '';
+      return '<tr><td style="text-align:center"><input type="checkbox" class="al-ck" data-i="' + i + '" onclick="alRowToggle(this)"' + ck + '></td><td>' + esc(a.name) + '</td><td><span class="plate">' + esc(a.plate || '—') + '</span></td><td>' + esc(a.doc) +
         '</td><td>' + esc(a.date) + '</td><td class="days-left">' + fmtDays(a.st) + '</td><td><span class="badge ' + a.st.cls + '">' + a.st.label + '</span></td></tr>';
     }).join('');
+    var sa = $('alSelectAll'); if (sa) sa.checked = alCurList.every(function (a) { return alSelected[alKey(a)]; });
+    updateAlMailBtn();
   }
 
   // ---------- KPIs ----------
@@ -871,31 +916,32 @@
   window.sendExpiryMail = function () {
     var to = (($('alMailTo') && $('alMailTo').value) || '').trim();
     var btn = $('alMailBtn'), hint = $('alMailHint');
-    var scopeLabel = AL_FILTER_LABELS[alFilter] || '';
-    // الصفوف المطابقة للفرز المختار حالياً (نفس منطق العرض)
-    var rows = ALERTS.filter(function (a) {
-      if (alFilter === 'all') return true;
-      if (alFilter === 'attention') return a.st.rank <= 2;
-      return a.st.key === alFilter;
-    }).map(function (a) {
-      return { name: a.name, plate: a.plate, doc: a.doc, date: a.date, label: a.st.label, key: a.st.key, days: a.st.days };
-    });
-    if (!rows.length) { if (hint) hint.innerHTML = '<span style="color:var(--warn-fg)">لا توجد وثائق في الفرز المختار «' + esc(scopeLabel) + '».</span>'; return; }
+    function mapRow(a) { return { name: a.name, plate: a.plate, doc: a.doc, date: a.date, label: a.st.label, key: a.st.key, days: a.st.days }; }
+    // If any rows are selected (checkboxes) → send those; otherwise fall back to the current filter.
+    var selKeys = Object.keys(alSelected), rows, scopeLabel;
+    if (selKeys.length) {
+      rows = ALERTS.filter(function (a) { return alSelected[alKey(a)]; }).map(mapRow);
+      scopeLabel = 'الصفوف المحددة';
+    } else {
+      rows = alVisibleList().map(mapRow);
+      scopeLabel = AL_FILTER_LABELS[alFilter] || '';
+    }
+    if (!rows.length) { if (hint) hint.innerHTML = '<span style="color:var(--warn-fg)">حدّد صفوفاً أو اختر فرزاً فيه وثائق أولاً.</span>'; return; }
     if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
     fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to, rows: rows, filter: scopeLabel }) })
       .then(function (r) { return r.json(); })
       .then(function (res) {
         var msg;
-        if (res.success) msg = '<span style="color:var(--ok-fg)">✓ أُرسل (' + (res.count || 0) + ' وثيقة — الفرز: ' + esc(scopeLabel) + ') إلى: ' + esc((res.recipients || []).join('، ')) + '</span>';
+        if (res.success) msg = '<span style="color:var(--ok-fg)">✓ أُرسل (' + (res.count || 0) + ' وثيقة — ' + esc(scopeLabel) + ') إلى: ' + esc((res.recipients || []).join('، ')) + '</span>';
         else if (res.reason === 'mail_not_configured') msg = '<span style="color:var(--bad-fg)">⚠ البريد غير مُهيّأ على الخادم — اضبط MAIL_USERNAME و MAIL_PASSWORD.</span>';
         else if (res.reason === 'no_recipients') msg = '<span style="color:var(--warn-fg)">أدخل بريد مستلم واحد على الأقل.</span>';
-        else if (res.reason === 'no_alerts') msg = '<span style="color:var(--ok-fg)">لا توجد وثائق في الفرز المختار ✓</span>';
+        else if (res.reason === 'no_alerts') msg = '<span style="color:var(--ok-fg)">لا توجد وثائق للإرسال ✓</span>';
         else msg = '<span style="color:var(--bad-fg)">تعذّر الإرسال' + (res.error ? ': ' + esc(res.error) : '') + '</span>';
         if (hint) hint.innerHTML = msg;
-        if (window.showToast && res.success) showToast('تم إرسال التنبيه (الفرز: ' + scopeLabel + ')', 'success');
+        if (window.showToast && res.success) showToast('تم إرسال التنبيه (' + scopeLabel + ')', 'success');
       })
       .catch(function () { if (hint) hint.innerHTML = '<span style="color:var(--bad-fg)">تعذّر الاتصال بالخادم.</span>'; })
-      .finally(function () { if (btn) { btn.disabled = false; btn.textContent = '📧 إرسال حسب الفرز'; } });
+      .finally(function () { if (btn) { btn.disabled = false; } updateAlMailBtn(); });
   };
 
   // ---------- audit log (server-side, read-only, append-only) ----------
