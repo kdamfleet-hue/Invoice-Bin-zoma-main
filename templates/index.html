@@ -27,14 +27,6 @@
 
         .header-subtitle { text-align: center; margin-bottom: 1.5rem; color: var(--text-secondary); }
 
-        .nav-buttons {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
         .grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -46,13 +38,9 @@
         }
         @media (max-width: 480px) {
             .grid-container { grid-template-columns: 1fr; }
-            .financial-grid { grid-template-columns: 1fr !important; }
         }
 
         .card label { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem; display: block; color: var(--text-primary); }
-
-        .financial-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
-        @media (max-width: 600px) { .financial-grid { grid-template-columns: 1fr; } }
 
         .span-2 { grid-column: span 2; }
         @media (max-width: 768px) { .span-2 { grid-column: span 1; } }
@@ -136,11 +124,6 @@
 
     <h1 class="header-title">نظام الفواتير الذكي</h1>
         <p class="header-subtitle">اختر السائق وسيتم تعبئة البيانات تلقائياً</p>
-        <div class="nav-buttons">
-            <!-- التنقل بين التبويبات موجود في الشريط العلوي؛ هنا الإجراء الفريد فقط -->
-            <a href="/dashboard" class="btn-submit-gold" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">🎯 لوحة الإدارة التنفيذية</a>
-            <button class="btn-outline" onclick="openModal()">⚙️ إدارة السائقين وقاعدة البيانات</button>
-        </div>
 
     </div>
 
@@ -189,44 +172,12 @@
             <input type="date" id="invoiceDate">
         </div>
         
-        <!-- 5. الكمية والسعر -->
-        <div class="card card-maroon span-2 glass-surface">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                <div>
-                    <label for="quantity">الكمية</label>
-                    <input type="number" id="quantity" value="1" min="1" oninput="calcTotal()">
-                </div>
-                <div>
-                    <label for="price">السعر الإفرادي (ريال)</label>
-                    <input type="number" id="price" placeholder="0.00" oninput="calcTotal()">
-                </div>
-            </div>
-        </div>
-
         <!-- 6. الوصف -->
         <div class="card card-amber span-2 glass-surface">
             <label for="desc">الوصف / التفاصيل</label>
             <textarea id="desc" rows="3" placeholder="أدخل تفاصيل الفاتورة أو القطع المستبدلة..."></textarea>
         </div>
 
-        <!-- 7. الاجمالي والضريبة -->
-        <div class="card card-gray span-2 glass-surface">
-            <label>الحسابات المالية</label>
-            <div class="financial-grid">
-                <div>
-                    <span style="font-size:0.9rem; opacity:0.8;">المبلغ</span>
-                    <input type="text" id="subtotal" readonly value="0.00" style="background: rgba(0,0,0,0.3); border-color: transparent; margin-top:5px;">
-                </div>
-                <div>
-                    <span style="font-size:0.9rem; opacity:0.8;">الضريبة (15%)</span>
-                    <input type="text" id="tax" readonly value="0.00" style="background: rgba(0,0,0,0.3); border-color: transparent; margin-top:5px;">
-                </div>
-                <div>
-                    <span style="font-size:0.9rem; font-weight:bold; color:#f1c40f;">الإجمالي النهائي</span>
-                    <input type="text" id="total" readonly value="0.00" style="background: rgba(0,0,0,0.4); border-color: #f1c40f; color:#f1c40f; margin-top:5px;">
-                </div>
-            </div>
-        </div>
     </div>
 
     <div style="display: flex; gap: 1rem; justify-content: center; max-width: 1000px; width: 95%; margin: 0 auto; width: 100%; flex-wrap: wrap; z-index: 2; position: relative;">
@@ -495,12 +446,7 @@
                     iqamaNum: document.getElementById('iqamaNum').value,
                     requestType: document.getElementById('requestType').value,
                     invoiceDate: document.getElementById('invoiceDate').value,
-                    quantity: document.getElementById('quantity').value,
-                    price: document.getElementById('price').value,
-                    desc: document.getElementById('desc').value,
-                    subtotal: document.getElementById('subtotal').value,
-                    tax: document.getElementById('tax').value,
-                    total: document.getElementById('total').value
+                    desc: document.getElementById('desc').value
                 };
                 localStorage.setItem('invoiceFormData', JSON.stringify(data));
             }, 500);
@@ -517,12 +463,7 @@
                     if(data.iqamaNum) document.getElementById('iqamaNum').value = data.iqamaNum;
                     if(data.requestType) document.getElementById('requestType').value = data.requestType;
                     if(data.invoiceDate) document.getElementById('invoiceDate').value = data.invoiceDate;
-                    if(data.quantity) document.getElementById('quantity').value = data.quantity;
-                    if(data.price) document.getElementById('price').value = data.price;
                     if(data.desc) document.getElementById('desc').value = data.desc;
-                    if(data.subtotal) document.getElementById('subtotal').value = data.subtotal;
-                    if(data.tax) document.getElementById('tax').value = data.tax;
-                    if(data.total) document.getElementById('total').value = data.total;
                     return true;
                 } catch(e) { console.error(e); }
             }
@@ -537,10 +478,7 @@
             document.getElementById('iqamaNum').value = '';
             document.getElementById('requestType').value = 'صيانة دورية';
             document.getElementById('invoiceDate').valueAsDate = new Date();
-            document.getElementById('quantity').value = '1';
-            document.getElementById('price').value = '';
             document.getElementById('desc').value = '';
-            calcTotal();
             localStorage.removeItem('invoiceFormData');
             showToast('تم مسح الحقول', 'success');
         }
@@ -551,22 +489,11 @@
             }
         });
 
-        function calcTotal() {
-            const qty = parseFloat(document.getElementById('quantity').value) || 0;
-            const price = parseFloat(document.getElementById('price').value) || 0;
-            const subtotal = qty * price;
-            const tax = subtotal * 0.15;
-            const total = subtotal + tax;
-            
-            document.getElementById('subtotal').value = subtotal.toFixed(2);
-            document.getElementById('tax').value = tax.toFixed(2);
-            document.getElementById('total').value = total.toFixed(2);
-        }
+        // Financial calculations were removed from the invoice form; kept as a
+        // safe no-op so any lingering reference does not throw.
+        function calcTotal() {}
 
         async function createInvoiceBuffer() {
-            // Ensure totals are synced before reading them
-            calcTotal();
-
             const driver = document.getElementById('driverName').value || 'غير محدد';
             const car = document.getElementById('carType').value || 'غير محدد';
             const plate = document.getElementById('plateNum').value || 'غير محدد';
@@ -574,11 +501,6 @@
             const phone = (window._selectedDriverPhone || '') || 'غير محدد';
             const req = document.getElementById('requestType').value;
             const invoiceDate = document.getElementById('invoiceDate').value;
-            const qty = document.getElementById('quantity').value || '1';
-            const price = document.getElementById('price').value || '0';
-            const subtotal = document.getElementById('subtotal').value || '0';
-            const tax = document.getElementById('tax').value || '0';
-            const total = document.getElementById('total').value || '0';
             const desc = document.getElementById('desc').value || 'لا يوجد وصف';
 
             const wb = new ExcelJS.Workbook();
@@ -647,39 +569,21 @@
             ws.mergeCells('C11:F11');
 
             ws.getRow(13).height = 30;
-            const headers = ['م', 'الوصف / البيان', 'الكمية', 'السعر الإفرادي', 'المبلغ'].map(h => bzTL(h));
-            const hCols = ['B', 'C', 'D', 'E', 'F'];
+            // Items table: quantity / unit price / amount columns were removed.
+            // Only the line number (م) and the description/البيان remain.
+            ws.mergeCells('C13:F13');
+            const headers = [['B13', 'م'], ['C13', 'الوصف / البيان']];
             for(let i=0; i<headers.length; i++) {
-                const c = ws.getCell(hCols[i] + '13');
-                c.value = headers[i]; c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: W } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
+                const c = ws.getCell(headers[i][0]);
+                c.value = bzTL(headers[i][1]); c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: W } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
             }
 
             ws.getRow(14).height = 35;
-            const data = [1, desc, parseFloat(qty) || 0, parseFloat(price) || 0, parseFloat(subtotal) || 0];
-            for(let i=0; i<data.length; i++) {
-                const c = ws.getCell(hCols[i] + '14');
-                c.value = data[i]; c.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; c.border = allBorders;
-                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
-                if(i > 1) c.numFmt = '#,##0.00';
-            }
-
-            // B&W-safe totals: emphasis via bold + borders, NOT color fills.
-            // grand=true -> navy fill + white text (the one allowed heavy fill) with a darker top edge.
-            function addTotalRow(r, lbl, val, grand) {
-                ws.getRow(r).height = 35; ws.mergeCells(`B${r}:E${r}`);
-                const txt = grand ? W : BLACK;
-                const fill = grand ? P : W;
-                const topEdge = grand ? { style: 'medium', color: { argb: BLACK } } : thinBorder;
-                const border = { top: topEdge, bottom: thinBorder, left: thinBorder, right: thinBorder };
-                const lCell = ws.getCell(`B${r}`);
-                lCell.value = bzTL(lbl); lCell.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: txt } }; lCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; lCell.alignment = { horizontal: 'left', vertical: 'middle' }; lCell.border = border;
-                const vCell = ws.getCell(`F${r}`);
-                vCell.value = parseFloat(val) || 0; vCell.font = { name: 'Tajawal', size: grand ? 14 : 12, bold: true, color: { argb: txt } }; vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; vCell.alignment = { horizontal: 'center', vertical: 'middle' }; vCell.border = border; vCell.numFmt = '#,##0.00';
-            }
-
-            addTotalRow(15, "المبلغ الإجمالي (قبل الضريبة)", subtotal, false);
-            addTotalRow(16, "ضريبة القيمة المضافة (15%)", tax, false);
-            addTotalRow(17, "المجموع الكلي (مع الضريبة)", total, true);
+            ws.mergeCells('C14:F14');
+            const numCell = ws.getCell('B14');
+            numCell.value = 1; numCell.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } }; numCell.alignment = { horizontal: 'center', vertical: 'middle' }; numCell.border = allBorders; numCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
+            const descCell = ws.getCell('C14');
+            descCell.value = desc; descCell.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } }; descCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; descCell.border = allBorders; descCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
 
             ws.getRow(20).height = 25;
             ws.getCell('B20').value = bzTL("توقيع السائق"); ws.getCell('F20').value = bzTL("اعتماد الإدارة");
@@ -1035,10 +939,9 @@ document.getElementById('composeForm').addEventListener('submit', async function
                 const req = document.getElementById('requestType').value;
                 const car = document.getElementById('carType').value || 'غير محدد';
                 const plate = document.getElementById('plateNum').value || 'غير محدد';
-                const total = document.getElementById('total').value || '0';
                 const date = document.getElementById('invoiceDate').value;
-                
-                const msg = `مرحباً بك عزيزي السائق (${rawName})،\n\nنود إعلامك بأنه تم إصدار فاتورة / طلب لمركبتك:\n🚗 نوع السيارة: ${car}\n🔢 رقم اللوحة: ${plate}\n🛠️ نوع الطلب: ${req}\n💰 الإجمالي: ${total} ريال\n📅 التاريخ: ${date}\n\nشكراً لتعاونكم - إدارة الحركة بفرع الدمام.`;
+
+                const msg = `مرحباً بك عزيزي السائق (${rawName})،\n\nنود إعلامك بأنه تم إصدار فاتورة / طلب لمركبتك:\n🚗 نوع السيارة: ${car}\n🔢 رقم اللوحة: ${plate}\n🛠️ نوع الطلب: ${req}\n📅 التاريخ: ${date}\n\nشكراً لتعاونكم - إدارة الحركة بفرع الدمام.`;
                 
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
                 // Force open

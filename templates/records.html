@@ -62,6 +62,22 @@
         .rec-del { background: transparent; border: 1px solid var(--border-strong, #c33); color: #c0392b; border-radius: 8px; padding: 4px 9px; cursor: pointer; font-size: 0.85rem; font-weight: 700; transition: var(--trans); }
         .rec-del:hover { background: #c0392b; color: #fff; }
 
+        /* attachments button + modal list (mirrors incidents.html) */
+        .att-btn { background: transparent; border: 1px solid var(--border-strong, #c9a227); color: var(--accent, #c9a227); border-radius: 8px; padding: 4px 9px; cursor: pointer; font-size: 0.8rem; font-weight: 700; white-space: nowrap; transition: var(--trans); }
+        .att-btn:hover { background: var(--accent, #c9a227); color: #fff; }
+        .att-btn.has { background: rgba(201,162,39,.14); }
+
+        .att-row { display: flex; align-items: center; gap: .6rem; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; background: var(--surface); }
+        .att-row .att-name { flex: 1; text-align: right; font-size: .88rem; word-break: break-all; }
+        .att-row .att-size { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+        .att-row button { border: none; border-radius: 7px; padding: 5px 9px; cursor: pointer; font-size: .8rem; font-weight: 700; }
+        .att-view { background: rgba(59,130,246,.14); color: #1d4ed8; }
+        .att-dl { background: rgba(16,185,129,.14); color: #047857; }
+        .att-rm { background: rgba(239,68,68,.14); color: #b91c1c; }
+        .att-link { display:flex; align-items:center; gap:.6rem; border:1px solid var(--border); border-radius:10px; padding:8px 12px; background:var(--surface); }
+        .att-link a { flex:1; text-align:right; color: var(--accent, #c9a227); font-weight:700; text-decoration:none; word-break:break-all; }
+        .att-link a:hover { text-decoration:underline; }
+
         .rec-empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-weight: 700; }
         .rec-count { text-align: center; color: var(--text-muted); font-size: 0.88rem; margin: 0.25rem 0 1rem; }
 
@@ -102,7 +118,7 @@
         <strong>سجل توثيق إداري دقيق.</strong>
         يُوثّق هذا السجل كل واقعة تتعلق بالأسطول (حوادث، مخالفات مرورية، تسليم واستلام المركبات، صيانة، إنذارات، تحقيقات إدارية) بتاريخها ومرجعها وحالتها.
         التوثيق الدقيق والمؤرّخ يُشكّل <strong>مرجعية قانونية</strong> تحمي حقوق قسم الحركة ومسؤول الحركة، وتُثبت سلامة الإجراءات عند أي نزاع أو مساءلة.
-        احرص على إرفاق رقم المرجع ورابط المستند الرسمي كلما توفّر، وعلى تحديث الحالة حتى الإغلاق.
+        احرص على إرفاق رقم المرجع ورفع المستند الرسمي (صورة/PDF) داخل النظام كلما توفّر، وعلى تحديث الحالة حتى الإغلاق.
     </div>
 
     <!-- Stats -->
@@ -164,7 +180,7 @@
                     <th>التفاصيل</th>
                     <th>رقم المرجع</th>
                     <th>الحالة</th>
-                    <th>رابط المستند</th>
+                    <th>المستند / المرفقات</th>
                     <th>ملاحظات</th>
                     <th>حذف</th>
                 </tr>
@@ -196,22 +212,40 @@
                 تسليم/استلام للمركبات، يُشكّل هذا السجل المؤرّخ دليلاً يحمي حقوق مسؤول الحركة وقسم
                 الحركة ويُثبت سلامة الإجراءات المتّبعة.</p>
 
-                <p style="margin:0 0 0.5rem;"><strong style="color:var(--text-primary);">٢) ما هو «رابط المستند»؟</strong>
-                هو رابط إلكتروني لنسخة رقمية من المستند الأصلي (صورة أو ملف PDF) مرفوعة على خدمة
-                تخزين سحابية. وضع الرابط في السجل يجعل المستند موثّقاً ويُمكن فتحه مباشرةً من الجدول
-                بضغطة واحدة دون البحث في الأرشيف الورقي.</p>
+                <p style="margin:0 0 0.5rem;"><strong style="color:var(--text-primary);">٢) ما هو عمود «المستند / المرفقات»؟</strong>
+                هو المكان الذي ترفع فيه نسخة رقمية من المستند الأصلي (صورة أو ملف PDF) <strong>مباشرةً داخل النظام</strong>.
+                تُحفظ الملفات داخل قاعدة البيانات فتبقى دائمة على الاستضافة، ويمكن فتحها أو تنزيلها لاحقاً من
+                الجدول بضغطة واحدة دون الحاجة لأي خدمة تخزين خارجية ولا للبحث في الأرشيف الورقي.</p>
 
-                <p style="margin:0 0 0.25rem;"><strong style="color:var(--text-primary);">٣) من أين تحصل على الرابط؟</strong></p>
+                <p style="margin:0 0 0.25rem;"><strong style="color:var(--text-primary);">٣) كيف ترفع المستند؟</strong></p>
                 <ol style="margin:0 0 0.5rem;padding-right:1.25rem;">
-                    <li>ارفع المستند (صورة/PDF) إلى <strong>Google Drive</strong> أو <strong>OneDrive</strong> أو <strong>Dropbox</strong>.</li>
-                    <li>فعّل خيار المشاركة: <strong>«أي شخص لديه الرابط يمكنه الاطّلاع»</strong> (Anyone with the link can view).</li>
-                    <li>انسخ الرابط الناتج والصقه في خانة <strong>«رابط المستند»</strong> في صف السجل.</li>
+                    <li>اضغط زر <strong>«📎»</strong> في عمود «المستند / المرفقات» داخل صف السجل.</li>
+                    <li>في النافذة اضغط <strong>«➕ إضافة ملف (PDF / صورة)»</strong> واختر الملف من جهازك.</li>
+                    <li>يمكنك إضافة حتى <strong>٦ ملفات</strong> للسجل، بحد <strong>٢ ميغابايت</strong> لكل ملف، ثم عرضها أو تنزيلها أو حذفها.</li>
                 </ol>
-                <p style="margin:0;">بهذا يبقى المستند موثّقاً سحابياً ويمكن فتحه مباشرةً من السجل في أي وقت.</p>
+                <p style="margin:0;">السجلات القديمة التي تحتوي رابط مستند سابق تبقى كما هي، ويظهر الرابط داخل نافذة المرفقات قابلاً للفتح.</p>
             </div>
 
             <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
                 <button class="btn-primary" onclick="closeCustomModal('recHelpModal')">فهمت ✅</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attachments modal -->
+    <div class="modal-backdrop" id="attModal">
+        <div class="modal-content-custom" style="max-width:620px;text-align:right;">
+            <h2 class="bz-section-title" style="margin-top:0;">📎 مرفقات السجل <span id="attRefLabel" style="font-size:.85rem;color:var(--text-muted);font-weight:600;"></span></h2>
+            <div id="attList" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;"></div>
+            <label class="btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+                ➕ إضافة ملف (PDF / صورة)
+                <input type="file" id="attInput" accept="image/*,application/pdf" multiple style="display:none;" onchange="onAttUpload(event)">
+            </label>
+            <div style="margin-top:.6rem;font-size:.8rem;color:var(--text-muted);line-height:1.7;">
+                الحد: <strong>2MB لكل ملف</strong>، حتى <strong>6 ملفات</strong> للسجل. تُحفظ المرفقات <strong>داخل قاعدة البيانات</strong> فتبقى دائمة على الاستضافة.
+            </div>
+            <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.25rem;">
+                <button class="btn-primary" onclick="closeCustomModal('attModal')">تم ✅</button>
             </div>
         </div>
     </div>
@@ -236,13 +270,17 @@
     const TYPES = ['حادث', 'مخالفة مرورية', 'تسليم مركبة', 'استلام مركبة', 'صيانة', 'إنذار', 'تحقيق إداري', 'مخالفة سلوكية', 'أخرى'];
     const STATUSES = ['مفتوح', 'قيد المتابعة', 'مغلق'];
     const LS_KEY = 'binZomahRecords';
+    const MAX_FILE_BYTES = 2 * 1024 * 1024;   // 2 MB per file
+    const MAX_FILES = 6;
 
     let records = [];          // array of objects keyed by COLS keys
     let saveTimer = null;
+    let attIdx = -1;           // which record's attachments modal is open
 
     function blankRecord() {
         const o = {};
         COLS.forEach(c => o[c.key] = '');
+        o.attachments = [];
         return o;
     }
 
@@ -255,6 +293,7 @@
                 COLS.forEach((c, i) => { o[c.key] = row[i] == null ? '' : String(row[i]); });
             } else if (row && typeof row === 'object') {
                 COLS.forEach(c => { o[c.key] = row[c.key] == null ? '' : String(row[c.key]); });
+                o.attachments = Array.isArray(row.attachments) ? row.attachments.filter(a => a && a.data) : [];
             }
             return o;
         });
@@ -342,9 +381,8 @@
         records.forEach(function (r, idx) {
             if (!passesFilter(r, q, ftype, fstatus)) return;
             shown++;
-            const linkCell = r.link
-                ? '<a href="' + escapeHtml(r.link) + '" target="_blank" rel="noopener" title="' + escapeHtml(r.link) + '">📎 فتح</a>'
-                : '';
+            // Count attachments + a legacy document link (if present) for the badge
+            const attN = (r.attachments || []).length + (r.link ? 1 : 0);
             html += '<tr data-idx="' + idx + '">'
                 + '<td>' + shown + '</td>'
                 + '<td><input type="date" class="rec-in" data-key="date" value="' + escapeHtml(r.date) + '"></td>'
@@ -356,7 +394,7 @@
                 + '<td class="col-details"><textarea class="rec-in" data-key="details" rows="1" placeholder="التفاصيل">' + escapeHtml(r.details) + '</textarea></td>'
                 + '<td><input type="text" class="rec-in" data-key="ref" value="' + escapeHtml(r.ref) + '" placeholder="المرجع"></td>'
                 + '<td>' + buildSelect('status', r.status || 'مفتوح', STATUSES, 'rec-status') + '</td>'
-                + '<td class="col-link"><input type="url" class="rec-in" data-key="link" value="' + escapeHtml(r.link) + '" placeholder="https://...">' + (linkCell ? '<div>' + linkCell + '</div>' : '') + '</td>'
+                + '<td><button class="att-btn' + (attN ? ' has' : '') + '" onclick="openAttachments(' + idx + ')" title="إدارة المرفقات">📎 ' + attN + '</button></td>'
                 + '<td><input type="text" class="rec-in" data-key="notes" value="' + escapeHtml(r.notes) + '" placeholder="ملاحظات"></td>'
                 + '<td><button class="rec-del" onclick="deleteRecord(' + idx + ')" title="حذف السجل">🗑</button></td>'
                 + '</tr>';
@@ -444,15 +482,121 @@
         showToast('تم حذف السجل', 'info');
     }
 
+    // ===== Attachments (stored in-DB as base64 data URLs) — mirrors incidents.html =====
+    function humanSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+    }
+    function approxBytes(att) { return att.size || Math.round(((att.data || '').length) * 0.75); }
+
+    function openAttachments(idx) {
+        attIdx = idx;
+        const r = records[idx];
+        if (!r) return;
+        document.getElementById('attRefLabel').textContent = r.ref ? ('— ' + r.ref) : '';
+        renderAttList();
+        document.getElementById('attInput').value = '';
+        if (typeof openCustomModal === 'function') openCustomModal('attModal');
+    }
+
+    function renderAttList() {
+        const r = records[attIdx];
+        const box = document.getElementById('attList');
+        if (!r) { box.innerHTML = ''; return; }
+        let html = '';
+        // Backward-compat: surface any legacy document link first (never deleted)
+        if (r.link) {
+            html += '<div class="att-link">'
+                + '<span style="font-size:1.1rem;">🔗</span>'
+                + '<a href="' + escapeHtml(r.link) + '" target="_blank" rel="noopener" title="' + escapeHtml(r.link) + '">📎 فتح الرابط (مستند سابق)</a>'
+                + '</div>';
+        }
+        const list = r.attachments || [];
+        html += list.map(function (a, i) {
+            const icon = (a.mime || '').indexOf('pdf') >= 0 ? '📄' : '🖼️';
+            return '<div class="att-row">'
+                + '<span style="font-size:1.1rem;">' + icon + '</span>'
+                + '<span class="att-name">' + escapeHtml(a.name || ('ملف ' + (i + 1))) + '</span>'
+                + '<span class="att-size">' + humanSize(approxBytes(a)) + '</span>'
+                + '<button class="att-view" onclick="viewAtt(' + i + ')">عرض</button>'
+                + '<button class="att-dl" onclick="downloadAtt(' + i + ')">تنزيل</button>'
+                + '<button class="att-rm" onclick="removeAtt(' + i + ')">حذف</button>'
+                + '</div>';
+        }).join('');
+        if (!html) html = '<div style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:.5rem;">لا توجد مرفقات بعد.</div>';
+        box.innerHTML = html;
+    }
+
+    function onAttUpload(event) {
+        const r = records[attIdx];
+        if (!r) return;
+        r.attachments = r.attachments || [];
+        const files = Array.prototype.slice.call(event.target.files || []);
+        let queued = 0;
+        files.forEach(function (file) {
+            if (r.attachments.length + queued >= MAX_FILES) { showToast('الحد الأقصى ' + MAX_FILES + ' ملفات للسجل', 'error'); return; }
+            if (file.size > MAX_FILE_BYTES) { showToast('«' + file.name + '» أكبر من 2MB — لم يُضف', 'error'); return; }
+            queued++;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                r.attachments.push({ name: file.name, mime: file.type || 'application/octet-stream', size: file.size, data: e.target.result });
+                renderAttList();
+                renderTable();
+                scheduleSave();
+            };
+            reader.onerror = function () { showToast('تعذّرت قراءة «' + file.name + '»', 'error'); };
+            reader.readAsDataURL(file);
+        });
+        event.target.value = '';
+        if (queued) showToast('تتم إضافة المرفقات وحفظها…', 'info');
+    }
+
+    function dataURLtoBlob(dataurl) {
+        const parts = String(dataurl).split(',');
+        const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
+        const bstr = atob(parts[1] || '');
+        let n = bstr.length; const u8 = new Uint8Array(n);
+        while (n--) u8[n] = bstr.charCodeAt(n);
+        return new Blob([u8], { type: mime });
+    }
+
+    function viewAtt(i) {
+        const r = records[attIdx]; if (!r || !r.attachments[i]) return;
+        try {
+            const url = URL.createObjectURL(dataURLtoBlob(r.attachments[i].data));
+            window.open(url, '_blank');
+            setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+        } catch (e) { showToast('تعذّر فتح المرفق', 'error'); }
+    }
+
+    function downloadAtt(i) {
+        const r = records[attIdx]; if (!r || !r.attachments[i]) return;
+        try {
+            const a = r.attachments[i];
+            const url = URL.createObjectURL(dataURLtoBlob(a.data));
+            const link = document.createElement('a'); link.href = url; link.download = a.name || 'attachment';
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+        } catch (e) { showToast('تعذّر تنزيل المرفق', 'error'); }
+    }
+
+    function removeAtt(i) {
+        const r = records[attIdx]; if (!r || !r.attachments[i]) return;
+        if (!confirm('حذف هذا المرفق؟\n' + (r.attachments[i].name || ''))) return;
+        r.attachments.splice(i, 1);
+        renderAttList(); renderTable(); scheduleSave();
+    }
+
     // ===== Persistence (debounced) =====
     function scheduleSave() {
-        localStorage.setItem(LS_KEY, JSON.stringify(records)); // immediate local backup
+        try { localStorage.setItem(LS_KEY, JSON.stringify(records)); } catch (e) { /* quota: attachments too large for LS — server still saves */ }
         if (saveTimer) clearTimeout(saveTimer);
         saveTimer = setTimeout(function () { saveState(false); }, 700);
     }
 
     function saveState(showMsg) {
-        localStorage.setItem(LS_KEY, JSON.stringify(records));
+        try { localStorage.setItem(LS_KEY, JSON.stringify(records)); } catch (e) {}
         fetch('/api/records', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -486,7 +630,8 @@
             const ALL_BORDERS = { top: THIN_BLACK, bottom: THIN_BLACK, left: THIN_BLACK, right: THIN_BLACK };
 
             const TL = (typeof bzTL === 'function') ? bzTL : (function (x) { return x; });
-            const headers = ['#'].concat(COLS.map(c => TL(c.label)));
+            // The legacy 'link' column is now an attachments column; relabel it for export.
+            const headers = ['#'].concat(COLS.map(c => TL(c.key === 'link' ? 'المستند / المرفقات' : c.label)));
             const lastColIdx = headers.length; // 1-based count of columns
 
             const wb = new ExcelJS.Workbook();
@@ -529,7 +674,12 @@
             records.forEach(function (r, idx) {
                 const rowNum = 3 + idx;
                 const row = ws.getRow(rowNum);
-                const vals = [idx + 1, r.date, TL(r.type), r.name, r.iqama, r.plate, r.subject, r.details, r.ref, TL(r.status), r.link, r.notes];
+                // Attachments column: count of uploaded files + legacy document link if present.
+                const attCount = (r.attachments || []).length;
+                let docCell = '';
+                if (attCount) docCell = attCount + ' مرفق';
+                if (r.link) docCell = (docCell ? docCell + ' — ' : '') + 'رابط: ' + r.link;
+                const vals = [idx + 1, r.date, TL(r.type), r.name, r.iqama, r.plate, r.subject, r.details, r.ref, TL(r.status), docCell, r.notes];
                 const zebra = (idx % 2 === 1);
                 vals.forEach(function (val, ci) {
                     const cell = row.getCell(ci + 1);
