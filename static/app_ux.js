@@ -356,7 +356,6 @@ function injectGlobalNavLinks() {
         else nav.appendChild(a);
     }
     addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
-    addLink('/fleet_dashboard', '🚛 لوحة الأسطول', 'a[href$="/dashboard"]');
     // (no separate "الفاتورة" link — the homepage "الرئيسية" IS the invoice; /invoice aliases to it)
 }
 
