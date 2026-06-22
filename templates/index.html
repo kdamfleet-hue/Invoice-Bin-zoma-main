@@ -264,109 +264,17 @@
     <h1 class="header-title">نظام الفواتير الذكي</h1>
         <p class="header-subtitle">اختر السائق وسيتم تعبئة البيانات تلقائياً</p>
         <div class="nav-buttons">
-            <button class="btn-outline" onclick="openModal()">⚙️ إدارة السائقين وقاعدة البيانات</button>
-            <a href="/oils" class="btn-outline" style="text-decoration:none;">📄 إنشاء بيان زيوت وفلاتر</a>
-            <a href="/purchase" class="btn-outline" style="text-decoration:none;">🛒 طلبات الشراء</a>
-            <a href="/schedule" class="btn-outline" style="text-decoration:none;">📋 الجدول الأسبوعي</a>
-            <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
-            <a href="/tracking" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
-            <a href="/gps_sync" class="btn-outline" style="text-decoration:none;">📡 مزامنة كشف GPS</a>
-        </div>
+            <a href="/invoice" class="btn-outline" style="text-decoration:none;">🧾 الفاتورة الذكية</a>
+    <button class="btn-outline" onclick="openModal()">⚙️ إدارة السائقين وقاعدة البيانات</button>
+    <a href="/oils" class="btn-outline" style="text-decoration:none;">📄 إنشاء بيان زيوت وفلاتر</a>
+    <a href="/purchase" class="btn-outline" style="text-decoration:none;">🛒 طلبات الشراء</a>
+    <a href="/schedule" class="btn-outline" style="text-decoration:none;">📋 الجدول الأسبوعي</a>
+    <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
+    <a href="/tracking" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
+    <a href="/gps_sync" class="btn-outline" style="text-decoration:none;">📡 مزامنة كشف GPS</a>
+</div>
     </div>
 
-    <div class="grid-container">
-        <!-- 1. اسم السائق -->
-        <div class="card card-purple span-2 glass-surface">
-            <label for="driverName">اسم السائق (اكتب للبحث)</label>
-            <input type="text" id="driverName" list="driversList" placeholder="ابحث عن اسم السائق هنا..." onchange="autofillDriver()">
-            <datalist id="driversList"></datalist>
-        </div>
-
-        <!-- 2. نوع السيارة -->
-        <div class="card card-green glass-surface">
-            <label for="carType">نوع السيارة</label>
-            <input type="text" id="carType" placeholder="مثال: ايسوزو دينا 2024">
-        </div>
-
-        <!-- 3. رقم اللوحة -->
-        <div class="card card-blue glass-surface">
-            <label for="plateNum">رقم اللوحة</label>
-            <input type="text" id="plateNum" placeholder="مثال: ا ب ج 1234">
-        </div>
-
-                <!-- 4. نوع الطلب -->
-        <div class="card card-brown glass-surface">
-            <label for="requestType">نوع الطلب</label>
-            <select id="requestType">
-                <option value="صيانة دورية">صيانة دورية</option>
-                <option value="إصلاح عطل">إصلاح عطل</option>
-                <option value="إصلاح بنشر">إصلاح بنشر</option>
-                <option value="تغيير قطع غيار">تغيير قطع غيار</option>
-                <option value="غيار زيت">غيار زيت</option>
-                <option value="أخرى">أخرى</option>
-            </select>
-        </div>
-
-        <!-- 4.5 رقم الإقامة -->
-        <div class="card card-olive glass-surface">
-            <label for="iqamaNum">رقم الإقامة</label>
-            <input type="text" id="iqamaNum" placeholder="مثال: 2441077944">
-        </div>
-
-        <!-- 4.6 التاريخ -->
-        <div class="card card-gray glass-surface">
-            <label for="invoiceDate">التاريخ</label>
-            <input type="date" id="invoiceDate">
-        </div>
-        
-        <!-- 5. الكمية والسعر -->
-        <div class="card card-maroon span-2 glass-surface">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                <div>
-                    <label for="quantity">الكمية</label>
-                    <input type="number" id="quantity" value="1" min="1" oninput="calcTotal()">
-                </div>
-                <div>
-                    <label for="price">السعر الإفرادي (ريال)</label>
-                    <input type="number" id="price" placeholder="0.00" oninput="calcTotal()">
-                </div>
-            </div>
-        </div>
-
-        <!-- 6. الوصف -->
-        <div class="card card-amber span-2 glass-surface">
-            <label for="desc">الوصف / التفاصيل</label>
-            <textarea id="desc" rows="3" placeholder="أدخل تفاصيل الفاتورة أو القطع المستبدلة..."></textarea>
-        </div>
-
-        <!-- 7. الاجمالي والضريبة -->
-        <div class="card card-gray span-2 glass-surface">
-            <label>الحسابات المالية</label>
-            <div class="financial-grid">
-                <div>
-                    <span style="font-size:0.9rem; opacity:0.8;">المبلغ</span>
-                    <input type="text" id="subtotal" readonly value="0.00" style="background: rgba(0,0,0,0.3); border-color: transparent; margin-top:5px;">
-                </div>
-                <div>
-                    <span style="font-size:0.9rem; opacity:0.8;">الضريبة (15%)</span>
-                    <input type="text" id="tax" readonly value="0.00" style="background: rgba(0,0,0,0.3); border-color: transparent; margin-top:5px;">
-                </div>
-                <div>
-                    <span style="font-size:0.9rem; font-weight:bold; color:#f1c40f;">الإجمالي النهائي</span>
-                    <input type="text" id="total" readonly value="0.00" style="background: rgba(0,0,0,0.4); border-color: #f1c40f; color:#f1c40f; margin-top:5px;">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div style="display: flex; gap: 1rem; justify-content: center; max-width: 95%; margin: 0 auto; width: 100%; flex-wrap: wrap; z-index: 2; position: relative;">
-        <button class="btn-submit-gold" style="flex:1; min-width: 250px;" onclick="generateExcel()">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-            تصدير PDF / Excel
-        </button>
-        <button class="btn-submit-orange" style="flex:1; min-width: 250px;" onclick="openCustomModal('emailModal')">
-            📧 إرسال الفاتورة للإيميل
-        </button>
         <button class="btn-submit-green" style="background-color: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; flex:1; min-width: 250px;" onclick="sendWhatsApp()">
             💬 إرسال عبر الواتساب
         </button>
