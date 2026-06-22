@@ -447,7 +447,7 @@ def login():
 # Cameras/Employees/GPS-Sync tabs are password-locked. The MAIN site (/) is untouched.
 WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
 WS_TABS = {
-    "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "invoice", "fleet_dashboard": "fleet_dashboard",
+    "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard",
     "schedule": "schedule", "oils": "oils", "purchase": "purchase",
     "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
     "incidents": "incidents",
@@ -773,8 +773,8 @@ def gps_devices():
 @app.route("/invoice")
 @login_required
 def invoice():
-    # Standalone smart-invoice page (ported from Antigravity).
-    return render_template("invoice.html", google_user=session.get("google_user"), b64_en=load_logo())
+    # The invoice IS the homepage — alias /invoice to it (single source, no duplicate template).
+    return render_template("index.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
 @app.route("/fleet_dashboard")

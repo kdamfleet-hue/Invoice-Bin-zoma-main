@@ -357,7 +357,7 @@ function injectGlobalNavLinks() {
     }
     addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
     addLink('/fleet_dashboard', '🚛 لوحة الأسطول', 'a[href$="/dashboard"]');
-    addLink('/invoice', '🧾 الفاتورة الذكية', null);
+    // (no separate "الفاتورة" link — the homepage "الرئيسية" IS the invoice; /invoice aliases to it)
 }
 
 // ===== Enterprise unified shell (deep-dark + right sidebar + rich topbar) =====
