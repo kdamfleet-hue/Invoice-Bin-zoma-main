@@ -84,42 +84,13 @@
                 <label for="invoiceDate">التاريخ</label>
                 <input type="date" id="invoiceDate">
             </div>
-            <!-- 5. الكمية والسعر -->
-            <div class="card card-maroon span-2 glass-surface">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                    <div>
-                        <label for="quantity">الكمية</label>
-                        <input type="number" id="quantity" value="1" min="1" oninput="calcTotal()">
-                    </div>
-                    <div>
-                        <label for="price">السعر الإفرادي (ريال)</label>
-                        <input type="number" id="price" placeholder="0.00" oninput="calcTotal()">
-                    </div>
-                </div>
-            </div>
+            
             <!-- 6. الوصف -->
             <div class="card card-amber span-2 glass-surface">
                 <label for="desc">الوصف / التفاصيل</label>
                 <textarea id="desc" rows="3" placeholder="أدخل تفاصيل الفاتورة أو القطع المستبدلة..."></textarea>
             </div>
-            <!-- 7. الاجمالي والضريبة -->
-            <div class="card card-gray span-2 glass-surface">
-                <label>الحسابات المالية</label>
-                <div class="financial-grid">
-                    <div>
-                        <span style="font-size:0.9rem; opacity:0.8;">المبلغ</span>
-                        <input type="text" id="subtotal" readonly value="0.00" style="background: rgba(0,0,0,0.3); border-color: transparent; margin-top:5px;">
-                    </div>
-                    <div>
-                        <span style="font-size:0.9rem; opacity:0.8;">الضريبة (15%)</span>
-                        <input type="text" id="tax" readonly value="0.00" style="background: rgba(0,0,0,0.3); border-color: transparent; margin-top:5px;">
-                    </div>
-                    <div>
-                        <span style="font-size:0.9rem; font-weight:bold; color:#f1c40f;">الإجمالي النهائي</span>
-                        <input type="text" id="total" readonly value="0.00" style="background: rgba(0,0,0,0.4); border-color: #f1c40f; color:#f1c40f; margin-top:5px;">
-                    </div>
-                </div>
-            </div>
+            
             <div style="display: flex; gap: 1rem; justify-content: center; max-width: 95%; margin: 0 auto; width: 100%; flex-wrap: wrap; z-index: 2; position: relative;">
                 <button class="btn-submit-gold" style="flex:1; min-width: 250px;" onclick="generateExcel()">
                     PDF / Excel
@@ -172,7 +143,429 @@
         </div>
     </div>
     <script>
-        // Include any necessary JS functions from app_ux.js (already loaded) and any modal helpers
-    </script>
+        let driversData = [];
+
+        async function fetchDrivers() {
+            try {
+                const res = await fetch('/api/drivers');
+                driversData = await res.json();
+                updateDatalist();
+                updateTable();
+            } catch (err) {
+                console.error('Error fetching drivers', err);
+            }
+        }
+
+        function updateDatalist() {
+            const list = document.getElementById('driversList');
+            list.innerHTML = '';
+            driversData.forEach(d => {
+                const merged = `${d.name || 'لا يوجد'} - ${d.iqama || 'بدون إقامة'} - ${d.plate || 'بدون لوحة'} - ${d.phone || 'بدون جوال'} - ${d.car || 'بدون موديل'}`;
+                d._merged = merged;
+                const option = document.createElement('option');
+                option.value = merged; // value via property is safe (not parsed as HTML)
+                list.appendChild(option);
+            });
+        }
+
+        function updateTable() {
+            const tbody = document.getElementById('driversTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            if (driversData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <h3>لا يوجد بيانات</h3>
+                                <p>قاعدة بيانات السائقين فارغة حالياً. أضف سائقين جدد أعلاه.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            driversData.forEach(d => {
+                const tr = document.createElement('tr');
+                const id = Number(d.id);
+                tr.innerHTML = `
+                    <td>${escapeHtml(d.name)}</td>
+                    <td>${escapeHtml(d.empid || '-')}</td>
+                    <td>${escapeHtml(d.car || '-')}</td>
+                    <td>${escapeHtml(d.plate || '-')}</td>
+                    <td>${escapeHtml(d.iqama || '-')}</td>
+                    <td>${escapeHtml(d.drivercard || '-')}</td>
+                    <td>${escapeHtml(d.phone || '-')}</td>
+                    <td>
+                        <button class="btn-outline" style="padding:4px 8px;font-size:0.8rem;border-color:#3498db;color:#3498db;" onclick="editDriver(${id})">تعديل</button>
+                        <button class="btn-delete" style="padding:4px 8px;font-size:0.8rem;" onclick="deleteDriver(${id})">حذف</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function addDriver() {
+            const name = document.getElementById('newName').value;
+            const empid = document.getElementById('newEmpid').value;
+            const plate = document.getElementById('newPlate').value;
+            const car = document.getElementById('newCar').value;
+            const iqama = document.getElementById('newIqama').value;
+            const phone = document.getElementById('newPhone').value;
+            const drivercard = document.getElementById('newDriverCard').value;
+            
+            if(!name) {
+                showToast('الاسم مطلوب!', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/drivers', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, empid, plate, car, iqama, phone, drivercard})
+                });
+                if(res.ok) {
+                    document.getElementById('newName').value = '';
+                    document.getElementById('newEmpid').value = '';
+                    document.getElementById('newPlate').value = '';
+                    document.getElementById('newCar').value = '';
+                    document.getElementById('newIqama').value = '';
+                    document.getElementById('newPhone').value = '';
+                    document.getElementById('newDriverCard').value = '';
+                    showToast('تم إضافة السائق بنجاح!', 'success');
+                    await fetchDrivers();
+                } else {
+                    showToast('فشل في الإضافة', 'error');
+                }
+            } catch (err) { showToast('خطأ في الإضافة', 'error'); }
+        }
+
+        async function editDriver(id) {
+            const d = driversData.find(x => x.id === id);
+            if (!d) return;
+            const newName = prompt('تعديل الاسم:', d.name);
+            if (newName === null) return;
+            const newEmpid = prompt('الرقم الوظيفي:', d.empid || '');
+            const newCar = prompt('تعديل نوع السيارة:', d.car || '');
+            const newPlate = prompt('تعديل رقم اللوحة:', d.plate || '');
+            const newIqama = prompt('تعديل رقم الإقامة:', d.iqama || '');
+            const newDriverCard = prompt('تعديل تاريخ انتهاء بطاقة السائق:', d.drivercard || '');
+            const newPhone = prompt('تعديل رقم الجوال:', d.phone || '');
+            if (!newName) {
+                showToast('الاسم مطلوب!', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/drivers/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name: newName, empid: newEmpid, car: newCar, plate: newPlate, iqama: newIqama, phone: newPhone, drivercard: newDriverCard})
+                });
+                if(res.ok) {
+                    showToast('تم تعديل السائق بنجاح', 'success');
+                    await fetchDrivers();
+                }
+                else showToast('حدث خطأ أثناء تعديل بيانات السائق', 'error');
+            } catch (err) { showToast('خطأ في التعديل', 'error'); }
+        }
+
+        async function deleteDriver(id) {
+            if(!confirm('هل أنت متأكد من حذف السائق؟')) return;
+            try {
+                const res = await fetch(`/api/drivers/${id}`, {method: 'DELETE'});
+                if(res.ok) {
+                    showToast('تم حذف السائق بنجاح', 'success');
+                    await fetchDrivers();
+                } else {
+                    showToast('خطأ في الحذف', 'error');
+                }
+            } catch (err) { showToast('خطأ في الحذف', 'error'); }
+        }
+
+        function openModal() { openCustomModal('driversModal'); }
+        function closeModal() { closeCustomModal('driversModal'); }
+
+        // Fetch on load + preload the shared FleetData engine for autofill
+        window.onload = function () {
+            fetchDrivers();
+            if (window.FleetData && typeof FleetData.load === 'function') {
+                FleetData.load().catch(function () {});
+            }
+        };
+
+        // Holds the phone of the last auto-filled driver (used by WhatsApp/email)
+        window._selectedDriverPhone = '';
+
+        function clean(v) { return (v && v !== 'None') ? v : ''; }
+
+        function autofillDriver() {
+            const val = document.getElementById('driverName').value;
+            let driver = driversData.find(d => d._merged === val || d.name === val);
+            // Fallback to the shared FleetData engine (by name) if not found locally
+            if (!driver && window.FleetData) {
+                const rec = FleetData.byName(val);
+                if (rec) driver = rec;
+            }
+            if (driver) {
+                document.getElementById('driverName').value = clean(driver.name);
+                document.getElementById('carType').value = clean(driver.car);
+                document.getElementById('plateNum').value = clean(driver.plate);
+                document.getElementById('iqamaNum').value = clean(driver.iqama);
+                window._selectedDriverPhone = clean(driver.phone);
+                saveInvoiceForm();
+            }
+        }
+
+        window.addEventListener('load', () => { 
+            if (!loadInvoiceForm()) {
+                document.getElementById('invoiceDate').valueAsDate = new Date(); 
+            }
+        });
+        
+        function saveInvoiceForm() {
+            clearTimeout(window._invSaveTimer);
+            window._invSaveTimer = setTimeout(() => {
+                const data = {
+                    driverName: document.getElementById('driverName').value,
+                    carType: document.getElementById('carType').value,
+                    plateNum: document.getElementById('plateNum').value,
+                    iqamaNum: document.getElementById('iqamaNum').value,
+                    requestType: document.getElementById('requestType').value,
+                    invoiceDate: document.getElementById('invoiceDate').value,
+                    desc: document.getElementById('desc').value
+                };
+                localStorage.setItem('invoiceFormData', JSON.stringify(data));
+            }, 500);
+        }
+
+        function loadInvoiceForm() {
+            const dataStr = localStorage.getItem('invoiceFormData');
+            if(dataStr) {
+                try {
+                    const data = JSON.parse(dataStr);
+                    if(data.driverName) document.getElementById('driverName').value = data.driverName;
+                    if(data.carType) document.getElementById('carType').value = data.carType;
+                    if(data.plateNum) document.getElementById('plateNum').value = data.plateNum;
+                    if(data.iqamaNum) document.getElementById('iqamaNum').value = data.iqamaNum;
+                    if(data.requestType) document.getElementById('requestType').value = data.requestType;
+                    if(data.invoiceDate) document.getElementById('invoiceDate').value = data.invoiceDate;
+                    if(data.desc) document.getElementById('desc').value = data.desc;
+                    return true;
+                } catch(e) { console.error(e); }
+            }
+            return false;
+        }
+
+        function clearInvoiceForm() {
+            if(!confirm('هل أنت متأكد من مسح جميع الحقول؟')) return;
+            document.getElementById('driverName').value = '';
+            document.getElementById('carType').value = '';
+            document.getElementById('plateNum').value = '';
+            document.getElementById('iqamaNum').value = '';
+            document.getElementById('requestType').value = 'صيانة دورية';
+            document.getElementById('invoiceDate').valueAsDate = new Date();
+            document.getElementById('desc').value = '';
+            localStorage.removeItem('invoiceFormData');
+            showToast('تم مسح الحقول', 'success');
+        }
+
+        document.addEventListener('input', (e) => {
+            if(['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+                saveInvoiceForm();
+            }
+        });
+
+        // Financial calculations were removed from the invoice form; kept as a
+        // safe no-op so any lingering reference does not throw.
+        function calcTotal() {}
+
+        async function createInvoiceBuffer() {
+            const driver = document.getElementById('driverName').value || 'غير محدد';
+            const car = document.getElementById('carType').value || 'غير محدد';
+            const plate = document.getElementById('plateNum').value || 'غير محدد';
+            const iqamaNum = document.getElementById('iqamaNum').value || 'غير محدد';
+            const phone = (window._selectedDriverPhone || '') || 'غير محدد';
+            const req = document.getElementById('requestType').value;
+            const invoiceDate = document.getElementById('invoiceDate').value;
+            const desc = document.getElementById('desc').value || 'لا يوجد وصف';
+
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('الفاتورة', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 12 }] });
+
+            ws.getCell('A1').font = { name: 'Tajawal', size: 12 };
+            // B&W print-safe palette (DESIGN_SYSTEM §6): navy is the ONLY heavy fill.
+            const P = 'FF0C2340';      // brand navy — header/title fill, white text on it
+            const G = 'FFC9A227';      // gold — used ONLY for thin accent borders (prints as a thin line)
+            const W = 'FFFFFFFF';      // white — data backgrounds + text on navy
+            const BLACK = 'FF000000';  // data text + grid borders
+            const thinBorder = { style: 'thin', color: { argb: BLACK } };
+            const allBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+
+            ws.columns = [ { width: 5 }, { width: 25 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 25 }, { width: 5 } ];
+
+            ws.getRow(1).height = 5;
+
+            const new_logo = "{{ b64_en }}";
+
+            ws.getRow(2).height = 35; ws.getRow(3).height = 35; ws.getRow(4).height = 35;
+            
+            if(new_logo) { 
+                const id = wb.addImage({ base64: 'data:image/png;base64,'+new_logo, extension: 'png' }); 
+                ws.addImage(id, { tl: { col: 0, row: 0.3 }, br: { col: 7, row: 3.8 } }); 
+            }
+
+            ws.mergeCells('B6:F6');
+            const title = ws.getCell('B6');
+            title.value = bzTL("بيان فاتورة طلب صيانة / خدمة — شركة بن زومة للتجارة والإنماء");
+            title.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: W } };
+            title.alignment = { horizontal: 'center', vertical: 'middle' };
+            title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } };
+            title.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
+            ws.getRow(6).height = 38;
+
+            ws.mergeCells('B7:F7');
+            const subTitle = ws.getCell('B7');
+            subTitle.value = "BIN ZOMAH INTL. — Dammam Branch";
+            subTitle.font = { name: 'Arial', size: 11, bold: true, color: { argb: BLACK } };
+            subTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+            ws.getRow(7).height = 20;
+
+            ws.getRow(8).height = 25; ws.getRow(9).height = 25;
+
+            function setInfo(cell1, lbl, cell2, val) {
+                const c1 = ws.getCell(cell1);
+                c1.value = bzTL(lbl); c1.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: W } }; c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c1.alignment = { horizontal: 'center', vertical: 'middle' }; c1.border = allBorders;
+                const c2 = ws.getCell(cell2);
+                c2.value = val; c2.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } }; c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } }; c2.alignment = { horizontal: 'center', vertical: 'middle' }; c2.border = allBorders;
+            }
+
+            setInfo('B8', 'اسم السائق', 'C8', driver);
+            setInfo('D8', 'التاريخ', 'E8', invoiceDate);
+            setInfo('B9', 'نوع السيارة', 'C9', car);
+            setInfo('D9', 'رقم اللوحة', 'E9', plate);
+            setInfo('B10', 'نوع الطلب', 'C10', req);
+            setInfo('D10', 'رقم الإقامة', 'E10', iqamaNum);
+            setInfo('B11', 'جوال السائق', 'C11', phone);
+            setInfo('D11', '', 'E11', '');
+
+            ws.getRow(10).height = 25; ws.getRow(11).height = 25;
+            ws.mergeCells('B8:B8'); ws.mergeCells('C8:C8'); ws.mergeCells('D8:D8'); ws.mergeCells('E8:F8');
+            ws.mergeCells('B9:B9'); ws.mergeCells('C9:C9'); ws.mergeCells('D9:D9'); ws.mergeCells('E9:F9');
+            ws.mergeCells('B10:B10'); ws.mergeCells('C10:C10'); ws.mergeCells('D10:D10'); ws.mergeCells('E10:F10');
+            ws.mergeCells('C11:F11');
+
+            ws.getRow(13).height = 30;
+            // Items table: quantity / unit price / amount columns were removed.
+            // Only the line number (م) and the description/البيان remain.
+            ws.mergeCells('C13:F13');
+            const headers = [['B13', 'م'], ['C13', 'الوصف / البيان']];
+            for(let i=0; i<headers.length; i++) {
+                const c = ws.getCell(headers[i][0]);
+                c.value = bzTL(headers[i][1]); c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: W } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
+            }
+
+            ws.getRow(14).height = 35;
+            ws.mergeCells('C14:F14');
+            const numCell = ws.getCell('B14');
+            numCell.value = 1; numCell.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } }; numCell.alignment = { horizontal: 'center', vertical: 'middle' }; numCell.border = allBorders; numCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
+            const descCell = ws.getCell('C14');
+            descCell.value = desc; descCell.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } }; descCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; descCell.border = allBorders; descCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
+
+            ws.getRow(20).height = 25;
+            ws.getCell('B20').value = bzTL("توقيع السائق"); ws.getCell('F20').value = bzTL("اعتماد الإدارة");
+            [ws.getCell('B20'), ws.getCell('F20')].forEach(c => { c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: BLACK } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; });
+            ws.getRow(21).height = 40;
+            const bBottom = { bottom: { style: 'medium', color: { argb: BLACK } } };
+            ws.getCell('B21').border = bBottom; ws.getCell('F21').border = bBottom;
+
+            
+        ws.addRow([]);
+        const footerDate = invoiceDate || new Date().toISOString().slice(0, 10);
+        const footerRow = ws.addRow([`${bzTL("أُعدّ بواسطة قسم الحركة — فرع الدمام")}    |    ${bzTL("التاريخ")}: ${footerDate}`]);
+        ws.mergeCells(`A${footerRow.number}:G${footerRow.number}`);
+        footerRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+        footerRow.getCell(1).font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
+        footerRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
+        footerRow.height = 30;
+
+        // Clean B&W print setup (DESIGN_SYSTEM §6): fit to one page width, centered, show grid on print.
+        ws.pageSetup = {
+            fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+            orientation: 'portrait', horizontalCentered: true,
+            margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+        };
+        ws.properties.showGridLines = false;
+        ws.printOptions = { gridLines: true, horizontalCentered: true };
+
+        const buffer = await wb.xlsx.writeBuffer();
+
+            return { buffer, filename: `فاتورة_${driver}_${plate}.xlsx` };
+        }
+
+        async function generateExcel() {
+            const { buffer, filename } = await createInvoiceBuffer();
+            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            saveAs(blob, filename);
+        }
+
+        // Returns the invoice Excel as a Blob (for the shared bzShare menu)
+        async function createInvoiceBlob() {
+            const { buffer } = await createInvoiceBuffer();
+            return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        }
+
+        // Unified share/export (Excel + PDF via email / WhatsApp / download)
+        function openInvoiceShare() {
+            const driver = document.getElementById('driverName').value || 'غير محدد';
+            const plate = document.getElementById('plateNum').value || 'غير محدد';
+            bzShare(createInvoiceBlob, {
+                filename: `فاتورة_${driver}_${plate}.xlsx`,
+                subject: bzTL('فاتورة طلب صيانة / خدمة — شركة بن زومة'),
+                pdfElement: 'invoiceArea',
+                pdfOrientation: 'portrait',
+                waMessage: bzTL('مرفق فاتورة طلب الصيانة / الخدمة — إدارة الحركة بفرع الدمام.')
+            });
+        }
+
+        async function sendExcelEmail() {
+            const email = document.getElementById('targetEmail').value;
+            if(!email) {
+                showToast('يرجى إدخال الإيميل', 'error');
+                return;
+            }
+            const btn = document.getElementById('btnSendEmail');
+            btn.innerText = 'جاري الإرسال... ⏳';
+            try {
+                const { buffer, filename } = await createInvoiceBuffer();
+                let binary = '';
+                const bytes = new Uint8Array(buffer);
+                const len = bytes.byteLength;
+                for (let i = 0; i < len; i++) { binary += String.fromCharCode(bytes[i]); }
+                const file_b64 = window.btoa(binary);
+
+                const res = await fetch('/api/send_email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, filename, file_b64, subject: document.getElementById('emailSubject').value, cc: getCcEmails() })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast('تم إرسال الفاتورة بنجاح عبر الإيميل!', 'success');
+                    closeCustomModal('emailModal');
+                } else {
+                    showToast('حدث خطأ أثناء الإرسال: ' + data.error, 'error');
+                }
+            } catch(err) {
+                showToast('خطأ في الاتصال: ' + err, 'error');
+            }
+            btn.innerText = 'إرسال الفاتورة 🚀';
+        }
+    
+</script>
 </body>
 </html>
