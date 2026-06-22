@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة مؤشرات GPS للأسطول | شركة بن زومة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      --primary: #814BE7;
+      --primary-light: #C17BFD;
+      --bg: #F7F7F7;
+      --card-bg: #FFFFFF;
+      --text: #1F1F24;
+      --text-muted: #6E7191;
+      --border: #E2E4ED;
+      --success: #34C563;
+      --warning: #D4A740;
+      --danger: #E73B4F;
+      --info: #4C8BF5;
+      --radius: 12px;
+      --shadow: 0 0 0 1px var(--border), 0 2px 8px rgba(7,2,23,0.05);
+      --shadow-hover: 0 0 0 1px var(--border), 0 4px 16px rgba(7,2,23,0.10);
+      --font: 'Tajawal', system-ui, -apple-system, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not(.light) {
+        --bg: #1E2235;
+        --card-bg: #2D3148;
+        --text: #E2E4ED;
+        --text-muted: #A2A7BD;
+        --border: #484D66;
+        --shadow: 0 0 0 1px var(--border), 0 2px 8px rgba(7,2,23,0.15);
+        --shadow-hover: 0 0 0 1px var(--border), 0 4px 16px rgba(7,2,23,0.25);
+      }
+    }
+    :root.dark {
+      --bg: #1E2235;
+      --card-bg: #2D3148;
+      --text: #E2E4ED;
+      --text-muted: #A2A7BD;
+      --border: #484D66;
+      --shadow: 0 0 0 1px var(--border), 0 2px 8px rgba(7,2,23,0.15);
+      --shadow-hover: 0 0 0 1px var(--border), 0 4px 16px rgba(7,2,23,0.25);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60vh;
+      background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(91,108,249,0.06), transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .dashboard { max-width: 1400px; margin: 0 auto; padding: 24px; position: relative; z-index: 1; }
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+    .header .logo { height: 40px; width: auto; background:#fff; border-radius:8px; padding:4px; }
+    .title {
+      font-size: 1.9rem;
+      font-weight: 700;
+      line-height: 1.2;
+      background: linear-gradient(135deg, var(--text) 0%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .col-2  { grid-column: span 2; }
+    .col-3  { grid-column: span 3; }
+    .col-4  { grid-column: span 4; }
+    .col-6  { grid-column: span 6; }
+    .col-8  { grid-column: span 8; }
+    .col-12 { grid-column: span 12; }
+    @media (max-width: 767.98px) {
+      .col-2, .col-3, .col-4, .col-6, .col-8, .col-12 { grid-column: span 12; }
+      .grid { gap: 12px; margin-bottom: 12px; }
+      .dashboard { padding: 16px; }
+      .kpi-value { font-size: 1.5rem; }
+      .title { font-size: 1.35rem; }
+      .chart-container { min-height: 260px; }
+      .theme-toggle { top: 16px; }
+    }
+    .card,
+    .kpi-card,
+    .chart-card,
+    .text-card,
+    .table-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover,
+    .kpi-card:hover,
+    .chart-card:hover,
+    .text-card:hover,
+    .table-card:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-hover);
+    }
+    .card::before,
+    .kpi-card::before,
+    .chart-card::before,
+    .text-card::before,
+    .table-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
+      opacity: 0.6;
+    }
+    .kpi-card { padding: 24px; min-height: 150px; }
+    .kpi-label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .kpi-value { font-size: 2rem; font-weight: 700; color: var(--text); line-height: 1.15; }
+    .kpi-subvalue { margin-top: 4px; font-size: 0.82rem; color: var(--text-muted); }
+    .kpi-delta {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-top: 10px;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+    .kpi-delta.positive { color: var(--success); background: rgba(52,197,99,0.1); }
+    .kpi-delta.negative { color: var(--danger); background: rgba(231,59,79,0.1); }
+    .kpi-delta.warning { color: var(--warning); background: rgba(212,167,64,0.14); }
+    .kpi-delta.neutral { color: var(--info); background: rgba(76,139,245,0.12); }
+    .card-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+    .chart-container { min-height: 360px; width: 100%; }
+    .text-card p { font-size: 0.92rem; color: var(--text); margin-bottom: 10px; line-height: 1.65; }
+    .text-card p:last-child { margin-bottom: 0; }
+    .highlights-list {
+      margin-top: 14px;
+      padding-inline-start: 18px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    .highlights-list li { margin-bottom: 8px; }
+    .filter-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .filter-btn {
+      border: 1px solid var(--border);
+      background: rgba(129,75,231,0.05);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-family: var(--font);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .filter-btn:hover { border-color: var(--primary-light); transform: translateY(-1px); }
+    .filter-btn.active {
+      background: linear-gradient(135deg, rgba(129,75,231,0.16), rgba(193,123,253,0.18));
+      border-color: rgba(129,75,231,0.45);
+      color: var(--text);
+      box-shadow: 0 0 0 1px rgba(129,75,231,0.16), 0 6px 16px rgba(129,75,231,0.16);
+    }
+    .selected-type-label {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .selected-type-note {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .mini-stat {
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(129,75,231,0.03);
+    }
+    .mini-stat-label {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .mini-stat-value { font-size: 1.2rem; font-weight: 700; color: var(--text); }
+    .mix-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .mix-bar {
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(129,75,231,0.06);
+      display: flex;
+    }
+    .mix-seg { height: 100%; transition: width 0.25s ease; }
+    .mix-legend {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .mix-key { display: flex; align-items: center; gap: 6px; }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      font-size: 0;
+      line-height: 0;
+      color: transparent;
+    }
+    .table-card { overflow-x: auto; }
+    .table-card table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    .table-card th {
+      text-align: right;
+      padding: 10px 12px;
+      border-bottom: 2px solid var(--border);
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .table-card td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+      word-break: break-word;
+    }
+    .table-card tr:last-child td { border-bottom: none; }
+    .table-card tbody tr:nth-child(even) td { background: rgba(91,108,249,0.02); }
+    .table-card tbody tr:hover td { background: rgba(91,108,249,0.06); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .pill.high { background: rgba(231,59,79,0.12); color: var(--danger); }
+    .pill.medium { background: rgba(212,167,64,0.16); color: var(--warning); }
+    .pill.low { background: rgba(52,197,99,0.12); color: var(--success); }
+    .pill.issue { background: rgba(76,139,245,0.12); color: var(--info); margin: 2px 6px 2px 0; }
+    .top-actions { position: absolute; top: 24px; left: 0; display: flex; gap: 8px; }
+    .top-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: var(--font);
+      line-height: 1;
+      text-decoration: none;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .top-btn:hover { color: var(--text); border-color: var(--primary-light); }
+    .theme-toggle .icon-sun,
+    .theme-toggle .icon-moon { display: none; }
+    .theme-toggle .icon-sun { display: inline; }
+    :root.dark .theme-toggle .icon-sun { display: none; }
+    :root.dark .theme-toggle .icon-moon { display: inline; }
+    @media (prefers-color-scheme: dark) {
+      :root:not(.light) .theme-toggle .icon-sun { display: none; }
+      :root:not(.light) .theme-toggle .icon-moon { display: inline; }
+    }
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .footer .logo-sm { height: 18px; width: auto; background:#fff; border-radius:4px; padding:2px; }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <header class="header">
+      <div class="top-actions">
+        <a class="top-btn" href="/gps_sync">&#8594; العودة لمزامنة GPS</a>
+        <button class="top-btn theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+          <span class="icon-sun">&#9788;</span>
+          <span class="icon-moon">&#9790;</span>
+        </button>
+      </div>
+      <img class="logo" src="/static/nav_logo.png" alt="BIN ZOMAH INTL.">
+      <div>
+        <h1 class="title">لوحة مؤشرات GPS للأسطول</h1>
+        <p class="subtitle">عرض تفاعلي لأولوية الأسطول والامتثال وتوزيع أنواع المركبات — فرع الدمام</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="col-3">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Vehicles</div>
+          <div class="kpi-value" id="kpi-total">--</div>
+          <div class="kpi-delta neutral" id="kpi-total-note">--</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="kpi-card">
+          <div class="kpi-label">High Priority</div>
+          <div class="kpi-value" id="kpi-high">--</div>
+          <div class="kpi-delta negative" id="kpi-high-note">--</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="kpi-card">
+          <div class="kpi-label">Missing Drivers</div>
+          <div class="kpi-value" id="kpi-missing">--</div>
+          <div class="kpi-delta warning" id="kpi-missing-note">--</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="kpi-card">
+          <div class="kpi-label">Expired Compliance</div>
+          <div class="kpi-value" id="kpi-expired">--</div>
+          <div class="kpi-subvalue" id="kpi-expired-detail">--</div>
+          <div class="kpi-delta negative" id="kpi-expired-note">--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="col-8">
+        <div class="text-card">
+          <div class="card-title">Fleet Highlights</div>
+          <p id="overview-line-1"></p>
+          <p id="overview-line-2"></p>
+          <ul class="highlights-list">
+            <li id="highlight-1"></li>
+            <li id="highlight-2"></li>
+            <li id="highlight-3"></li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="text-card filter-panel">
+          <div>
+            <div class="card-title">Vehicle Type Filter</div>
+            <div class="filter-group" id="type-filter"></div>
+          </div>
+          <div>
+            <div class="selected-type-label" id="selected-type-label"></div>
+            <p class="selected-type-note" id="selected-type-note"></p>
+          </div>
+          <div class="mini-grid">
+            <div class="mini-stat">
+              <div class="mini-stat-label">Vehicles</div>
+              <div class="mini-stat-value" id="mini-total">--</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-stat-label">High Priority</div>
+              <div class="mini-stat-value" id="mini-high">--</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-stat-label">Missing Drivers</div>
+              <div class="mini-stat-value" id="mini-missing">--</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-stat-label">Expired Compliance</div>
+              <div class="mini-stat-value" id="mini-expired">--</div>
+            </div>
+          </div>
+          <div class="mix-wrap">
+            <div class="mini-stat-label">Priority Mix</div>
+            <div class="mix-bar" aria-label="Priority mix for selected vehicle type">
+              <div class="mix-seg" id="mix-high" style="background:#E73B4F;width:0%"></div>
+              <div class="mix-seg" id="mix-medium" style="background:#D4A740;width:0%"></div>
+              <div class="mix-seg" id="mix-low" style="background:#34C563;width:0%"></div>
+            </div>
+            <div class="mix-legend">
+              <div class="mix-key"><span class="dot" style="background:#E73B4F" aria-hidden="true">&#8226;</span><span id="mix-high-label">High</span></div>
+              <div class="mix-key"><span class="dot" style="background:#D4A740" aria-hidden="true">&#8226;</span><span id="mix-medium-label">Medium</span></div>
+              <div class="mix-key"><span class="dot" style="background:#34C563" aria-hidden="true">&#8226;</span><span id="mix-low-label">Low</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="col-12">
+        <div class="chart-card">
+          <div class="card-title">Overall Priority Mix</div>
+          <div class="chart-container" id="chart-priority-overall"></div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="chart-card">
+          <div class="card-title">Priority Breakdown by Vehicle Type</div>
+          <div class="chart-container" id="chart-priority-by-type"></div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="chart-card">
+          <div class="card-title" id="selected-chart-title">Selected Vehicle Type Risk Counters</div>
+          <div class="chart-container" id="chart-selected-type"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="col-12">
+        <div class="table-card">
+          <div class="card-title" id="table-title">Priority Watchlist</div>
+          <table>
+            <thead>
+              <tr>
+                <th>اللوحة</th>
+                <th>نوع المركبة</th>
+                <th>الأولوية</th>
+                <th>السائق</th>
+                <th>الفحص</th>
+                <th>التأمين</th>
+                <th>ملاحظات</th>
+              </tr>
+            </thead>
+            <tbody id="watchlist-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <img class="logo-sm" src="/static/nav_logo.png" alt="BIN ZOMAH">
+      <span>شركة بن زومة للتجارة والتطوير الدولية — قسم الحركة | فرع الدمام</span>
+    </footer>
+  </div>
+
+  <script>
+    // عند التقديم تحت مسار محطة العمل، أبقِ الروابط الداخلية داخل البادئة
+    (function () {
+      var WS = '/importantworkstation';
+      if (location.pathname.indexOf(WS) === 0) {
+        document.querySelectorAll('a[href^="/"]').forEach(function (a) {
+          var h = a.getAttribute('href');
+          if (!h || h.indexOf(WS) === 0 || h.indexOf('/static') === 0 || h.indexOf('/api') === 0 || h.indexOf('//') === 0) return;
+          a.setAttribute('href', WS + (h === '/' ? '' : h));
+        });
+      }
+    })();
+
+    function getEffectiveDark() {
+      const root = document.documentElement;
+      if (root.classList.contains('dark')) return true;
+      if (root.classList.contains('light')) return false;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    function toggleTheme() {
+      const root = document.documentElement;
+      const currentlyDark = getEffectiveDark();
+      root.classList.remove('dark', 'light');
+      root.classList.add(currentlyDark ? 'light' : 'dark');
+      rebuildCharts();
+    }
+
+    const COLORS = ['#E73B4F', '#D4A740', '#34C563', '#814BE7', '#4C8BF5'];
+    const chartRegistry = [];
+
+    function getDefaultLayout() {
+      const dark = getEffectiveDark();
+      return {
+        font: { family: 'Tajawal, system-ui, sans-serif', color: dark ? '#E2E4ED' : '#1F1F24' },
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        autosize: true,
+        margin: { l: 50, r: 30, t: 50, b: 50 },
+        xaxis: { gridcolor: dark ? '#5A5F78' : '#E2E4ED', automargin: true, zerolinecolor: dark ? '#5A5F78' : '#E2E4ED' },
+        yaxis: { gridcolor: dark ? '#5A5F78' : '#E2E4ED', automargin: true, zerolinecolor: dark ? '#5A5F78' : '#E2E4ED' },
+        colorway: COLORS,
+        legend: { font: { family: 'Tajawal, system-ui, sans-serif', size: 12 } },
+        hoverlabel: {
+          font: { family: 'Tajawal, system-ui, sans-serif', size: 13 },
+          bgcolor: dark ? '#3D4260' : '#FFFFFF',
+          bordercolor: dark ? '#5A5F78' : '#E2E4ED',
+          namelength: -1
+        }
+      };
+    }
+
+    const NESTED_LAYOUT_KEYS = ['xaxis','xaxis2','yaxis','yaxis2','margin','legend','font','hoverlabel'];
+    function mergeLayouts(base, overrides) {
+      const merged = { ...base, ...overrides };
+      for (const key of NESTED_LAYOUT_KEYS) {
+        if (base[key] && overrides[key] && typeof base[key] === 'object' && typeof overrides[key] === 'object') {
+          merged[key] = { ...base[key], ...overrides[key] };
+        }
+      }
+      return merged;
+    }
+
+    function createChart(id, traces, layoutOverrides = {}) {
+      const CLIP_TYPES = ['scatter','scattergl','bar','waterfall','funnel','histogram','box','violin'];
+      const processed = traces.map(t =>
+        t.text && t.textposition && t.cliponaxis === undefined && CLIP_TYPES.includes(t.type || 'scatter')
+          ? { ...t, cliponaxis: false }
+          : t
+      );
+      chartRegistry.push({ id, traces: processed, layoutOverrides });
+      Plotly.newPlot(id, processed, mergeLayouts(getDefaultLayout(), layoutOverrides), { responsive: true, displayModeBar: false });
+    }
+
+    function updateChart(id, traces, layoutOverrides = {}) {
+      const entry = chartRegistry.find(chart => chart.id === id);
+      if (entry) {
+        entry.traces = traces;
+        entry.layoutOverrides = layoutOverrides;
+      }
+      Plotly.react(id, traces, mergeLayouts(getDefaultLayout(), layoutOverrides), { responsive: true, displayModeBar: false });
+    }
+
+    function rebuildCharts() {
+      chartRegistry.forEach(({ id, traces, layoutOverrides }) => {
+        Plotly.react(id, traces, mergeLayouts(getDefaultLayout(), layoutOverrides), { responsive: true, displayModeBar: false });
+      });
+    }
+
+    const DATA = {"meta": {"skipped_suspicious_rows": 1}, "priorityOrder": ["عالية", "متوسطة", "منخفضة"], "vehicleTypes": ["خاص", "نقل عام", "نقل خاص"], "colors": {"عالية": "#E73B4F", "متوسطة": "#D4A740", "منخفضة": "#34C563"}, "filterOrder": ["الكل", "خاص", "نقل عام", "نقل خاص"], "overall": {"totalVehicles": 75, "highPriority": 4, "missingDrivers": 8, "expiredInspections": 12, "expiredInsurances": 3, "priorityCounts": {"عالية": 4, "متوسطة": 17, "منخفضة": 54}, "vehicleCounts": {"خاص": 10, "نقل عام": 38, "نقل خاص": 27}, "priorityByType": {"خاص": {"عالية": 2, "متوسطة": 4, "منخفضة": 4}, "نقل عام": {"عالية": 0, "متوسطة": 6, "منخفضة": 32}, "نقل خاص": {"عالية": 2, "متوسطة": 7, "منخفضة": 18}}}, "filterData": {"الكل": {"label": "الكل", "total": 75, "high": 4, "medium": 17, "low": 54, "high_pct": 5.3, "medium_pct": 22.7, "low_pct": 72.0, "missing_drivers": 8, "expired_inspection": 12, "expired_insurance": 3, "expired_any": 15}, "خاص": {"label": "خاص", "total": 10, "high": 2, "medium": 4, "low": 4, "high_pct": 20.0, "medium_pct": 40.0, "low_pct": 40.0, "missing_drivers": 0, "expired_inspection": 0, "expired_insurance": 2, "expired_any": 2}, "نقل عام": {"label": "نقل عام", "total": 38, "high": 0, "medium": 6, "low": 32, "high_pct": 0.0, "medium_pct": 15.8, "low_pct": 84.2, "missing_drivers": 2, "expired_inspection": 5, "expired_insurance": 0, "expired_any": 5}, "نقل خاص": {"label": "نقل خاص", "total": 27, "high": 2, "medium": 7, "low": 18, "high_pct": 7.4, "medium_pct": 25.9, "low_pct": 66.7, "missing_drivers": 6, "expired_inspection": 7, "expired_insurance": 1, "expired_any": 8}}, "watchlists": {"الكل": [{"plate": "ب ح ل 4435", "vehicle_type": "نقل خاص", "priority": "عالية", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "لا يوجد", "issues": ["Missing driver", "Expired inspection"], "score": 32}, {"plate": "ر ن ر 5059", "vehicle_type": "نقل خاص", "priority": "عالية", "driver": "محمد محمود محمد ابو الحسن", "inspection_status": "لا يوجد", "insurance_status": "منتهي", "issues": ["Expired insurance"], "score": 31}, {"plate": "ر ن ر 5063", "vehicle_type": "خاص", "priority": "عالية", "driver": "احمد محمد زين شعبان", "inspection_status": "لا يوجد", "insurance_status": "منتهي", "issues": ["Expired insurance"], "score": 31}, {"plate": "ر ن ر 5094", "vehicle_type": "خاص", "priority": "عالية", "driver": "MOHAMMED TANWEER - ALAM", "inspection_status": "لا يوجد", "insurance_status": "منتهي", "issues": ["Expired insurance"], "score": 31}, {"plate": "ب أ ب 6953", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Missing driver", "Expired inspection"], "score": 22}, {"plate": "ب ح ل 4434", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Missing driver", "Expired inspection"], "score": 22}, {"plate": "ب د ل 7207", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Missing driver", "Expired inspection"], "score": 22}, {"plate": "ب ص ب 5125", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Missing driver", "Expired inspection"], "score": 22}, {"plate": "أ س ح 8715", "vehicle_type": "نقل عام", "priority": "متوسطة", "driver": "محمد مصلح حمادي محسن", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Expired inspection"], "score": 21}, {"plate": "أ س ط 6745", "vehicle_type": "نقل عام", "priority": "متوسطة", "driver": "KALEEM ULLAH SADIQ MUHAMMAD", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Expired inspection"], "score": 21}], "خاص": [{"plate": "ر ن ر 5063", "vehicle_type": "خاص", "priority": "عالية", "driver": "احمد محمد زين شعبان", "inspection_status": "لا يوجد", "insurance_status": "منتهي", "issues": ["Expired insurance"], "score": 31}, {"plate": "ر ن ر 5094", "vehicle_type": "خاص", "priority": "عالية", "driver": "MOHAMMED TANWEER - ALAM", "inspection_status": "لا يوجد", "insurance_status": "منتهي", "issues": ["Expired insurance"], "score": 31}, {"plate": "ر ن ر 5062", "vehicle_type": "خاص", "priority": "متوسطة", "driver": "عبد الرحمن محمد سعيد البنداري", "inspection_status": "لا يوجد", "insurance_status": "ساري المفعول", "issues": [], "score": 20}, {"plate": "ر ن د 1693", "vehicle_type": "خاص", "priority": "متوسطة", "driver": "أشرف كمال كامل فريدي", "inspection_status": "لا يوجد", "insurance_status": "ساري المفعول", "issues": [], "score": 20}, {"plate": "س د ن 2475", "vehicle_type": "خاص", "priority": "متوسطة", "driver": "محمد حسن عبد الرحمن السيد", "inspection_status": "لا يوجد", "insurance_status": "ساري المفعول", "issues": [], "score": 20}, {"plate": "س د ن 2487", "vehicle_type": "خاص", "priority": "متوسطة", "driver": "MAHTAB ALTAF ALTAF AHMED", "inspection_status": "لا يوجد", "insurance_status": "ساري المفعول", "issues": [], "score": 20}, {"plate": "ح ع ن 2874", "vehicle_type": "خاص", "priority": "منخفضة", "driver": "احمد رشاد محمد شفيق عبد المطلب", "inspection_status": "ساري المفعول", "insurance_status": "ساري المفعول", "issues": [], "score": 10}, {"plate": "ح م م 5746", "vehicle_type": "خاص", "priority": "منخفضة", "driver": "ابراهيم يوسف عوض علي", "inspection_status": "ساري المفعول", "insurance_status": "ساري المفعول", "issues": [], "score": 10}, {"plate": "د د ن 4282", "vehicle_type": "خاص", "priority": "منخفضة", "driver": "عبد الرحمن جودي محمد محمود", "inspection_status": "ساري المفعول", "insurance_status": "ساري المفعول", "issues": [], "score": 10}, {"plate": "ر د ب 4650", "vehicle_type": "خاص", "priority": "منخفضة", "driver": "كرم جمال الدين عابد عثمان", "inspection_status": "ساري المفعول", "insurance_status": "ساري المفعول", "issues": [], "score": 10}], "نقل عام": [{"plate": "أ س ح 8715", "vehicle_type": "نقل عام", "priority": "متوسطة", "driver": "محمد مصلح حمادي محسن", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Expired inspection"], "score": 21}, {"plate": "أ س ط 6745", "vehicle_type": "نقل عام", "priority": "متوسطة", "driver": "KALEEM ULLAH SADIQ MUHAMMAD", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Expired inspection"], "score": 21}, {"plate": "أ س ل 7774", "vehicle_type": "نقل عام", "priority": "متوسطة", "driver": "CHANDAN - - DEBNATH", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Expired inspection"], "score": 21}, {"plate": "أ س ل 7821", "vehicle_type": "نقل عام", "priority": "متوسطة", "driver": "SHOUKATHALI KARUVA PALLIYALIL MOHAMEDSHAH", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Expired inspection"], "score": 21}, {"plate": "أ س ل 7920", "vehicle_type": "نقل عام", "priority": "متوسطة", "driver": "VINODANANDAN MARIYIL KUNHIKUTTAN MARIYIL", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Expired inspection"], "score": 21}, {"plate": "أ س ل 8022", "vehicle_type": "نقل عام", "priority": "متوسطة", "driver": "MUZAID JAVID KHAN", "inspection_status": "لا يوجد", "insurance_status": "ساري المفعول", "issues": [], "score": 20}, {"plate": "أ س ل 7730", "vehicle_type": "نقل عام", "priority": "منخفضة", "driver": "غير محدد", "inspection_status": "ساري المفعول", "insurance_status": "ساري المفعول", "issues": ["Missing driver"], "score": 11}, {"plate": "أ ص أ 7810", "vehicle_type": "نقل عام", "priority": "منخفضة", "driver": "غير محدد", "inspection_status": "ساري المفعول", "insurance_status": "ساري المفعول", "issues": ["Missing driver"], "score": 11}, {"plate": "أ ر ع 2232", "vehicle_type": "نقل عام", "priority": "منخفضة", "driver": "ANIL KUMAR - CHENNAKANARI", "inspection_status": "ساري المفعول", "insurance_status": "ساري المفعول", "issues": [], "score": 10}, {"plate": "أ ر ع 2233", "vehicle_type": "نقل عام", "priority": "منخفضة", "driver": "ابراهيم محمد ابوزيد محمد", "inspection_status": "ساري المفعول", "insurance_status": "ساري المفعول", "issues": [], "score": 10}], "نقل خاص": [{"plate": "ب ح ل 4435", "vehicle_type": "نقل خاص", "priority": "عالية", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "لا يوجد", "issues": ["Missing driver", "Expired inspection"], "score": 32}, {"plate": "ر ن ر 5059", "vehicle_type": "نقل خاص", "priority": "عالية", "driver": "محمد محمود محمد ابو الحسن", "inspection_status": "لا يوجد", "insurance_status": "منتهي", "issues": ["Expired insurance"], "score": 31}, {"plate": "ب أ ب 6953", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Missing driver", "Expired inspection"], "score": 22}, {"plate": "ب ح ل 4434", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Missing driver", "Expired inspection"], "score": 22}, {"plate": "ب د ل 7207", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Missing driver", "Expired inspection"], "score": 22}, {"plate": "ب ص ب 5125", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "غير محدد", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Missing driver", "Expired inspection"], "score": 22}, {"plate": "ب د ل 7208", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "احمد رضا فتوح العليمي", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Expired inspection"], "score": 21}, {"plate": "ب ر ن 3098", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "FAHAD BENASING LOMINOG", "inspection_status": "منتهي", "insurance_status": "ساري المفعول", "issues": ["Expired inspection"], "score": 21}, {"plate": "ب ط س 3262", "vehicle_type": "نقل خاص", "priority": "متوسطة", "driver": "خالد محمد سفر الغامدي", "inspection_status": "لا يوجد", "insurance_status": "ساري المفعول", "issues": [], "score": 20}, {"plate": "ب ط س 3478", "vehicle_type": "نقل خاص", "priority": "منخفضة", "driver": "غير محدد", "inspection_status": "ساري المفعول", "insurance_status": "ساري المفعول", "issues": ["Missing driver"], "score": 11}]}};
+
+    let selectedType = 'الكل';
+
+    function fmtNumber(n) {
+      return new Intl.NumberFormat('en-US').format(n);
+    }
+    function fmtPct(n) {
+      return `${Number(n).toFixed(1)}%`;
+    }
+    function priorityClass(priority) {
+      if (priority === 'عالية') return 'high';
+      if (priority === 'متوسطة') return 'medium';
+      return 'low';
+    }
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
+    function highestTypeBy(field) {
+      const entries = DATA.vehicleTypes.map(type => [type, DATA.filterData[type][field]]);
+      entries.sort((a, b) => b[1] - a[1]);
+      return entries[0][0];
+    }
+
+    function populateOverallContent() {
+      const total = DATA.overall.totalVehicles;
+      const highShare = DATA.overall.highPriority / total * 100;
+      const missingShare = DATA.overall.missingDrivers / total * 100;
+      const expiredAny = DATA.filterData['الكل'].expired_any;
+      setText('kpi-total', fmtNumber(total));
+      setText('kpi-total-note', `${DATA.vehicleTypes.length} registration types`);
+      setText('kpi-high', fmtNumber(DATA.overall.highPriority));
+      setText('kpi-high-note', fmtPct(highShare) + ' of fleet');
+      setText('kpi-missing', fmtNumber(DATA.overall.missingDrivers));
+      setText('kpi-missing-note', fmtPct(missingShare) + ' of fleet');
+      setText('kpi-expired', fmtNumber(expiredAny));
+      setText('kpi-expired-detail', `${fmtNumber(DATA.overall.expiredInspections)} inspections • ${fmtNumber(DATA.overall.expiredInsurances)} insurance`);
+      setText('kpi-expired-note', 'Vehicles with any expired compliance item');
+
+      setText('overview-line-1', `The fleet includes ${fmtNumber(total)} vehicles across ${DATA.vehicleTypes.length} registration types. Low-priority units dominate the current mix, but ${fmtNumber(DATA.overall.highPriority)} vehicles still sit in the highest-priority tier and require close review.`);
+      setText('overview-line-2', `Compliance exceptions are concentrated in inspection status more than insurance status, and one non-vehicle note row was excluded from the dashboard calculations before rendering.`);
+      setText('highlight-1', `${highestTypeBy('expired_any')} carries the largest combined expired-compliance load.`);
+      setText('highlight-2', `${highestTypeBy('missing_drivers')} has the highest count of vehicles missing driver assignment.`);
+      setText('highlight-3', `The vehicle-type filter updates the risk counters and watchlist so operational teams can review each segment independently.`);
+    }
+
+    function renderFilterButtons() {
+      const wrap = document.getElementById('type-filter');
+      DATA.filterOrder.forEach(type => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'filter-btn' + (type === selectedType ? ' active' : '');
+        btn.textContent = type;
+        btn.addEventListener('click', () => updateSelectedType(type));
+        wrap.appendChild(btn);
+      });
+    }
+
+    function updateFilterButtonState() {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === selectedType);
+      });
+    }
+
+    function renderSelectedTypePanel() {
+      const d = DATA.filterData[selectedType];
+      setText('selected-type-label', `Selected: ${d.label}`);
+      setText('selected-type-note', `${fmtNumber(d.total)} vehicles in this view. High priority represents ${fmtPct(d.high_pct)}, while expired compliance affects ${fmtNumber(d.expired_any)} vehicles.`);
+      setText('mini-total', fmtNumber(d.total));
+      setText('mini-high', fmtNumber(d.high));
+      setText('mini-missing', fmtNumber(d.missing_drivers));
+      setText('mini-expired', fmtNumber(d.expired_any));
+      document.getElementById('mix-high').style.width = `${d.high_pct}%`;
+      document.getElementById('mix-medium').style.width = `${d.medium_pct}%`;
+      document.getElementById('mix-low').style.width = `${d.low_pct}%`;
+      setText('mix-high-label', `High ${fmtPct(d.high_pct)}`);
+      setText('mix-medium-label', `Medium ${fmtPct(d.medium_pct)}`);
+      setText('mix-low-label', `Low ${fmtPct(d.low_pct)}`);
+    }
+
+    function renderWatchlist() {
+      const tbody = document.getElementById('watchlist-body');
+      tbody.innerHTML = '';
+      const rows = DATA.watchlists[selectedType] || [];
+      setText('table-title', `Priority Watchlist — ${selectedType}`);
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+
+        const plate = document.createElement('td');
+        plate.textContent = row.plate;
+        tr.appendChild(plate);
+
+        const type = document.createElement('td');
+        type.textContent = row.vehicle_type;
+        tr.appendChild(type);
+
+        const priority = document.createElement('td');
+        const priorityPill = document.createElement('span');
+        priorityPill.className = `pill ${priorityClass(row.priority)}`;
+        priorityPill.textContent = row.priority;
+        priority.appendChild(priorityPill);
+        tr.appendChild(priority);
+
+        const driver = document.createElement('td');
+        driver.textContent = row.driver;
+        tr.appendChild(driver);
+
+        const inspection = document.createElement('td');
+        inspection.textContent = row.inspection_status;
+        tr.appendChild(inspection);
+
+        const insurance = document.createElement('td');
+        insurance.textContent = row.insurance_status;
+        tr.appendChild(insurance);
+
+        const flags = document.createElement('td');
+        if (row.issues.length === 0) {
+          const safe = document.createElement('span');
+          safe.className = 'pill issue';
+          safe.textContent = 'No active exception';
+          flags.appendChild(safe);
+        } else {
+          row.issues.forEach(issue => {
+            const issuePill = document.createElement('span');
+            issuePill.className = 'pill issue';
+            issuePill.textContent = issue;
+            flags.appendChild(issuePill);
+          });
+        }
+        tr.appendChild(flags);
+        tbody.appendChild(tr);
+      });
+    }
+
+    function buildSelectedTypeChart(type) {
+      const d = DATA.filterData[type];
+      const labels = ['High priority', 'Medium priority', 'Low priority', 'Missing drivers', 'Expired inspection', 'Expired insurance'];
+      const values = [d.high, d.medium, d.low, d.missing_drivers, d.expired_inspection, d.expired_insurance];
+      const colors = ['#E73B4F', '#D4A740', '#34C563', '#4C8BF5', '#FF8C42', '#A855F7'];
+      const text = values.map((v, i) => {
+        if (i < 3) {
+          const pct = [d.high_pct, d.medium_pct, d.low_pct][i];
+          return `${fmtNumber(v)} • ${fmtPct(pct)}`;
+        }
+        return fmtNumber(v);
+      });
+      return {
+        traces: [{
+          type: 'bar',
+          orientation: 'h',
+          y: labels,
+          x: values,
+          marker: { color: colors, cornerradius: 6 },
+          text: text,
+          textposition: 'auto',
+          hovertemplate: '%{y}<br>%{x} vehicles<extra></extra>'
+        }],
+        layout: {
+          margin: { l: 150, r: 40, t: 70, b: 40 },
+          xaxis: { title: 'Vehicles', rangemode: 'tozero' },
+          yaxis: { automargin: true, categoryorder: 'array', categoryarray: labels.slice().reverse() },
+          showlegend: false,
+          annotations: [{
+            text: `${d.label} • ${fmtNumber(d.total)} vehicles in view`,
+            xref: 'paper', yref: 'paper', x: 0, y: 1.14,
+            showarrow: false,
+            font: { family: 'Tajawal, system-ui, sans-serif', size: 13, color: getEffectiveDark() ? '#A2A7BD' : '#6E7191' }
+          }]
+        }
+      };
+    }
+
+    function updateSelectedType(type) {
+      selectedType = type;
+      updateFilterButtonState();
+      renderSelectedTypePanel();
+      renderWatchlist();
+      setText('selected-chart-title', `Selected Vehicle Type Risk Counters — ${type}`);
+      const chart = buildSelectedTypeChart(type);
+      updateChart('chart-selected-type', chart.traces, chart.layout);
+    }
+
+    function initCharts() {
+      createChart('chart-priority-overall', [{
+        type: 'pie',
+        labels: DATA.priorityOrder,
+        values: DATA.priorityOrder.map(priority => DATA.overall.priorityCounts[priority]),
+        hole: 0.62,
+        sort: false,
+        direction: 'clockwise',
+        textinfo: 'label+percent',
+        textposition: 'inside',
+        marker: {
+          colors: DATA.priorityOrder.map(priority => DATA.colors[priority]),
+          line: { color: getEffectiveDark() ? '#2D3148' : '#FFFFFF', width: 2 }
+        },
+        hovertemplate: '%{label}<br>%{value} vehicles (%{percent})<extra></extra>'
+      }], {
+        showlegend: true,
+        legend: { orientation: 'h', y: -0.12 },
+        margin: { l: 20, r: 20, t: 60, b: 90 },
+        annotations: [{
+          text: `<b>${fmtNumber(DATA.overall.totalVehicles)}</b><br>Vehicles`,
+          x: 0.5, y: 0.5, xref: 'paper', yref: 'paper',
+          showarrow: false,
+          font: { family: 'Tajawal, system-ui, sans-serif', size: 18, color: getEffectiveDark() ? '#E2E4ED' : '#1F1F24' }
+        }]
+      });
+
+      createChart('chart-priority-by-type', DATA.priorityOrder.map(priority => ({
+        type: 'bar',
+        name: priority,
+        x: DATA.vehicleTypes,
+        y: DATA.vehicleTypes.map(type => DATA.overall.priorityByType[type][priority]),
+        marker: { color: DATA.colors[priority], cornerradius: 6 },
+        text: DATA.vehicleTypes.map(type => fmtNumber(DATA.overall.priorityByType[type][priority])),
+        textposition: 'outside',
+        hovertemplate: `${priority}<br>%{x}: %{y} vehicles<extra></extra>`
+      })), {
+        barmode: 'group',
+        legend: { orientation: 'h', y: 1.12 },
+        margin: { l: 50, r: 30, t: 90, b: 60 },
+        xaxis: { title: 'Vehicle type' },
+        yaxis: { title: 'Vehicles', rangemode: 'tozero' }
+      });
+
+      const selectedChart = buildSelectedTypeChart(selectedType);
+      createChart('chart-selected-type', selectedChart.traces, selectedChart.layout);
+    }
+
+    populateOverallContent();
+    renderFilterButtons();
+    initCharts();
+    updateSelectedType(selectedType);
+  </script>
+</body>
+</html>

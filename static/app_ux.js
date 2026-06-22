@@ -1,0 +1,832 @@
+/**
+ * GLOBAL UX & UI CONTROLLER
+ * Handles Theme Toggling, Topographic Background, Toasts, Progress Bar,
+ * Page Transitions, Idle Session Timeout, and Bilingual Translation.
+ */
+
+const translations = {
+    "en": {
+        // Titles and headers
+        "منشئ الفواتير الاحترافي | شركة بن زومة": "Professional Invoice Builder | Bin Zoma Co.",
+        "نظام الفواتير الذكي": "Smart Invoice System",
+        "اختر السائق وسيتم تعبئة البيانات تلقائياً": "Select a driver to auto-populate fields",
+        "بيان استهلاك الزيوت والفلاتر للسيارات الديزل (فرع الدمام) من تاريخ 2025/12/17 الى تاريخ 2026/2/7": "Statement of Oil & Filter Consumption for Diesel Vehicles (Dammam Branch) from 2025/12/17 to 2026/2/7",
+        "بيان الزيوت والفلاتر | شركة بن زومة": "Oils & Filters Statement | Bin Zoma Co.",
+        "نظام إدارة الأسطول": "Fleet Management System",
+        "فرع الدمام - إدارة الصيانة": "Dammam Branch - Maintenance Dept",
+        
+        // Navigation links
+        "الرئيسية": "Home",
+        "الخدمات": "Services",
+        "من نحن": "About Us",
+        "موقعنا الرسمي": "Official Website",
+        "تواصل معنا": "Contact Us",
+        "العودة للفواتير": "Back to Invoices",
+        "العودة للرئيسية": "Back to Home",
+        "طلب شراء وإصلاح": "Purchase Order & Repair",
+        "تحديث الجدول الأسبوعي": "Update Weekly Schedule",
+        "جدول الغسيل": "Washing Schedule",
+        "نظام التتبع GPS": "GPS Tracking System",
+        "بيانات موظفين الفرع": "Branch Employees Data",
+        "تحضير جدول الغسيل": "Prepare Washing List",
+        "التتبع المباشر": "Live Tracking",
+        "مزامنة كشف GPS": "Sync GPS Report",
+        "تسجيل الخروج": "Logout",
+        "تسجيل خروج": "Logout",
+        
+        // Buttons
+        "⚙️ إدارة السائقين وقاعدة البيانات": "⚙️ Manage Drivers & Database",
+        "📄 إنشاء بيان زيوت وفلاتر": "📄 Oils & Filters Statement",
+        "🛒 طلبات الشراء": "🛒 Purchase Orders",
+        "📋 الجدول الأسبوعي": "📋 Weekly Schedule",
+        "👥 بيانات موظفين الفرع": "👥 Branch Employees Data",
+        "🚿 تحضير جدول الغسيل": "🚿 Washing List",
+        "🛰️ التتبع المباشر": "🛰️ Live Tracking",
+        "📡 مزامنة كشف GPS": "📡 Sync GPS Report",
+        "+ إضافة صف جديد": "+ Add New Row",
+        "إضافة صف جديد": "Add New Row",
+        "📥 تحميل كملف Excel": "📥 Download Excel File",
+        "🖨 طباعة الجدول": "🖨 Print Table",
+        "إرسال رسالة واتساب": "Send WhatsApp Message",
+        "إضافة إلى قاعدة البيانات ➕": "Add to Database ➕",
+        "إغلاق ✖": "Close ✖",
+        "تعديل": "Edit",
+        "حذف": "Delete",
+        
+        // Invoice Form
+        "اسم السائق (اكتب للبحث)": "Driver Name (Type to search)",
+        "ابحث عن اسم السائق هنا...": "Search for driver name here...",
+        "نوع السيارة": "Vehicle Type",
+        "مثال: ايسوزو دينا 2024": "e.g., Isuzu Dina 2024",
+        "رقم اللوحة": "Plate Number",
+        "مثال: ا ب ج 1234": "e.g., ABC 1234",
+        "نوع الطلب": "Request Type",
+        "صيانة دورية": "Periodic Maintenance",
+        "إصلاح عطل": "Repair Fault",
+        "إصلاح بنشر": "Tire Repair",
+        "تغيير قطع غيار": "Change Spare Parts",
+        "غيار زيت": "Oil Change",
+        "أخرى": "Other",
+        "رقم الإقامة": "Iqama Number",
+        "مثال: 2441077944": "e.g., 2441077944",
+        "التاريخ": "Date",
+        "الكمية": "Quantity",
+        "السعر الإفرادي (ريال)": "Unit Price (SAR)",
+        "الوصف / التفاصيل": "Description / Details",
+        "أدخل تفاصيل الفاتورة أو القطع المستبدلة...": "Enter invoice details or replaced parts...",
+        "الحسابات المالية": "Financial Calculations",
+        "المبلغ": "Subtotal",
+        "الضريبة (15%)": "Tax (15%)",
+        "الإجمالي النهائي": "Grand Total",
+        "المبلغ الإجمالي (قبل الضريبة)": "Subtotal (Before Tax)",
+        "ضريبة القيمة المضافة (15%)": "VAT (15%)",
+        "المجموع الكلي (مع الضريبة)": "Grand Total (With Tax)",
+        
+        // Submit buttons
+        "تصدير PDF / Excel": "Export PDF / Excel",
+        "📧 إرسال الفاتورة للإيميل": "📧 Email Invoice",
+        "💬 إرسال عبر الواتساب": "💬 Send via WhatsApp",
+        "🗑️ إفراغ الفاتورة": "🗑️ Clear Invoice",
+        
+        // Modals / Database management
+        "إدارة قاعدة بيانات السائقين": "Manage Drivers Database",
+        "الاسم الرباعي (مطلوب)": "Full Name (Required)",
+        "الرقم الوظيفي": "Employee ID",
+        "نوع السيارة وموديلها": "Vehicle Type & Model",
+        "تاريخ انتهاء بطاقة السائق": "Driver Card Expiry Date",
+        "الاسم": "Name",
+        "السيارة": "Vehicle",
+        "اللوحة": "Plate",
+        "الإقامة": "Iqama",
+        "بطاقة السائق": "Driver Card",
+        "الجوال": "Phone",
+        "الإجراءات": "Actions",
+        "تحميل البيانات...": "Loading data...",
+        "حذف الصف": "Delete Row",
+        
+        // Oils page table headers
+        "م": "No.",
+        "رقم لوحة السيارة": "Vehicle Plate Number",
+        "المستخدم": "User",
+        "تاريخ تغيير الزيت": "Oil Change Date",
+        "رقم العداد": "Odometer",
+        "عدد اللترات": "Liters Count",
+        "عدد فلاتر الزيت والديزل والهواء": "Oil, Diesel & Air Filters Count",
+        "حذف": "Delete",
+        
+        // Purchase Page
+        "استمارة طلب شراء قطع غيار وإصلاح سيارات": "Purchase Request Form for Spare Parts & Vehicle Repair",
+        "الاسم الوظيفي": "Job Title",
+        "فرع": "Branch",
+        "الموديل": "Model",
+        "أولا : قطع غيار": "First: Spare Parts",
+        "الوصف": "Description",
+        "سعر الوحدة": "Unit Price",
+        "القيمة": "Value",
+        "ملاحظات": "Notes",
+        "ثانيا : أجور إصلاح": "Second: Repair Labor",
+        "ثالثا : إطارات": "Third: Tires",
+        "تاريخ التركيب": "Installation Date",
+        "العدد": "Count",
+        "أمامي": "Front",
+        "خلفي": "Back",
+        "السابق": "Previous",
+        "الحالي": "Current",
+        "المسافة المقطوعة": "Distance Driven",
+        "رابعا : بطاريات": "Fourth: Batteries",
+        "المقاس": "Size",
+        "الأمبير": "Amps",
+        "خامسا : ملخص الحسابات": "Fifth: Financial Summary",
+        "الإجمالي لقطع الغيار": "Total Spare Parts",
+        "الإجمالي لأجور الإصلاح": "Total Repair Labor",
+        "الإجمالي للإطارات": "Total Tires",
+        "الإجمالي للبطاريات": "Total Batteries",
+        "ملاحظات وتوصية الورشة": "Workshop Recommendation & Notes",
+        "حفظ وإرسال": "Save & Send",
+        
+        // Washing Page
+        "كشف غسيل السيارات فرع الدمام": "Vehicle Washing List - Dammam Branch",
+        "يناير": "January",
+        "فبراير": "February",
+        "مارس": "March",
+        "أبريل": "April",
+        "مايو": "May",
+        "يونيو": "June",
+        "يوليو": "July",
+        "أغسطس": "August",
+        "سبتمبر": "September",
+        "أكتوبر": "October",
+        "نوفمبر": "November",
+        "ديسمبر": "December",
+        "استلم": "Received",
+        "لم يستلم": "Not Received",
+        
+        // GPS page
+        "مزامنة لوحة التتبع مع كشف السيارات": "Sync Tracking Board with Vehicle List",
+        "تحميل ملف كشف سيارات GPS": "Upload GPS Vehicle List File",
+        "تحميل ملف كشف السائقين (الجدول الأسبوعي)": "Upload Drivers List File (Weekly Schedule)",
+        "مزامنة ومطابقة البيانات": "Sync & Match Data",
+        "النتائج والتقارير": "Results & Reports",
+        
+        // Employees page headers
+        "بيانات جميع الموظفين في الفرع": "All Branch Employees Data",
+        "بيانات الموظف العامة": "General Employee Data",
+        "مقيم": "Muqeem Data",
+        "قوى": "Qiwa Data",
+        "مسيرات الشركة": "Company Payroll",
+        "البصمة": "Fingerprint",
+        "المركبة": "Vehicle Details",
+        "السكن والسند والتامين": "Housing, Bond & Insurance",
+        "اسم العامل": "Employee Name",
+        "الاسم بالانجليزي": "English Name",
+        "الجنسية": "Nationality",
+        "المسمئ الوظيفي": "Job Title",
+        "الايميل": "Email",
+        "تاريخ انتهاء الاقامة": "Iqama Expiry",
+        "تاريخ انتهاء الجواز": "Passport Expiry",
+        "تاريح الميلاد": "Date of Birth",
+        "العمر": "Age",
+        "المهنة": "Profession",
+        "رقم صاحب العمل": "Employer Number",
+        "تاريخ التعين": "Hire Date",
+        "تاريخ انتهاء العقد": "Contract Expiry",
+        "التامينات": "Social Insurance",
+        "الاساسي في قوى": "Basic in Qiwa",
+        "بدل السكن في قوى": "Housing Allowance in Qiwa",
+        "النقل في قوى": "Transport in Qiwa",
+        "اخرى في قوى": "Others in Qiwa",
+        "المنشئة": "Establishment",
+        "التنبيه بتجديد العقد": "Contract Renewal Alert",
+        "في الشركة الاساسي": "Company Basic",
+        "في الشركة بدل السكن": "Company Housing Allowance",
+        "بدل نقل": "Transport Allowance",
+        "بدل اتصال": "Communication Allowance",
+        "ملاحظات الرواتب": "Payroll Notes",
+        "رقم البصمة": "Fingerprint Number",
+        "الدخول": "Access/Entry",
+        "الرخصة": "License",
+        "الايبان": "IBAN",
+        "نوع النقل": "Transport Type",
+        "حمولة المركبة(عدد الركاب)": "Vehicle Capacity (Passengers)",
+        "الماركة": "Make",
+        "الطراز": "Model Series",
+        "رقم الهيكل": "Chassis Number",
+        "السكن": "Housing",
+        "سند امر": "Promissory Note",
+        "كرت البلدية": "Municipality Card",
+        "الكرت الوظيفي": "Work ID Card",
+        "حالة التامين": "Insurance Status",
+        "الاستحقاقات السنوية": "Annual Entitlements"
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    initThemeToggle();
+    injectTopographicBackground();
+    injectUXContainers();
+    initPageTransition();
+    wrapFetchForProgress();
+    initIdleTimeout();
+    initLanguageTranslation();
+});
+
+// --- Theme Management ---
+function initThemeToggle() {
+    const savedTheme = localStorage.getItem('darkMode');
+    if (savedTheme === 'true') {
+        document.body.classList.add('dark-mode');
+        updateToggleButtons(true);
+    } else {
+        document.body.classList.remove('dark-mode');
+        updateToggleButtons(false);
+    }
+}
+
+window.toggleDarkMode = function() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('darkMode', isDark);
+    updateToggleButtons(isDark);
+};
+
+function updateToggleButtons(isDark) {
+    document.querySelectorAll('#darkModeToggle').forEach(btn => {
+        btn.innerHTML = isDark ? '☀️' : '🌙';
+        btn.style.display = 'flex'; // Ensure it's visible
+        
+        // Dynamic styling for the button
+        if (isDark) {
+            btn.style.background = 'rgba(255, 255, 255, 0.1)';
+            btn.style.color = '#fff';
+            btn.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+        } else {
+            btn.style.background = 'rgba(15, 23, 42, 0.05)';
+            btn.style.color = '#0f172a';
+            btn.style.border = '1px solid rgba(15, 23, 42, 0.1)';
+        }
+    });
+}
+
+// --- Topographic Texture ---
+function injectTopographicBackground() {
+    if (document.getElementById('topo-bg')) return;
+
+    const svgContent = `
+    <svg id="topo-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position: fixed; top: 0; left: 0; z-index: -1; pointer-events: none; opacity: 0.4;">
+        <defs>
+            <pattern id="topoPattern" x="0" y="0" width="400" height="300" patternUnits="userSpaceOnUse">
+                <g class="topo-pulse" style="stroke: var(--accent); stroke-width: 1; fill: none; opacity: 0.15;">
+                    <path class="topo-path" d="M 0 50 Q 50 100 100 50 T 200 50 T 300 100 T 400 50" />
+                    <path class="topo-path" d="M 0 100 C 100 150 150 50 250 100 S 350 50 400 100" />
+                    <path class="topo-path" d="M 50 0 Q 100 150 50 300 M 150 0 C 200 100 100 200 150 300 M 250 0 S 300 200 250 300 M 350 0 Q 300 150 350 300" />
+                    <path class="topo-path" d="M 0 200 Q 80 280 150 200 T 300 250 T 400 200" />
+                    <path class="topo-path" d="M 0 250 C 120 200 200 280 300 250 S 380 200 400 250" />
+                    <!-- Clusters -->
+                    <circle cx="200" cy="150" r="20" class="topo-path" />
+                    <circle cx="200" cy="150" r="40" class="topo-path" />
+                    <circle cx="200" cy="150" r="60" class="topo-path" />
+                </g>
+            </pattern>
+        </defs>
+        <rect x="0" y="0" width="100%" height="100%" fill="url(#topoPattern)"></rect>
+    </svg>`;
+
+    document.body.insertAdjacentHTML('afterbegin', svgContent);
+}
+
+// --- UX Containers (Toasts & Progress) ---
+function injectUXContainers() {
+    if (!document.getElementById('app-progress')) {
+        const progress = document.createElement('div');
+        progress.id = 'app-progress';
+        document.body.appendChild(progress);
+    }
+    if (!document.getElementById('toast-container')) {
+        const container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+    }
+    injectSessionTimeoutOverlay();
+}
+
+// --- Progress Bar Controller ---
+let progressTimer = null;
+window.startProgress = function() {
+    const el = document.getElementById('app-progress');
+    if (!el) return;
+    clearInterval(progressTimer);
+    el.style.opacity = '1';
+    el.style.width = '0%';
+    el.style.transition = 'width 0.2s ease, opacity 0s';
+    setTimeout(() => {
+        el.style.transition = 'width 2s cubic-bezier(0.1, 0.8, 0.2, 1), opacity 0.4s ease';
+        el.style.width = '70%';
+    }, 50);
+};
+
+window.stopProgress = function() {
+    const el = document.getElementById('app-progress');
+    if (!el) return;
+    clearInterval(progressTimer);
+    el.style.transition = 'width 0.3s ease-out, opacity 0.4s ease 0.3s';
+    el.style.width = '100%';
+    progressTimer = setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => {
+            el.style.transition = 'none';
+            el.style.width = '0%';
+        }, 400);
+    }, 300);
+};
+
+// --- Fetch Wrapper for Progress ---
+function wrapFetchForProgress() {
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+        startProgress();
+        try {
+            const response = await originalFetch(...args);
+            return response;
+        } finally {
+            stopProgress();
+        }
+    };
+}
+
+// --- Toast Controller ---
+window.showToast = function(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    let icon = 'ℹ️';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+
+    toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+    container.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Auto remove
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, 4000);
+};
+
+// --- Page Transitions ---
+function initPageTransition() {
+    const wrappers = document.querySelectorAll(
+        '.grid-container, .table-wrap, .section-title, .nav-buttons'
+    );
+    wrappers.forEach((el, index) => {
+        el.classList.add('page-enter');
+        el.style.animationDelay = `${index * 0.05}s`;
+        el.style.opacity = '0';
+    });
+}
+
+// --- Modal Helpers ---
+window.openCustomModal = function(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('show'), 10);
+        const firstInput = modal.querySelector('input, textarea, select');
+        if (firstInput) firstInput.focus();
+    }
+};
+
+window.closeCustomModal = function(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => { modal.style.display = 'none'; }, 300);
+    }
+};
+
+// =============================================================================
+// IDLE SESSION TIMEOUT
+// Warning at 29 min → auto-logout at 30 min of inactivity.
+// =============================================================================
+
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;   // 30 minutes total
+const WARN_BEFORE_MS  = 60 * 1000;         // show warning 60 sec before logout
+const WARN_TIMEOUT_MS = IDLE_TIMEOUT_MS - WARN_BEFORE_MS;
+
+let _idleTimer         = null;
+let _warnTimer         = null;
+let _countdownInterval = null;
+let _countdownSecs     = 60;
+
+function injectSessionTimeoutOverlay() {
+    if (document.getElementById('session-timeout-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'session-timeout-overlay';
+    overlay.innerHTML = `
+        <div class="timeout-card">
+            <div class="timeout-icon">⏳</div>
+            <h3>انتهت مهلة الجلسة قريباً</h3>
+            <p>لم يتم رصد أي نشاط. سيتم تسجيل الخروج تلقائياً خلال:</p>
+            <span id="session-countdown">60</span>
+            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+                <button class="btn-primary" onclick="resetIdleTimer()" style="padding:10px 24px;font-size:1rem;">
+                    أنا هنا — استمر 👋
+                </button>
+                <a href="/logout" class="btn-danger"
+                   style="padding:10px 24px;font-size:1rem;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;">
+                    تسجيل الخروج الآن
+                </a>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+}
+
+function showTimeoutWarning() {
+    const overlay = document.getElementById('session-timeout-overlay');
+    if (!overlay) return;
+
+    _countdownSecs = 60;
+    const countEl = document.getElementById('session-countdown');
+    if (countEl) countEl.textContent = _countdownSecs;
+    overlay.classList.add('show');
+
+    clearInterval(_countdownInterval);
+    _countdownInterval = setInterval(() => {
+        _countdownSecs--;
+        if (countEl) countEl.textContent = _countdownSecs;
+        if (_countdownSecs <= 0) {
+            clearInterval(_countdownInterval);
+            window.location.href = '/logout';
+        }
+    }, 1000);
+
+    // Hard failsafe logout
+    clearTimeout(_idleTimer);
+    _idleTimer = setTimeout(() => { window.location.href = '/logout'; }, WARN_BEFORE_MS);
+}
+
+function hideTimeoutWarning() {
+    const overlay = document.getElementById('session-timeout-overlay');
+    if (overlay) overlay.classList.remove('show');
+    clearInterval(_countdownInterval);
+}
+
+window.resetIdleTimer = function() {
+    hideTimeoutWarning();
+    clearTimeout(_idleTimer);
+    clearTimeout(_warnTimer);
+
+    _warnTimer = setTimeout(showTimeoutWarning, WARN_TIMEOUT_MS);
+    _idleTimer = setTimeout(() => { window.location.href = '/logout'; }, IDLE_TIMEOUT_MS);
+};
+
+function initIdleTimeout() {
+    // Skip on public pages
+    const path = window.location.pathname;
+    const publicPaths = ['/login'];
+    if (publicPaths.some(p => path.startsWith(p))) return;
+
+    // Reset timer on any user interaction
+    ['mousemove', 'keydown', 'click', 'scroll', 'touchstart', 'touchmove'].forEach(evt => {
+        document.addEventListener(evt, window.resetIdleTimer, { passive: true });
+    });
+
+    // Kick off the idle timer
+    window.resetIdleTimer();
+}
+
+// =============================================================================
+// BILINGUAL TRANSLATION SYSTEM
+// =============================================================================
+let translationObserver = null;
+
+function initLanguageTranslation() {
+    applyEnglishStyles();
+    
+    // Auto-inject translation button
+    injectLanguageToggle();
+
+    // Fetch and apply saved language
+    const currentLang = localStorage.getItem('lang') || 'ar';
+    setLanguage(currentLang);
+}
+
+window.toggleLanguage = function() {
+    const currentLang = localStorage.getItem('lang') || 'ar';
+    const newLang = currentLang === 'ar' ? 'en' : 'ar';
+    localStorage.setItem('lang', newLang);
+    setLanguage(newLang);
+};
+
+function setLanguage(lang) {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    
+    // Update language toggle text
+    const langBtn = document.getElementById('languageToggleBtn');
+    if (langBtn) {
+        langBtn.innerHTML = lang === 'ar' ? '🇬🇧' : '🇸🇦';
+        langBtn.title = lang === 'ar' ? 'Switch to English' : 'التحويل للعربية';
+    }
+
+    // Perform static translation
+    translateDOM(lang);
+
+    // Set up MutationObserver to translate dynamically added elements
+    startTranslationObserver(lang);
+}
+
+function translateDOM(lang) {
+    const dict = translations[lang] || {};
+    
+    function walk(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const trimmed = node.nodeValue.trim();
+            if (trimmed) {
+                if (dict[trimmed]) {
+                    if (!node.parentElement.hasAttribute('data-orig-text')) {
+                        node.parentElement.setAttribute('data-orig-text', trimmed);
+                    }
+                    node.nodeValue = node.nodeValue.replace(trimmed, dict[trimmed]);
+                } else if (lang === 'ar' && node.parentElement.hasAttribute('data-orig-text')) {
+                    const orig = node.parentElement.getAttribute('data-orig-text');
+                    node.nodeValue = node.nodeValue.replace(trimmed, orig);
+                }
+            }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            // Placeholder translation
+            if (node.placeholder) {
+                const trimmedPlaceholder = node.placeholder.trim();
+                if (dict[trimmedPlaceholder]) {
+                    if (!node.hasAttribute('data-orig-placeholder')) {
+                        node.setAttribute('data-orig-placeholder', trimmedPlaceholder);
+                    }
+                    node.placeholder = dict[trimmedPlaceholder];
+                } else if (lang === 'ar' && node.hasAttribute('data-orig-placeholder')) {
+                    node.placeholder = node.getAttribute('data-orig-placeholder');
+                }
+            }
+            
+            // Title translation
+            if (node.title) {
+                const trimmedTitle = node.title.trim();
+                if (dict[trimmedTitle]) {
+                    if (!node.hasAttribute('data-orig-title')) {
+                        node.setAttribute('data-orig-title', trimmedTitle);
+                    }
+                    node.title = dict[trimmedTitle];
+                } else if (lang === 'ar' && node.hasAttribute('data-orig-title')) {
+                    node.title = node.getAttribute('data-orig-title');
+                }
+            }
+
+            // Select elements special handling
+            if (node.tagName === 'SELECT') {
+                Array.from(node.options).forEach(opt => {
+                    const trimmedOpt = opt.textContent.trim();
+                    if (dict[trimmedOpt]) {
+                        if (!opt.hasAttribute('data-orig-text')) {
+                            opt.setAttribute('data-orig-text', trimmedOpt);
+                        }
+                        opt.textContent = dict[trimmedOpt];
+                    } else if (lang === 'ar' && opt.hasAttribute('data-orig-text')) {
+                        opt.textContent = opt.getAttribute('data-orig-text');
+                    }
+                });
+            }
+
+            if (!['SCRIPT', 'STYLE', 'VIDEO', 'SOURCE'].includes(node.tagName)) {
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    walk(node.childNodes[i]);
+                }
+            }
+        }
+    }
+    
+    walk(document.body);
+    
+    // Page Title
+    const docTitle = document.title.trim();
+    if (dict[docTitle]) {
+        if (!document.documentElement.hasAttribute('data-orig-title')) {
+            document.documentElement.setAttribute('data-orig-title', docTitle);
+        }
+        document.title = dict[docTitle];
+    } else if (lang === 'ar' && document.documentElement.hasAttribute('data-orig-title')) {
+        document.title = document.documentElement.getAttribute('data-orig-title');
+    }
+}
+
+function startTranslationObserver(lang) {
+    if (translationObserver) translationObserver.disconnect();
+    
+    translationObserver = new MutationObserver((mutations) => {
+        translationObserver.disconnect();
+        
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                translateSubtree(node, lang);
+            });
+            if (mutation.type === 'characterData') {
+                translateSubtree(mutation.target, lang);
+            }
+        });
+        
+        translationObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+    });
+    
+    translationObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+}
+
+function translateSubtree(node, lang) {
+    const dict = translations[lang] || {};
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+        const trimmed = node.nodeValue.trim();
+        if (trimmed && dict[trimmed]) {
+            if (!node.parentElement.hasAttribute('data-orig-text')) {
+                node.parentElement.setAttribute('data-orig-text', trimmed);
+            }
+            node.nodeValue = node.nodeValue.replace(trimmed, dict[trimmed]);
+        }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.placeholder && dict[node.placeholder.trim()]) {
+            const tr = node.placeholder.trim();
+            node.setAttribute('data-orig-placeholder', tr);
+            node.placeholder = dict[tr];
+        }
+        
+        if (node.title && dict[node.title.trim()]) {
+            const tr = node.title.trim();
+            node.setAttribute('data-orig-title', tr);
+            node.title = dict[tr];
+        }
+
+        if (node.tagName === 'SELECT') {
+            Array.from(node.options).forEach(opt => {
+                const trimmedOpt = opt.textContent.trim();
+                if (dict[trimmedOpt]) {
+                    opt.setAttribute('data-orig-text', trimmedOpt);
+                    opt.textContent = dict[trimmedOpt];
+                }
+            });
+        }
+
+        if (!['SCRIPT', 'STYLE', 'VIDEO', 'SOURCE'].includes(node.tagName)) {
+            node.childNodes.forEach(child => translateSubtree(child, lang));
+        }
+    }
+}
+
+function injectLanguageToggle() {
+    if (document.getElementById('languageToggleBtn')) return;
+
+    const darkToggle = document.getElementById('darkModeToggle') || document.getElementById('empDarkModeToggle');
+    const langBtn = document.createElement('button');
+    langBtn.id = 'languageToggleBtn';
+    langBtn.onclick = window.toggleLanguage;
+    
+    // Unified Styling
+    langBtn.style.cursor = 'pointer';
+    langBtn.style.border = 'none';
+    langBtn.style.borderRadius = '50%';
+    langBtn.style.width = '45px';
+    langBtn.style.height = '45px';
+    langBtn.style.display = 'flex';
+    langBtn.style.alignItems = 'center';
+    langBtn.style.justifyContent = 'center';
+    langBtn.style.fontSize = '1.3rem';
+    langBtn.style.transition = 'var(--trans-spring, 0.3s)';
+    langBtn.style.boxShadow = 'var(--shadow-sm, 0 4px 15px rgba(0,0,0,0.1))';
+    langBtn.style.backdropFilter = 'blur(5px)';
+    langBtn.style.zIndex = '1001';
+
+    if (darkToggle) {
+        const style = window.getComputedStyle(darkToggle);
+        if (style.position === 'absolute' || style.position === 'fixed') {
+            langBtn.style.position = style.position;
+            langBtn.style.top = style.top;
+            
+            // Adjust coordinates based on design systems
+            const currentRight = parseFloat(style.right);
+            const currentLeft = parseFloat(style.left);
+            if (!isNaN(currentRight)) {
+                langBtn.style.right = (currentRight + 55) + 'px';
+            } else if (!isNaN(currentLeft)) {
+                langBtn.style.left = (currentLeft + 55) + 'px';
+            } else {
+                langBtn.style.right = '75px';
+            }
+        } else {
+            // Inline alignment (e.g. employee top bar)
+            langBtn.style.margin = '0 10px';
+        }
+        
+        const currentLang = localStorage.getItem('lang') || 'ar';
+        langBtn.innerHTML = currentLang === 'ar' ? '🇬🇧' : '🇸🇦';
+        darkToggle.parentNode.insertBefore(langBtn, darkToggle.nextSibling);
+    } else {
+        // Floating fallback
+        langBtn.style.position = 'fixed';
+        langBtn.style.top = '15px';
+        langBtn.style.right = '75px';
+        
+        const currentLang = localStorage.getItem('lang') || 'ar';
+        langBtn.innerHTML = currentLang === 'ar' ? '🇬🇧' : '🇸🇦';
+        document.body.appendChild(langBtn);
+    }
+}
+
+function applyEnglishStyles() {
+    let styleEl = document.getElementById('en-layout-styles');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'en-layout-styles';
+        styleEl.innerHTML = `
+            html[lang="en"] body {
+                font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
+            }
+            html[lang="en"] .card label {
+                text-align: left !important;
+            }
+            html[lang="en"] input, html[lang="en"] select, html[lang="en"] textarea {
+                text-align: left !important;
+            }
+            html[lang="en"] .excel-table input, html[lang="en"] .excel-table td input {
+                text-align: center !important; /* Keep center alignment for tables */
+            }
+            html[lang="en"] .nav-links {
+                flex-direction: row;
+            }
+            html[lang="en"] #languageToggleBtn:hover {
+                transform: scale(1.1) rotate(10deg);
+            }
+            html[lang="en"] .user-badge {
+                left: 1.5rem !important;
+                right: auto !important;
+            }
+            html[lang="en"] .btn-delete {
+                margin-left: 5px;
+            }
+        `;
+        document.head.appendChild(styleEl);
+    }
+}
+
+// ===== WhatsApp Floating Bubble Injection =====
+window.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('wa-floating-btn')) return;
+    var waBtn = document.createElement('a');
+    waBtn.id = 'wa-floating-btn';
+    waBtn.href = 'https://wa.me/?text=' + encodeURIComponent('مرحباً فريق الدعم');
+    waBtn.target = '_blank';
+    waBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>';
+    var span = document.createElement('span');
+    span.textContent = window.i18n ? window.i18n("واتساب") || 'واتساب' : 'واتساب';
+    span.style.fontFamily = 'Cairo, system-ui, sans-serif';
+    span.style.fontWeight = '700';
+    span.style.fontSize = '14px';
+    span.style.lineHeight = '1';
+    waBtn.appendChild(span);
+    
+    // Styling
+    waBtn.style.position = 'fixed';
+    waBtn.style.bottom = '25px';
+    waBtn.style.right = '25px';
+    waBtn.style.zIndex = '99999';
+    waBtn.style.backgroundColor = '#25D366';
+    waBtn.style.color = '#fff';
+    waBtn.style.borderRadius = '50px';
+    waBtn.style.padding = '12px 20px';
+    waBtn.style.boxShadow = '0 4px 14px rgba(37,211,102,0.4)';
+    waBtn.style.textDecoration = 'none';
+    waBtn.style.display = 'flex';
+    waBtn.style.alignItems = 'center';
+    waBtn.style.gap = '8px';
+    waBtn.style.transition = 'all 0.3s ease';
+    waBtn.style.border = '2px solid transparent'; // Fix for dark mode borders
+    
+    waBtn.onmouseover = function() { 
+        this.style.transform = 'translateY(-4px)'; 
+        this.style.boxShadow = '0 6px 20px rgba(37,211,102,0.6)'; 
+    };
+    waBtn.onmouseout = function() { 
+        this.style.transform = 'none'; 
+        this.style.boxShadow = '0 4px 14px rgba(37,211,102,0.4)'; 
+    };
+    
+    document.body.appendChild(waBtn);
+});

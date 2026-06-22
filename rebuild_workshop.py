@@ -1,0 +1,521 @@
+import os
+
+html_content = """<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقرير صيانة الورشة | شركة بن زومة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <style>
+        /* ══════════ Layout ══════════ */
+        body { padding-top: 0 !important; }
+
+        .page-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 1.2rem 3rem;
+        }
+
+        /* ══════════ Header & Meta ══════════ */
+        .report-header {
+            background: linear-gradient(135deg, #1A3A5C 0%, #2C6FAC 100%);
+            border-radius: 12px 12px 0 0;
+            padding: 1.5rem;
+            color: white;
+            text-align: center;
+            border: 2px solid #1A3A5C;
+            border-bottom: none;
+            margin-top: 1rem;
+        }
+        .report-header h1 {
+            margin: 0; font-size: 1.4rem; font-weight: 800;
+        }
+        
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            background: #DCE6F1;
+            border: 2px solid #1A3A5C;
+            border-top: none;
+            border-bottom: none;
+        }
+        .meta-item {
+            padding: 12px;
+            border-left: 2px solid #1A3A5C;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+        .meta-item:first-child { border-left: none; }
+        .meta-item label {
+            font-weight: 800;
+            color: #1A3A5C;
+            font-size: 0.9rem;
+        }
+        .meta-item input {
+            width: 100%;
+            border: 1px solid #9BB5D6;
+            border-radius: 5px;
+            padding: 8px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            text-align: center;
+            background: white;
+            color: #1A3A5C;
+        }
+
+        /* ══════════ Notes Table ══════════ */
+        .table-wrapper {
+            width: 100%;
+            border: 2px solid #1A3A5C;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            background: white;
+        }
+        .notes-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .notes-table thead th {
+            background: linear-gradient(180deg, #2C6FAC 0%, #1A3A5C 100%);
+            color: white;
+            padding: 12px;
+            font-size: 1.1rem;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .notes-table tbody td {
+            border: 1px solid #D0D5DD;
+            padding: 0;
+        }
+        .col-idx { width: 50px; font-weight: 800; text-align: center; background: #F4F7FA; color: #1A3A5C; }
+        .col-note { width: 50%; }
+        .col-sol { width: 50%; }
+        
+        .notes-table input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            font-family: 'Cairo', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            outline: none;
+        }
+        .notes-table input:focus {
+            background: rgba(44,111,172,0.05);
+        }
+
+        /* ══════════ Signatures ══════════ */
+        .sig-section {
+            display: flex;
+            border: 2px solid #1A3A5C;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            background: #F4F7FA;
+        }
+        .sig-item {
+            flex: 1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+        .sig-item:first-child { border-left: 2px solid #1A3A5C; }
+        .sig-item input {
+            width: 80%;
+            border: none;
+            border-bottom: 2px dashed #9BB5D6;
+            background: transparent;
+            text-align: center;
+            font-family: 'Cairo', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 5px;
+            outline: none;
+        }
+
+        .action-bar { display: flex; gap: 1rem; padding: 1rem 0; align-items: center; }
+        .btn-action { padding: 10px 20px; border-radius: 8px; border: none; font-family: 'Cairo', sans-serif; font-weight: 700; cursor: pointer; color: white; }
+        .btn-blue { background: #2980b9; }
+        .btn-red { background: #e74c3c; }
+        
+        @media (max-width: 768px) {
+            .meta-grid { grid-template-columns: 1fr; border-bottom: 2px solid #1A3A5C; }
+            .meta-item { border-left: none; border-bottom: 1px solid #9BB5D6; }
+            .sig-section { flex-direction: column; }
+            .sig-item:first-child { border-left: none; border-bottom: 2px solid #1A3A5C; }
+        }
+    </style>
+</head>
+<body>
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.15;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+    <!-- Top Navigation Bar -->
+    <div class="top-bar">
+        <img src="{{ url_for('static', filename='site_logo.png') }}" alt="شركة بن زومة" class="top-bar-logo">
+        <div class="top-bar-title">
+            🔧 تقرير صيانة الورشة
+            <span>فرع الدمام — شركة بن زومة للتجارة والإنماء</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+            <div class="top-nav-links">
+                <a href="/">🏠 الرئيسية</a>
+                <a href="/purchase">🛒 شراء</a>
+                <a href="/schedule">📋 جدول</a>
+                <a href="/oils">🛢 زيوت</a>
+                <a href="/employees">👥 موظفين</a>
+                <a href="/washing">🚿 غسيل</a>
+                <a href="/workshop">🔧 صيانة</a>
+            </div>
+            <button id="darkModeToggle" onclick="toggleDarkMode()" style="border:none;font-size:1.1rem;cursor:pointer;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);background:var(--surface-hover);">🌙</button>
+            <a href="/logout" style="background:#e74c3c;color:white;padding:5px 14px;border-radius:20px;font-weight:bold;font-size:0.8rem;text-decoration:none;">خروج</a>
+        </div>
+    </div>
+
+    <div class="page-wrapper">
+        <div class="action-bar">
+            <button class="btn-action btn-blue" onclick="exportWorkshopExcel()">📥 تصدير Excel</button>
+            <button class="btn-action btn-red" onclick="clearAll()">🗑 مسح الكل</button>
+            <span style="margin-right:auto;font-size:0.9rem;color:var(--text-secondary);font-weight:700;">💾 يتم الحفظ تلقائياً</span>
+        </div>
+
+        <div class="report-header">
+            <h1>تقرير فنى الورشة عن السيارة الموضحه بيناتها ادناه لفرع الدمام</h1>
+        </div>
+
+        <div class="meta-grid">
+            <div class="meta-item">
+                <label>التاريخ</label>
+                <input type="date" id="reportDate">
+            </div>
+            <div class="meta-item">
+                <label>نوع السيارة (V/NAME)</label>
+                <input type="text" id="carType" placeholder="مثال: ايسوزو دينا">
+            </div>
+            <div class="meta-item">
+                <label>رقم اللوحة (P:NO)</label>
+                <input type="text" id="carPlate" list="plateList" placeholder="أ د ج 1234" onchange="autofillCar()">
+            </div>
+            <div class="meta-item">
+                <label>الموديل (MODEL)</label>
+                <input type="text" id="carModel" placeholder="2024">
+            </div>
+            <div class="meta-item">
+                <label>العداد (K/m)</label>
+                <input type="text" id="carKm" placeholder="150,000">
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="notes-table">
+                <thead>
+                    <tr>
+                        <th class="col-idx">م</th>
+                        <th class="col-note">الملاحظات</th>
+                        <th class="col-sol">الحل</th>
+                    </tr>
+                </thead>
+                <tbody id="notesBody">
+                    <!-- JavaScript will generate 10 rows here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="sig-section">
+            <div class="sig-item">
+                <label style="font-weight:800; color:#1A3A5C; font-size:1.1rem;">توقيع الفني /</label>
+                <input type="text" id="sigTech" placeholder="الاسم أو التوقيع">
+            </div>
+            <div class="sig-item">
+                <label style="font-weight:800; color:#1A3A5C; font-size:1.1rem;">توقيع مسؤول الحركة /</label>
+                <input type="text" id="sigManager" placeholder="الاسم أو التوقيع">
+            </div>
+        </div>
+    </div>
+
+    <datalist id="plateList"></datalist>
+
+    <script>
+    const LS_KEY = 'workshop_report_v4';
+    let driversData = [];
+
+    async function fetchDrivers() {
+        try {
+            const res = await fetch('/api/drivers');
+            driversData = await res.json();
+            const pl = document.getElementById('plateList');
+            driversData.forEach(d => {
+                if (d.plate && d.plate !== 'None') {
+                    const o = document.createElement('option');
+                    o.value = d.plate;
+                    pl.appendChild(o);
+                }
+            });
+        } catch(e) {}
+    }
+
+    function autofillCar() {
+        const p = document.getElementById('carPlate').value;
+        const d = driversData.find(x => x.plate === p);
+        if(d && d.car && d.car !== 'None') {
+            document.getElementById('carType').value = d.car;
+        }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('notesBody');
+        tbody.innerHTML = '';
+        for(let i=1; i<=10; i++) {
+            tbody.innerHTML += `
+                <tr>
+                    <td class="col-idx">${i}</td>
+                    <td class="col-note"><input type="text" id="note_${i}" placeholder="وصف المشكلة..."></td>
+                    <td class="col-sol"><input type="text" id="sol_${i}" placeholder="الحل المنفذ..."></td>
+                </tr>
+            `;
+        }
+    }
+
+    function saveData() {
+        const data = {
+            date: document.getElementById('reportDate').value,
+            car: document.getElementById('carType').value,
+            plate: document.getElementById('carPlate').value,
+            model: document.getElementById('carModel').value,
+            km: document.getElementById('carKm').value,
+            sigTech: document.getElementById('sigTech').value,
+            sigManager: document.getElementById('sigManager').value,
+            notes: []
+        };
+        for(let i=1; i<=10; i++) {
+            data.notes.push({
+                n: document.getElementById('note_'+i).value,
+                s: document.getElementById('sol_'+i).value
+            });
+        }
+        localStorage.setItem(LS_KEY, JSON.stringify(data));
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem(LS_KEY);
+        if(raw) {
+            try {
+                const data = JSON.parse(raw);
+                document.getElementById('reportDate').value = data.date || '';
+                document.getElementById('carType').value = data.car || '';
+                document.getElementById('carPlate').value = data.plate || '';
+                document.getElementById('carModel').value = data.model || '';
+                document.getElementById('carKm').value = data.km || '';
+                document.getElementById('sigTech').value = data.sigTech || '';
+                document.getElementById('sigManager').value = data.sigManager || '';
+                if(data.notes && data.notes.length === 10) {
+                    for(let i=1; i<=10; i++) {
+                        document.getElementById('note_'+i).value = data.notes[i-1].n || '';
+                        document.getElementById('sol_'+i).value = data.notes[i-1].s || '';
+                    }
+                }
+            } catch(e){}
+        } else {
+            document.getElementById('reportDate').valueAsDate = new Date();
+        }
+    }
+
+    function clearAll() {
+        if(!confirm('هل أنت متأكد من مسح جميع البيانات؟')) return;
+        localStorage.removeItem(LS_KEY);
+        document.getElementById('carType').value = '';
+        document.getElementById('carPlate').value = '';
+        document.getElementById('carModel').value = '';
+        document.getElementById('carKm').value = '';
+        document.getElementById('sigTech').value = '';
+        document.getElementById('sigManager').value = '';
+        for(let i=1; i<=10; i++) {
+            document.getElementById('note_'+i).value = '';
+            document.getElementById('sol_'+i).value = '';
+        }
+        document.getElementById('reportDate').valueAsDate = new Date();
+        if(typeof showToast === 'function') showToast('تم المسح', 'success');
+    }
+
+    async function exportWorkshopExcel() {
+        if(typeof showToast === 'function') showToast('جاري إنشاء ملف Excel...', 'info');
+        try {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('تقرير الورشة', { views: [{ rightToLeft: true }] });
+
+            const P = 'FF1A3A5C'; // Primary Dark Blue
+            const L = 'FFDCE6F1'; // Light Blue
+            const W = 'FFFFFFFF';
+            const borderThin = { style: 'thin', color: { argb: 'FF000000' } };
+            const borderAll = { top: borderThin, left: borderThin, bottom: borderThin, right: borderThin };
+            
+            ws.columns = [
+                { width: 9 },      // A
+                { width: 4 },      // B
+                { width: 5.125 },  // C (Index)
+                { width: 23.5 },   // D
+                { width: 18.25 },  // E
+                { width: 18.75 },  // F
+                { width: 13.25 },  // G
+                { width: 12.125 }, // H
+                { width: 9 }       // I
+            ];
+
+            // Embed logo from base64 safely
+            const new_logo = "{{ b64_en }}";
+            if(new_logo && new_logo !== '') {
+                try {
+                    const id = wb.addImage({ base64: 'data:image/png;base64,'+new_logo, extension: 'png' });
+                    // Merged range approx C1 to G3 for the logo
+                    ws.addImage(id, { tl: { col: 3, row: 0.5 }, ext: { width: 180, height: 75 } });
+                } catch(e) { console.error("Logo error", e); }
+            }
+
+            ws.getRow(3).height = 63;
+            ws.getRow(4).height = 20.25;
+            ws.getRow(5).height = 25.5;
+
+            // Title
+            ws.mergeCells('D4:H5');
+            const titleCell = ws.getCell('D4');
+            titleCell.value = 'تقرير فنى الورشة عن السيارة الموضحه بيناتها ادناه لفرع الدمام';
+            titleCell.font = { name: 'Arial', size: 20, bold: false };
+            titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            // Date
+            ws.getRow(6).height = 26.25;
+            const dateVal = document.getElementById('reportDate').value;
+            let dStr = '2026 /  /  :التاريخ ';
+            if(dateVal) {
+                const parts = dateVal.split('-');
+                dStr = `${parts[0]} / ${parts[1]} / ${parts[2]} :التاريخ `;
+            }
+            const dateCell = ws.getCell('D6');
+            dateCell.value = dStr;
+            dateCell.font = { name: 'Arial', size: 12, bold: true };
+            dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
+
+            // Row 7 (Headers)
+            ws.getRow(7).height = 35.25;
+            ws.mergeCells('H7:I11'); // The huge "الحل" box for the top portion (wait, no! "الحل" applies to the notes below. But in the original it's merged H7:I11 for visual header).
+            
+            const h7 = ws.getCell('H7');
+            h7.value = 'الحل';
+            h7.font = { name: 'Arial', size: 12, bold: true };
+            h7.alignment = { horizontal: 'center', vertical: 'middle' };
+            h7.border = borderAll;
+
+            const hData = [
+                { c: 'C7', v: 'م', s: 20 },
+                { c: 'D7', v: ' نوع السيارة  (V/NAME)', s: 14 },
+                { c: 'E7', v: 'رقم اللوحة (P:NO) ', s: 14 },
+                { c: 'F7', v: ' الموديل (MODEL)', s: 14 },
+                { c: 'G7', v: ' العداد (K/m) ', s: 14 }
+            ];
+            hData.forEach(hd => {
+                const cell = ws.getCell(hd.c);
+                cell.value = hd.v;
+                cell.font = { name: 'Arial', size: hd.s, bold: (hd.c !== 'C7') };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border = borderAll;
+            });
+
+            // Rows 8-9 (Car Info)
+            ws.getRow(8).height = 29.25;
+            ws.getRow(9).height = 29.25;
+            ['D', 'E', 'F', 'G'].forEach(col => {
+                ws.mergeCells(`${col}8:${col}9`);
+                ws.getCell(`${col}8`).border = borderAll;
+            });
+            ws.getCell('D8').value = document.getElementById('carType').value;
+            ws.getCell('E8').value = document.getElementById('carPlate').value;
+            ws.getCell('F8').value = document.getElementById('carModel').value;
+            ws.getCell('G8').value = document.getElementById('carKm').value;
+            ['D8', 'E8', 'F8', 'G8'].forEach(c => {
+                ws.getCell(c).font = { name: 'Arial', size: 14, bold: true };
+                ws.getCell(c).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            });
+
+            // Row 10-11 (Notes Header)
+            ws.getRow(10).height = 36;
+            ws.getRow(11).height = 15;
+            ws.mergeCells('D10:G11');
+            const noteHeader = ws.getCell('D10');
+            noteHeader.value = 'الملاحظات';
+            noteHeader.font = { name: 'Arial', size: 20, bold: true };
+            noteHeader.alignment = { horizontal: 'center', vertical: 'middle' };
+            noteHeader.border = borderAll;
+
+            // Rows 12-21 (Data)
+            for(let i=1; i<=10; i++) {
+                const rowIdx = 11 + i;
+                ws.getRow(rowIdx).height = 42.75;
+                
+                // Index
+                const idxCell = ws.getCell('C' + rowIdx);
+                idxCell.value = i;
+                idxCell.font = { name: 'Arial', size: 20, bold: false };
+                idxCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                idxCell.border = borderAll;
+
+                // Note
+                ws.mergeCells(`D${rowIdx}:G${rowIdx}`);
+                const noteCell = ws.getCell(`D${rowIdx}`);
+                noteCell.value = document.getElementById('note_'+i).value;
+                noteCell.font = { name: 'Arial', size: 14 };
+                noteCell.alignment = { horizontal: 'right', vertical: 'middle', wrapText: true };
+                noteCell.border = borderAll;
+
+                // Solution
+                ws.mergeCells(`H${rowIdx}:I${rowIdx}`);
+                const solCell = ws.getCell(`H${rowIdx}`);
+                solCell.value = document.getElementById('sol_'+i).value;
+                solCell.font = { name: 'Arial', size: 14 };
+                solCell.alignment = { horizontal: 'right', vertical: 'middle', wrapText: true };
+                solCell.border = borderAll;
+            }
+
+            // Signatures
+            const sigT = document.getElementById('sigTech').value;
+            const sigM = document.getElementById('sigManager').value;
+            const sigCell1 = ws.getCell('C22');
+            sigCell1.value = 'توقيع الفني /  ' + sigT;
+            sigCell1.font = { name: 'Arial', size: 14, bold: true };
+            const sigCell2 = ws.getCell('C23');
+            sigCell2.value = 'توقيع مسؤول الحركة / ' + sigM;
+            sigCell2.font = { name: 'Arial', size: 14, bold: true };
+
+            const buffer = await wb.xlsx.writeBuffer();
+            const dateStr = document.getElementById('reportDate').value || new Date().toISOString().split('T')[0];
+            saveAs(new Blob([buffer]), `تقرير_فني_ورشة_${document.getElementById('carPlate').value || 'الدمام'}_${dateStr}.xlsx`);
+            if(typeof showToast === 'function') showToast('تم التصدير بنجاح ✅', 'success');
+        } catch(e) {
+            console.error(e);
+            if(typeof showToast === 'function') showToast('خطأ أثناء التصدير', 'error');
+        }
+    }
+
+    window.addEventListener('load', async () => {
+        renderTable();
+        loadData();
+        await fetchDrivers();
+    });
+
+    document.addEventListener('input', saveData);
+    document.addEventListener('change', saveData);
+    </script>
+</body>
+</html>
+"""
+
+with open('templates/workshop.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+print("Updated workshop.html with precise template layout")

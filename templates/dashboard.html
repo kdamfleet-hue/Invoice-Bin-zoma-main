@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الإدارة التنفيذية — BIN ZOMAH INTL.</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Tajawal', 'sans-serif'] },
+                    colors: {
+                        primary: '#1e293b',
+                        secondary: '#3b82f6',
+                        accent: '#10b981',
+                        danger: '#ef4444',
+                        bgLight: '#f8fafc'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f0f2f5; }
+        .glass-card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); padding: 1.5rem; }
+        #dashMap { height: 400px; width: 100%; border-radius: 12px; z-index: 1; }
+        .gps-overlay { position: absolute; inset: 0; z-index: 500; display: flex; flex-direction: column; gap: 0.7rem; align-items: center; justify-content: center; text-align: center; padding: 1.5rem; background: rgba(255,255,255,0.8); border-radius: 12px; }
+        .gps-overlay.hidden { display: none; }
+        .gps-spinner { width: 38px; height: 38px; border: 4px solid #cbd5e1; border-top-color: #3b82f6; border-radius: 50%; animation: bz-spin .9s linear infinite; }
+        @keyframes bz-spin { to { transform: rotate(360deg); } }
+        .dmark { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 10px; color: #fff; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+    <aside class="w-64 bg-primary text-white flex flex-col justify-between hidden md:flex">
+        <div>
+            <div class="p-6 flex items-center justify-center border-b border-gray-700">
+                <h1 class="text-xl font-bold tracking-wider">نظام إدارة الأسطول</h1>
+            </div>
+            <nav class="mt-6 px-4 space-y-2">
+                <a href="#" class="flex items-center gap-3 bg-secondary px-4 py-3 rounded-lg font-medium shadow-lg">
+                    <i class="fa-solid fa-house"></i> الرئيسية
+                </a>
+                <a href="/" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-file-invoice"></i> الفواتير
+                </a>
+                <a href="/employees" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-users"></i> الموظفون
+                </a>
+                <a href="/tracking" target="_blank" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-map-location-dot"></i> التتبع GPS
+                </a>
+                <a href="/schedule" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-calendar-week"></i> الجدول
+                </a>
+                <a href="/oils" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-oil-can"></i> الزيوت
+                </a>
+                <a href="/purchase" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-cart-shopping"></i> المشتريات
+                </a>
+            </nav>
+        </div>
+        <div class="p-4 text-center text-xs text-gray-500 border-t border-gray-700">
+            جميع الحقوق محفوظة &copy; 2026
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto">
+        <header class="bg-primary text-white shadow-md py-4 px-6 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <button class="md:hidden text-gray-300 hover:text-white"><i class="fa-solid fa-bars text-xl"></i></button>
+                <div>
+                    <h2 class="text-lg font-bold">الرئيسية / فرع الدمام</h2>
+                    <p class="text-xs text-gray-300" id="topMeta"></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="relative">
+                    <i class="fa-regular fa-bell text-xl cursor-pointer"></i>
+                    <span id="bellCount" class="absolute -top-2 -right-2 bg-danger text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
+                </div>
+                <div class="flex items-center gap-2 cursor-pointer">
+                    <div class="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="hidden md:block">
+                        <p class="text-sm font-bold">مدير النظام</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="p-6 space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="glass-card flex justify-between items-center border-t-4 border-secondary">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">إجمالي المركبات</p>
+                        <h3 id="t-vehicles" class="text-3xl font-bold text-gray-800 mt-2">-</h3>
+                        <p id="t-vehicles-foot" class="text-accent text-xs mt-2"></p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-secondary text-xl">
+                        <i class="fa-solid fa-car-side"></i>
+                    </div>
+                </div>
+                
+                <div class="glass-card flex justify-between items-center border-t-4 border-accent">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">المركبات النشطة</p>
+                        <h3 id="t-active" class="text-3xl font-bold text-gray-800 mt-2">-</h3>
+                        <p id="t-active-foot" class="text-accent text-xs mt-2"></p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-accent text-xl">
+                        <i class="fa-solid fa-car-on"></i>
+                    </div>
+                </div>
+
+                <div class="glass-card flex justify-between items-center border-t-4 border-purple-500">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">الموظفون</p>
+                        <h3 id="t-employees" class="text-3xl font-bold text-gray-800 mt-2">-</h3>
+                        <p id="t-employees-foot" class="text-purple-500 text-xs mt-2"></p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-500 text-xl">
+                        <i class="fa-solid fa-users-gear"></i>
+                    </div>
+                </div>
+
+                <div class="glass-card flex justify-between items-center border-t-4 border-orange-500">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">في إجازة</p>
+                        <h3 id="t-vacation" class="text-3xl font-bold text-gray-800 mt-2">-</h3>
+                        <p id="t-vacation-foot" class="text-orange-500 text-xs mt-2"></p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 text-xl">
+                        <i class="fa-solid fa-plane"></i>
+                    </div>
+                </div>
+
+                <div class="glass-card flex justify-between items-center border-t-4 border-accent">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">نسبة سريان الوثائق</p>
+                        <h3 id="t-compliance" class="text-3xl font-bold text-gray-800 mt-2">-</h3>
+                        <p id="t-compliance-foot" class="text-accent text-xs mt-2"></p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-accent text-xl">
+                        <i class="fa-solid fa-shield-check"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="glass-card lg:col-span-2 relative">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-gray-800">التتبع المباشر للأسطول</h3>
+                        <div class="flex gap-2">
+                            <button class="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200" onclick="gpsRefresh()">تحديث</button>
+                            <a href="/tracking" target="_blank" class="text-xs bg-secondary text-white px-2 py-1 rounded hover:bg-blue-600">التتبع الكامل</a>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div id="dashMap"></div>
+                        <div class="gps-overlay" id="gpsOverlay"><div class="gps-spinner"></div><div class="text-gray-600 font-bold mt-2">جارٍ تجهيز الخريطة…</div></div>
+                    </div>
+                </div>
+                
+                <div class="glass-card overflow-y-auto" style="max-height: 480px;">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-gray-800">مركز التنبيهات</h3>
+                        <span id="t-alerts-count" class="text-secondary text-sm">0</span>
+                    </div>
+                    <!-- Email Bar -->
+                    <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                        <p class="font-bold mb-2 text-gray-700">إرسال التنبيهات بالبريد:</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="alMailTo" class="flex-1 border rounded px-2 py-1 text-xs" placeholder="البريد (افصل بفاصلة)">
+                            <button id="alMailBtn" onclick="sendExpiryMail()" class="bg-secondary text-white px-3 py-1 rounded text-xs">إرسال</button>
+                        </div>
+                        <p id="alMailHint" class="text-xs text-gray-500 mt-2">...</p>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-1 mb-3" id="t-alerts-filters"></div>
+                    
+                    <div class="space-y-3" id="t-alerts">
+                        <p class="text-sm text-gray-500 text-center py-4">جارٍ التحميل...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass-card">
+                    <h3 class="font-bold text-gray-800 mb-4">آخر عمليات النظام (سجل التدقيق)</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-right text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                                <tr>
+                                    <th scope="col" class="px-4 py-2">الوقت</th>
+                                    <th scope="col" class="px-4 py-2">المستخدم</th>
+                                    <th scope="col" class="px-4 py-2">العملية</th>
+                                </tr>
+                            </thead>
+                            <tbody id="t-audit">
+                                <tr><td colspan="3" class="text-center py-4">جارٍ التحميل...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="glass-card">
+                    <h3 class="font-bold text-gray-800 mb-4">البحث الشامل</h3>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <input type="text" id="seInput" class="flex-1 border rounded px-3 py-2 text-sm" placeholder="ابحث بالاسم، اللوحة...">
+                        <select id="seJob" class="border rounded px-2 py-2 text-sm"><option value="">كل الوظائف</option></select>
+                        <select id="seStatus" class="border rounded px-2 py-2 text-sm">
+                            <option value="">حالة الوثائق</option>
+                            <option value="expired">منتهية</option>
+                            <option value="d30">تنتهي خلال 30 يوم</option>
+                        </select>
+                    </div>
+                    <div class="overflow-y-auto" style="max-height: 250px;">
+                        <table class="w-full text-sm text-right text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2">الاسم</th>
+                                    <th class="px-4 py-2">اللوحة</th>
+                                    <th class="px-4 py-2">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="t-search-results">
+                                <tr><td colspan="3" class="text-center py-4 text-gray-400">ابحث لعرض النتائج</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+<script>
+(function () {
+  'use strict';
+  // ---------- context ----------
+  var WS = location.pathname.indexOf('/importantworkstation') === 0;
+  var PREFIX = WS ? '/importantworkstation' : '';
+  var TODAY = new Date(); TODAY.setHours(0, 0, 0, 0);
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  function $(id) { return document.getElementById(id); }
+  function num(x) { var n = parseInt(String(x == null ? '' : x).replace(/[^\d-]/g, ''), 10); return isNaN(n) ? 0 : n; }
+
+  // ---------- data state ----------
+  var DATA = { drivers: [], employees: [], schedule: null, washing: [], records: [] };
+
+  // ---------- loaders (GET only; static fallback only on the main site) ----------
+  function getJSON(url) { return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+
+  function loadDrivers() {
+    return getJSON('/api/drivers').then(function (j) {
+      var arr = Array.isArray(j) ? j : [];
+      if (arr.length || WS) return arr;
+      return getJSON('/static/fleet_data.json').then(function (f) {
+        return (Array.isArray(f) ? f : []).filter(function (d) { return d && d.name !== 'اسم العامل'; });
+      });
+    });
+  }
+  function loadEmployees() {
+    return getJSON('/api/employees').then(function (j) {
+      var rows = (j && j.rows) ? j.rows : [];
+      if (rows.length || WS) return rows;
+      return getJSON('/static/employees_default.json').then(function (f) { return Array.isArray(f) ? f : []; });
+    });
+  }
+  function loadSchedule() {
+    return getJSON('/api/schedule_data').then(function (j) {
+      var d = (j && j.data) ? j.data : null;
+      if ((d && ((d.main && d.main.length) || (d.spare && d.spare.length))) || WS) return d || { main: [], spare: [], vacation: [], summary: {} };
+      return getJSON('/static/schedule_data.json').then(function (f) { return f || { main: [], spare: [], vacation: [], summary: {} }; });
+    });
+  }
+  function loadWashing() {
+    return getJSON('/api/washing_data').then(function (j) {
+      var v = (j && j.vehicles) ? j.vehicles : [];
+      if (v.length || WS) return v;
+      // washing_data.js declares `const WASHING_VEHICLES` (a global lexical binding, NOT a window prop)
+      return (typeof WASHING_VEHICLES !== 'undefined' && WASHING_VEHICLES.length) ? WASHING_VEHICLES : [];
+    });
+  }
+  function loadRecords() {
+    return getJSON('/api/records').then(function (j) { return (j && j.rows) ? j.rows : []; });
+  }
+
+  // ---------- date / status ----------
+  function parseISO(s) {
+    if (typeof s !== 'string') return null;
+    var m = s.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    var y = +m[1], mo = +m[2], da = +m[3];
+    if (y < 2000 || y > 2100 || mo < 1 || mo > 12 || da < 1 || da > 31) return null; // skip Hijri / dirty
+    var d = new Date(y, mo - 1, da); d.setHours(0, 0, 0, 0); return d;
+  }
+  function statusOf(s) {
+    var d = parseISO(s);
+    if (!d) return { key: 'unknown', label: 'غير محدد', cls: 'st-unknown', rank: 5, days: null };
+    var days = Math.floor((d - TODAY) / 86400000);
+    if (days < 0) return { key: 'expired', label: 'منتهي', cls: 'st-expired', rank: 0, days: days };
+    if (days <= 30) return { key: 'd30', label: '≤ 30 يوم', cls: 'st-d30', rank: 1, days: days };
+    if (days <= 90) return { key: 'd90', label: '≤ 90 يوم', cls: 'st-d90', rank: 2, days: days };
+    return { key: 'valid', label: 'ساري', cls: 'st-valid', rank: 3, days: days };
+  }
+  function fmtDays(st) {
+    if (st.days == null) return '—';
+    if (st.days < 0) return 'منذ ' + Math.abs(st.days) + ' يوم';
+    if (st.days === 0) return 'اليوم';
+    return 'خلال ' + st.days + ' يوم';
+  }
+
+  // ---------- schedule helpers ----------
+  function schedRows() {
+    if (!DATA.schedule) return [];
+    return [].concat(DATA.schedule.main || [], DATA.schedule.spare || []);
+  }
+  var VDOCS = [
+    { key: 'inspect', label: 'الفحص الدوري' },
+    { key: 'license', label: 'رخصة السير' },
+    { key: 'opcard', label: 'بطاقة التشغيل' },
+    { key: 'drivercard', label: 'بطاقة السائق' }
+  ];
+
+  // ---------- alerts ----------
+  var ALERTS = [];
+  function buildAlerts() {
+    ALERTS = [];
+    schedRows().forEach(function (r) {
+      if (!r) return;
+      VDOCS.forEach(function (doc) {
+        var v = r[doc.key];
+        if (!v) return;
+        ALERTS.push({ name: r.name || '—', plate: r.plate || '', job: r.job || '', vtype: r.vtype || '', doc: doc.label, date: v, st: statusOf(v) });
+      });
+    });
+    // employees: iqama (idx10) + passport (idx11)
+    (DATA.employees || []).forEach(function (row) {
+      if (!Array.isArray(row)) return;
+      var nm = row[2] || row[3] || '—', pl = row[9] || '';
+      var job = row[6] || '';
+      var vtype = [row[36], row[37], row[38]].filter(Boolean).join(' ');
+      [['10', 'انتهاء الإقامة'], ['11', 'انتهاء الجواز']].forEach(function (p) {
+        var v = row[+p[0]];
+        if (!v) return;
+        ALERTS.push({ name: nm, plate: pl, job: job, vtype: vtype, doc: p[1], date: v, st: statusOf(v) });
+      });
+    });
+    ALERTS.sort(function (a, b) { return a.st.rank - b.st.rank || ((a.st.days == null ? 1e9 : a.st.days) - (b.st.days == null ? 1e9 : b.st.days)); });
+    // Apply saved date overrides from localStorage
+    var dateOverrides = JSON.parse(localStorage.getItem('alertDateOverrides') || '{}');
+    ALERTS.forEach(function (a) {
+      var aid = getAlertId(a);
+      if (dateOverrides[aid]) {
+        a.date = dateOverrides[aid];
+        a.st = statusOf(dateOverrides[aid]);
+      }
+    });
+    ALERTS.sort(function (a, b) { return a.st.rank - b.st.rank || ((a.st.days == null ? 1e9 : a.st.days) - (b.st.days == null ? 1e9 : b.st.days)); });
+  }
+
+  var alFilter = 'attention'; // attention = expired+d30+d90
+  // Helper to generate unique ID for each alert
+  function getAlertId(a) {
+    return btoa(a.name + '|' + a.doc + '|' + a.date);
+  }
+  // Load resolved alerts and notes from localStorage
+  var resolvedSet = new Set(JSON.parse(localStorage.getItem('resolvedAlerts') || '[]'));
+  var alertNotes = JSON.parse(localStorage.getItem('alertNotes') || '{}');
+
+  function renderAlerts() {
+    var counts = { expired: 0, d30: 0, d90: 0, valid: 0, unknown: 0 };
+    ALERTS.forEach(function (a) { counts[a.st.key]++; });
+    var defs = [
+      { k: 'attention', t: 'تحتاج إجراء', n: counts.expired + counts.d30 + counts.d90 },
+      { k: 'expired', t: '🔴 منتهية', n: counts.expired },
+      { k: 'd30', t: '🟠 ≤ 30 يوم', n: counts.d30 },
+      { k: 'd90', t: '🟡 ≤ 90 يوم', n: counts.d90 },
+      { k: 'valid', t: '🟢 سارية', n: counts.valid },
+      { k: 'resolved', t: '✅ مُقيّدة', n: resolvedSet.size },
+      { k: 'all', t: 'الكل', n: ALERTS.length }
+    ];
+
+    // filter list
+    var list;
+    if (alFilter === 'attention') {
+      list = ALERTS.filter(function (a) { return a.st.key === 'expired' || a.st.key === 'd30' || a.st.key === 'd90'; });
+    } else if (alFilter === 'resolved') {
+      list = ALERTS.filter(function (a) { return resolvedSet.has(getAlertId(a)); });
+    } else if (alFilter === 'all') {
+      list = ALERTS.slice();
+    } else {
+      list = ALERTS.filter(function (a) { return a.st.key === alFilter; });
+    }
+
+    if($('t-alerts-count')) $('t-alerts-count').textContent = list.length + ' وثيقة';
+    if($('bellCount')) $('bellCount').textContent = counts.expired + counts.d30;
+
+    $('t-alerts-filters').innerHTML = defs.map(function (d) {
+      return '<button class="px-2 py-1 text-xs rounded border ' + (alFilter === d.k ? 'bg-secondary text-white border-secondary' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50') + '" data-k="' + d.k + '">' + d.t + ' (' + d.n + ')</button>';
+    }).join('');
+    Array.prototype.forEach.call($('t-alerts-filters').querySelectorAll('button'), function (c) {
+      c.onclick = function () { alFilter = c.getAttribute('data-k'); renderAlerts(); };
+    });
+
+    if (!list.length) { $('t-alerts').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">لا توجد وثائق ✓</p>'; return; }
+
+    $('t-alerts').innerHTML = list.slice(0, 400).map(function (a, i) {
+      var aid = getAlertId(a);
+      var isResolved = resolvedSet.has(aid);
+      var note = alertNotes[aid] || '';
+      var badgeBg = { expired: 'bg-red-500', d30: 'bg-orange-500', d90: 'bg-yellow-500', valid: 'bg-green-500', unknown: 'bg-gray-400' }[a.st.key] || 'bg-gray-400';
+
+      return '<div class="p-3 rounded-lg border ' + (isResolved ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50') + '" data-aid="' + esc(aid) + '">' +
+        '<div class="flex justify-between items-start gap-2 flex-wrap">' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="font-bold text-gray-800 text-sm truncate">' + esc(a.name) + '</p>' +
+            '<p class="text-xs text-gray-500">' + esc(a.plate || '—') + ' • ' + esc(a.doc) + '</p>' +
+          '</div>' +
+          '<div class="text-left">' +
+            '<span class="text-xs text-white px-2 py-1 rounded shadow-sm whitespace-nowrap ' + badgeBg + '">' + a.st.label + ' (' + fmtDays(a.st) + ')</span>' +
+          '</div>' +
+        '</div>' +
+        /* ── Inline Edit Controls ── */
+        '<div class="mt-2 pt-2 border-t border-gray-200">' +
+          '<div class="flex flex-wrap gap-2 items-end">' +
+            /* Date edit */
+            '<div class="flex-1" style="min-width:130px;">' +
+              '<label class="text-xs text-gray-500 block mb-1">📅 تاريخ الانتهاء</label>' +
+              '<input type="date" class="w-full text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-800 al-date-input" value="' + esc(a.date) + '" data-aid="' + esc(aid) + '">' +
+            '</div>' +
+            /* Status select */
+            '<div style="min-width:100px;">' +
+              '<label class="text-xs text-gray-500 block mb-1">📋 الحالة</label>' +
+              '<select class="w-full text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-800 al-status-select" data-aid="' + esc(aid) + '">' +
+                '<option value=""' + (isResolved ? '' : ' selected') + '>تلقائي</option>' +
+                '<option value="resolved"' + (isResolved ? ' selected' : '') + '>✅ تم التجديد</option>' +
+              '</select>' +
+            '</div>' +
+            /* Note input */
+            '<div class="flex-1" style="min-width:150px;">' +
+              '<label class="text-xs text-gray-500 block mb-1">📝 ملاحظة</label>' +
+              '<input type="text" class="w-full text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-800 al-note-input" placeholder="أضف ملاحظة..." value="' + esc(note) + '" data-aid="' + esc(aid) + '">' +
+            '</div>' +
+            /* Save button */
+            '<button class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded shadow al-save-btn" data-aid="' + esc(aid) + '" style="height:26px;">💾 حفظ</button>' +
+          '</div>' +
+          (note ? '<p class="text-xs text-blue-600 mt-1">📝 ' + esc(note) + '</p>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    // Bind save buttons
+    Array.prototype.forEach.call($('t-alerts').querySelectorAll('.al-save-btn'), function (btn) {
+      btn.onclick = function () {
+        var aid = btn.getAttribute('data-aid');
+        var card = btn.closest('[data-aid]');
+        var dateInput = card.querySelector('.al-date-input');
+        var statusSelect = card.querySelector('.al-status-select');
+        var noteInput = card.querySelector('.al-note-input');
+
+        // Save note
+        var noteVal = noteInput ? noteInput.value.trim() : '';
+        if (noteVal) { alertNotes[aid] = noteVal; } else { delete alertNotes[aid]; }
+        localStorage.setItem('alertNotes', JSON.stringify(alertNotes));
+
+        // Save resolved status
+        if (statusSelect && statusSelect.value === 'resolved') {
+          resolvedSet.add(aid);
+        } else {
+          resolvedSet.delete(aid);
+        }
+        localStorage.setItem('resolvedAlerts', JSON.stringify(Array.from(resolvedSet)));
+
+        // Save date override
+        if (dateInput) {
+          var dateOverrides = JSON.parse(localStorage.getItem('alertDateOverrides') || '{}');
+          dateOverrides[aid] = dateInput.value;
+          localStorage.setItem('alertDateOverrides', JSON.stringify(dateOverrides));
+          // Update the alert object in memory
+          for (var j = 0; j < ALERTS.length; j++) {
+            if (getAlertId(ALERTS[j]) === aid) {
+              ALERTS[j].date = dateInput.value;
+              ALERTS[j].st = statusOf(dateInput.value);
+              break;
+            }
+          }
+        }
+
+        // Visual feedback
+        btn.textContent = '✅ تم الحفظ';
+        btn.classList.remove('bg-blue-600');
+        btn.classList.add('bg-green-600');
+        setTimeout(function () { renderAlerts(); }, 800);
+      };
+    });
+  }
+
+  // ---------- KPIs ----------
+  function renderKPIs() {
+    var rows = schedRows();
+    var empCount = (DATA.employees || []).length;
+    var drvCount = (DATA.drivers || []).length;
+    var people = empCount || drvCount;
+    var vehicles = (DATA.washing || []).length || rows.length;
+    var summary = (DATA.schedule && DATA.schedule.summary) || {};
+    var vacation = num(summary.vacation) || (DATA.schedule && DATA.schedule.vacation ? DATA.schedule.vacation.length : 0);
+    var delivery = rows.filter(function (r) { return r && r.job === 'موصل'; }).length;
+    var distrib = rows.filter(function (r) { return r && r.job === 'موزع'; }).length;
+
+    var expired = 0, d30 = 0, d90 = 0;
+    ALERTS.forEach(function (a) { if (a.st.key === 'expired') expired++; else if (a.st.key === 'd30') d30++; else if (a.st.key === 'd90') d90++; });
+
+    // washing current-month KPIs
+    var cm = TODAY.getMonth();
+    var washedThis = (DATA.washing || []).filter(function (v) { return v && v.m && v.m[cm] === 1; }).length;
+    var pendingThis = (DATA.washing || []).length - washedThis;
+
+    var cards = [
+      { c: 'k-gold', ic: '🚚', label: 'إجمالي المركبات', num: vehicles, foot: (rows.length ? (rows.length + ' في الجدول الأسبوعي') : '') },
+      { c: 'k-blue', ic: '👷', label: 'إجمالي الموظفين/السائقين', num: people, foot: (empCount ? 'سجل الموظفين' : 'سجل السائقين') },
+      { c: 'k-green', ic: '🛵', label: 'موصلون', num: delivery, foot: 'موزعون: ' + distrib },
+      { c: 'k-navy', ic: '🏖️', label: 'في إجازة', num: vacation, foot: 'حسب ملخص الجدول' },
+      { c: 'k-red', ic: '⛔', label: 'وثائق منتهية', num: expired, foot: 'تحتاج تجديد فوري' },
+      { c: 'k-amber', ic: '⚠️', label: 'تنتهي خلال 30 يوم', num: d30, foot: 'متابعة عاجلة' },
+      { c: 'k-amber', ic: '🗓️', label: 'تنتهي خلال 90 يوم', num: d90, foot: 'تخطيط للتجديد' },
+      { c: 'k-green', ic: '🧼', label: 'غُسلت هذا الشهر', num: washedThis, foot: 'لم تُغسل: ' + (pendingThis < 0 ? 0 : pendingThis) }
+    ];
+    //$('kpiGrid').innerHTML(function (k) {
+      return '<div class="kpi ' + k.c + '"><div class="k-top"><span class="k-label">' + k.label + '</span><span class="k-ic">' + k.ic + '</span></div>' +
+        '<div class="k-num">' + k.num + '</div><div class="k-foot">' + esc(k.foot) + '</div></div>';
+    }).join('');
+
+    // readiness
+    var totalDocs = 0, validDocs = 0;
+    ALERTS.forEach(function (a) { if (a.st.key !== 'unknown') { totalDocs++; if (a.st.key === 'valid') validDocs++; } });
+    var docPct = totalDocs ? Math.round(validDocs / totalDocs * 100) : 0;
+    var washPct = (DATA.washing || []).length ? Math.round(washedThis / DATA.washing.length * 100) : 0;
+    function pctRow(label, pct, color) {
+      return '<div style="margin-bottom:1rem;"><div style="display:flex;justify-content:space-between;font-size:.82rem;"><span>' + label + '</span><b>' + pct + '%</b></div>' +
+        '<div class="pct-bar"><i style="width:' + pct + '%;background:' + color + ';"></i></div></div>';
+    }
+    //
+      pctRow('نسبة الوثائق السارية', docPct, 'linear-gradient(90deg,#0C2340,#10b981)') +
+      pctRow('إنجاز غسيل هذا الشهر', washPct, 'linear-gradient(90deg,#0C2340,#c9a227)');
+
+    // fleet mini
+    var byType = {};
+    rows.forEach(function (r) { if (r && r.vtype) { var k = String(r.vtype).split(' ')[0]; byType[k] = (byType[k] || 0) + 1; } });
+    var parts = Object.keys(byType).sort(function (a, b) { return byType[b] - byType[a]; }).slice(0, 6)
+      .map(function (k) { return esc(k) + ': <b>' + byType[k] + '</b>'; });
+    // parts.length ? parts.join(' &nbsp;•&nbsp; ') : '—';
+
+    
+        // Update Tailwind KPIs
+        if($('t-vehicles')) {
+            $('t-vehicles').textContent = vehicles;
+            $('t-vehicles-foot').textContent = (rows.length ? (rows.length + ' في الجدول الأسبوعي') : '');
+        }
+        if($('t-active')) {
+            $('t-active').textContent = washedThis;
+            $('t-active-foot').textContent = 'غُسلت هذا الشهر';
+        }
+        if($('t-employees')) {
+            $('t-employees').textContent = people;
+            $('t-employees-foot').textContent = (empCount ? 'سجل الموظفين' : 'سجل السائقين');
+        }
+        if($('t-vacation')) {
+            $('t-vacation').textContent = vacation;
+            $('t-vacation-foot').textContent = 'في إجازة';
+        }
+        if($('t-compliance')) {
+            $('t-compliance').textContent = docPct + '%';
+            $('t-compliance-foot').textContent = 'نسبة الوثائق السارية';
+        }
+    \n    // 'آخر قراءة: ' + new Date().toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
+  // ---------- charts ----------
+  function bars(el, pairs, fmt) {
+    var max = Math.max.apply(null, pairs.map(function (p) { return p[1]; }).concat([1]));
+    el.innerHTML = pairs.map(function (p) {
+      var w = Math.round(p[1] / max * 100);
+      return '<div class="bar-row"><span class="bl" title="' + esc(p[0]) + '">' + esc(p[0]) + '</span>' +
+        '<span class="bt"><span class="bf" style="width:' + w + '%"></span></span><span class="bv">' + p[1] + '</span></div>';
+    }).join('') || '<div class="empty-hint">لا توجد بيانات</div>';
+  }
+  function renderCharts() {
+    var rows = schedRows();
+    // jobs
+    var jobs = {};
+    rows.forEach(function (r) { if (r) { var j = r.job || 'غير محدد'; jobs[j] = (jobs[j] || 0) + 1; } });
+    //, Object.keys(jobs).map(function (k) { return [k, jobs[k]]; }).sort(function (a, b) { return b[1] - a[1]; }));
+    // types
+    var types = {};
+    rows.forEach(function (r) { if (r && r.vtype) { var k = String(r.vtype).split(' ').slice(0, 2).join(' '); types[k] = (types[k] || 0) + 1; } });
+    //, Object.keys(types).map(function (k) { return [k, types[k]]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 8));
+    // donut
+    var c = { expired: 0, d30: 0, d90: 0, valid: 0, unknown: 0 };
+    ALERTS.forEach(function (a) { c[a.st.key]++; });
+    var segs = [
+      { k: 'منتهية', n: c.expired, col: '#ef4444' },
+      { k: '≤ 30 يوم', n: c.d30, col: '#f59e0b' },
+      { k: '≤ 90 يوم', n: c.d90, col: '#eab308' },
+      { k: 'سارية', n: c.valid, col: '#10b981' },
+      { k: 'غير محدد', n: c.unknown, col: '#64748b' }
+    ];
+    var total = segs.reduce(function (s, x) { return s + x.n; }, 0);
+    var acc = 0, stops = [];
+    segs.forEach(function (s) { if (s.n > 0) { var a = acc / (total || 1) * 360, b = (acc + s.n) / (total || 1) * 360; stops.push(s.col + ' ' + a + 'deg ' + b + 'deg'); acc += s.n; } });
+    // = total ? ('conic-gradient(' + stops.join(',') + ')') : 'rgba(255,255,255,.05)';
+    // = '<b>' + total + '</b><span>وثيقة</span>';
+    // = segs.map(function (s) {
+      return '<div><i style="background:' + s.col + '"></i>' + s.k + '<b>' + s.n + '</b></div>';
+    }).join('');
+  }
+
+  // ---------- search ----------
+  var PEOPLE = [];
+  function buildPeople() {
+    var byKey = {};
+    function up(rec) {
+      var key = (rec.iqama && String(rec.iqama).trim()) || (rec.name && String(rec.name).trim()) || Math.random().toString(36);
+      var cur = byKey[key];
+      if (!cur) { byKey[key] = rec; cur = rec; }
+      else { ['empid', 'iqama', 'phone', 'plate', 'job', 'vehicle'].forEach(function (f) { if (!cur[f] && rec[f]) cur[f] = rec[f]; }); cur.dates = cur.dates.concat(rec.dates); }
+    }
+    schedRows().forEach(function (r) {
+      if (!r) return;
+      up({ name: r.name || '', empid: r.empid || '', iqama: r.iqama || '', phone: r.phone || '', plate: r.plate || '', job: r.job || '', vehicle: r.vtype || '', dates: [r.inspect, r.license, r.opcard, r.drivercard] });
+    });
+    (DATA.employees || []).forEach(function (row) {
+      if (!Array.isArray(row)) return;
+      up({ name: row[2] || row[3] || '', empid: row[0] || '', iqama: row[1] || '', phone: row[7] || '', plate: row[9] || '', job: row[6] || '', vehicle: [row[36], row[37], row[38]].filter(Boolean).join(' '), dates: [row[10], row[11]] });
+    });
+    (DATA.drivers || []).forEach(function (d) {
+      if (!d) return;
+      up({ name: d.name || '', empid: d.empid || '', iqama: d.iqama || '', phone: d.phone || '', plate: d.plate || '', job: '', vehicle: d.car || '', dates: [d.drivercard] });
+    });
+    PEOPLE = Object.keys(byKey).map(function (k) {
+      var p = byKey[k];
+      var worst = { rank: 9, key: 'none', label: '—', cls: 'st-unknown' };
+      (p.dates || []).forEach(function (dt) { if (!dt) return; var st = statusOf(dt); if (st.key !== 'unknown' && st.rank < worst.rank) worst = st; });
+      p.worst = worst;
+      return p;
+    }).filter(function (p) { return p.name; });
+
+    // populate filter selects
+    var jobs = {}, types = {};
+    PEOPLE.forEach(function (p) { if (p.job) jobs[p.job] = 1; if (p.vehicle) types[String(p.vehicle).split(' ')[0]] = 1; });
+    $('seJob').innerHTML = '<option value="">كل الوظائف</option>' + Object.keys(jobs).sort().map(function (j) { return '<option>' + esc(j) + '</option>'; }).join('');
+    $('seType').innerHTML = '<option value="">كل أنواع المركبات</option>' + Object.keys(types).sort().map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
+  }
+  function norm(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase(); }
+  function renderSearch() {
+    var q = norm($('seInput').value), jb = $('seJob').value, tp = $('seType').value, stt = $('seStatus').value;
+    var list = PEOPLE.filter(function (p) {
+      if (jb && p.job !== jb) return false;
+      if (tp && String(p.vehicle).split(' ')[0] !== tp) return false;
+      if (stt && p.worst.key !== stt) return false;
+      if (q) {
+        var hay = norm([p.name, p.plate, p.empid, p.iqama, p.phone].join(' '));
+        if (hay.indexOf(q) < 0) return false;
+      }
+      return true;
+    });
+    if($('seSub')) $('seSub').textContent = list.length + ' نتيجة من ' + PEOPLE.length;
+    if (!list.length) { $('t-search-results').innerHTML = '<tr><td colspan="3" class="text-center py-4 text-gray-500">لا نتائج مطابقة</td></tr>'; return; }
+    $('t-search-results').innerHTML = list.slice(0, 50).map(function (p) {
+      var b = p.worst.key === 'none' ? '<span class="badge st-unknown">—</span>' : '<span class="badge ' + p.worst.cls + '">' + p.worst.label + '</span>';
+      return '<tr><td class="px-4 py-2 font-medium text-gray-900">' + esc(p.name) + '<br><span class="text-xs text-gray-400">' + esc(p.job || '-') + '</span></td>' +
+        '<td class="px-4 py-2 text-left dir-ltr">' + esc(p.plate || '—') + '</td><td class="px-4 py-2">' + b.replace("badge","text-xs px-2 py-1 rounded inline-block") + '</td></tr>';
+    }).join('');
+  }
+
+  // ---------- update history ----------
+  var HKEY = 'bz_dash_history_v1';
+  function hashStr(s) { var h = 5381, i = s.length; while (i) { h = (h * 33) ^ s.charCodeAt(--i); } return (h >>> 0).toString(36); }
+  function loadHist() { try { return JSON.parse(localStorage.getItem(HKEY)) || []; } catch (e) { return []; } }
+  function saveHist(h) { try { localStorage.setItem(HKEY, JSON.stringify(h)); } catch (e) {} }
+  function snapData() { return { schedule: DATA.schedule, washing: DATA.washing, records: DATA.records, employees: DATA.employees }; }
+  function counts() {
+    return {
+      employees: (DATA.employees || []).length,
+      vehicles: (DATA.washing || []).length,
+      scheduleMain: (DATA.schedule && DATA.schedule.main ? DATA.schedule.main.length : 0),
+      scheduleSpare: (DATA.schedule && DATA.schedule.spare ? DATA.schedule.spare.length : 0),
+      records: (DATA.records || []).length,
+      washes: (DATA.washing || []).reduce(function (s, v) { return s + ((v && v.m) ? v.m.reduce(function (a, b) { return a + (b === 1 ? 1 : 0); }, 0) : 0); }, 0)
+    };
+  }
+  function nameSet(rows, getter) { var s = {}; (rows || []).forEach(function (r) { var n = getter(r); if (n) s[n] = 1; }); return s; }
+  function diffNames(a, b) { var added = [], removed = []; Object.keys(b).forEach(function (k) { if (!a[k]) added.push(k); }); Object.keys(a).forEach(function (k) { if (!b[k]) removed.push(k); }); return { added: added, removed: removed }; }
+  function computeDiff(prev, cur) {
+    var pc = prev.counts, cc = cur.counts, d = { parts: [], total: 0 };
+    function add(label, delta) { if (delta) { d.parts.push(label + ' ' + (delta > 0 ? '+' : '') + delta); d.total += Math.abs(delta); } }
+    add('الموظفون', cc.employees - pc.employees);
+    add('مركبات الغسيل', cc.vehicles - pc.vehicles);
+    add('الجدول (أساسي)', cc.scheduleMain - pc.scheduleMain);
+    add('الجدول (احتياطي)', cc.scheduleSpare - pc.scheduleSpare);
+    add('التوثيق', cc.records - pc.records);
+    add('غسلات', cc.washes - pc.washes);
+    // value-level changes (data edited without count change) detected by sig
+    if (!d.total && prev.sig !== cur.sig) { d.parts.push('تعديل بيانات قائمة'); d.total = 1; }
+    return d;
+  }
+  function trimHist(h) {
+    // keep full .data only for the last 6 entries to respect localStorage quota
+    for (var i = 0; i < h.length - 6; i++) { if (h[i].data) delete h[i].data; }
+    return h;
+  }
+  function captureSnapshot() {
+    var sig = hashStr(JSON.stringify(snapData()));
+    var h = loadHist();
+    var last = h[h.length - 1];
+    if (!last) {
+      h.push({ ts: Date.now(), sig: sig, counts: counts(), data: snapData(), base: true, note: 'النسخة الأساسية (خط البداية)' });
+      saveHist(trimHist(h));
+    } else if (last.sig !== sig) {
+      var cur = { ts: Date.now(), sig: sig, counts: counts(), data: snapData() };
+      cur.diff = computeDiff(last, cur);
+      cur.note = cur.diff.parts.length ? cur.diff.parts.join(' • ') : 'تحديث';
+      h.push(cur);
+      saveHist(trimHist(h));
+    }
+    renderHistory();
+  }
+  function renderHistory() {
+    var h = loadHist().slice().reverse();
+    if (!h.length) { $('timeline').innerHTML = '<div class="empty-hint">لا يوجد سجل بعد</div>'; return; }
+    $('timeline').innerHTML = h.map(function (e, i) {
+      var dt = new Date(e.ts);
+      var canRestore = !!e.data;
+      var tag = e.base ? '<span class="tl-tag" style="background:rgba(59,130,246,.15);color:#93c5fd">خط البداية</span>'
+        : (e.diff ? '<span class="tl-tag">' + e.diff.total + ' تغيير</span>' : '');
+      var acts = '<div class="tl-acts">' +
+        (canRestore ? '<button onclick="dlSnap(' + (h.length - 1 - i) + ')">📥 تنزيل</button>' : '') +
+        (canRestore && !e.base ? '<button class="restore" onclick="restoreSnap(' + (h.length - 1 - i) + ')">↩️ استعادة</button>' : '') +
+        '</div>';
+      return '<div class="tl-item ' + (e.base ? 'base' : '') + '"><div class="tl-head"><span class="tl-date">' +
+        dt.toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' }) + '</span><span class="tl-time">' +
+        dt.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) + '</span>' + tag + '</div>' +
+        '<div class="tl-note">' + esc(e.note || '') + '</div>' + acts + '</div>';
+    }).join('');
+  }
+  function download(name, obj) {
+    var blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+  }
+  window.dlSnap = function (idx) { var e = loadHist()[idx]; if (e && e.data) download('bin-zomah-backup-' + new Date(e.ts).toISOString().slice(0, 10) + '.json', e.data); };
+  window.downloadCurrentBackup = function () { download('bin-zomah-backup-' + new Date().toISOString().slice(0, 10) + '.json', snapData()); };
+  window.restoreSnap = function (idx) {
+    var e = loadHist()[idx]; if (!e || !e.data) return;
+    var when = new Date(e.ts).toLocaleString('ar-EG');
+    if (!confirm('استعادة بيانات النسخة بتاريخ ' + when + '؟\n\nسيُستبدل المحتوى الحالي للجدول الأسبوعي والغسيل والتوثيق والموظفين ببيانات هذه النسخة.\nننصح بتنزيل نسخة احتياطية من الوضع الحالي أولاً.\n\nاضغط موافق للمتابعة.')) return;
+    var jobs = [];
+    if (e.data.schedule) jobs.push(fetch('/api/schedule_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e.data.schedule) }));
+    if (e.data.washing) jobs.push(fetch('/api/washing_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicles: e.data.washing }) }));
+    if (e.data.records) jobs.push(fetch('/api/records', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: e.data.records }) }));
+    if (e.data.employees) jobs.push(fetch('/api/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: e.data.employees }) }));
+    Promise.all(jobs).then(function () {
+      if (window.showToast) showToast('تمت الاستعادة بنجاح ✓', 'success'); else alert('تمت الاستعادة بنجاح');
+      setTimeout(function () { location.reload(); }, 900);
+    }).catch(function () { alert('تعذّرت الاستعادة. حاول مرة أخرى.'); });
+  };
+
+  // ---------- expiry email alerts ----------
+  function loadMailPreview() {
+    getJSON('/api/expiry_alerts_preview').then(function (j) {
+      var hint = $('alMailHint'); if (!hint || !j) return;
+      var dr = (j.default_recipients && j.default_recipients.length) ? j.default_recipients.join('، ') : '';
+      if (dr && $('alMailTo') && !$('alMailTo').value) $('alMailTo').value = dr;
+      var parts = [(j.total || 0) + ' وثيقة تحتاج إجراءً الآن'];
+      if (!j.mail_configured) parts.push('<span style="color:#fca5a5">⚠ البريد غير مُهيّأ على الخادم (اضبط MAIL_USERNAME / MAIL_PASSWORD)</span>');
+      else parts.push('للإرسال التلقائي اليومي: اضبط ALERT_RECIPIENTS و ALERT_CRON_KEY وشغّل مجدولاً على <code>/api/cron/expiry_alerts?key=…</code>');
+      hint.innerHTML = parts.join(' • ');
+    });
+  }
+  window.sendExpiryMail = function () {
+    var to = (($('alMailTo') && $('alMailTo').value) || '').trim();
+    var btn = $('alMailBtn'), hint = $('alMailHint');
+    if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
+
+    var list;
+    if (alFilter === 'attention') {
+      list = ALERTS.filter(function (a) { return a.st.key === 'expired' || a.st.key === 'd30' || a.st.key === 'd90'; });
+    } else if (alFilter === 'resolved') {
+      list = ALERTS.filter(function (a) { return resolvedSet.has(getAlertId(a)); });
+    } else if (alFilter === 'all') {
+      list = ALERTS.slice();
+    } else {
+      list = ALERTS.filter(function (a) { return a.st.key === alFilter; });
+    }
+    
+    var labelMap = { attention: 'تحتاج إجراء', expired: 'منتهية', d30: '≤ 30 يوم', d90: '≤ 90 يوم', valid: 'سارية', resolved: 'مُقيّدة', all: 'الكل' };
+    var filterLabel = labelMap[alFilter] || 'الكل';
+
+    var payload = { recipients: to, rows: list, filter: filterLabel };
+
+    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        var msg;
+        if (res.success) msg = '<span style="color:#6ee7b7">✓ أُرسل التنبيه (' + (res.count || 0) + ' وثيقة) إلى: ' + esc((res.recipients || []).join('، ')) + '</span>';
+        else if (res.reason === 'mail_not_configured') msg = '<span style="color:#fca5a5">⚠ البريد غير مُهيّأ على الخادم — اضبط MAIL_USERNAME و MAIL_PASSWORD.</span>';
+        else if (res.reason === 'no_recipients') msg = '<span style="color:#fcd34d">أدخل بريد مستلم واحد على الأقل.</span>';
+        else if (res.reason === 'no_alerts') msg = '<span style="color:#6ee7b7">لا توجد وثائق تحتاج تنبيهاً حالياً ✓</span>';
+        else msg = '<span style="color:#fca5a5">تعذّر الإرسال' + (res.error ? ': ' + esc(res.error) : '') + '</span>';
+        if (hint) hint.innerHTML = msg;
+        if (window.showToast && res.success) showToast('تم إرسال التنبيه بالبريد', 'success');
+      })
+      .catch(function () { if (hint) hint.innerHTML = '<span style="color:#fca5a5">تعذّر الاتصال بالخادم.</span>'; })
+      .finally(function () { if (btn) { btn.disabled = false; btn.textContent = 'إرسال'; } });
+  };
+
+  // ---------- audit log (server-side, read-only, append-only) ----------
+  function loadAudit() {
+    getJSON('/api/audit_log').then(function (j) {
+      var rows = (j && j.rows) ? j.rows : [];
+      var body = $('t-audit'); if (!body) return;
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="3" class="text-center py-4">لا توجد عمليات مُسجّلة بعد — ستظهر هنا تلقائياً عند أي حفظ.</td></tr>'; $('auSub').textContent = ''; return; }
+      
+      body.innerHTML = rows.slice().reverse().slice(0, 300).map(function (e) {
+        var hits = (e.hits && e.hits > 1) ? ' <span class="days-left">(' + e.hits + ' حفظ)</span>' : '';
+        var det = (e.count != null) ? ('عدد العناصر: ' + e.count) : (e.detail || '—');
+        return '<tr class="border-b hover:bg-gray-50"><td class="px-4 py-3 text-xs">' + esc(e.ts || '') + '</td><td class="px-4 py-3">' + esc(e.user || '—') + '</td>' +
+          '<td class="px-4 py-3"><span class="text-xs font-medium px-2 py-1 bg-blue-50 text-blue-700 rounded border border-blue-200 inline-block">' + esc(e.action || '') + ' - ' + esc(e.target || '') + '</span></td></tr>'; //
+          '</td><td>' + esc(det) + hits + '</td></tr>';
+      }).join('');
+    });
+  }
+
+  // ---------- top meta + quick links ----------
+  function weekNo(d) { var t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7)); var w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7); }
+  function topMeta() {
+    var now = new Date();
+    $('topMeta').textContent = now.toLocaleDateString('ar-EG', { dateStyle: 'medium', weekday: 'long' }) + ' | الأسبوع ' + weekNo(now);
+    $('backLink').href = PREFIX + '/';
+  }
+  function quickLinks() {
+    var tabs = [
+      ['schedule', '📅 الجدول الأسبوعي'], ['employees', '👥 الموظفون'], ['washing', '🧼 الغسيل'],
+      ['oils', '🛢️ الزيوت والفلاتر'], ['workshop', '🔧 الورشة'], ['purchase', '🧾 أمر الشراء'],
+      ['records', '🗂️ التوثيق'], ['incidents', '🚨 الحوادث والمخالفات'], ['search', '🔍 البحث']
+    ];
+    $('quickLinks').innerHTML = tabs.map(function (t) { return '<a href="' + PREFIX + '/' + t[0] + '"><span class="ic"></span>' + t[1] + '</a>'; }).join('');
+  }
+  // sidebar active-section highlight + smooth scroll
+  function wireNav() {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.dash-side a[href^="#"]'));
+    links.forEach(function (a) { a.addEventListener('click', function () { document.querySelector('.dash-side').classList.remove('open'); }); });
+    window.addEventListener('scroll', function () {
+      var secs = ['overview', 'alerts', 'gps', 'charts', 'search', 'history', 'audit'], cur = secs[0];
+      secs.forEach(function (s) { var el = $(s); if (el && el.getBoundingClientRect().top < 140) cur = s; });
+      links.forEach(function (a) { a.classList.toggle('active', a.getAttribute('href') === '#' + cur); });
+    }, { passive: true });
+  }
+
+  // ---------- init ----------
+  function init() {
+    topMeta(); quickLinks(); wireNav(); loadAudit();
+    if (WS) { var mb = $('alMailBar'); if (mb) mb.style.display = 'none'; } else loadMailPreview();
+    $('seInput').addEventListener('input', renderSearch);
+    ['seJob', 'seType', 'seStatus'].forEach(function (id) { $(id).addEventListener('change', renderSearch); });
+
+    Promise.all([loadDrivers(), loadEmployees(), loadSchedule(), loadWashing(), loadRecords()]).then(function (res) {
+      DATA.drivers = res[0] || []; DATA.employees = res[1] || []; DATA.schedule = res[2] || { main: [], spare: [], vacation: [], summary: {} };
+      DATA.washing = res[3] || []; DATA.records = res[4] || [];
+      buildAlerts(); renderKPIs(); renderAlerts(); renderCharts(); buildPeople(); renderSearch(); captureSnapshot();
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+  var WS = location.pathname.indexOf('/importantworkstation') === 0;
+  var PREFIX = WS ? '/importantworkstation' : '';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  var map = null, markers = [];
+  var full = $('gpsFull'); if (full) full.href = PREFIX + '/tracking';
+
+  function overlay(html) { var o = $('gpsOverlay'); if (!o) return; if (!html) { o.classList.add('hidden'); return; } o.classList.remove('hidden'); o.innerHTML = html; }
+  function initMap() {
+    if (map || typeof L === 'undefined') return;
+    map = L.map('dashMap', { zoomControl: true, attributionControl: true }).setView([26.4207, 50.0888], 10);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(map);
+  }
+  function norm(it) {
+    var lat = it.lat != null ? it.lat : it.latitude, lng = it.lng != null ? it.lng : it.longitude;
+    var online = !!(it.online || it.is_online || it.status === 'moving' || it.status === 'idling');
+    return { id: (it.id != null ? it.id : (it.asset_id != null ? it.asset_id : '')), name: (it.name || it.plate_number || it.plate || 'مركبة'), lat: lat, lng: lng, online: online };
+  }
+  function render(items) {
+    markers.forEach(function (m) { try { map.removeLayer(m); } catch (e) {} }); markers = [];
+    var assets = (items || []).map(norm);
+    var online = assets.filter(function (a) { return a.online; }).length;
+    // gps counts
+    if($('t-active')) $('t-active').textContent = online; if($('t-active-foot')) $('t-active-foot').textContent = "مركبة متصلة من أصل " + assets.length;
+    var pts = [];
+    assets.forEach(function (a) {
+      if (a.lat != null && a.lng != null && map) {
+        var col = a.online ? '#10b981' : '#ef4444';
+        var ic = L.divIcon({ className: '', html: '<div class="dmark" style="background:' + col + '">' + esc(String(a.id)) + '</div>' });
+        markers.push(L.marker([a.lat, a.lng], { icon: ic }).addTo(map).bindPopup('<b>' + esc(a.name) + '</b><br>الحالة: ' + (a.online ? 'نشط 🟢' : 'متوقف 🔴')));
+        pts.push([a.lat, a.lng]);
+      }
+    });
+    if (pts.length) { try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 }); } catch (e) {} }
+    return assets.length;
+  }
+  window.gpsRefresh = function () {
+    if (!map) return;
+    overlay('<div class="gps-spinner"></div><div>جارٍ جلب مواقع الأسطول…</div>');
+    fetch('/api/gps', { headers: { 'Accept': 'application/json' } }).then(function (r) {
+      return r.json().then(function (d) { return { ok: r.ok, d: d }; }).catch(function () { return { ok: r.ok, d: null }; });
+    }).then(function (res) {
+      if (!res.ok || (res.d && res.d.error)) {
+        var msg = (res.d && res.d.error) ? res.d.error : 'تعذّر جلب المواقع';
+        overlay('<div class="gi">📡</div><div style="font-weight:800">تعذّر عرض الخريطة</div><div style="color:var(--d-muted);font-size:.82rem;max-width:340px">' + esc(msg) + '</div><button class="chip" onclick="gpsRefresh()">🔄 إعادة المحاولة</button>');
+        return;
+      }
+      var items = Array.isArray(res.d) ? res.d : (res.d && (Array.isArray(res.d.assets) ? res.d.assets : Array.isArray(res.d.items) ? res.d.items : []));
+      var n = render(items || []);
+      if (!n) overlay('<div class="gi">🚗</div><div style="font-weight:800">لا توجد مركبات لعرضها الآن</div><button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>');
+      else overlay(null);
+    }).catch(function () {
+      overlay('<div class="gi">📡</div><div style="font-weight:800">تعذّر الاتصال بخدمة التتبع</div><button class="chip" onclick="gpsRefresh()">🔄 إعادة المحاولة</button>');
+    });
+  };
+  function start() {
+    if (WS) {
+      // tracking is a password-locked tab in the workstation — keep the dashboard consistent with that lock.
+      overlay('<div class="gi">🔒</div><div style="font-weight:800">التتبع المباشر مُقفل في محطة العمل</div><div style="color:var(--d-muted);font-size:.82rem">افتحه من تبويب «التتبع» بكلمة المرور.</div>');
+      return;
+    }
+    initMap();
+    if (!map) { overlay('<div class="gi">🗺️</div><div>تعذّر تحميل الخريطة</div>'); return; }
+    setTimeout(function () { try { map.invalidateSize(); } catch (e) {} }, 250);
+    window.gpsRefresh();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+</body>
+</html>

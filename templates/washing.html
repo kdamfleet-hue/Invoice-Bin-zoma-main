@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحضير جدول الغسيل | شركة بن زومة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Cairo', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    colors: {
+                        dark: { bg: '#080C14', card: '#111726', nav: '#0B111E' },
+                        brand: { blue: '#2563EB', gold: '#C8A45A' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #080C14; margin: 0; }
+        .mono-num { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #080C14; }
+        ::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #374151; }
+        /* Current month glow */
+        .col-current { border-left: 1px solid rgba(37,99,235,0.25); border-right: 1px solid rgba(37,99,235,0.25); }
+        .col-current-head { background: rgba(37,99,235,0.15) !important; color: #60a5fa !important; }
+        .col-future td, .col-future-head { color: #374151 !important; }
+        /* Wash cell transitions */
+        .wash-cell { cursor: pointer; transition: all 0.15s ease; user-select: none; }
+        .wash-cell:hover { transform: scale(1.1); }
+        /* Mobile sidebar */
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 998; }
+        .sidebar-overlay.open { display: block; }
+        @media (max-width: 767px) {
+            aside.sidebar { transform: translateX(100%); position: fixed; top: 0; right: 0; bottom: 0; z-index: 999; transition: transform 0.3s ease; }
+            aside.sidebar.open { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="text-gray-100 min-h-screen flex">
+    <datalist id="driversList"></datalist>
+
+    <!-- Sidebar overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar w-64 bg-dark-nav border-l border-gray-800/50 flex flex-col justify-between hidden md:flex">
+        <div>
+            <div class="p-6 border-b border-gray-800/50 flex items-center gap-3">
+                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">BZ</div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-wide">BIN ZOMAH INTL</h1>
+                    <p class="text-[10px] text-gray-500">نظام إدارة الأسطول والتوثيق</p>
+                </div>
+            </div>
+            <nav class="p-4 space-y-1.5">
+                <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> الرئيسية
+                </a>
+                <a href="/" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="file-text" class="w-4 h-4"></i> الفواتير
+                </a>
+                <a href="/washing" class="flex items-center gap-3 px-4 py-3 bg-blue-600/10 text-blue-500 rounded-xl text-sm font-medium border-r-2 border-blue-600">
+                    <i data-lucide="droplet" class="w-4 h-4"></i> جدول الغسيل الشهري
+                </a>
+                <a href="/employees" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="users" class="w-4 h-4"></i> الموظفين والسائقين
+                </a>
+                <a href="/schedule" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="calendar" class="w-4 h-4"></i> الجدول الأسبوعي
+                </a>
+                <a href="/oils" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="fuel" class="w-4 h-4"></i> الزيوت والفلاتر
+                </a>
+                <a href="/purchase" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="shopping-cart" class="w-4 h-4"></i> طلبات الشراء
+                </a>
+                <a href="/records" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="file-check" class="w-4 h-4"></i> سجل التوثيق
+                </a>
+                <a href="/workshop" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="wrench" class="w-4 h-4"></i> الورشة
+                </a>
+                <a href="/incidents" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="alert-triangle" class="w-4 h-4"></i> الحوادث والمخالفات
+                </a>
+                <a href="/tracking" target="_blank" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i> التتبع المباشر
+                </a>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-gray-800/50 space-y-2">
+            {% if google_user %}
+            <div class="flex items-center gap-2 px-3 py-2 bg-gray-800/30 rounded-xl">
+                <img src="{{ google_user.picture }}" alt="" class="w-7 h-7 rounded-full">
+                <span class="text-xs text-gray-300 truncate">{{ google_user.name }}</span>
+            </div>
+            {% endif %}
+            <a href="/logout" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-400 rounded-xl text-sm hover:bg-red-500/20 transition-all">
+                <i data-lucide="log-out" class="w-4 h-4"></i> تسجيل الخروج
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+
+        <!-- Header -->
+        <header class="bg-[#080C14]/80 backdrop-blur-md border-b border-gray-800/50 px-6 md:px-8 py-4 flex items-center justify-between sticky top-0 z-50">
+            <div class="flex items-center gap-4">
+                <button class="md:hidden p-2 text-gray-400 hover:text-white" onclick="toggleSidebar()">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <div>
+                    <h2 class="text-lg font-bold">🚿 تحضير جدول الغسيل — فرع الدمام <span class="text-xs font-normal text-gray-500 mono-num">2026</span></h2>
+                    <p class="text-[11px] text-gray-500">جدول غسيل المركبات الشهري — النقر على الخلية لتغيير الحالة</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="exportXlsx()" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-xl text-sm font-medium hover:bg-emerald-600/30 transition-all border border-emerald-600/20">
+                    <i data-lucide="download" class="w-4 h-4"></i> تصدير Excel
+                </button>
+                <button onclick="saveState()" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-400 rounded-xl text-sm font-medium hover:bg-blue-600/30 transition-all border border-blue-600/20">
+                    <i data-lucide="save" class="w-4 h-4"></i> حفظ
+                </button>
+                <div class="flex items-center gap-3 border-r border-gray-800 pr-4">
+                    <div class="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-blue-500/10">BZ</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+
+            <!-- KPI Cards -->
+            <section class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium">إجمالي المركبات</p>
+                        <h3 class="text-2xl font-bold mt-1 mono-num" id="statTotal">0</h3>
+                    </div>
+                    <div class="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
+                        <i data-lucide="car" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium">إجمالي الغسلات</p>
+                        <h3 class="text-2xl font-bold mt-1 text-emerald-500 mono-num" id="statWashes">0</h3>
+                    </div>
+                    <div class="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
+                        <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium">غسلات الشهر الحالي</p>
+                        <h3 class="text-2xl font-bold mt-1 text-indigo-400 mono-num" id="statCurrent">0</h3>
+                    </div>
+                    <div class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">
+                        <i data-lucide="calendar" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm border-l-2 border-l-amber-500/50">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium">لم تُغسل هذا الشهر</p>
+                        <h3 class="text-2xl font-bold mt-1 text-amber-500 mono-num" id="statPending">0</h3>
+                    </div>
+                    <div class="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
+                        <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Search & Filter Bar -->
+            <section class="bg-dark-card border border-gray-800/40 p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div class="relative w-full md:w-80">
+                    <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </span>
+                    <input type="text" id="searchInput" placeholder="ابحث بالاسم، رقم اللوحة أو نوع السيارة..."
+                        class="w-full pl-4 pr-10 py-2 bg-[#080C14] border border-gray-800 text-sm rounded-xl focus:outline-none focus:border-blue-600 text-gray-300 transition-all"
+                        oninput="filterTable()">
+                </div>
+                <div class="flex items-center gap-3 w-full md:w-auto flex-wrap">
+                    <select id="jobFilter" class="bg-[#080C14] border border-gray-800 text-sm text-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-600 transition-all" onchange="filterTable()">
+                        <option value="">كل الوظائف</option>
+                        <option value="سائق رافعة شوكية">سائق رافعة شوكية</option>
+                        <option value="عامل تحميل وتنزيل">عامل تحميل وتنزيل</option>
+                        <option value="مندوب مبيعات جملة">مندوب مبيعات جملة</option>
+                        <option value="مشرف مبيعات جملة">مشرف مبيعات جملة</option>
+                        <option value="مصفف">مصفف</option>
+                        <option value="سائق توصيل">سائق توصيل</option>
+                        <option value="مساعد امين مخزن">مساعد أمين مخزن</option>
+                        <option value="مدير مبيعات فرع">مدير مبيعات فرع</option>
+                        <option value="مشرف سوبر ماركت">مشرف سوبر ماركت</option>
+                        <option value="مندوب مبيعات تجزئة">مندوب مبيعات تجزئة</option>
+                        <option value="مشرف مبيعات هوريكا">مشرف مبيعات هوريكا</option>
+                    </select>
+                    <div class="flex items-center gap-3 flex-1 min-w-[200px]">
+                        <span class="text-xs text-gray-400 whitespace-nowrap" id="progressLabel">التقدم:</span>
+                        <div class="flex-1 bg-[#080C14] h-2 rounded-full overflow-hidden border border-gray-800/50">
+                            <div class="bg-blue-600 h-full rounded-full transition-all duration-500" id="progressBar" style="width: 0%"></div>
+                        </div>
+                        <span class="text-xs font-semibold text-blue-400 mono-num" id="progressText">0/0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Washing Table -->
+            <section class="bg-dark-card border border-gray-800/40 rounded-2xl overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse text-right text-sm" id="washTable" style="min-width: 1200px;">
+                        <thead id="washHead"></thead>
+                        <tbody id="washBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Mobile Action Buttons -->
+            <section class="flex sm:hidden gap-3 justify-center">
+                <button onclick="exportXlsx()" class="flex items-center gap-2 px-5 py-3 bg-emerald-600/20 text-emerald-400 rounded-xl text-sm font-medium hover:bg-emerald-600/30 transition-all border border-emerald-600/20">
+                    <i data-lucide="download" class="w-4 h-4"></i> تصدير Excel
+                </button>
+                <button onclick="saveState()" class="flex items-center gap-2 px-5 py-3 bg-blue-600/20 text-blue-400 rounded-xl text-sm font-medium hover:bg-blue-600/30 transition-all border border-blue-600/20">
+                    <i data-lucide="save" class="w-4 h-4"></i> حفظ
+                </button>
+            </section>
+
+            <!-- Legend -->
+            <section class="flex gap-6 justify-center flex-wrap text-sm text-gray-400">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i></div>
+                    <span>تم الغسيل (استلم)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-md bg-gray-800/50 flex items-center justify-center"><div class="w-1.5 h-1.5 bg-gray-700 rounded-full"></div></div>
+                    <span>لم يتم / أيام قادمة</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-md border border-dashed border-blue-500/30 flex items-center justify-center"><i data-lucide="plus" class="w-3 h-3 text-blue-400"></i></div>
+                    <span>الشهر الحالي — انقر لتسجيل</span>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer class="text-center py-4 text-gray-600 text-xs border-t border-gray-800/30">
+                تم الإعداد بواسطة قسم الحركة (خالد الغامدي) — BIN ZOMAH INTL. &copy; 2026
+            </footer>
+        </div>
+    </main>
+
+<script>
+    // ===== Sidebar toggle for mobile =====
+    function toggleSidebar() {
+        document.querySelector('aside.sidebar').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+
+    // ===== Core Data =====
+    const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    const CURRENT_MONTH = new Date().getMonth(); // 0-based
+    let vehicles = [];
+    let driversData = [];
+    const JOB_FILTER_VALUES = {};
+
+    async function fetchDrivers() {
+        try {
+            const res = await fetch('/api/drivers');
+            driversData = await res.json();
+            const dl = document.getElementById('driversList');
+            dl.innerHTML = '';
+            driversData.forEach(d => {
+                const o = document.createElement('option');
+                o.value = d.name;
+                dl.appendChild(o);
+                // Build job lookup by driver name
+                if (d.job && d.name) JOB_FILTER_VALUES[d.name.trim()] = String(d.job).trim();
+            });
+        } catch (err) {
+            console.error('Failed to fetch drivers', err);
+        }
+    }
+
+    function init() {
+        fetchDrivers();
+        fetch('/api/washing_data')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    vehicles = data.vehicles;
+                } else {
+                    const saved = localStorage.getItem('washingSchedule2026');
+                    if (saved) {
+                        try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                    } else {
+                        vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                    }
+                }
+                renderHead();
+                renderTable();
+                updateStats();
+            })
+            .catch(err => {
+                console.error('Failed to load from server', err);
+                const saved = localStorage.getItem('washingSchedule2026');
+                if (saved) {
+                    try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                } else {
+                    vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                }
+                renderHead();
+                renderTable();
+                updateStats();
+            });
+    }
+
+    function getTotal(v) { return v.m.reduce((a, b) => a + b, 0); }
+
+    // ===== Render Table Header (with current month glow) =====
+    function renderHead() {
+        const thead = document.getElementById('washHead');
+        let hHtml = '<tr class="bg-dark-nav border-b border-gray-800/80 text-gray-400">';
+        hHtml += '<th class="p-4 font-semibold text-center w-16 text-gray-500">#</th>';
+        hHtml += '<th class="p-4 font-semibold text-right">رقم اللوحة</th>';
+        hHtml += '<th class="p-4 font-semibold text-right">نوع السيارة</th>';
+        hHtml += '<th class="p-4 font-semibold text-right">اسم السائق</th>';
+        for (let mi = 0; mi < 12; mi++) {
+            const isCurrent = (mi === CURRENT_MONTH);
+            const isPast = (mi < CURRENT_MONTH);
+            const isFuture = (mi > CURRENT_MONTH);
+            let cls = 'p-2 font-semibold text-center mono-num w-12';
+            if (isCurrent) cls += ' col-current-head relative';
+            else if (isPast) cls += ' bg-gray-900/20';
+            else cls += ' text-gray-600';
+            hHtml += '<th class="' + cls + '">' + (mi + 1);
+            if (isCurrent) hHtml += ' <span class="inline-block w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>';
+            hHtml += '</th>';
+        }
+        hHtml += '<th class="p-4 font-semibold text-center text-blue-400 w-20">المجموع</th>';
+        hHtml += '</tr>';
+        thead.innerHTML = hHtml;
+    }
+
+    // ===== Render Table Body =====
+    function renderTable(filter) {
+        const tbody = document.getElementById('washBody');
+        const q = (filter || document.getElementById('searchInput').value || '').toLowerCase();
+        const jobFilter = (document.getElementById('jobFilter') || {}).value || '';
+
+        let allHtml = '';
+        let rowNum = 0;
+
+        vehicles.forEach((v, idx) => {
+            // Text search filter
+            if (q && !v.plate.toLowerCase().includes(q) && !v.driver.toLowerCase().includes(q) && !(v.type || '').toLowerCase().includes(q)) return;
+
+            // Job filter
+            if (jobFilter) {
+                const driverJob = JOB_FILTER_VALUES[v.driver ? v.driver.trim() : ''] || '';
+                if (!driverJob.includes(jobFilter)) return;
+            }
+
+            rowNum++;
+            const total = getTotal(v);
+            const isEven = (rowNum % 2 === 0);
+
+            let html = '<tr class="hover:bg-gray-800/20 transition-all group' + (isEven ? ' bg-gray-900/10' : '') + '">';
+            html += '<td class="p-4 text-center text-gray-500 mono-num">' + rowNum + '</td>';
+            html += '<td class="p-4 font-bold tracking-wider text-gray-200 mono-num text-right">' + escHTML(v.plate) + '</td>';
+            html += '<td class="p-4 text-right"><div class="font-medium text-gray-300 text-sm">' + escHTML(v.type || '-') + '</div></td>';
+            html += '<td class="p-4 text-right"><input type="text" list="driversList" value="' + escHTML(v.driver || '') + '" onchange="autofillWashingDriver(this,' + idx + ')" class="w-full bg-transparent border-0 text-gray-400 text-sm outline-none focus:text-gray-200 focus:bg-gray-800/50 rounded px-1 py-0.5 transition-all" title="' + escHTML(v.driver || '') + '"></td>';
+
+            for (let mi = 0; mi < 12; mi++) {
+                const w = v.m[mi];
+                const isCurrent = (mi === CURRENT_MONTH);
+                const isPast = (mi < CURRENT_MONTH);
+                const isFuture = (mi > CURRENT_MONTH);
+
+                let cellCls = 'p-2 text-center wash-cell';
+                if (isCurrent) cellCls += ' col-current bg-blue-600/5';
+
+                if (w) {
+                    // Washed
+                    const bgCls = isCurrent ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-emerald-500/10 text-emerald-400';
+                    html += '<td class="' + cellCls + '" onclick="toggle(' + idx + ',' + mi + ')"><div class="mx-auto w-6 h-6 rounded-md ' + bgCls + ' flex items-center justify-center text-xs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>';
+                } else if (isCurrent) {
+                    // Current month, not washed — show dashed add button
+                    html += '<td class="' + cellCls + '" onclick="toggle(' + idx + ',' + mi + ')"><div class="mx-auto w-6 h-6 rounded-md border border-dashed border-blue-500/30 flex items-center justify-center text-gray-600 hover:border-blue-500 hover:text-blue-400 cursor-pointer transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div></td>';
+                } else if (isPast && !w) {
+                    // Past month, not washed — red subtle indicator
+                    html += '<td class="' + cellCls + ' bg-red-500/5" onclick="toggle(' + idx + ',' + mi + ')"><div class="mx-auto w-6 h-6 rounded-md bg-red-500/10 flex items-center justify-center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div></td>';
+                } else {
+                    // Future month — dim placeholder
+                    html += '<td class="' + cellCls + '" onclick="toggle(' + idx + ',' + mi + ')"><div class="w-1.5 h-1.5 bg-gray-800 rounded-full mx-auto"></div></td>';
+                }
+            }
+
+            html += '<td class="p-4 text-center font-bold text-gray-300 mono-num">' + total + '</td>';
+            html += '</tr>';
+            allHtml += html;
+        });
+
+        if (!allHtml) {
+            allHtml = '<tr><td colspan="17" class="p-8 text-center text-gray-500">لا توجد مركبات مطابقة للبحث</td></tr>';
+        }
+        tbody.innerHTML = allHtml;
+        // Re-init lucide icons for any new elements
+        try { lucide.createIcons(); } catch(e) {}
+    }
+
+    function escHTML(s) {
+        if (typeof escapeHtml === 'function') return escapeHtml(s);
+        return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+    }
+
+    // ===== Driver autofill =====
+    function updateDriver(idx, val) {
+        vehicles[idx].driver = val;
+        saveState(false);
+    }
+
+    function autofillWashingDriver(elem, idx) {
+        const val = elem.value.trim();
+        updateDriver(idx, val);
+        const driver = driversData.find(d => d.name === val);
+        if (driver) {
+            let changed = false;
+            if (driver.plate && driver.plate !== 'None' && vehicles[idx].plate !== driver.plate) {
+                vehicles[idx].plate = driver.plate;
+                changed = true;
+            }
+            if (driver.car && driver.car !== 'None' && vehicles[idx].type !== driver.car) {
+                vehicles[idx].type = driver.car;
+                changed = true;
+            }
+            if (changed) {
+                renderTable();
+                saveState(false);
+            }
+        }
+    }
+
+    // ===== Toggle wash state =====
+    function toggle(vi, mi) {
+        vehicles[vi].m[mi] = vehicles[vi].m[mi] ? 0 : 1;
+        renderTable();
+        updateStats();
+    }
+
+    function filterTable() {
+        renderTable();
+    }
+
+    // ===== Stats =====
+    function updateStats() {
+        const cm = CURRENT_MONTH;
+        const totalV = vehicles.length;
+        const totalW = vehicles.reduce((s, v) => s + getTotal(v), 0);
+        const currentM = vehicles.filter(v => v.m[cm] === 1).length;
+        const pending = totalV - currentM;
+
+        document.getElementById('statTotal').textContent = totalV;
+        document.getElementById('statWashes').textContent = totalW;
+        document.getElementById('statCurrent').textContent = currentM;
+        document.getElementById('statPending').textContent = pending;
+
+        // Update progress bar
+        const pct = totalV ? Math.round((currentM / totalV) * 100) : 0;
+        document.getElementById('progressBar').style.width = pct + '%';
+        document.getElementById('progressText').textContent = currentM + '/' + totalV;
+        document.getElementById('progressLabel').textContent = MONTH_NAMES[cm] + ':';
+    }
+
+    // ===== Save =====
+    function saveState(showMsg = true) {
+        localStorage.setItem('washingSchedule2026', JSON.stringify(vehicles));
+        fetch('/api/washing_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vehicles: vehicles })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && showMsg) {
+                showToast('تم حفظ التغييرات بنجاح في الموقع! ✅', 'success');
+            } else if (!data.success && showMsg) {
+                showToast('تم الحفظ محلياً فقط. فشل الحفظ في السيرفر', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            if (showMsg) showToast('حدث خطأ في الاتصال، تم الحفظ محلياً فقط', 'error');
+        });
+    }
+
+    // ===== Export Excel =====
+    function exportXlsx() {
+        const btn = document.querySelector('[onclick="exportXlsx()"]');
+        const oldText = btn ? btn.innerHTML : '';
+        if (btn) { btn.innerHTML = '<span class="animate-pulse">⏳ جاري المعالجة...</span>'; btn.disabled = true; }
+
+        fetch('/api/generate_washing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vehicles: vehicles })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+            if (data.success && data.file_b64) {
+                const link = document.createElement("a");
+                link.href = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + data.file_b64;
+                link.download = "جدول_غسيل_السيارات_2026.xlsx";
+                link.click();
+                showToast('تم تصدير الملف بنجاح بالشعار والتنسيق الاحترافي! 📥', 'success');
+            } else {
+                showToast('حدث خطأ أثناء التصدير: ' + (data.error || 'غير معروف'), 'error');
+            }
+        })
+        .catch(err => {
+            if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+            showToast('خطأ في الاتصال بالسيرفر', 'error');
+        });
+    }
+
+    window.addEventListener('load', function() {
+        init();
+        lucide.createIcons();
+    });
+</script>
+<!-- GPS Session Monitor -->
+<script>
+(function () {
+    const originalFetch = window.fetch;
+    window.fetch = async function (...args) {
+        const response = await originalFetch(...args);
+        if (response.status === 401 || response.status === 440) {
+            window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
+        }
+        try {
+            const clone = response.clone();
+            const text = await clone.text();
+            if (text.includes("ERROR-100") || text.includes("Session timed out")) {
+                window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
+            }
+        } catch (e) {}
+        return response;
+    };
+})();
+</script>
+</body>
+</html>

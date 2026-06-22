@@ -1,0 +1,621 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقرير فني الورشة | شركة بن زومة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <style>
+        /* ══════════ Layout ══════════ */
+        body { padding-top: 0 !important; background-color: var(--bg); }
+
+        .page-wrapper {
+            max-width: 1000px; /* أنحف ليناسب تصميم التقرير المطبوع */
+            margin: 0 auto;
+            padding: 1.5rem 1.2rem 3rem;
+        }
+
+        /* ══════════ Top Nav ══════════ */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 1.2rem;
+            background: var(--surface);
+            border-bottom: 2px solid var(--accent);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+        .top-bar-logo { height: 48px; }
+        .top-nav-links { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .top-nav-links a {
+            text-decoration: none;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+        .top-nav-links a:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* ══════════ Action bar ══════════ */
+        .action-bar {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 0;
+            margin-bottom: 1rem;
+        }
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 20px;
+            border-radius: 7px;
+            border: none;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn-action:hover { filter: brightness(1.1); transform: translateY(-2px); }
+        .btn-blue   { background: #2980b9; color: white; }
+        .btn-purple { background: #8e44ad; color: white; }
+        .btn-orange { background: #e67e22; color: white; }
+        .btn-red    { background: #e74c3c; color: white; }
+
+        /* ══════════ Report Container (The Paper) ══════════ */
+        .report-paper {
+            background: #ffffff;
+            border: 2px solid #000;
+            padding: 2rem;
+            color: #000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        /* Dark mode overrides for the paper */
+        body.dark-mode .report-paper {
+            background: var(--surface);
+            border-color: var(--border-strong);
+            color: var(--text-primary);
+        }
+
+        /* ══════════ Header ══════════ */
+        .report-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .report-logo {
+            max-width: 300px;
+            margin-bottom: 1rem;
+        }
+        body.dark-mode .report-logo { filter: brightness(0) invert(1); }
+        .report-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+        }
+        .date-container {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .date-input {
+            border: none;
+            border-bottom: 2px dashed #888;
+            background: transparent;
+            font-family: 'Cairo', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: inherit;
+            padding: 0 5px;
+            text-align: center;
+            outline: none;
+            width: 140px;
+            margin-right: 10px;
+        }
+
+        /* ══════════ Tables General ══════════ */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            font-family: 'Cairo', sans-serif;
+            color: inherit;
+        }
+        table, th, td {
+            border: 2px solid #000;
+        }
+        body.dark-mode table, body.dark-mode th, body.dark-mode td {
+            border-color: var(--border-strong);
+        }
+        th {
+            background-color: #f0f0f0;
+            padding: 12px 8px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            text-align: center;
+            color: #000;
+        }
+        body.dark-mode th {
+            background-color: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+        }
+        td {
+            padding: 0;
+            text-align: center;
+        }
+        input.table-input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            padding: 12px 8px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: inherit;
+            text-align: center;
+            outline: none;
+            box-sizing: border-box;
+        }
+        input.table-input:focus {
+            background-color: rgba(41, 128, 185, 0.05);
+        }
+
+        /* ══════════ Car Info Table ══════════ */
+        .car-table th { width: 25%; }
+
+        /* ══════════ Issues Table ══════════ */
+        .issues-table th:nth-child(1) { width: 60px; }
+        .issues-table th:nth-child(2) { width: 45%; }
+        .issues-table th:nth-child(3) { width: auto; }
+        .issues-table td.idx-cell {
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        /* ══════════ Signatures ══════════ */
+        .signatures {
+            margin-top: 3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        .sig-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+        }
+        .sig-label {
+            font-size: 1.2rem;
+            font-weight: 800;
+        }
+        .sig-input {
+            border: none;
+            border-bottom: 2px dashed #888;
+            background: transparent;
+            font-family: 'Cairo', sans-serif;
+            font-size: 1.1rem;
+            color: inherit;
+            width: 300px;
+            outline: none;
+            text-align: center;
+        }
+
+        /* ══════════ Print styles ══════════ */
+        @media print {
+            @page { size: A4 portrait; margin: 15mm; }
+            .top-bar, .action-bar, video, button { display: none !important; }
+            body { background: white !important; padding: 0 !important; }
+            .page-wrapper { max-width: 100%; padding: 0; margin: 0; }
+            .report-paper { 
+                border: 2px solid #000 !important; 
+                box-shadow: none; 
+                padding: 20px !important; 
+                color: #000; 
+                background: #fff; 
+                width: 100%;
+                box-sizing: border-box;
+            }
+            table, th, td { border: 2px solid #000 !important; }
+            th { 
+                background-color: #f0f0f0 !important; 
+                color: #000 !important; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+            }
+            input.table-input, .sig-input, .date-input { 
+                color: #000 !important; 
+                font-family: 'Cairo', sans-serif !important;
+            }
+            input::placeholder { color: transparent !important; } /* Hide placeholders when printing empty form */
+            body.dark-mode .report-logo { filter: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Mobile Toggle -->
+    <button class="mobile-toggle" onclick="document.getElementById('dashboardSidebar').classList.toggle('open')">☰</button>
+
+    <!-- Dashboard Sidebar -->
+    <aside class="dashboard-sidebar" id="dashboardSidebar">
+        <div class="sidebar-logo">
+            <img src="{{ url_for('static', filename='site_logo.png') }}" alt="Bin Zomah Intl Logo">
+        </div>
+        <nav class="sidebar-menu">
+            <a href="/" class="sidebar-item">🏠 الرئيسية</a>
+            <a href="/oils" class="sidebar-item">📄 بيان زيوت وفلاتر</a>
+            <a href="/purchase" class="sidebar-item">🛒 طلبات الشراء</a>
+            <a href="/schedule" class="sidebar-item">📋 الجدول الأسبوعي</a>
+            <a href="/employees" class="sidebar-item">👥 بيانات الموظفين</a>
+            <a href="/washing" class="sidebar-item">🚿 جدول الغسيل</a>
+            <a href="/workshop" class="sidebar-item">🔧 صيانة الورشة</a>
+            <a href="/gps_sync" class="sidebar-item">📡 مزامنة GPS</a>
+            <a href="https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview" target="_blank" class="sidebar-item">🛰️ التتبع المباشر</a>
+            <a href="/logout" class="sidebar-item" style="color: #ef4444; margin-top: auto;">🚪 تسجيل الخروج</a>
+        </nav>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <main class="main-content">
+
+    <video autoplay muted loop playsinline style="display: none;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+    <!-- Top Navigation Bar -->
+    <div class="top-bar">
+        <img src="{{ url_for('static', filename='site_logo.png') }}" alt="شركة بن زومة" class="top-bar-logo">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+            <div class="top-nav-links">
+                <a href="/">🏠 الرئيسية</a>
+                <a href="/purchase">🛒 شراء</a>
+                <a href="/schedule">📋 جدول</a>
+                <a href="/oils">🛢 زيوت</a>
+            </div>
+            <button id="darkModeToggle" onclick="toggleDarkMode()" style="border:none;font-size:1.1rem;cursor:pointer;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);background:var(--surface-hover);">🌙</button>
+        </div>
+    </div>
+
+    <div class="page-wrapper">
+        
+        <!-- Action Buttons -->
+        <div class="action-bar">
+            <button class="btn-action btn-blue" onclick="exportWorkshopExcel()">📥 تصدير Excel</button>
+            <a href="/api/download_workshop_template" class="btn-action btn-purple" style="text-decoration:none;">📄 تحميل القالب الأصلي</a>
+            <button class="btn-action btn-orange" onclick="window.print()">🖨 طباعة</button>
+            <button class="btn-action btn-red" onclick="clearAll()">🗑 مسح البيانات</button>
+        </div>
+
+        <!-- The Report Paper -->
+        <div class="report-paper">
+            
+            <div class="report-header">
+                <img src="{{ url_for('static', filename='site_logo.png') }}" alt="شركة بن زومة" class="report-logo">
+                <div class="report-title">تقرير فنى الورشة عن السيارة الموضحه بيناتها ادناه لفرع الدمام</div>
+            </div>
+
+            <div class="date-container">
+                <label>التاريخ:</label>
+                <input type="date" id="reportDate" class="date-input">
+            </div>
+
+            <!-- Car Info Table -->
+            <table class="car-table">
+                <thead>
+                    <tr>
+                        <th>نوع السيارة (V/NAME)</th>
+                        <th>رقم اللوحة (P:NO)</th>
+                        <th>الموديل (MODEL)</th>
+                        <th>العداد (K/m)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><input type="text" id="carType" class="table-input" list="carList"></td>
+                        <td><input type="text" id="carPlate" class="table-input" list="plateList" oninput="autofillFromPlate(this)"></td>
+                        <td><input type="text" id="carModel" class="table-input"></td>
+                        <td><input type="text" id="carOdo" class="table-input"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Issues Table (Exactly 10 rows matching PDF) -->
+            <table class="issues-table">
+                <thead>
+                    <tr>
+                        <th>م</th>
+                        <th>الملاحظات</th>
+                        <th>الحل</th>
+                    </tr>
+                </thead>
+                <tbody id="issuesBody">
+                    <!-- JS will generate 10 rows -->
+                </tbody>
+            </table>
+
+            <!-- Signatures -->
+            <div class="signatures">
+                <div class="sig-row">
+                    <span class="sig-label">توقيع الفني /</span>
+                    <input type="text" id="techSig" class="sig-input" placeholder="الاسم أو التوقيع">
+                </div>
+                <div class="sig-row">
+                    <span class="sig-label">توقيع مسؤول الحركة /</span>
+                    <input type="text" id="mgrSig" class="sig-input" placeholder="الاسم أو التوقيع">
+                </div>
+            </div>
+
+        </div> <!-- End Report Paper -->
+
+    </div>
+
+    <!-- Datalists for Autocomplete -->
+    <datalist id="plateList"></datalist>
+    <datalist id="carList"></datalist>
+
+    <script>
+    const LS_KEY = 'workshop_pdf_style_v1';
+    let driversData = [];
+
+    // ─── Generate 10 Rows ─────────────────────────────────────────
+    function renderRows() {
+        const tbody = document.getElementById('issuesBody');
+        tbody.innerHTML = '';
+        for(let i=1; i<=10; i++) {
+            tbody.innerHTML += `
+                <tr>
+                    <td class="idx-cell">${i}</td>
+                    <td><input type="text" class="table-input note-input" data-idx="${i}"></td>
+                    <td><input type="text" class="table-input solution-input" data-idx="${i}"></td>
+                </tr>
+            `;
+        }
+    }
+
+    // ─── Fetch Data ───────────────────────────────────────────────
+    async function fetchDrivers() {
+        try {
+            const res = await fetch('/api/drivers');
+            driversData = await res.json();
+            const pl = document.getElementById('plateList');
+            const cl = document.getElementById('carList');
+            
+            // Unique cars
+            const cars = [...new Set(driversData.map(d => d.car).filter(Boolean))];
+            cars.forEach(c => cl.innerHTML += `<option value="${c}">`);
+            
+            driversData.forEach(d => {
+                if (d.plate) pl.innerHTML += `<option value="${d.plate}">`;
+            });
+        } catch(e) {}
+    }
+
+    // ─── Autofill ─────────────────────────────────────────────────
+    function autofillFromPlate(inp) {
+        const found = driversData.find(d => d.plate === inp.value.trim());
+        if (found) {
+            document.getElementById('carType').value = found.car || '';
+        }
+    }
+
+    // ─── Save / Load ──────────────────────────────────────────────
+    function saveData() {
+        const rows = [];
+        document.querySelectorAll('.note-input').forEach((noteInp, i) => {
+            const solInp = document.querySelectorAll('.solution-input')[i];
+            rows.push({ note: noteInp.value, solution: solInp.value });
+        });
+
+        const data = {
+            date: document.getElementById('reportDate').value,
+            carType: document.getElementById('carType').value,
+            carPlate: document.getElementById('carPlate').value,
+            carModel: document.getElementById('carModel').value,
+            carOdo: document.getElementById('carOdo').value,
+            techSig: document.getElementById('techSig').value,
+            mgrSig: document.getElementById('mgrSig').value,
+            rows: rows
+        };
+        localStorage.setItem(LS_KEY, JSON.stringify(data));
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) {
+            // Set default date
+            document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
+            return;
+        }
+        try {
+            const data = JSON.parse(raw);
+            if(data.date) document.getElementById('reportDate').value = data.date;
+            if(data.carType) document.getElementById('carType').value = data.carType;
+            if(data.carPlate) document.getElementById('carPlate').value = data.carPlate;
+            if(data.carModel) document.getElementById('carModel').value = data.carModel;
+            if(data.carOdo) document.getElementById('carOdo').value = data.carOdo;
+            if(data.techSig) document.getElementById('techSig').value = data.techSig;
+            if(data.mgrSig) document.getElementById('mgrSig').value = data.mgrSig;
+            
+            if(data.rows && data.rows.length === 10) {
+                document.querySelectorAll('.note-input').forEach((n, i) => {
+                    n.value = data.rows[i].note || '';
+                    document.querySelectorAll('.solution-input')[i].value = data.rows[i].solution || '';
+                });
+            }
+        } catch(e) {}
+    }
+
+    function clearAll() {
+        if(!confirm('هل أنت متأكد من مسح جميع البيانات؟')) return;
+        localStorage.removeItem(LS_KEY);
+        document.getElementById('carType').value = '';
+        document.getElementById('carPlate').value = '';
+        document.getElementById('carModel').value = '';
+        document.getElementById('carOdo').value = '';
+        document.getElementById('techSig').value = '';
+        document.getElementById('mgrSig').value = '';
+        document.querySelectorAll('.note-input, .solution-input').forEach(i => i.value = '');
+        document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
+    }
+
+    // ─── Export to Excel ──────────────────────────────────────────
+    async function exportWorkshopExcel() {
+        try {
+            if(typeof showToast === 'function') showToast('جاري إنشاء الملف...', 'info');
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('تقرير الورشة', { views: [{ rightToLeft: true }] });
+
+            // Borders and Alignments
+            const thin = { style: 'thin', color: { argb: 'FF000000' } };
+            const thick = { style: 'medium', color: { argb: 'FF000000' } };
+            const borderAll = { top: thin, bottom: thin, left: thin, right: thin };
+            const alignCenter = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            const alignRight = { horizontal: 'right', vertical: 'middle' };
+
+            // Column Widths
+            ws.columns = [
+                { width: 6 },  // A
+                { width: 25 }, // B
+                { width: 20 }, // C
+                { width: 20 }, // D
+                { width: 30 }  // E
+            ];
+
+            // Title
+            ws.mergeCells('A3:E3');
+            const title = ws.getCell('A3');
+            title.value = 'تقرير فنى الورشة عن السيارة الموضحه بيناتها ادناه لفرع الدمام';
+            title.font = { name: 'Arial', size: 16, bold: true };
+            title.alignment = alignCenter;
+
+            // Date
+            ws.mergeCells('A4:E4');
+            const dateCell = ws.getCell('A4');
+            dateCell.value = 'التاريخ: ' + document.getElementById('reportDate').value;
+            dateCell.font = { name: 'Arial', size: 12, bold: true };
+            dateCell.alignment = alignRight;
+
+            // Top Table Headers
+            ws.mergeCells('A5:B5');
+            ws.getCell('A5').value = 'نوع السيارة (V/NAME)';
+            ws.getCell('C5').value = 'رقم اللوحة (P:NO)';
+            ws.getCell('D5').value = 'الموديل (MODEL)';
+            ws.getCell('E5').value = 'العداد (K/m)';
+
+            ['A5','B5','C5','D5','E5'].forEach(ref => {
+                const c = ws.getCell(ref);
+                c.font = { name: 'Arial', size: 12, bold: true };
+                c.alignment = alignCenter;
+                c.border = borderAll;
+            });
+
+            // Top Table Values
+            ws.mergeCells('A6:B6');
+            ws.getCell('A6').value = document.getElementById('carType').value;
+            ws.getCell('C6').value = document.getElementById('carPlate').value;
+            ws.getCell('D6').value = document.getElementById('carModel').value;
+            ws.getCell('E6').value = document.getElementById('carOdo').value;
+
+            ['A6','B6','C6','D6','E6'].forEach(ref => {
+                const c = ws.getCell(ref);
+                c.font = { name: 'Arial', size: 12 };
+                c.alignment = alignCenter;
+                c.border = borderAll;
+            });
+            ws.getRow(6).height = 30;
+
+            // Bottom Table Headers
+            ws.getCell('A7').value = 'م';
+            ws.mergeCells('B7:D7');
+            ws.getCell('B7').value = 'الملاحظات';
+            ws.getCell('E7').value = 'الحل';
+
+            ['A7','B7','C7','D7','E7'].forEach(ref => {
+                const c = ws.getCell(ref);
+                c.font = { name: 'Arial', size: 12, bold: true };
+                c.alignment = alignCenter;
+                c.border = borderAll;
+            });
+
+            // 10 Rows of Data
+            const notes = document.querySelectorAll('.note-input');
+            const solutions = document.querySelectorAll('.solution-input');
+            
+            for(let i=1; i<=10; i++) {
+                const r = 7 + i;
+                ws.getCell(`A${r}`).value = i;
+                ws.mergeCells(`B${r}:D${r}`);
+                ws.getCell(`B${r}`).value = notes[i-1].value;
+                ws.getCell(`E${r}`).value = solutions[i-1].value;
+
+                ['A','B','C','D','E'].forEach(col => {
+                    const c = ws.getCell(`${col}${r}`);
+                    c.font = { name: 'Arial', size: 12 };
+                    c.alignment = alignCenter;
+                    c.border = borderAll;
+                });
+                ws.getRow(r).height = 35;
+            }
+
+            // Signatures
+            const tech = document.getElementById('techSig').value || '';
+            const mgr = document.getElementById('mgrSig').value || '';
+
+            ws.mergeCells('A18:E18');
+            ws.getCell('A18').value = 'توقيع الفني / ' + tech;
+            ws.getCell('A18').font = { name: 'Arial', size: 12, bold: true };
+            ws.getCell('A18').alignment = alignRight;
+            ws.getCell('A18').border = borderAll;
+            ws.getRow(18).height = 35;
+
+            ws.mergeCells('A19:E19');
+            ws.getCell('A19').value = 'توقيع مسؤول الحركة / ' + mgr;
+            ws.getCell('A19').font = { name: 'Arial', size: 12, bold: true };
+            ws.getCell('A19').alignment = alignRight;
+            ws.getCell('A19').border = borderAll;
+            ws.getRow(19).height = 35;
+
+            // Save
+            const buffer = await wb.xlsx.writeBuffer();
+            const dateStr = document.getElementById('reportDate').value;
+            saveAs(new Blob([buffer]), `تقرير_الورشة_${dateStr}.xlsx`);
+            if(typeof showToast === 'function') showToast('تم التصدير بنجاح ✅', 'success');
+
+        } catch(e) {
+            console.error(e);
+            if(typeof showToast === 'function') showToast('حدث خطأ في التصدير', 'error');
+        }
+    }
+
+    // ─── Listeners & Init ─────────────────────────────────────────
+    document.addEventListener('input', saveData);
+    document.addEventListener('change', saveData);
+
+    window.addEventListener('load', async () => {
+        renderRows();
+        loadData();
+        await fetchDrivers();
+    });
+    </script>
+</main>
+</body>
+</html>
