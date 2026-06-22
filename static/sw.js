@@ -1,6 +1,6 @@
 /* Bin Zomah Fleet — Service Worker (PWA offline support).
    Cache the app shell; never cache API calls (keeps data fresh + workstation isolation). */
-const CACHE = 'binzomah-v1';
+const CACHE = 'binzomah-v3';
 const SHELL = [
   '/',
   '/static/base_styles.css',
