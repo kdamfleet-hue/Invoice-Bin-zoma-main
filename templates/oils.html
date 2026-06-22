@@ -4,469 +4,1659 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>بيان الزيوت والفلاتر | شركة بن زومة</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
-    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+
     <style>
-        .header-container { display: flex; flex-direction: column; align-items: center; margin: 0 auto 1rem auto; width: 100%; max-width: 1200px; z-index: 2;}
-        .site-logo { max-width: 650px; width: 90%; margin-bottom: 1rem; transition: var(--trans); filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
-        body.dark-mode .site-logo { filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.8)) drop-shadow(0 0 20px rgba(255,255,255,0.4)); }
-        
-        .header-title { font-size: 2.2rem; font-weight: 800; color: var(--accent); text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        body.dark-mode .header-title { color: #82aaff !important; text-shadow: 0 0 10px rgba(130, 170, 255, 0.4); }
+        /* Page-specific: Excel-replica sheet styling. Uses design-system tokens. */
+        .oils-toolbar { display: flex; gap: .6rem; flex-wrap: wrap; justify-content: center; margin: 1.25rem 0; }
 
-        .nav-buttons { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
-        
-        .table-container { width: 100%; max-width: 1200px; padding: 1.5rem; margin: 2rem auto 0 auto; z-index: 2; }
-        
-        .section-title { background: linear-gradient(135deg, var(--accent), #2C6FAC); color: white; text-align: center; padding: 10px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; margin: 20px 0 10px 0; box-shadow: var(--shadow-md); }
-        
-        table { width: 100%; border-collapse: collapse; min-width: 1000px; border-radius: 8px; overflow: hidden; }
-        th, td { border: 1px solid var(--border); padding: 10px; text-align: center; }
-        th { background: linear-gradient(135deg, var(--accent), #2C6FAC); color: white; font-weight: bold; font-size: 0.95rem; }
-        td { background: var(--surface); color: var(--text-primary); }
-        
-        input, select { width: 100%; min-width: 90px; padding: 10px; border: 1px solid var(--border-strong); border-radius: 6px; font-family: 'Cairo'; font-size: 0.95rem; font-weight: 600; outline: none; transition: var(--trans); background: var(--surface); color: var(--text-primary); box-sizing: border-box; }
-        input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-        
-        .btn-remove { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: var(--trans); }
-        .btn-remove:hover { background: #c0392b; transform: scale(1.1); }
-        
-        @media (max-width: 768px) { body { padding: 1rem; padding-top: 4rem;} .header-title { font-size: 1.6rem; } }
-
-        /* Floating Action Button */
-        .fab-btn { position: fixed; bottom: 25px; left: 25px; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #2C6FAC); color: #fff; border: none; font-size: 1.8rem; cursor: pointer; box-shadow: 0 4px 15px var(--accent-glow); z-index: 999; display: flex; align-items: center; justify-content: center; transition: var(--trans-spring); }
-        .fab-btn:hover { transform: scale(1.1) rotate(10deg); }
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Tajawal', sans-serif;
+            border: 1.5px solid var(--border-strong);
+            background: var(--surface);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid var(--border);
+            padding: 0;
+            margin: 0;
+        }
+        .excel-header {
+            background: var(--brand-navy) !important;
+            color: #fff !important;
+            text-align: center;
+            font-weight: 700;
+            padding: 12px 8px !important;
+            font-size: 0.9rem;
+            border: 1px solid var(--brand-navy);
+            border-bottom: 3px solid var(--brand-gold);
+            /* On-screen readability: let long headers wrap cleanly at spaces
+               instead of being clipped/cut mid-word by the fixed layout. */
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+            hyphens: none;
+            overflow: visible;
+            line-height: 1.3;
+        }
+        /* Long header "عدد فلاتر الزيت والديزل والهواء" needs more room than its
+           28% colgroup share under table-layout:fixed; reduce header font a touch
+           so every header string is fully visible without ugly mid-word breaks. */
+        .excel-table.bz-fit .excel-header { font-size: 0.82rem; }
+        .excel-rownum {
+            text-align: center;
+            font-weight: 700;
+            border: 1px solid var(--border);
+            background: var(--surface-hover);
+            color: var(--text-primary);
+        }
+        .excel-input input, .excel-table td input {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: none !important;
+            padding: 9px;
+            background: transparent;
+            font-family: 'Tajawal', sans-serif;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+            outline: none;
+            min-height: 42px;
+        }
+        .excel-input input:focus, .excel-table td input:focus {
+            background: var(--accent-glow);
+        }
+        .excel-table tbody tr:nth-child(even) td { background: var(--surface-hover); }
+        .excel-table tbody tr:nth-child(even) td.excel-input { background: var(--surface-hover); }
+        /* Fit tables to page width; allow horizontal scroll only on very narrow
+           screens so nothing is ever clipped (text stays fully readable). */
+        .excel-table-container { overflow-x: auto; }
+        /* Auto layout so each column sizes to its content: single-word headers
+           (السابق/المستهلك/المتبقي/الموديل…) stay whole, long phrases wrap at spaces.
+           overflow:visible so nothing is clipped at the rounded edge. */
+        .excel-table.bz-fit { table-layout: auto; overflow: visible; }
+        .excel-table.bz-fit input { min-width: 0; }
+        .add-filter-cell { text-align:center; padding: 8px !important; border: 1px solid var(--border); }
+        .btn-del {
+            background: transparent; border: none; cursor: pointer; font-size: 1rem;
+            line-height: 1; padding: 4px; border-radius: 6px; transition: var(--trans);
+        }
+        .btn-del:hover { transform: scale(1.2); }
+        @media print {
+            body * { visibility: hidden; }
+            .excel-table-container, .excel-table-container *,
+            .oils-summary-print, .oils-summary-print * { visibility: visible; }
+            .excel-table-container { position: static; width: 100%; }
+            .bz-topbar, .oils-toolbar, footer { display: none !important; }
+            @page { size: landscape; margin: 5mm; }
+        }
     </style>
 </head>
 <body>
-    <datalist id="driversList"></datalist>
-    <button id="darkModeToggle" onclick="toggleDarkMode()" style="position: fixed; top: 20px; right: 20px; border: none; font-size: 1.5rem; cursor: pointer; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; transition: var(--trans-spring); z-index: 1000; box-shadow: var(--shadow-sm); backdrop-filter: blur(5px);">🌙</button>
 
-    <div class="header-container">
-        {% if b64_en %}
-            <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">
-        {% endif %}
-                {% if google_user %}
-        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
-            <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
-            <span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
-            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
-        </div>
-        {% endif %}
-        <h1 class="header-title">بيان استهلاك الزيوت والفلاتر</h1>
-        <div class="nav-buttons">
-            <a href="/" class="btn-outline">🔙 العودة للفواتير</a>
-            <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
-            <a href="/tracking" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
-            <button class="btn-outline" onclick="addOilRow()">➕ إضافة صف زيوت</button>
-            <button class="btn-outline" onclick="addFilterLeftRow()">➕ إضافة صف جرد فلاتر</button>
-            <button class="btn-outline" onclick="addFilterRightRow()">➕ إضافة صف شراء فلاتر</button>
-        </div>
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils" class="active">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <div class="bz-shell">
+
+    <h2 class="bz-section-title">🛢️ بيان استهلاك الزيوت والفلاتر — فرع الدمام</h2>
+
+    <div class="bz-stats">
+        <div class="bz-stat"><div class="num" id="statRows">0</div><div class="label">عدد السيارات</div></div>
+        <div class="bz-stat"><div class="num" id="statLiters">0</div><div class="label">إجمالي اللترات</div></div>
     </div>
 
-    <div class="table-container glass-surface">
-        <!-- Oil Table -->
-        <div class="section-title">🛢️ بيان استهلاك الزيوت</div>
-        <table id="oilTable">
-            <thead>
-                <tr>
-                    <th style="width:40px">م</th>
-                    <th>رقم لوحة السيارة</th>
-                    <th>المستخدم</th>
-                    <th>تاريخ تغيير الزيت</th>
-                    <th>رقم العداد</th>
-                    <th>عدد اللترات</th>
-                    <th>عدد فلاتر الزيت والديزل والهواء</th>
-                    <th style="width:50px">حذف</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <!-- Filter Details - matching original Excel structure -->
-        <div class="section-title">🔧 ملاحظات وتفاصيل الفلاتر</div>
-        <div style="margin-bottom:10px;">
-            <input type="text" id="notesRow65" placeholder="مثال: شراء عدد 3 براميل زيت (بترومين) من تاريخ 2025/12/17 الى تاريخ 2026/2/7" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-        </div>
-        <div style="margin-bottom:15px;">
-            <input type="text" id="notesRow66" placeholder="مثال: الكمية= 625 لتر - 622 زيت مستهلك= 3 لتر المتبقي | وبناءاً عليه تم طلب زيت جديد" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-        </div>
-
-        <!-- Filter Inventory - Left Side (نوع الفلتر / السابق / المستهلك / المتبقي) -->
-        <div class="section-title">📦 جرد الفلاتر (الجانب الأيسر - زيت وهواء)</div>
-        <table id="filterLeftTable">
-            <thead>
-                <tr>
-                    <th style="width:40px">م</th>
-                    <th>نوع الفلتر</th>
-                    <th>السابق</th>
-                    <th>المستهلك</th>
-                    <th>المتبقي</th>
-                    <th style="width:50px">حذف</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <!-- Filter Inventory - Right Side (نوع الفلتر / العدد) -->
-        <div class="section-title">📦 شراء فلاتر جديدة (الجانب الأيمن)</div>
-        <table id="filterRightTable">
-            <thead>
-                <tr>
-                    <th style="width:40px">م</th>
-                    <th>نوع الفلتر</th>
-                    <th>العدد</th>
-                    <th style="width:50px">حذف</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <!-- Diesel Filter Notes -->
-        <div class="section-title">⛽ فلاتر الديزل</div>
-        <div id="dieselNotesContainer">
-            <div style="margin-bottom:6px;">
-                <input type="text" id="diesel0" class="diesel-note" placeholder="فلاتر الديزل (عنوان)" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-            </div>
-            <div style="margin-bottom:6px;">
-                <input type="text" id="diesel1" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-            </div>
-            <div style="margin-bottom:6px;">
-                <input type="text" id="diesel2" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-            </div>
-            <div style="margin-bottom:6px;">
-                <input type="text" id="diesel3" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-            </div>
-            <div style="margin-bottom:6px;">
-                <input type="text" id="diesel4" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-            </div>
-            <div style="margin-bottom:6px;">
-                <input type="text" id="diesel5" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-            </div>
-            <div style="margin-bottom:6px;">
-                <input type="text" id="diesel6" class="diesel-note" placeholder="فلاتر ديزل ... = العدد ..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-            </div>
-            <div style="margin-bottom:6px;">
-                <input type="text" id="diesel7" class="diesel-note" placeholder="وبناءاً عليه تم طلب وشراء فلاتر جديدة — الحسابات" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:14px;">
-            </div>
-        </div>
-
-        <div style="text-align: center; margin-top: 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-            <button class="btn-primary" onclick="downloadExcel()">📥 استخراج البيان (Excel)</button>
-            <button class="btn-primary" style="background: #e67e22;" onclick="openCustomModal('emailModal')">📧 إرسال عبر الإيميل</button>
-        </div>
+    <div class="oils-toolbar">
+        <button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد</button>
+        <button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
+        <button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
+        <button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
     </div>
 
-    <footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd; width: 100%;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
+    <div id="oilsPrintable">
 
-    <!-- Email Modal -->
+    <!-- Excel Table Replica -->
+    <div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 20px;">
+        <table class="excel-table bz-fit" id="oilsExcelTable">
+            <colgroup>
+                <col style="width:5%"><col style="width:13%"><col style="width:18%"><col style="width:14%">
+                <col style="width:13%"><col style="width:11%"><col style="width:23%"><col style="width:3%">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th colspan="8" style="border:none; text-align: center; padding: 14px 8px;">
+                        <input type="text" id="oilsTitle" value="بيان استهلاك الزيوت والفلاتر للسيارات الديزل (فرع الدمام) من تاريخ 2025/12/17 الى تاريخ 2026/2/7" style="width:100%; text-align:center; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); border: none; font-family: 'Tajawal'; outline: none; background: transparent;">
+                    </th>
+                </tr>
+                <tr>
+                    <th class="excel-header" style="width:2%;">م</th>
+                    <th class="excel-header" style="width:12%;">رقم لوحة السيارة</th>
+                    <th class="excel-header" style="width:18%;">المستخدم</th>
+                    <th class="excel-header" style="width:14%;">تاريخ تغيير الزيت</th>
+                    <th class="excel-header" style="width:12%;">رقم العداد</th>
+                    <th class="excel-header" style="width:12%;">عدد اللترات</th>
+                    <th class="excel-header" style="width:28%;">عدد فلاتر الزيت والديزل والهواء</th>
+                      <th class="excel-header" style="width:3%; border-right:none;">حذف</th>
+                </tr>
+            </thead>
+            <tbody id="oilsBody">
+
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">1</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ط س 3258"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="حمداني"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-17"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="123402"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">2</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ح ه 5088"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="حسام ابو المجد"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-18"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="343931"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">3</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب س ل 5541"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="كريم عبدالمنعم"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-18"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="210886"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">4</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ح 8715"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="تنفير حسين"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-18"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="116687"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">5</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ح 8670"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="سليم اختر"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-21"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="130021"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">6</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ط س 3259"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="عمر سمان"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-22"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="102385"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">7</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ط س 3263"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="مأمون مياه"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-23"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="126946"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">8</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ر د ب 4650"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="كرم جلال"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-23"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="122422"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">9</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8031"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="عمران حسين"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-24"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="56607"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">10</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8015"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="علاء عبدالنبي"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-25"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="25174"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">11</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ر ع 2233"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="مزايد "></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-27"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="319052"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">12</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ب ق 4866"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="محمد باشا"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-28"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="718161"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">13</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ح 8714"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="كابل مياه"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-29"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="141169"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">14</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ط س 3417"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="أمين العاقل"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-30"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="150971"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">15</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ص ق 6853"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="محمد عبدالنبي"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-30"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="39867"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">16</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ص ق 6855"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="محمد المندوه"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2025-12-30"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="37237"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">17</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ب ق 4868"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="مانو رشيد"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-01"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="694544"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">18</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8022"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="فينود"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-01"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="54419"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">19</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8025"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="ثابت قاسم"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-01"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="104005"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">20</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ر ع 2232"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="انيل كومار"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-03"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="207192"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت 1 هواء"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">21</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8033"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="سايفول"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-03"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="33686"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">22</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا و ب 2759"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="جفري"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-05"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="537158"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">23</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ر و 4085"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="أنور"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-05"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="338064"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">24</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8021"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="احمد"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-05"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="96519"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">25</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ح 8717"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="اسف"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-06"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="161847"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">26</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8024"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="عبدالصبور"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-07"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="106127"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">27</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ر و 4084"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="راجا"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-08"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="176033"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">28</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ط س 3263"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="روبيل"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-10"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="23899HR"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">29</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا و ب 2760"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="فهاد"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-11"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="596000"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">30</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ر و 4140"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="سيراج"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-11"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="79332"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">31</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ق 7920"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="مزايد"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-12"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="476697"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">32</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ر ع 2240"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="نديم"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-12"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="213070"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">33</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8015"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="علاء"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-13"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="30420"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">34</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ط س 3478"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="تنفير حسين"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-13"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="97217"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">35</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ح 8670"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="سليم اختر"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-13"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="134468"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">36</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ق 7821"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="شوكت علي"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-14"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="591254"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">37</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ح 8715"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="محمد عاطف"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-17"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="121994"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">38</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ق 7776"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="رفيق "></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-17"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="340474"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">39</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ص ط 9959"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="محمد عاطف"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-18"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="220976"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">40</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب د ل 7208"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="احمد "></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-19"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="453407"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">41</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ص ق 6853"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="عبدالنبي"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-22"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="45058"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">42</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ر ع 2234"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="شامجي"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-25"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="217240"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">43</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ر و 4071"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="كرم"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-25"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="152697"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">44</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8013"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="شيمون"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-26"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="373680"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">45</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ب ق 4866"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="محمد باشا"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-27"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="723125"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">46</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ط س 3258"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="حمداني"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-28"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="129089"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">47</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ط س 3261"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="حسن"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-28"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="118161"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">48</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا ر و 4085"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="أنور"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-31"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="344134"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">49</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ح ه 5088"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="حسام"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-31"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="351129"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">50</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ح 8717"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="اسف"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-01-31"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="166994"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">51</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ب ق 4868"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="رشيد"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-02-01"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="700040"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">52</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8031"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="عمران"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-02-01"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="63040"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">53</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8022"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="مزايد "></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-02-04"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="62728"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">54</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب س ل 5541"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="كريم"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-02-04"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="215939"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">55</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س م 8025"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="ثابت"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-02-05"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="109267"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="15"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">56</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ا س ر 8873"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="احمد دنقل"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-02-07"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="81843"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="12"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">57</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="ب ط س 3263"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="مامون مياه"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="2026-02-07"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="138540"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="7"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="0"></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+                <tr>
+                    <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">58</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value=""></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value=""></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value=""></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value=""></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value=""></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value=""></td>
+                      <td style="text-align:center; border: 1px solid #000; border-right:none; background-color: #f8f9fa;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
     
+    <!-- Total Consumed Oils -->
+    <div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 20px;">
+        <table class="excel-table" style="border: 2px solid var(--border-strong); box-shadow: var(--shadow-sm);">
+            <tr>
+                <td style="background-color: var(--brand-navy); color: #fff; font-weight: 800; font-size: 1.2rem; text-align: center; padding: 15px !important; width: 70%; border: 1px solid var(--brand-navy);">إجمالي الزيوت المستهلكة (عدد اللترات)</td>
+                <td style="background: var(--surface); color: var(--text-primary); font-weight: 900; font-size: 1.5rem; text-align: center; padding: 15px !important; width: 30%; border: 1px solid var(--border-strong);" id="totalOilsLiters">0</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Summary Section -->
+    <div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 20px;">
+        <table class="excel-table">
+            <tr>
+                <td style="background-color: var(--brand-navy); color: #fff; font-weight: bold; text-align: center; padding: 10px !important;">ملاحظات وتفاصيل الفلاتر</td>
+            </tr>
+            <tr><td style="border:none; height:10px;"></td></tr>
+            <tr>
+                <td class="excel-input"><input type="text" value="شراء عدد 3 براميل زيت (بترومين) من تاريخ 2025/12/17 الى تاريخ 2026/2/7" style="text-align: right; padding-right: 15px;"></td>
+            </tr>
+            <tr>
+                <td class="excel-input"><input type="text" value="الكمية= 625 لتر - 622 زيت مستهلك= 3 لتر المتبقي  |  وبناءا عليه تم طلب زيت جديد" style="text-align: right; padding-right: 15px;"></td>
+            </tr>
+            <tr>
+                <td class="excel-input"><input type="text" value="شراء فلاتر زيت وديزل جديدة + المتبقي من الفلاتر- يخصم منه ما تم تغييره بالبيان" style="text-align: right; padding-right: 15px;"></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Filters Table -->
+    <div class="oils-toolbar" style="margin: 0 auto 10px auto; max-width:1200px;" data-html2canvas-ignore="true">
+        <button class="btn-primary" onclick="addFilterRow()">＋ إضافة صف للفلاتر (زيت / ديزل / هواء)</button>
+    </div>
+    <div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px 20px 20px;">
+        <table class="excel-table bz-fit" id="filtersExcelTable">
+            <colgroup>
+                <col style="width:4%"><col style="width:20%"><col style="width:8%"><col style="width:9%"><col style="width:9%">
+                <col style="width:4%"><col style="width:20%"><col style="width:8%"><col style="width:9%"><col style="width:9%">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th class="excel-header" style="width:4%;">م</th>
+                    <th class="excel-header" style="width:20%;">نوع الفلتر</th>
+                    <th class="excel-header" style="width:8%;">السابق</th>
+                    <th class="excel-header" style="width:9%;">المستهلك</th>
+                    <th class="excel-header" style="width:9%;">المتبقي</th>
+                    <th class="excel-header" style="width:4%;">م</th>
+                    <th class="excel-header" style="width:20%;">نوع الفلتر</th>
+                    <th class="excel-header" style="width:8%;">السابق</th>
+                    <th class="excel-header" style="width:9%;">المستهلك</th>
+                    <th class="excel-header" style="width:9%;">المتبقي</th>
+                </tr>
+            </thead>
+            <tbody id="filtersBody">
+
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">1</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت ميتسوبيشي لوري "></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="6"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">19</td>
+                    <td class="excel-input"><input type="text" value="فلاتر مكيف تويوتا بك أب"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">2</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت ميتسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="22"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="18"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">20</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء جيب تويوتا"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">3</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت ايسوزو دينا "></td>
+                    <td class="excel-input"><input type="text" value="12"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="11"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">21</td>
+                    <td class="excel-input"><input type="text" value="فلاتر مكيف جيب تويوتا"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">4</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت تويوتا دينا"></td>
+                    <td class="excel-input"><input type="text" value="9"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="9"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">22</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء تويوتا كورولا"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">5</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت بك ايسوزو "></td>
+                    <td class="excel-input"><input type="text" value="24"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="20"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">23</td>
+                    <td class="excel-input"><input type="text" value="فلاتر مكيف تويوتا كورولا"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">6</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت بك ميتسوبيشي"></td>
+                    <td class="excel-input"><input type="text" value="10"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="10"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">24</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء فوركلفت تويوتا "></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">7</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت بك وجيب تويوتا + فوركلفت"></td>
+                    <td class="excel-input"><input type="text" value="9"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="9"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">25</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء جريت وول بكب"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">8</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت MG بك"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">26</td>
+                    <td class="excel-input"><input type="text" value="فلاتر ديزل جريت وول بكب"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">9</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء ايسوزو دينا"></td>
+                    <td class="excel-input"><input type="text" value="9"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="9"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">27</td>
+                    <td class="excel-input"><input type="text" value="فلاتر مكيف جريت وول بكب"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">10</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء ايسوزو بك اب"></td>
+                    <td class="excel-input"><input type="text" value="17"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="17"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">28</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء كيا"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">11</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء ميتسوبيشي لوري"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">29</td>
+                    <td class="excel-input"><input type="text" value="فلاتر مكيف كيا"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">12</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء ميتسوبيشي دينا "></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">30</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء هونداي اكسنت"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">13</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء بك تويوتا"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="2"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">31</td>
+                    <td class="excel-input"><input type="text" value="فلاتر مكيف هونداي اكسنت"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">14</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء ميتسوبيشي بك"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">32</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت جريت وول بكب"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">15</td>
+                    <td class="excel-input"><input type="text" value="فلاتر هواء ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">33</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت كيا وهونداي بنزين"></td>
+                    <td class="excel-input"><input type="text" value="5"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="5"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">16</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت ايسوزو لوري "></td>
+                    <td class="excel-input"><input type="text" value="20"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="19"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">34</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت كورولا بنزين"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">17</td>
+                    <td class="excel-input"><input type="text" value="فلاتر ديزل ايسوزو لوري"></td>
+                    <td class="excel-input"><input type="text" value="18"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="18"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">35</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت رينو فان "></td>
+                    <td class="excel-input"><input type="text" value="5"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="4"></td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">18</td>
+                    <td class="excel-input"><input type="text" value="فلاتر مكيف ايسوزو بكب أب"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="8"></td>
+                    <td style="text-align:center; font-weight:bold; border: 1px solid #000; background-color: #f8f9fa;">36</td>
+                    <td class="excel-input"><input type="text" value="فلاتر زيت سوزوكي"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                    <td class="excel-input"><input type="text" value="0"></td>
+                    <td class="excel-input"><input type="text" value="1"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Diesel Filters Notes -->
+    <div style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px;">
+        <table class="excel-table" style="border:none;">
+            <tr>
+                <td style="font-weight:bold; font-size:1.1rem; padding: 5px 15px !important; border:none; text-align:right;">فلاتر الديزل</td>
+            </tr>
+            <tr>
+                <td class="excel-input" style="border:none;"><input type="text" value="    فلاتر ديزل ميتسوبيشي لوري + دينا + تويوتا دينا = العدد 17" style="text-align: right; padding-right: 30px; font-weight:bold;"></td>
+            </tr>
+            <tr>
+                <td class="excel-input" style="border:none;"><input type="text" value=" فلاتر ديزل ايسوزو دينا  = العدد 18" style="text-align: right; padding-right: 30px; font-weight:bold;"></td>
+            </tr>
+            <tr>
+                <td class="excel-input" style="border:none;"><input type="text" value="    فلاتر ديزل بكب ايسوزو =  العدد 11" style="text-align: right; padding-right: 30px; font-weight:bold;"></td>
+            </tr>
+            <tr>
+                <td class="excel-input" style="border:none;"><input type="text" value="    فلاتر ديزل بكب ميتسوبيشي = العدد 4" style="text-align: right; padding-right: 30px; font-weight:bold;"></td>
+            </tr>
+            <tr>
+                <td class="excel-input" style="border:none;"><input type="text" value="    فلاتر ديزل بكب وجيب تويوتا + فوركلفت = العدد 7" style="text-align: right; padding-right: 30px; font-weight:bold;"></td>
+            </tr>
+            <tr>
+                <td class="excel-input" style="border:none;"><input type="text" value="    فلاتر ديزل إم جي بكب = العدد 0" style="text-align: right; padding-right: 30px; font-weight:bold;"></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Signatures -->
+    <div style="width: 100%; max-width: 1200px; margin: 30px auto; padding: 0 20px;">
+        <div style="display:flex; justify-content: space-between; font-weight:bold; font-size:1.1rem; padding-top: 10px;">
+            <div style="width: 50%; text-align:right;">
+                <input type="text" value="وبناءا عليه تم طلب وشراء فلاتر جديدة  —  الحسابات" style="width:100%; border:none; text-align:right; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);">
+            </div>
+            <div style="width: 20%; text-align:center;">
+                <div style="margin-bottom:40px;">قسم الحركة</div>
+                <input type="text" value="خالد بن محمد الغامدي" style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);">
+            </div>
+            <div style="width: 20%; text-align:center;">
+                <div style="margin-bottom:40px;">التعميد</div>
+                <input type="text" placeholder="..." style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);">
+            </div>
+        </div>
+    </div>
+
+    </div><!-- /oilsPrintable -->
+<datalist id="oilsDriversList"></datalist>
+<datalist id="oilsPlatesList"></datalist>
 
     <script>
-        let driversData = [];
-        async function fetchDrivers() {
-            try {
-                const res = await fetch('/api/drivers');
-                driversData = await res.json();
-                const dl = document.getElementById('driversList');
-                dl.innerHTML = '';
-                driversData.forEach(d => { 
-                    const merged = `${d.name || 'لا يوجد'} - ${d.iqama || 'بدون إقامة'} - ${d.plate || 'بدون لوحة'} - ${d.phone || 'بدون جوال'} - ${d.car || 'بدون موديل'}`;
-                    d._merged = merged;
-                    const o = document.createElement('option'); o.value = merged; dl.appendChild(o); 
-                });
-            } catch (err) { console.error(err); }
-        }
-        function autofillRow(elem) {
-            const driver = driversData.find(d => d._merged === elem.value || d.name === elem.value);
-            if (driver) {
-                elem.value = driver.name && driver.name !== 'None' ? driver.name : '';
-                const tr = elem.closest('tr');
-                const plate = tr.querySelector('.t-plate');
-                if(plate && driver.plate && driver.plate !== 'None') plate.value = driver.plate;
-            }
-        }
 
-        // Oil Rows
-        let oilCount = 0;
-        function addOilRow() {
-            oilCount++;
-            const tb = document.querySelector('#oilTable tbody');
-            const empty = tb.querySelector('.empty-row');
-            if(empty) empty.remove();
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${oilCount}</td><td><input type="text" class="t-plate" placeholder="اللوحة"></td><td><input type="text" class="t-driver" list="driversList" placeholder="المستخدم" onchange="autofillRow(this)"></td><td><input type="date" class="t-date" value="${new Date().toISOString().split('T')[0]}"></td><td><input type="number" class="t-km" placeholder="العداد"></td><td><input type="number" class="t-qty" placeholder="اللترات"></td><td><input type="text" class="t-filter" placeholder="مثال: زيت 1 / هواء"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateOilIds()">✕</button></td>`;
-            tb.appendChild(tr);
-        }
-        function updateOilIds() { 
-            const tb = document.querySelector('#oilTable tbody');
-            oilCount=0; 
-            const rows = tb.querySelectorAll('tr:not(.empty-row)');
-            rows.forEach(r=>{oilCount++;r.cells[0].innerText=oilCount;}); 
-            if(oilCount === 0) {
-                tb.innerHTML = '<tr class="empty-row"><td colspan="8"><div class="empty-state"><div class="empty-state-icon">🛢️</div><h3>لا يوجد بيانات</h3><p>قم بإضافة بيانات لتظهر هنا.</p></div></td></tr>';
-            }
-        }
-
-        // Filter Left Rows (جرد الفلاتر)
-        let filterLeftCount = 0;
-        function addFilterLeftRow() {
-            filterLeftCount++;
-            const tb = document.querySelector('#filterLeftTable tbody');
-            const empty = tb.querySelector('.empty-row');
-            if(empty) empty.remove();
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${filterLeftCount}</td><td><input type="text" class="fl-name" placeholder="نوع الفلتر"></td><td><input type="number" class="fl-prev" placeholder="السابق"></td><td><input type="number" class="fl-used" placeholder="المستهلك"></td><td><input type="number" class="fl-remaining" placeholder="المتبقي"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateFilterLeftIds()">✕</button></td>`;
-            tb.appendChild(tr);
-        }
-        function updateFilterLeftIds() { 
-            const tb = document.querySelector('#filterLeftTable tbody');
-            filterLeftCount=0; 
-            const rows = tb.querySelectorAll('tr:not(.empty-row)');
-            rows.forEach(r=>{filterLeftCount++;r.cells[0].innerText=filterLeftCount;}); 
-            if(filterLeftCount === 0) {
-                tb.innerHTML = '<tr class="empty-row"><td colspan="6"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد فلاتر</h3><p>قم بإضافة فلاتر للجرد.</p></div></td></tr>';
-            }
-        }
-
-        // Filter Right Rows (شراء فلاتر جديدة)
-        let filterRightCount = 0;
-        function addFilterRightRow() {
-            filterRightCount++;
-            const tb = document.querySelector('#filterRightTable tbody');
-            const empty = tb.querySelector('.empty-row');
-            if(empty) empty.remove();
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${filterRightCount}</td><td><input type="text" class="fr-name" placeholder="نوع الفلتر"></td><td><input type="number" class="fr-qty" placeholder="العدد"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateFilterRightIds()">✕</button></td>`;
-            tb.appendChild(tr);
-        }
-        function updateFilterRightIds() { 
-            const tb = document.querySelector('#filterRightTable tbody');
-            filterRightCount=0; 
-            const rows = tb.querySelectorAll('tr:not(.empty-row)');
-            rows.forEach(r=>{filterRightCount++;r.cells[0].innerText=filterRightCount;}); 
-            if(filterRightCount === 0) {
-                tb.innerHTML = '<tr class="empty-row"><td colspan="4"><div class="empty-state"><div class="empty-state-icon">🛒</div><h3>لا يوجد مشتريات</h3><p>أضف طلب شراء جديد.</p></div></td></tr>';
-            }
-        }
-
-        // Excel - Server-side template approach
-        function collectOilsData() {
-            const oils = [];
-            document.querySelectorAll('#oilTable tbody tr').forEach(tr => {
-                oils.push({
-                    plate: tr.querySelector('.t-plate').value,
-                    driver: tr.querySelector('.t-driver').value,
-                    date: tr.querySelector('.t-date').value.split('-').join('/'),
-                    counter: tr.querySelector('.t-km').value,
-                    liters: tr.querySelector('.t-qty').value,
-                    filters: tr.querySelector('.t-filter').value
-                });
+        function updateTotalLiters() {
+            let total = 0;
+            const rows = document.querySelectorAll('#oilsBody tr');
+            rows.forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if(inputs.length > 4) {
+                    const val = parseFloat(inputs[4].value);
+                    if(!isNaN(val)) total += val;
+                }
             });
-            // Filter Left (جرد الفلاتر)
-            const filters_left = [];
-            document.querySelectorAll('#filterLeftTable tbody tr').forEach(tr => {
-                filters_left.push({
-                    name: tr.querySelector('.fl-name').value,
-                    prev: parseInt(tr.querySelector('.fl-prev').value)||0,
-                    used: parseInt(tr.querySelector('.fl-used').value)||0,
-                    remaining: parseInt(tr.querySelector('.fl-remaining').value)||0
-                });
+            const totalEl = document.getElementById('totalOilsLiters');
+            if(totalEl) totalEl.textContent = total.toLocaleString('en-US');
+            const statLiters = document.getElementById('statLiters');
+            if(statLiters) statLiters.textContent = total.toLocaleString('en-US');
+            const statRows = document.getElementById('statRows');
+            if(statRows) statRows.textContent = rows.length;
+        }
+
+        function renumberRows() {
+            document.querySelectorAll('#oilsBody tr').forEach((r, idx) => {
+                const td0 = r.querySelector('td');
+                if(td0 && !td0.querySelector('input')) td0.textContent = idx + 1;
             });
-            // Filter Right (شراء فلاتر جديدة)
-            const filters_right = [];
-            document.querySelectorAll('#filterRightTable tbody tr').forEach(tr => {
-                filters_right.push({
-                    name: tr.querySelector('.fr-name').value,
-                    qty: parseInt(tr.querySelector('.fr-qty').value)||0
-                });
+        }
+
+        function deleteRow(btn) {
+            const tr = btn.closest('tr');
+            tr.remove();
+            renumberRows();
+            updateTotalLiters();
+            saveToLocalStorage();
+            if(window.showToast) showToast('تم حذف الصف', 'info');
+        }
+
+        const ROW_TEMPLATE = (n, r) => `
+                    <td class="excel-rownum" style="width:2%;">${n}</td>
+                    <td class="excel-input" style="width:12%;"><input type="text" list="oilsPlatesList" value="${escapeHtml(r && r[0] || '')}"></td>
+                    <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="${escapeHtml(r && r[1] || '')}"></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="${escapeHtml(r && r[2] || '')}"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="${escapeHtml(r && r[3] || '')}"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="${escapeHtml(r && r[4] || '')}"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="${escapeHtml(r && r[5] || '')}"></td>
+                    <td class="excel-rownum" style="border-right:none;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>`;
+
+        function addOilsRow() {
+            const tbody = document.getElementById('oilsBody');
+            const rowCount = tbody.querySelectorAll('tr').length + 1;
+            const tr = document.createElement('tr');
+            tr.innerHTML = ROW_TEMPLATE(rowCount, null);
+            tbody.appendChild(tr);
+            saveToLocalStorage();
+        }
+
+        // --- Filters table dynamic rows (each row = two filter entries: oil/diesel/air) ---
+        const FILTER_ROW_TEMPLATE = (nL, nR, r) => `
+                    <td class="excel-rownum" style="width:4%;">${nL}</td>
+                    <td class="excel-input" style="width:20%;"><input type="text" value="${escapeHtml(r && r[0] || '')}"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="${escapeHtml(r && r[1] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[2] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[3] || '')}"></td>
+                    <td class="excel-rownum" style="width:4%;">${nR}</td>
+                    <td class="excel-input" style="width:20%;"><input type="text" value="${escapeHtml(r && r[4] || '')}"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="${escapeHtml(r && r[5] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[6] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[7] || '')}"></td>`;
+
+        function renumberFilterRows() {
+            const rows = document.querySelectorAll('#filtersBody tr');
+            const n = rows.length;
+            rows.forEach((tr, idx) => {
+                // First non-input cell = left index, the cell at position 5 = right index.
+                const tds = tr.querySelectorAll('td');
+                if(tds[0] && !tds[0].querySelector('input')) tds[0].textContent = idx + 1;
+                if(tds[5] && !tds[5].querySelector('input')) tds[5].textContent = idx + 1 + n;
             });
-            // Notes (rows 65-66 only, 63 and 67 are fixed headers in template)
-            const notes = {
-                row65: document.getElementById('notesRow65').value,
-                row66: document.getElementById('notesRow66').value
-            };
-            // Diesel notes
-            const diesel_notes = [];
-            for(let i=0;i<8;i++) {
-                const el = document.getElementById('diesel'+i);
-                diesel_notes.push(el ? el.value : '');
+        }
+
+        function addFilterRow() {
+            const tbody = document.getElementById('filtersBody');
+            const n = tbody.querySelectorAll('tr').length;
+            const tr = document.createElement('tr');
+            // Left index = n+1, right index = (n+1)+(n+1) recomputed after renumber.
+            tr.innerHTML = FILTER_ROW_TEMPLATE(n + 1, n + 1, null);
+            tbody.appendChild(tr);
+            renumberFilterRows();
+            saveToLocalStorage();
+            if(window.showToast) showToast('تمت إضافة صف للفلاتر', 'success');
+        }
+
+        function clearOilsData() {
+            if(window.confirm('سيتم مسح كل البيانات المحفوظة محلياً. هل أنت متأكد؟')) {
+                localStorage.removeItem('excel_oils_data');
+                localStorage.removeItem('excel_filters_data');
+                localStorage.removeItem('excel_oils_title');
+                window.location.reload();
             }
-            // Build title
-            const dateInputs = document.querySelectorAll('#oilTable .t-date');
-            let dates = Array.from(dateInputs).map(i=>i.value).filter(v=>v);
-            dates.sort();
-            let minD = dates.length ? dates[0].split('-').join('/') : '';
-            let maxD = dates.length ? dates[dates.length-1].split('-').join('/') : '';
-            const title = 'بيان استهلاك الزيوت والفلاتر للسيارات الديزل (فرع الدمام) من تاريخ ' + minD + ' الى تاريخ ' + maxD;
-            return { oils, filters_left, filters_right, notes, diesel_notes, title };
         }
 
-        async function downloadExcel() {
-            const btn = event.target; btn.innerText = 'جاري التحميل... ⏳';
+        // Workstation sandbox flag (computed locally for robustness vs. script timing).
+        const OILS_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+        // WS: debounced server autosave to /api/oils_data (id=2 isolated store).
+        // The app_ux.js fetch wrapper rewrites the literal '/api/' prefix to the
+        // workstation path, so we MUST use a literal '/api/oils_data' URL here.
+        function saveOilsToServer() {
+            clearTimeout(window._oilsServerSaveTimer);
+            window._oilsServerSaveTimer = setTimeout(() => {
+                const rows = [];
+                document.querySelectorAll('#oilsBody tr').forEach(tr => {
+                    const inputs = tr.querySelectorAll('input');
+                    if(inputs.length > 0) {
+                        const rowData = [];
+                        inputs.forEach(inp => rowData.push(inp.value));
+                        rows.push(rowData);
+                    }
+                });
+                const filters = [];
+                document.querySelectorAll('#filtersBody tr').forEach(tr => {
+                    const inputs = tr.querySelectorAll('input');
+                    if(inputs.length > 0) {
+                        const rowData = [];
+                        inputs.forEach(inp => rowData.push(inp.value));
+                        filters.push(rowData);
+                    }
+                });
+                const titleEl = document.getElementById('oilsTitle');
+                const payload = { title: titleEl ? titleEl.value : '', oils: rows, filters: filters };
+                fetch('/api/oils_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            }, 700);
+        }
+
+        function saveToLocalStorage() {
+            // WS: persist to the server (isolated id=2 store), NOT localStorage.
+            if(OILS_WS) { saveOilsToServer(); return; }
+
+            const rows = [];
+            document.querySelectorAll('#oilsBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if(inputs.length > 0) {
+                    const rowData = [];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    rows.push(rowData);
+                }
+            });
+            localStorage.setItem('excel_oils_data', JSON.stringify(rows));
+
+            // Persist the filters table rows too (so added filter rows survive reload).
+            const fRows = [];
+            document.querySelectorAll('#filtersBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if(inputs.length > 0) {
+                    const rowData = [];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    fRows.push(rowData);
+                }
+            });
+            localStorage.setItem('excel_filters_data', JSON.stringify(fRows));
+
+            const titleVal = document.getElementById('oilsTitle').value;
+            localStorage.setItem('excel_oils_title', titleVal);
+        }
+
+        // WS: empty start + load this sandbox's own persisted data from the server.
+        async function loadOilsFromServer() {
+            const oBody = document.getElementById('oilsBody');
+            const fBody = document.getElementById('filtersBody');
+            // (A) EMPTY START — drop all hardcoded rows before fetching.
+            if(oBody) oBody.innerHTML = '';
+            if(fBody) fBody.innerHTML = '';
             try {
-                const res = await fetch('/api/generate_oils', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(collectOilsData())});
-                const data = await res.json();
-                if(data.success) {
-                    const bin = atob(data.file_b64);
-                    const bytes = new Uint8Array(bin.length);
-                    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-                    saveAs(new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),'بيان_زيوت_وفلاتر_الدمام.xlsx');
-                } else showToast('خطأ: '+data.error, 'error');
-            } catch(e) { showToast('خطأ: '+e, 'error'); }
-            btn.innerText = '📥 تحميل Excel';
+                const res = await fetch('/api/oils_data');
+                const json = await res.json();
+                const data = json && json.data;
+                if(data) {
+                    // (B) SERVER LOAD — rebuild tables from persisted data, if any.
+                    if(oBody && Array.isArray(data.oils)) {
+                        data.oils.forEach((r, idx) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = ROW_TEMPLATE(idx + 1, r);
+                            oBody.appendChild(tr);
+                        });
+                    }
+                    if(fBody && Array.isArray(data.filters)) {
+                        data.filters.forEach((r) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = FILTER_ROW_TEMPLATE(0, 0, r);
+                            fBody.appendChild(tr);
+                        });
+                        renumberFilterRows();
+                    }
+                    const titleEl = document.getElementById('oilsTitle');
+                    if(titleEl && typeof data.title === 'string') titleEl.value = data.title;
+                }
+                // data null -> leave tables empty.
+            } catch(e) { console.error('Failed to load oils data from server', e); }
         }
-
-        async function sendExcelEmail() {
-            const email=document.getElementById('targetEmail').value; if(!email) return showToast('يرجى إدخال الإيميل', 'error');
-            const btn=document.getElementById('btnSendEmail'); btn.innerText='جاري الإرسال... ⏳';
-            try {
-                const oilRes = await fetch('/api/generate_oils', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(collectOilsData())});
-                const oilData = await oilRes.json();
-                if(oilData.success) {
-                    const filename = 'بيان_زيوت_وفلاتر_الدمام.xlsx';
-                    const res=await fetch('/api/send_email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,filename,file_b64:oilData.file_b64,subject:document.getElementById('emailSubject').value,cc:getCcEmails()})});
-                    const data=await res.json();
-                    if(data.success){
-                        showToast('تم إرسال البيان بنجاح! ✅', 'success');
-                        closeCustomModal('emailModal');
-                    } else showToast('خطأ: '+data.error, 'error');
-                } else showToast('خطأ: '+oilData.error, 'error');
-            }catch(e){showToast('خطأ: '+e, 'error');} btn.innerText='إرسال 🚀';
-        }
-
-        // Dark Mode
         
-        function addCcRow() {
-            const container = document.getElementById('ccContainer');
-            const row = document.createElement('div');
-            row.className = 'cc-row';
-            row.style.cssText = 'display:flex;gap:5px;align-items:center';
-            row.innerHTML = '<input type="email" class="cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
-            container.appendChild(row);
-        }
-        function getCcEmails() {
-            return Array.from(document.querySelectorAll('.cc-email')).map(i => i.value.trim()).filter(v => v);
-        }
-
-        window.onload=async()=>{await fetchDrivers();for(let i=0;i<3;i++)addOilRow();for(let i=0;i<2;i++)addFilterRow();};
-    </script>
-
-
-    <div class="modal-backdrop" id="emailModal">
-        <div class="modal-content-custom">
-            <div class="modal-header-custom">
-                <span>📧 إرسال عبر الإيميل</span>
-                <button class="close-btn" style="color:white;" onclick="closeCustomModal('emailModal')">✖</button>
-            </div>
-            <div class="modal-body-custom">
-                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-                    <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
-                    <input type="email" id="targetEmail" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
-                </div>
-                <div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة إلى:</label>
-                        <div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
-                            <div class="cc-row" style="display:flex;gap:5px;align-items:center">
-                                <input type="email" class="cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);">
-                                <button type="button" onclick="addCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
-                    <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
-                    <input type="text" id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
-                </div>
-                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-                    <button type="button" onclick="if(confirm('هل تريد حفظه في سطح المكتب؟')) { downloadExcel(); }" class="btn-outline">حفظ في سطح المكتب 💾</button>
-                    <button onclick="closeCustomModal('emailModal')" class="btn-outline" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
-                    <button id="btnSendEmail" onclick="sendExcelEmail()" class="btn-primary">إرسال 🚀</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-<!-- Compose Email FAB -->
-<button id="composeFab" onclick="openCustomModal('composeModal')" class="fab-btn" title="إنشاء رسالة">✉️</button>
-
-<div class="modal-backdrop" id="composeModal">
-    <div class="modal-content-custom">
-        <div class="modal-header-custom">
-            <span>✉️ إنشاء رسالة جديدة</span>
-            <button class="close-btn" style="color:white;" onclick="closeCustomModal('composeModal')">✖</button>
-        </div>
-        <form id="composeForm" class="modal-body-custom" style="display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-                <label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
-                <input type="email" name="email" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-                <label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
-                <input type="text" name="subject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
-            </div>
-            <textarea name="body" rows="5" placeholder="اكتب رسالتك هنا..." style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:Cairo;font-size:1rem;resize:vertical;outline:none"></textarea>
-            <div style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer" onclick="document.getElementById('composeFile').click()">
-                <span style="font-size:1.3rem">📎</span>
-                <span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو أي ملف آخر</span>
-                <input type="file" id="composeFile" name="attachment" style="display:none" onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'">
-            </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
-                <button type="button" onclick="closeCustomModal('composeModal')" class="btn-outline" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
-                <button type="submit" id="composeSendBtn" class="btn-primary">إرسال 🚀</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
-document.getElementById('composeForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('composeSendBtn');
-    btn.innerText = 'جاري الإرسال... ⏳';
-    btn.disabled = true;
-    try {
-        const formData = new FormData(this);
-        const res = await fetch('/api/compose_email', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.success) {
-            showToast('تم إرسال الرسالة بنجاح! ✅', 'success');
-            closeCustomModal('composeModal');
-            this.reset();
-            document.getElementById('composeFileName').innerText = 'اضغط لإرفاق ملف';
-        } else {
-            showToast('خطأ: ' + data.error, 'error');
-        }
-    } catch (err) { showToast('خطأ في الاتصال: ' + err, 'error'); }
-    btn.innerText = 'إرسال 🚀';
-    btn.disabled = false;
-});
-</script>
-
-<!-- GPS Session Monitor -->
-<script>
-(function () {
-    const originalFetch = window.fetch;
-    window.fetch = async function (...args) {
-        const response = await originalFetch(...args);
-        if (response.status === 401 || response.status === 440) {
-            window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
-        }
-        try {
-            const clone = response.clone();
-            const text = await clone.text();
-            if (text.includes("ERROR-100") || text.includes("Session timed out")) {
-                window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem('excel_oils_data');
+            if(savedData) {
+                try {
+                    const rows = JSON.parse(savedData);
+                    const tbody = document.getElementById('oilsBody');
+                    
+                    if(rows.length > 0) {
+                        tbody.innerHTML = '';
+                        rows.forEach((r, idx) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = ROW_TEMPLATE(idx + 1, r);
+                            tbody.appendChild(tr);
+                        });
+                    }
+                } catch(e) { console.error('Failed to load saved oils data', e); }
             }
-        } catch (e) {}
-        return response;
-    };
-})();
+
+            const savedFilters = localStorage.getItem('excel_filters_data');
+            if(savedFilters) {
+                try {
+                    const fRows = JSON.parse(savedFilters);
+                    const fbody = document.getElementById('filtersBody');
+                    if(fbody && fRows.length > 0) {
+                        fbody.innerHTML = '';
+                        fRows.forEach((r) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = FILTER_ROW_TEMPLATE(0, 0, r);
+                            fbody.appendChild(tr);
+                        });
+                        renumberFilterRows();
+                    }
+                } catch(e) { console.error('Failed to load saved filters data', e); }
+            }
+
+            const titleVal = localStorage.getItem('excel_oils_title');
+            if(titleVal) {
+                document.getElementById('oilsTitle').value = titleVal;
+            }
+        }
+
+        // --- Autofill via shared FleetData engine ---
+        // Selecting a driver name in a row fills the plate column automatically.
+        function handleNameAutofill(inputEl) {
+            if(!window.FleetData) return;
+            const rec = FleetData.byName(inputEl.value.trim());
+            if(!rec) return;
+            const tr = inputEl.closest('tr');
+            const inputs = tr.querySelectorAll('input');
+            // index 0 = plate, 1 = name, 2 = date, 3 = odometer, 4 = liters, 5 = filters
+            if(rec.plate && rec.plate !== 'None' && inputs[0]) inputs[0].value = rec.plate;
+            saveToLocalStorage();
+        }
+
+        document.addEventListener('change', function(e) {
+            if(e.target.tagName === 'INPUT' && e.target.getAttribute('list') === 'oilsDriversList') {
+                handleNameAutofill(e.target);
+            }
+        });
+
+        document.addEventListener('input', function(e) {
+            if(e.target.tagName === 'INPUT') {
+                updateTotalLiters();
+                clearTimeout(window._saveTimer);
+                window._saveTimer = setTimeout(saveToLocalStorage, 800);
+            }
+        });
+
+        async function initFleetData() {
+            if(!window.FleetData) return;
+            await FleetData.load();
+            // Driver names datalist (shared engine).
+            await FleetData.fillDatalist('oilsDriversList');
+            // Plates datalist from the same records.
+            const platesList = document.getElementById('oilsPlatesList');
+            if(platesList) {
+                const seen = new Set();
+                platesList.innerHTML = FleetData.records().map(function(d) {
+                    const p = (d.plate || '').trim();
+                    if(!p || p === 'None' || seen.has(p)) return '';
+                    seen.add(p);
+                    return '<option value="' + escapeHtml(p) + '"></option>';
+                }).join('');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // WS: empty start + load from server; MAIN site keeps original localStorage path.
+            if(OILS_WS) {
+                loadOilsFromServer().then(updateTotalLiters);
+            } else {
+                loadFromLocalStorage();
+            }
+            updateTotalLiters();
+            initFleetData();
+            document.querySelectorAll('#oilsBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length > 0 && !inputs[0].getAttribute('list')) {
+                    inputs[0].setAttribute('list', 'oilsPlatesList');
+                }
+            });
+        });
+
+        // Build the Excel workbook fully from the current DOM (matches the page 1:1)
+        // and return a Blob. Layout flows DYNAMICALLY from the actual row counts, so
+        // added oils rows AND added filter rows are all included.
+        async function buildOilsBlob() {
+            if(typeof ExcelJS === 'undefined') throw new Error('مكتبة التصدير غير محمّلة بعد');
+            const TL = (window.bzTL || function(s){ return s; });
+
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('بيان الزيوت', { properties: { defaultRowHeight: 22 } });
+
+            // --- Corporate styling helpers (DESIGN_SYSTEM §6 — B&W print safe) ---
+            const NAVY = 'FF0C2340', GOLD = 'FFC9A227', ZEBRA = 'FFF2F2F2',
+                  WHITE = 'FFFFFFFF', BLACK = 'FF000000', GRID = 'FF595959';
+            const thin = { style: 'thin', color: { argb: GRID } };
+            const allBorders = { top: thin, left: thin, bottom: thin, right: thin };
+            const COLS = ['A','B','C','D','E','F','G','H','I','J'];
+            const whiteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WHITE } };
+            const zebraFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
+
+            ws.columns = [
+                { width: 5 }, { width: 16 }, { width: 22 }, { width: 16 },
+                { width: 14 }, { width: 12 }, { width: 30 }, { width: 10 },
+                { width: 10 }, { width: 10 }
+            ];
+
+            function styleData(cell, isZebra) {
+                cell.border = allBorders;
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.font = { name: 'Tajawal', size: 11, bold: false, color: { argb: BLACK } };
+                cell.fill = isZebra ? zebraFill : whiteFill;
+            }
+            function styleHeaderCell(cell) {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                cell.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: WHITE } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.border = { top: thin, left: thin, right: thin, bottom: { style: 'medium', color: { argb: GOLD } } };
+            }
+            function styleNoteRow(rowNum, span) {
+                (span || COLS).forEach(col => {
+                    const c = ws.getCell(col + rowNum);
+                    c.border = allBorders;
+                    c.fill = whiteFill;
+                    c.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } };
+                    c.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true, readingOrder: 'rtl' };
+                });
+                const ro = ws.getRow(rowNum);
+                if(ro.height < 22) ro.height = 22;
+            }
+            function sectionTitle(rowNum, text, span) {
+                const cols = span || ['A','B','C','D','E','F','G','H'];
+                try { ws.mergeCells(cols[0] + rowNum + ':' + cols[cols.length-1] + rowNum); } catch(e) {}
+                const c = ws.getCell(cols[0] + rowNum);
+                c.value = text;
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+                c.font = { name: 'Tajawal', size: 13, bold: true, color: { argb: WHITE } };
+                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                ws.getRow(rowNum).height = 28;
+            }
+
+            let r = 1;
+
+            // 1. Title (merged across the oils-table width)
+            try { ws.mergeCells('A1:H1'); } catch(e) {}
+            const titleCell = ws.getCell('A1');
+            titleCell.value = document.getElementById('oilsTitle').value;
+            titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+            titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: WHITE } };
+            titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            ws.getRow(1).height = 34;
+            r = 2;
+
+            // 2. Oils header row (labels via bzTL so EN export translates)
+            const oilsHeaders = ['م','رقم لوحة السيارة','المستخدم','تاريخ تغيير الزيت','رقم العداد','عدد اللترات','عدد فلاتر الزيت والديزل والهواء'];
+            const oilsHeaderRow = r;
+            ['A','B','C','D','E','F','G'].forEach((col, i) => {
+                const c = ws.getCell(col + r);
+                c.value = TL(oilsHeaders[i]);
+                styleHeaderCell(c);
+            });
+            ws.getRow(r).height = 26;
+            ws.views = [{ rightToLeft: true, state: 'frozen', ySplit: oilsHeaderRow }];
+            r++;
+
+            // 3. Main Oils Table (ALL dynamic rows)
+            const oilsRows = document.querySelectorAll('#oilsBody tr');
+            let liveCount = 0, totalLiters = 0;
+            oilsRows.forEach((tr) => {
+                const tds = tr.querySelectorAll('td');
+                const getVal = (c) => {
+                    if(!tds[c]) return '';
+                    const input = tds[c].querySelector('input');
+                    if(input) return input.value;
+                    return tds[c].innerText.replace('❌','').trim();
+                };
+                ws.getCell('A'+r).value = liveCount + 1;
+                ws.getCell('B'+r).value = getVal(1);
+                ws.getCell('C'+r).value = getVal(2);
+                ws.getCell('D'+r).value = getVal(3);
+                ws.getCell('E'+r).value = getVal(4);
+                ws.getCell('F'+r).value = getVal(5);
+                ws.getCell('G'+r).value = getVal(6);
+                const lit = parseFloat(getVal(5));
+                if(!isNaN(lit)) totalLiters += lit;
+                const zebra = (liveCount % 2 === 1);
+                ['A','B','C','D','E','F','G'].forEach(col => styleData(ws.getCell(col + r), zebra));
+                const rowObj = ws.getRow(r);
+                if(rowObj.height < 22) rowObj.height = 22;
+                liveCount++; r++;
+            });
+
+            // 4. Total consumed oils (liters) row
+            try { ws.mergeCells('A'+r+':E'+r); } catch(e) {}
+            const totLabel = ws.getCell('A'+r);
+            totLabel.value = TL('إجمالي الزيوت المستهلكة (عدد اللترات)');
+            totLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+            totLabel.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: WHITE } };
+            totLabel.alignment = { vertical: 'middle', horizontal: 'center' };
+            try { ws.mergeCells('F'+r+':G'+r); } catch(e) {}
+            const totVal = ws.getCell('F'+r);
+            totVal.value = totalLiters;
+            totVal.font = { name: 'Tajawal', size: 13, bold: true, color: { argb: BLACK } };
+            totVal.alignment = { vertical: 'middle', horizontal: 'center' };
+            totVal.border = allBorders;
+            ws.getRow(r).height = 26;
+            r += 2;
+
+            const tables = document.querySelectorAll('.excel-table');
+            const filtersTable = document.getElementById('filtersExcelTable');
+            // Robustly locate the two free-text note tables (NOT the oils/total/filters tables):
+            // the first such table = "ملاحظات وتفاصيل الفلاتر", the last = "فلاتر الديزل".
+            const noteTables = Array.prototype.filter.call(tables, function(t) {
+                return t.id !== 'oilsExcelTable' && t !== filtersTable && t.querySelectorAll('input').length > 0;
+            });
+            const topNotesTable = noteTables[0] || null;
+            const bottomNotesTable = noteTables.length > 1 ? noteTables[noteTables.length - 1] : null;
+
+            // 5. Top Notes (notes & filter details)
+            if(topNotesTable) {
+                sectionTitle(r, TL('ملاحظات وتفاصيل الفلاتر')); r++;
+                topNotesTable.querySelectorAll('input').forEach(inp => {
+                    try { ws.mergeCells('A'+r+':H'+r); } catch(e) {}
+                    ws.getCell('A'+r).value = inp.value;
+                    styleNoteRow(r, ['A','B','C','D','E','F','G','H']);
+                    r++;
+                });
+                r++;
+            }
+
+            // 6. Filters Table — ALL dynamic rows
+            if(filtersTable) {
+                const fHeaders = ['م','نوع الفلتر','السابق','المستهلك','المتبقي','م','نوع الفلتر','السابق','المستهلك','المتبقي'];
+                COLS.forEach((col, i) => {
+                    const c = ws.getCell(col + r);
+                    c.value = TL(fHeaders[i]);
+                    styleHeaderCell(c);
+                });
+                ws.getRow(r).height = 26;
+                r++;
+
+                const filterRows = filtersTable.querySelectorAll('tbody tr');
+                filterRows.forEach((tr, idx) => {
+                    const tds = tr.querySelectorAll('td');
+                    const getVal = (c) => tds[c] ? (tds[c].querySelector('input') ? tds[c].querySelector('input').value : tds[c].innerText.trim()) : '';
+                    ws.getCell('A'+r).value = idx + 1;
+                    ws.getCell('B'+r).value = getVal(1);
+                    ws.getCell('C'+r).value = getVal(2);
+                    ws.getCell('D'+r).value = getVal(3);
+                    ws.getCell('E'+r).value = getVal(4);
+                    ws.getCell('F'+r).value = idx + 1 + filterRows.length;
+                    ws.getCell('G'+r).value = getVal(6);
+                    ws.getCell('H'+r).value = getVal(7);
+                    ws.getCell('I'+r).value = getVal(8);
+                    ws.getCell('J'+r).value = getVal(9);
+                    const zebra = (idx % 2 === 1);
+                    COLS.forEach(col => styleData(ws.getCell(col + r), zebra));
+                    const rowObj = ws.getRow(r);
+                    if(rowObj.height < 22) rowObj.height = 22;
+                    r++;
+                });
+                r++;
+            }
+
+            // 7. Diesel filters notes
+            if(bottomNotesTable) {
+                const bottomNotes = bottomNotesTable.querySelectorAll('input');
+                if(bottomNotes.length) {
+                    sectionTitle(r, TL('فلاتر الديزل')); r++;
+                    bottomNotes.forEach(inp => {
+                        try { ws.mergeCells('A'+r+':H'+r); } catch(e) {}
+                        ws.getCell('A'+r).value = inp.value;
+                        styleNoteRow(r, ['A','B','C','D','E','F','G','H']);
+                        r++;
+                    });
+                    r++;
+                }
+            }
+
+            // 8. Corporate footer row
+            try { ws.mergeCells('A'+r+':H'+r); } catch(e) {}
+            const footCell = ws.getCell('A'+r);
+            const today = new Date().toISOString().slice(0, 10);
+            footCell.value = TL('أُعدّ بواسطة قسم الحركة — فرع الدمام') + '   |   ' + today;
+            footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: BLACK } };
+            footCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            // 9. Print setup — clean B&W landscape (DESIGN_SYSTEM §6).
+            ws.pageSetup = {
+                fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+                orientation: 'landscape', horizontalCentered: true,
+                margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+            };
+            ws.printOptions = { gridLines: true, horizontalCentered: true };
+
+            const outBuffer = await wb.xlsx.writeBuffer();
+            return new Blob([outBuffer]);
+        }
+
+        async function exportOilsExcel() {
+            if(typeof ExcelJS === 'undefined') {
+                if(window.showToast) showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+                return;
+            }
+            const btn = document.querySelector('button[onclick="exportOilsExcel()"]');
+            const originalText = btn ? btn.innerHTML : '';
+            if(btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
+            try {
+                const blob = await buildOilsBlob();
+                if(window.bzDownload) bzDownload(blob, 'بيان_الزيوت_الدمام.xlsx');
+                else saveAs(blob, 'بيان_الزيوت_الدمام.xlsx');
+                if(window.showToast) showToast('تم تصدير ملف الإكسل بنجاح', 'success');
+            } catch (e) {
+                console.error(e);
+                if(window.showToast) showToast('حدث خطأ أثناء التصدير: ' + e.message, 'error');
+            } finally {
+                if(btn) { btn.innerHTML = originalText; btn.disabled = false; }
+            }
+        }
+
+        function shareOils() {
+            if(typeof ExcelJS === 'undefined') {
+                if(window.showToast) showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+                return;
+            }
+            if(!window.bzShare) { exportOilsExcel(); return; }
+            bzShare(buildOilsBlob, {
+                filename: 'بيان_الزيوت_الدمام.xlsx',
+                subject: 'بيان استهلاك الزيوت والفلاتر — فرع الدمام',
+                waMessage: 'بيان استهلاك الزيوت والفلاتر — شركة بن زومة (فرع الدمام)',
+                pdfElement: 'oilsPrintable',
+                pdfOrientation: 'landscape'
+            });
+        }
 </script>
+
+    
+
+    
+
+    
+    <div class="oils-toolbar" style="margin: 30px auto;">
+        <button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد للزيوت</button>
+        <button class="btn-primary" onclick="addFilterRow()">＋ إضافة صف للفلاتر</button>
+        <button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
+        <button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
+        <button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
+        <button class="btn-danger" onclick="clearOilsData()">🗑 مسح البيانات</button>
+    </div>
+
+    </div><!-- /bz-shell -->
+
+    <footer style="text-align:center;padding:20px;color:var(--text-secondary);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);width:100%">
+        أُعدّ بواسطة قسم الحركة — فرع الدمام
+    </footer>
 </body>
 </html>
-

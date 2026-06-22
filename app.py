@@ -2,7 +2,10 @@ import os
 import io
 import logging
 import shutil
+import secrets
+import hmac
 import openpyxl
+from copy import copy
 from contextlib import contextmanager
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.cell.cell import MergedCell as MC
@@ -11,7 +14,15 @@ import base64
 import requests
 import json
 import re
+import html
+from datetime import datetime
 from functools import wraps
+
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:  # psycopg2 only required when DATABASE_URL (PostgreSQL) is used
+    psycopg2 = None
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -38,10 +49,18 @@ except PermissionError:
     TEMPLATE_DIR = "/tmp/user_templates"
     os.makedirs(TEMPLATE_DIR, exist_ok=True)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "database.sqlite")
-# Fallback for Linux hosting environments (Render, Arabcord, etc.)
-if os.name == "posix":
-    DB_PATH = "/tmp/database.sqlite"
+# ── Database configuration ────────────────────────────────────────────────────
+# Production (ArabCord/Render) provides a PostgreSQL DATABASE_URL → use it (persistent).
+# Locally / when unset → use a SQLite file at a PERSISTENT path (never /tmp, which is wiped).
+DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
+USE_POSTGRES = bool(DATABASE_URL) and psycopg2 is not None
+if DATABASE_URL and psycopg2 is None:
+    logger.warning("DATABASE_URL is set but psycopg2 is not installed — falling back to SQLite.")
+
+# SQLite path (used only when no PostgreSQL). Configurable, persistent by default.
+DB_PATH = os.environ.get(
+    "SQLITE_PATH", os.path.join(os.path.dirname(__file__), "database.sqlite")
+)
 
 LOGO_PATH = os.path.join(os.path.dirname(__file__), "static", "excel_logo.png")
 
@@ -62,12 +81,25 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 _secret = os.environ.get("SECRET_KEY")
 if not _secret:
+    # No hardcoded fallback key (that would let anyone forge sessions).
+    # Generate a strong ephemeral key so the app still runs; warn loudly.
+    _secret = secrets.token_hex(32)
     logger.warning(
-        "SECRET_KEY not set — using insecure default. Set it in .env for production!"
+        "SECRET_KEY not set — generated a random ephemeral key. "
+        "Sessions will reset on restart. Set SECRET_KEY in the environment for production!"
     )
-    _secret = "super_secret_session_key_12345"
 app.secret_key = _secret
-CORS(app)
+
+# CORS: the app serves its own same-origin frontend, so cross-origin is disabled by
+# default. Set ALLOWED_ORIGINS (comma-separated) only if external clients are needed.
+_allowed_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+if _allowed_origins:
+    CORS(app, resources={r"/api/*": {"origins": _allowed_origins}}, supports_credentials=True)
+
+# Harden the session cookie
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_DEBUG", "False").lower() != "true"
 
 # Session lifetime: 8 hours
 from datetime import timedelta
@@ -83,17 +115,36 @@ def add_header(response):
     response.headers["Expires"] = "0"
     return response
 
+
+# Security Decorator (defined early so it is available to all routes below)
+WS_PREFIX = "/importantworkstation"
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # The /importantworkstation/* namespace is an OPEN, separate workstation — no main login.
+        if request.path.startswith(WS_PREFIX):
+            return f(*args, **kwargs)
+        if not session.get("authenticated"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+
+    return decorated_function
+
 # ── GPS Configuration ────────────────────────────────────────────────────────
 GPS_USER = os.environ.get("GPS_USER", "")
 GPS_PASS = os.environ.get("GPS_PASS", "")
+# Default to the actual JSON API endpoint (NOT the web-UI SPA URL which returns HTML).
 GPS_ASSET_URL = os.environ.get(
-    "GPS_ASSET_URL", "https://fleetmanagement-clust03.gpscockpit.com/#/FleetOverview"
+    "GPS_ASSET_URL", "https://fleetmanagement-api-clust03.gpscockpit.com/api/asset"
 )
-GPS_PERMANENT_TOKEN = os.environ.get("GPS_PERMANENT_TOKEN", "")
+# Accept either GPS_TOKEN (ArabCord) or the legacy GPS_PERMANENT_TOKEN name.
+GPS_PERMANENT_TOKEN = os.environ.get("GPS_TOKEN") or os.environ.get("GPS_PERMANENT_TOKEN", "")
 
 
 def get_gps_token():
-    """Return the permanent GPS API token from environment."""
+    """Return the GPS API token from environment."""
     return GPS_PERMANENT_TOKEN
 
 
@@ -110,16 +161,15 @@ def health():
 
 
 @app.route("/api/gps")
+@login_required
 def get_gps_locations():
     token = get_gps_token()
     if not token:
         return (
             jsonify(
-                {
-                    "error": "فشل في الحصول على مفتاح الوصول — GPS_PERMANENT_TOKEN غير محدد"
-                }
+                {"error": "خدمة التتبع غير مهيأة — لم يتم ضبط مفتاح GPS (GPS_TOKEN)."}
             ),
-            401,
+            503,
         )
 
     headers = {
@@ -128,25 +178,29 @@ def get_gps_locations():
     }
     try:
         response = requests.get(GPS_ASSET_URL, headers=headers, timeout=20)
-        if response.status_code == 200:
-            return jsonify(response.json())
-        return (
-            jsonify(
-                {
-                    "error": "GPS API Error",
-                    "status_code": response.status_code,
-                    "response": response.text[:200],
-                }
-            ),
-            response.status_code,
-        )
+        if response.status_code != 200:
+            # Do NOT echo provider body to the client (may leak internals); log it instead.
+            logger.warning("GPS API non-200 %s: %s", response.status_code, response.text[:300])
+            return (
+                jsonify({"error": "تعذّر جلب بيانات GPS من المزوّد حالياً."}),
+                502,
+            )
+        # Guard against HTML responses (e.g. misconfigured URL pointing at the web UI).
+        ctype = response.headers.get("Content-Type", "")
+        if "application/json" not in ctype:
+            logger.warning("GPS API returned non-JSON (%s). Check GPS_ASSET_URL.", ctype)
+            return (
+                jsonify({"error": "استجابة GPS غير صالحة — تأكد من ضبط GPS_ASSET_URL على نقطة API."}),
+                502,
+            )
+        return jsonify(response.json())
     except requests.Timeout:
-        return jsonify({"error": "GPS API timeout — تجاوز وقت الاستجابة"}), 504
+        return jsonify({"error": "تجاوز وقت الاستجابة من خدمة GPS."}), 504
     except requests.ConnectionError:
-        return jsonify({"error": "GPS API unreachable — تعذر الاتصال"}), 503
+        return jsonify({"error": "تعذّر الاتصال بخدمة GPS."}), 503
     except Exception as e:
         logger.error("GPS API error: %s", e)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "حدث خطأ غير متوقع أثناء جلب بيانات GPS."}), 500
 
 
 # Flask-Mail Configuration
@@ -160,8 +214,63 @@ mail = Mail(app)
 # OAuth configuration removed
 
 
+def _translate_sql(sql):
+    """Translate SQLite-style '?' placeholders to PostgreSQL-style '%s'."""
+    return sql.replace("?", "%s")
+
+
+class _PgCursor:
+    """Cursor wrapper so PostgreSQL behaves like sqlite3 (rows are dict-like)."""
+
+    def __init__(self, cur):
+        self._cur = cur
+
+    def execute(self, sql, params=()):
+        self._cur.execute(_translate_sql(sql), params)
+        return self
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+    @property
+    def lastrowid(self):
+        return None  # PostgreSQL: use 'RETURNING id' instead
+
+    def __getattr__(self, name):
+        return getattr(self._cur, name)
+
+
+class _PgConn:
+    """Connection wrapper exposing the same surface the app uses on sqlite3."""
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def cursor(self):
+        return _PgCursor(self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
+
+    def execute(self, sql, params=()):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
 def get_db():
-    """Open a database connection with Row factory."""
+    """Open a database connection (PostgreSQL in production, else SQLite). Rows are dict-like."""
+    if USE_POSTGRES:
+        return _PgConn(psycopg2.connect(DATABASE_URL))
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")  # Better concurrency
@@ -181,109 +290,120 @@ def db_connection():
         conn.close()
 
 
+def _pk_clause():
+    """Portable auto-increment primary key clause."""
+    return "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+
+def _drivers_table_columns(db):
+    """Return the set of column names on the drivers table (portable)."""
+    if USE_POSTGRES:
+        rows = db.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'drivers'"
+        ).fetchall()
+        return {r["column_name"] for r in rows}
+    rows = db.execute("PRAGMA table_info(drivers)").fetchall()
+    return {r["name"] for r in rows}
+
+
+def _is_header_row(d):
+    """True for the junk header rows present in drivers_data.js (must not be seeded)."""
+    name = (d.get("name") or "").strip()
+    if not name:
+        return True
+    return ("اسم السائق" in name) or ("Employee Name" in name) or ("ID Number" in name)
+
+
 def init_db():
-    """Initialize database tables if they don't exist."""
+    """Create tables if missing and seed drivers ONCE. Never destructive (no data loss)."""
     with app.app_context():
         with db_connection() as db:
-            db.execute("""
-                CREATE TABLE IF NOT EXISTS drivers (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    empid TEXT,
-                    plate TEXT,
-                    car TEXT,
-                    iqama TEXT,
-                    phone TEXT,
-                    drivercard TEXT
-                )
-            """)
-            
-            # Migration to add drivercard column if missing
-            try:
-                db.execute("SELECT drivercard FROM drivers LIMIT 1")
-            except sqlite3.OperationalError:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS drivers ("
+                "id %s, name TEXT NOT NULL, empid TEXT, plate TEXT, "
+                "car TEXT, iqama TEXT, phone TEXT, drivercard TEXT)" % _pk_clause()
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS washing_schedule (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS employees (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS schedule_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS records_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS incidents_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Workstation-only blob stores (id=2 sandbox). Additive & never seeded, so the
+            # /importantworkstation namespace starts EMPTY and persists what the user types.
+            # The MAIN site (/) never reads or writes these.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS drivers_ws (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS oils_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS purchase_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS workshop_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Tiny key/value flags for the workstation (e.g. "did we auto-seed example data?").
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)"
+            )
+            db.commit()
+
+            # Safe migration: add drivercard to older tables that lack it.
+            if "drivercard" not in _drivers_table_columns(db):
                 db.execute("ALTER TABLE drivers ADD COLUMN drivercard TEXT")
                 db.commit()
                 logger.info("Database Migration: Added drivercard column to drivers table")
 
-            db.execute("""
-                CREATE TABLE IF NOT EXISTS washing_schedule (
-                    id INTEGER PRIMARY KEY,
-                    data TEXT NOT NULL
-                )
-            """)
-            
-            # Auto-seed database from drivers_data.js if missing new drivers
-            count = db.execute("SELECT COUNT(*) FROM drivers").fetchone()[0]
-            if count < 200:
+            # Seed drivers ONCE, only when the table is completely empty.
+            # We never DELETE existing rows — that previously wiped user-added drivers on every restart.
+            count = db.execute("SELECT COUNT(*) AS cnt FROM drivers").fetchone()["cnt"]
+            if count == 0:
                 js_path = os.path.join(app.root_path, "drivers_data.js")
                 if os.path.exists(js_path):
                     try:
-                        import json
                         with open(js_path, "r", encoding="utf-8") as f:
                             content = f.read().replace("const driversData = ", "").strip()
-                            if content.endswith(";"): content = content[:-1]
+                            if content.endswith(";"):
+                                content = content[:-1]
                             data = json.loads(content)
-                            db.execute("DELETE FROM drivers") # Clear old incomplete data
-                            for d in data:
-                                db.execute("INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                                           (d.get("name", ""), d.get("empid", ""), d.get("plate", ""), d.get("car", ""), d.get("iqama", ""), d.get("phone", ""), d.get("drivercard", "")))
-                        logger.info("Database re-seeded with %d drivers from drivers_data.js", len(data))
-                    except Exception as e:
-                        logger.error("Error seeding DB: %s", e)
-            
-            # Import drivercard dates from تحديث الاسبوعي2026-6-03.xlsx if not already done
-            card_count = db.execute("SELECT COUNT(*) FROM drivers WHERE drivercard IS NOT NULL AND drivercard != ''").fetchone()[0]
-            if card_count == 0:
-                excel_file = os.path.join(app.root_path, "تحديث الاسبوعي2026-6-03.xlsx")
-                if os.path.exists(excel_file):
-                    try:
-                        import datetime
-                        import sys
-                        if app.root_path not in sys.path:
-                            sys.path.insert(0, app.root_path)
-                        from import_weekly_schedule import repair_xlsx_to
-                        temp_rep = os.path.join(app.root_path, "temp_repaired_import.xlsx")
-                        repair_xlsx_to(excel_file, temp_rep)
-                        wb = openpyxl.load_workbook(temp_rep, data_only=True)
-                        ws = wb.active
-                        updated = 0
-                        for r in range(14, ws.max_row + 1):
-                            name_val = ws.cell(row=r, column=10).value
-                            card_val = ws.cell(row=r, column=21).value
-                            if name_val and str(name_val).strip():
-                                name_clean = str(name_val).strip()
-                                card_str = ""
-                                if card_val:
-                                    if isinstance(card_val, (datetime.datetime, datetime.date)):
-                                        card_str = card_val.strftime('%Y-%m-%d')
-                                    else:
-                                        card_str = str(card_val).strip()
-                                if card_str and card_str.lower() != 'none':
-                                    db.execute("UPDATE drivers SET drivercard = ? WHERE name = ? OR TRIM(name) = ?", (card_str, name_clean, name_clean))
-                                    updated += 1
+                        seeded = 0
+                        for d in data:
+                            if _is_header_row(d):
+                                continue
+                            db.execute(
+                                "INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) "
+                                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                (
+                                    d.get("name", ""), d.get("empid", ""), d.get("plate", ""),
+                                    d.get("car", ""), d.get("iqama", ""), d.get("phone", ""),
+                                    d.get("drivercard", ""),
+                                ),
+                            )
+                            seeded += 1
                         db.commit()
-                        logger.info("Imported %d driver card dates from excel", updated)
-                        if os.path.exists(temp_rep):
-                            os.remove(temp_rep)
-                    except Exception as ex:
-                        logger.error("Failed to import driver card dates: %s", ex)
-            
+                        logger.info("Database seeded once with %d drivers from drivers_data.js", seeded)
+                    except Exception as e:
+                        db.rollback()
+                        logger.error("Error seeding DB: %s", e)
+
             db.commit()
     logger.info("Database initialized successfully.")
 
 init_db()
-
-
-# Security Decorator
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get("authenticated"):
-            return redirect(url_for("login"))
-        return f(*args, **kwargs)
-
-    return decorated_function
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -297,14 +417,15 @@ def login():
         
         master_user = os.environ.get("ADMIN_USERNAME", "admin")
         master_pass = os.environ.get("MASTER_PASSWORD")
-        
-        allowed_users = [master_user, "admin"]
-        
+
         if not master_pass:
             logger.error("MASTER_PASSWORD environment variable is not set!")
             return render_template("login.html", error="خطأ في إعداد النظام. يرجى التواصل مع المدير.")
-            
-        if username in allowed_users and password == master_pass:
+
+        # Constant-time comparison; only the configured ADMIN_USERNAME is accepted.
+        user_ok = hmac.compare_digest(username, master_user)
+        pass_ok = hmac.compare_digest(password, master_pass)
+        if user_ok and pass_ok:
             session["authenticated"] = True
             session.permanent = True
             session["google_user"] = {"name": username, "email": "admin@system.local"}
@@ -313,14 +434,279 @@ def login():
         else:
             logger.warning("Failed login attempt")
             return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة")
-            
+
     return render_template("login.html")
+
+
+# ── Workstation namespace (/importantworkstation/*) ───────────────────────────
+# A COMPLETELY SEPARATE, OPEN entry that mirrors the site under a URL prefix. It is a
+# sandbox (edits go to id=2, never touching the real id=1 data) and the
+# Cameras/Employees/GPS-Sync tabs are password-locked. The MAIN site (/) is untouched.
+WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
+WS_TABS = {
+    "": "index", "dashboard": "dashboard", "schedule": "schedule", "oils": "oils", "purchase": "purchase",
+    "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
+    "incidents": "incidents",
+    "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync", "cameras": "cameras",
+}
+WS_LOCKED = {"employees", "gps_sync", "cameras", "tracking"}
+
+
+def is_workstation():
+    """Determined purely by the URL prefix — never by the session — so the main site is
+    never affected, even in the same browser."""
+    return request.path.startswith(WS_PREFIX)
+
+
+def _row_id():
+    return 2 if is_workstation() else 1
+
+
+def _safe_tbl(table):
+    """Table names are interpolated into SQL (identifiers can't be parameterized), so
+    validate they are plain identifiers — makes injection via a table name impossible."""
+    if not isinstance(table, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
+        raise ValueError("invalid table name: %r" % (table,))
+    return table
+
+
+def _loads_blob(row):
+    """Parse a blob row's JSON, tolerating corrupt/invalid data instead of raising 500."""
+    if not row:
+        return None
+    try:
+        return json.loads(row["data"])
+    except (ValueError, TypeError):
+        logger.warning("Corrupt JSON blob encountered; returning None")
+        return None
+
+
+def blob_get(table):
+    """Read a single-row JSON blob.
+    Main site reads id=1. The workstation reads ONLY its own id=2 sandbox and NEVER
+    falls back to id=1 — so /importantworkstation starts EMPTY instead of mirroring the
+    real site's data."""
+    table = _safe_tbl(table)
+    rid = _row_id()
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT data FROM %s WHERE id = ?" % table, (rid,))
+        row = c.fetchone()
+        if not row and rid != 1 and not is_workstation():
+            c.execute("SELECT data FROM %s WHERE id = 1" % table)
+            row = c.fetchone()
+    return _loads_blob(row)
+
+
+def blob_set(table, data_obj):
+    """Write a single-row JSON blob to the mode-specific row (id=2 for workstation)."""
+    table = _safe_tbl(table)
+    rid = _row_id()
+    data_str = json.dumps(data_obj, ensure_ascii=False)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id FROM %s WHERE id = ?" % table, (rid,))
+        if c.fetchone():
+            c.execute("UPDATE %s SET data = ? WHERE id = ?" % table, (data_str, rid))
+        else:
+            c.execute("INSERT INTO %s (id, data) VALUES (?, ?)" % table, (rid, data_str))
+        conn.commit()
+
+
+# ── Audit log (append-only; never edited or deleted from the UI) ──────────────
+# Records WHO changed WHAT and WHEN. Sandboxed per mode (id=1 main / id=2 workstation).
+# Rapid auto-saves of the same target by the same user within a short window are coalesced
+# into one row (bumping its time + count) so the trail stays meaningful, not flooded.
+AUDIT_MAX = 1000
+AUDIT_COALESCE_SEC = 600
+
+
+def _audit_get():
+    rid = _row_id()
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT data FROM audit_log WHERE id = ?", (rid,))
+        row = c.fetchone()
+    try:
+        return json.loads(row["data"]) if row else []
+    except Exception:
+        return []
+
+
+def _audit_write(log):
+    rid = _row_id()
+    data_str = json.dumps(log[-AUDIT_MAX:], ensure_ascii=False)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id FROM audit_log WHERE id = ?", (rid,))
+        if c.fetchone():
+            c.execute("UPDATE audit_log SET data = ? WHERE id = ?", (data_str, rid))
+        else:
+            c.execute("INSERT INTO audit_log (id, data) VALUES (?, ?)", (rid, data_str))
+        conn.commit()
+
+
+def _audit_add(action, target, count=None, detail=""):
+    """Best-effort audit entry. A logging failure must NEVER break the underlying save."""
+    try:
+        who = "محطة العمل" if is_workstation() else ((session.get("google_user") or {}).get("name") or "النظام")
+        now = datetime.now()
+        log = _audit_get()
+        last = log[-1] if log else None
+        if last and last.get("action") == action and last.get("target") == target and last.get("user") == who:
+            try:
+                delta = (now - datetime.strptime(last["ts"], "%Y-%m-%d %H:%M:%S")).total_seconds()
+            except Exception:
+                delta = AUDIT_COALESCE_SEC + 1
+            if 0 <= delta <= AUDIT_COALESCE_SEC:
+                last["ts"] = now.strftime("%Y-%m-%d %H:%M:%S")
+                last["count"] = count
+                last["detail"] = detail
+                last["hits"] = last.get("hits", 1) + 1
+                _audit_write(log)
+                return
+        log.append({
+            "ts": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "user": who, "action": action, "target": target,
+            "count": count, "detail": detail, "hits": 1,
+        })
+        _audit_write(log)
+    except Exception:
+        logger.exception("audit_add failed")
+
+
+# ── Workstation example/demo data (FAKE — for the open sandbox only) ──────────
+# Loaded once from ws_example_data.json. The MAIN site never touches any of this.
+WS_EXAMPLE_PATH = os.path.join(os.path.dirname(__file__), "ws_example_data.json")
+try:
+    with open(WS_EXAMPLE_PATH, encoding="utf-8") as _wsf:
+        WS_EXAMPLE_DATA = json.load(_wsf)
+except Exception as _e:
+    logger.warning("ws_example_data.json not loaded: %s", _e)
+    WS_EXAMPLE_DATA = {}
+
+
+def _ws_meta_get(k):
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT v FROM ws_meta WHERE k = ?", (k,))
+        row = c.fetchone()
+    return row["v"] if row else None
+
+
+def _ws_meta_set(k, v):
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT k FROM ws_meta WHERE k = ?", (k,))
+        if c.fetchone():
+            c.execute("UPDATE ws_meta SET v = ? WHERE k = ?", (v, k))
+        else:
+            c.execute("INSERT INTO ws_meta (k, v) VALUES (?, ?)", (k, v))
+        conn.commit()
+
+
+def _ws_get2(table):
+    """Read the workstation (id=2) blob for a table, or None."""
+    table = _safe_tbl(table)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT data FROM %s WHERE id = 2" % table)
+        row = c.fetchone()
+    return _loads_blob(row)
+
+
+def _ws_put2(table, value):
+    """Upsert the workstation (id=2) blob for a table."""
+    table = _safe_tbl(table)
+    data_str = json.dumps(value, ensure_ascii=False)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id FROM %s WHERE id = 2" % table)
+        if c.fetchone():
+            c.execute("UPDATE %s SET data = ? WHERE id = 2" % table, (data_str,))
+        else:
+            c.execute("INSERT INTO %s (id, data) VALUES (2, ?)" % table, (data_str,))
+        conn.commit()
+
+
+def _ws_is_empty(value):
+    """True if a stored blob carries NO real rows — covers a missing row, [], {}, and an
+    'empty shell' object like {title, date:'', main:[], spare:[], vacation:[], summary:{vacation:'0'}}
+    that a stray autosave may have written (this is why a tab can look permanently empty).
+    Rows live ONLY in LIST fields (main/spare/vacation/oils/filters/parts/…); scalar and dict
+    fields (title, date, summary) are metadata and never count as data."""
+    if value is None:
+        return True
+    if isinstance(value, list):
+        return len(value) == 0
+    if isinstance(value, dict):
+        for v in value.values():
+            if isinstance(v, list) and len(v) > 0:
+                return False
+        return True  # no non-empty list field → no rows
+    return False
+
+
+def _ws_write_examples():
+    """Overwrite ALL workstation id=2 stores with the FAKE example data (used by 🧪)."""
+    for table, value in WS_EXAMPLE_DATA.items():
+        _ws_put2(table, value)
+
+
+def ensure_ws_seeded():
+    """Self-healing seed: on every workstation page load, fill any store that is EMPTY
+    (missing OR an empty/empty-shell blob) from the example data, while PRESERVING any store
+    that holds real rows the user typed. Skipped entirely if the user emptied the sandbox with
+    the 🗑️ button (ws_cleared flag), so a deliberate reset stays empty."""
+    try:
+        if _ws_meta_get("ws_cleared") == "1":
+            return
+        for table, value in WS_EXAMPLE_DATA.items():
+            if _ws_is_empty(_ws_get2(table)):
+                _ws_put2(table, value)
+    except Exception:
+        logger.exception("ensure_ws_seeded error")
+
+
+@app.route(WS_PREFIX)
+@app.route(WS_PREFIX + "/<path:sub>")
+def workstation_page(sub=""):
+    """Open workstation pages under the prefix. The 3 sensitive tabs require the password."""
+    ensure_ws_seeded()  # first visit fills the sandbox with fake example data
+    seg = sub.strip("/").split("/")[0] if sub else ""
+    if seg == "api":
+        return ("", 404)  # API served by the mirrored /importantworkstation/api/* rules
+    if seg not in WS_TABS:
+        return redirect(WS_PREFIX)
+    if seg in WS_LOCKED and not session.get("ws_unlocked"):
+        return render_template("tab_lock.html", next=WS_PREFIX + "/" + seg)
+    ctx = {"google_user": {"name": "Workstation", "email": "ws@system.local"}, "b64_en": load_logo()}
+    if seg == "cameras":
+        ctx["cameras_url"] = os.environ.get("CAMERAS_URL", "")
+    return render_template(WS_TABS[seg] + ".html", **ctx)
+
+
+@app.route(WS_PREFIX + "/unlock", methods=["POST"])
+def workstation_unlock():
+    nxt = request.form.get("next", WS_PREFIX)
+    if not nxt.startswith(WS_PREFIX):
+        nxt = WS_PREFIX
+    if hmac.compare_digest(request.form.get("password", ""), WORKSTATION_PASSWORD):
+        session["ws_unlocked"] = True
+        resp = redirect(nxt)
+        resp.set_cookie("ws_unlocked", "1", path=WS_PREFIX, samesite="Lax",
+                        httponly=True,
+                        secure=app.config.get("SESSION_COOKIE_SECURE", False))
+        return resp
+    return render_template("tab_lock.html", next=nxt, error="كلمة المرور غير صحيحة")
 
 
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("login"))
+    resp = redirect(url_for("login"))
+    resp.delete_cookie("ws_unlocked", path=WS_PREFIX)
+    return resp
 
 
 @app.route("/tracking")
@@ -346,6 +732,16 @@ def index():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("index.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    # Read-only executive dashboard. Reads existing /api/* data via GET; never writes
+    # unless the user explicitly clicks "restore" in the Update-History panel.
+    google_user = session.get("google_user")
+    b64_en = load_logo()
+    return render_template("dashboard.html", google_user=google_user, b64_en=b64_en)
 
 
 @app.route("/oils")
@@ -379,26 +775,12 @@ def washing():
     b64_en = load_logo()
     return render_template("washing.html", google_user=google_user, b64_en=b64_en)
 
-@app.route("/invoice")
-@login_required
-def invoice():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("invoice.html", google_user=google_user, b64_en=b64_en)
-
 @app.route("/employees")
 @login_required
 def employees():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("employees.html", google_user=google_user, b64_en=b64_en)
-
-@app.route("/fleet_dashboard")
-@login_required
-def fleet_dashboard():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("fleet_dashboard.html", google_user=google_user, b64_en=b64_en)
 
 
 @app.route("/gps_sync")
@@ -415,6 +797,52 @@ def workshop():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("workshop.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/search")
+@login_required
+def search_page():
+    return render_template("search.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/records")
+@login_required
+def records_page():
+    return render_template("records.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/incidents")
+@login_required
+def incidents_page():
+    return render_template("incidents.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/cameras")
+@login_required
+def cameras_page():
+    # Embeds Hik-Connect in an iframe. URL is configurable via the CAMERAS_URL env var
+    # (or per-browser in the UI). Note: Hik-Connect may block iframing (X-Frame-Options).
+    return render_template(
+        "cameras.html",
+        google_user=session.get("google_user"),
+        b64_en=load_logo(),
+        cameras_url=os.environ.get("CAMERAS_URL", ""),
+    )
+
+
+@app.route("/api/vehicles_lookup")
+@login_required
+def vehicles_lookup():
+    """Serve the vehicle/driver registry (authenticated — contains personal data)."""
+    path = os.path.join(app.root_path, "vehicles_lookup.json")
+    if not os.path.exists(path):
+        return jsonify([])
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    except Exception:
+        logger.exception("vehicles_lookup read error")
+        return jsonify([])
 
 
 @app.route("/api/download_workshop_template")
@@ -460,6 +888,8 @@ MAX_TEMPLATE_SIZE = 16 * 1024 * 1024  # 16 MB
 @app.route("/api/upload_template/<tab>", methods=["POST"])
 @login_required
 def upload_template(tab):
+    if is_workstation():
+        return jsonify({"error": "غير متاح في محطة العمل"}), 403
     if tab not in VALID_TABS:
         return jsonify({"error": "Invalid tab name"}), 400
     if "file" not in request.files:
@@ -493,6 +923,8 @@ def list_templates():
 @app.route("/api/delete_template/<tab>", methods=["DELETE"])
 @login_required
 def delete_template(tab):
+    if is_workstation():
+        return jsonify({"error": "غير متاح في محطة العمل"}), 403
     if tab not in VALID_TABS:
         return jsonify({"error": "Invalid tab"}), 400
     user_path = os.path.join(TEMPLATE_DIR, f"{tab}_template.xlsx")
@@ -842,43 +1274,445 @@ def generate_washing():
 @app.route("/api/washing_data", methods=["GET", "POST"])
 @login_required
 def washing_data():
+    # Workstation mode writes/reads an isolated copy (id=2); the real data (id=1) is untouched.
     if request.method == "POST":
         try:
-            data_str = json.dumps(request.json.get("vehicles", []))
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT id FROM washing_schedule WHERE id = 1")
-                if c.fetchone():
-                    c.execute(
-                        "UPDATE washing_schedule SET data = ? WHERE id = 1", (data_str,)
-                    )
-                else:
-                    c.execute(
-                        "INSERT INTO washing_schedule (id, data) VALUES (1, ?)",
-                        (data_str,),
-                    )
-                conn.commit()
+            vehicles = (request.json or {}).get("vehicles", [])
+            blob_set("washing_schedule", vehicles)
+            _audit_add("تحديث", "جدول الغسيل", len(vehicles) if isinstance(vehicles, list) else None)
             return jsonify({"success": True})
-        except Exception as e:
-            logger.error("washing_data POST error: %s", e)
-            return jsonify({"success": False, "error": str(e)}), 500
-    else:
+        except Exception:
+            logger.exception("washing_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ جدول الغسيل."}), 500
+    try:
+        data = blob_get("washing_schedule")
+        if data is not None:
+            return jsonify({"success": True, "vehicles": data})
+        return jsonify({"success": False, "vehicles": []})
+    except Exception:
+        logger.exception("washing_data GET error")
+        return jsonify({"success": False, "error": "تعذّر جلب جدول الغسيل."}), 500
+
+
+@app.route("/api/employees", methods=["GET", "POST"])
+@login_required
+def employees_data():
+    """Persist the branch employees grid (array of 46-column string rows). Sandboxed for workstation."""
+    if request.method == "POST":
         try:
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT data FROM washing_schedule WHERE id = 1")
-                row = c.fetchone()
-            if row:
-                return jsonify({"success": True, "vehicles": json.loads(row["data"])})
-            return jsonify({"success": False, "vehicles": []})
-        except Exception as e:
-            logger.error("washing_data GET error: %s", e)
-            return jsonify({"success": False, "error": str(e)}), 500
+            rows = (request.json or {}).get("rows", [])
+            blob_set("employees", rows)
+            _audit_add("تحديث", "بيانات الموظفين", len(rows) if isinstance(rows, list) else None)
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("employees_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ بيانات الموظفين."}), 500
+    try:
+        data = blob_get("employees")
+        return jsonify({"success": True, "rows": data if data is not None else []})
+    except Exception:
+        logger.exception("employees_data GET error")
+        return jsonify({"success": False, "error": "تعذّر جلب بيانات الموظفين."}), 500
+
+
+@app.route("/api/schedule_data", methods=["GET", "POST"])
+@login_required
+def schedule_data():
+    """Persist the weekly schedule (main/spare/vacation/summary). Sandboxed for workstation."""
+    if request.method == "POST":
+        try:
+            sd = request.json or {}
+            blob_set("schedule_data", sd)
+            _n = (len(sd.get("main", []) or []) + len(sd.get("spare", []) or [])) if isinstance(sd, dict) else None
+            _audit_add("تحديث", "الجدول الأسبوعي", _n)
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("schedule_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ الجدول الأسبوعي."}), 500
+    try:
+        return jsonify({"success": True, "data": blob_get("schedule_data")})
+    except Exception:
+        logger.exception("schedule_data GET error")
+        return jsonify({"success": False, "error": "تعذّر جلب الجدول الأسبوعي."}), 500
+
+
+@app.route("/api/records", methods=["GET", "POST"])
+@login_required
+def records_data():
+    """Persist the documentation/records log. Sandboxed for workstation."""
+    if request.method == "POST":
+        try:
+            rows = (request.json or {}).get("rows", [])
+            blob_set("records_data", rows)
+            _audit_add("تحديث", "سجل التوثيق", len(rows) if isinstance(rows, list) else None)
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("records_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ السجلات."}), 500
+    try:
+        data = blob_get("records_data")
+        return jsonify({"success": True, "rows": data if data is not None else []})
+    except Exception:
+        logger.exception("records_data GET error")
+        return jsonify({"success": False, "rows": []})
+
+
+@app.route("/api/incidents", methods=["GET", "POST"])
+@login_required
+def incidents_data():
+    """Persist the incidents/violations log (with in-DB base64 attachments). Sandboxed for workstation."""
+    if request.method == "POST":
+        try:
+            rows = (request.json or {}).get("rows", [])
+            blob_set("incidents_data", rows)
+            atts = sum(len(r.get("attachments", []) or []) for r in rows if isinstance(r, dict))
+            _audit_add("تحديث", "سجل الحوادث والمخالفات",
+                       len(rows) if isinstance(rows, list) else None,
+                       ("%d مرفق" % atts) if atts else "")
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("incidents_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ سجل الحوادث."}), 500
+    try:
+        data = blob_get("incidents_data")
+        return jsonify({"success": True, "rows": data if data is not None else []})
+    except Exception:
+        logger.exception("incidents_data GET error")
+        return jsonify({"success": False, "rows": []})
+
+
+@app.route("/api/audit_log", methods=["GET"])
+@login_required
+def audit_log_data():
+    """Read-only audit trail. Append-only by design — there is no edit/delete endpoint."""
+    try:
+        return jsonify({"success": True, "rows": _audit_get()})
+    except Exception:
+        logger.exception("audit_log GET error")
+        return jsonify({"success": True, "rows": []})
+
+
+@app.route("/api/whoami", methods=["GET"])
+@login_required
+def whoami():
+    """The signed-in identity for the top bar (real session user — no fabricated name)."""
+    gu = session.get("google_user") or {}
+    name = gu.get("name") or ("محطة العمل" if is_workstation() else "مستخدم النظام")
+    return jsonify({"name": name, "role": "إدارة الأسطول والتوثيق"})
+
+
+# ── Automatic document-expiry email alerts ────────────────────────────────────
+# Read-only scan of the schedule + employees blobs for documents that expired or expire
+# soon, formatted into a branded email. Recipients come from the request (manual "send now")
+# or the ALERT_RECIPIENTS env var (scheduled cron). Sending uses the existing Flask-Mail
+# config; if SMTP isn't configured the endpoint reports the reason instead of failing.
+ALERT_RECIPIENTS = [e.strip() for e in os.environ.get("ALERT_RECIPIENTS", "").split(",") if e.strip()]
+ALERT_CRON_KEY = os.environ.get("ALERT_CRON_KEY", "")
+
+
+def _parse_iso_date(s):
+    if not isinstance(s, str):
+        return None
+    m = re.match(r"^\s*(\d{4})-(\d{2})-(\d{2})\s*$", s)
+    if not m:
+        return None
+    try:
+        y, mo, da = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if y < 2000 or y > 2100:
+            return None
+        return datetime(y, mo, da)
+    except Exception:
+        return None
+
+
+def _collect_expiry_alerts(window_days=90):
+    """Return the list of documents expiring within `window_days` (or already expired)."""
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    out = []
+
+    def add(name, plate, doc, dstr):
+        d = _parse_iso_date(dstr)
+        if not d:
+            return
+        days = (d - today).days
+        if days > window_days:
+            return
+        if days < 0:
+            key, label = "expired", "منتهي"
+        elif days <= 30:
+            key, label = "d30", "≤ 30 يوم"
+        else:
+            key, label = "d90", "≤ 90 يوم"
+        out.append({"name": name or "—", "plate": plate or "", "doc": doc,
+                    "date": dstr, "days": days, "key": key, "label": label})
+
+    sd = blob_get("schedule_data") or {}
+    if isinstance(sd, dict):
+        for sect in ("main", "spare"):
+            for r in (sd.get(sect) or []):
+                if not isinstance(r, dict):
+                    continue
+                nm, pl = r.get("name"), r.get("plate")
+                add(nm, pl, "الفحص الدوري", r.get("inspect"))
+                add(nm, pl, "رخصة السير", r.get("license"))
+                add(nm, pl, "بطاقة التشغيل", r.get("opcard"))
+                add(nm, pl, "بطاقة السائق", r.get("drivercard"))
+
+    emps = blob_get("employees") or []
+    if isinstance(emps, list):
+        for row in emps:
+            if not isinstance(row, list):
+                continue
+            nm = (row[2] if len(row) > 2 else "") or (row[3] if len(row) > 3 else "")
+            pl = row[9] if len(row) > 9 else ""
+            if len(row) > 10:
+                add(nm, pl, "انتهاء الإقامة", row[10])
+            if len(row) > 11:
+                add(nm, pl, "انتهاء الجواز", row[11])
+
+    rank = {"expired": 0, "d30": 1, "d90": 2}
+    out.sort(key=lambda a: (rank.get(a["key"], 9), a["days"]))
+    return out
+
+
+def _build_alert_email_html(alerts):
+    counts = {"expired": 0, "d30": 0, "d90": 0}
+    for a in alerts:
+        counts[a["key"]] = counts.get(a["key"], 0) + 1
+    today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    def days_txt(a):
+        d = a["days"]
+        if d < 0:
+            return "منذ %d يوم" % abs(d)
+        if d == 0:
+            return "اليوم"
+        return "خلال %d يوم" % d
+
+    colors = {"expired": "#dc2626", "d30": "#d97706", "d90": "#ca8a04"}
+    rows = ""
+    for a in alerts[:120]:
+        c = colors.get(a["key"], "#6b7280")
+        rows += (
+            "<tr>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;direction:ltr;font-family:monospace;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;white-space:nowrap;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;color:%s;font-weight:700;white-space:nowrap;'>%s · %s</td>"
+            "</tr>"
+        ) % (html.escape(str(a["name"])), html.escape(str(a["plate"] or "—")),
+         html.escape(str(a["doc"])), html.escape(str(a["date"])), c, a["label"], days_txt(a))
+
+    return (
+        "<div style='font-family:Tahoma,Arial,sans-serif;direction:rtl;text-align:right;background:#f4f6fb;padding:22px;'>"
+        "<div style='max-width:760px;margin:auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e6e9f0;'>"
+        "<div style='background:#0C2340;padding:18px 24px;border-bottom:4px solid #c9a227;'>"
+        "<div style='color:#fff;font-size:18px;font-weight:800;'>BIN ZOMAH INTL. — شركة بن زومة</div>"
+        "<div style='color:#c9a227;font-size:13px;font-weight:700;'>تنبيه وثائق الأسطول — فرع الدمام</div></div>"
+        "<div style='padding:20px 24px;'>"
+        "<p style='color:#334;font-size:14px;margin:0 0 16px;'>ملخّص الوثائق التي تحتاج إجراءً حتى تاريخ <b>%s</b>:</p>"
+        "<div style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;'>"
+        "<div style='flex:1;min-width:150px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;text-align:center;'>"
+        "<div style='font-size:26px;font-weight:800;color:#dc2626;'>%d</div><div style='font-size:12px;color:#991b1b;'>🔴 منتهية</div></div>"
+        "<div style='flex:1;min-width:150px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;text-align:center;'>"
+        "<div style='font-size:26px;font-weight:800;color:#d97706;'>%d</div><div style='font-size:12px;color:#92400e;'>🟠 خلال 30 يوم</div></div>"
+        "<div style='flex:1;min-width:150px;background:#fefce8;border:1px solid #fef08a;border-radius:10px;padding:12px;text-align:center;'>"
+        "<div style='font-size:26px;font-weight:800;color:#ca8a04;'>%d</div><div style='font-size:12px;color:#854d0e;'>🟡 خلال 90 يوم</div></div>"
+        "</div>"
+        "<table style='width:100%%;border-collapse:collapse;font-size:13px;color:#222;'>"
+        "<thead><tr style='background:#0C2340;color:#fff;'>"
+        "<th style='padding:10px 12px;text-align:right;'>الاسم</th>"
+        "<th style='padding:10px 12px;text-align:right;'>اللوحة</th>"
+        "<th style='padding:10px 12px;text-align:right;'>الوثيقة</th>"
+        "<th style='padding:10px 12px;text-align:right;'>تاريخ الانتهاء</th>"
+        "<th style='padding:10px 12px;text-align:right;'>الحالة</th></tr></thead>"
+        "<tbody>%s</tbody></table>"
+        "<p style='color:#94a3b8;font-size:11px;margin-top:18px;'>هذه رسالة آلية من نظام إدارة الأسطول — شركة بن زومة. الرجاء عدم الرد عليها.</p>"
+        "</div></div></div>"
+    ) % (today_str, counts.get("expired", 0), counts.get("d30", 0), counts.get("d90", 0), rows)
+
+
+def _send_expiry_alert_email(recipients):
+    alerts = _collect_expiry_alerts()
+    attention = [a for a in alerts if a["key"] in ("expired", "d30", "d90")]
+    if not attention:
+        return {"sent": False, "reason": "no_alerts", "count": 0}
+    if not app.config.get("MAIL_USERNAME") or not app.config.get("MAIL_PASSWORD"):
+        return {"sent": False, "reason": "mail_not_configured", "count": len(attention)}
+    recipients = [r for r in (recipients or []) if r]
+    if not recipients:
+        return {"sent": False, "reason": "no_recipients", "count": len(attention)}
+    try:
+        msg = Message(
+            subject="🚨 تنبيه وثائق الأسطول — شركة بن زومة (فرع الدمام)",
+            recipients=recipients,
+            html=_build_alert_email_html(attention),
+            sender=app.config.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME"),
+        )
+        mail.send(msg)
+        return {"sent": True, "count": len(attention), "recipients": recipients}
+    except Exception as e:
+        logger.exception("send expiry alert email failed")
+        return {"sent": False, "reason": "send_error", "error": str(e), "count": len(attention)}
+
+
+@app.route("/api/expiry_alerts_preview", methods=["GET"])
+@login_required
+def expiry_alerts_preview():
+    """Counts + list the server sees (lets the dashboard show what WOULD be emailed)."""
+    try:
+        alerts = _collect_expiry_alerts()
+        attention = [a for a in alerts if a["key"] in ("expired", "d30", "d90")]
+        counts = {"expired": 0, "d30": 0, "d90": 0}
+        for a in attention:
+            counts[a["key"]] += 1
+        return jsonify({"success": True, "counts": counts, "total": len(attention),
+                        "mail_configured": bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD")),
+                        "default_recipients": ALERT_RECIPIENTS})
+    except Exception:
+        logger.exception("expiry preview error")
+        return jsonify({"success": False, "counts": {}, "total": 0})
+
+
+@app.route("/api/send_expiry_alerts", methods=["POST"])
+@login_required
+def send_expiry_alerts():
+    """Manual 'send now' from the dashboard. Recipients from the request or ALERT_RECIPIENTS."""
+    body = request.json or {}
+    recips = body.get("recipients") or ALERT_RECIPIENTS
+    if isinstance(recips, str):
+        recips = [e.strip() for e in re.split(r"[,;\s]+", recips) if e.strip()]
+    res = _send_expiry_alert_email(recips)
+    if res.get("sent"):
+        _audit_add("إرسال", "تنبيهات الوثائق بالبريد", res.get("count"),
+                   "إلى: " + ", ".join(res.get("recipients", [])))
+    return jsonify({"success": res.get("sent", False), **res})
+
+
+@app.route("/api/cron/expiry_alerts", methods=["GET", "POST"])
+def cron_expiry_alerts():
+    """Token-protected trigger for an external daily scheduler (ArabCord cron / cron-job.org).
+    Not login-protected; guarded by ALERT_CRON_KEY. Uses ALERT_RECIPIENTS for the recipient list."""
+    key = request.args.get("key", "")
+    if not key and request.is_json:
+        key = (request.json or {}).get("key", "")
+    if not ALERT_CRON_KEY or not hmac.compare_digest(str(key), ALERT_CRON_KEY):
+        return jsonify({"success": False, "error": "unauthorized"}), 401
+    res = _send_expiry_alert_email(ALERT_RECIPIENTS)
+    if res.get("sent"):
+        _audit_add("إرسال تلقائي", "تنبيهات الوثائق بالبريد", res.get("count"),
+                   "مجدول — إلى: " + ", ".join(res.get("recipients", [])))
+    return jsonify({"success": res.get("sent", False), **res})
+
+
+# ── Workstation-only tab state (oils / purchase / workshop) ───────────────────
+# These tabs have NO server storage on the main site (hardcoded rows + localStorage).
+# For the /importantworkstation sandbox they persist a single JSON object on the server
+# (id=2 via blob_get/blob_set). On the main site (id=1) these rows stay empty/unused —
+# the main pages never POST here, so the main site keeps its original behavior.
+@app.route("/api/oils_data", methods=["GET", "POST"])
+@login_required
+def oils_data():
+    if request.method == "POST":
+        try:
+            blob_set("oils_data", request.json or {})
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("oils_data POST error")
+            return jsonify({"success": False}), 500
+    try:
+        return jsonify({"success": True, "data": blob_get("oils_data")})
+    except Exception:
+        logger.exception("oils_data GET error")
+        return jsonify({"success": False, "data": None})
+
+
+@app.route("/api/purchase_data", methods=["GET", "POST"])
+@login_required
+def purchase_data():
+    if request.method == "POST":
+        try:
+            blob_set("purchase_data", request.json or {})
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("purchase_data POST error")
+            return jsonify({"success": False}), 500
+    try:
+        return jsonify({"success": True, "data": blob_get("purchase_data")})
+    except Exception:
+        logger.exception("purchase_data GET error")
+        return jsonify({"success": False, "data": None})
+
+
+@app.route("/api/workshop_data", methods=["GET", "POST"])
+@login_required
+def workshop_data():
+    if request.method == "POST":
+        try:
+            blob_set("workshop_data", request.json or {})
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("workshop_data POST error")
+            return jsonify({"success": False}), 500
+    try:
+        return jsonify({"success": True, "data": blob_get("workshop_data")})
+    except Exception:
+        logger.exception("workshop_data GET error")
+        return jsonify({"success": False, "data": None})
+
+
+# All id=2 stores used by the workstation sandbox. Used by the reset endpoint below.
+WS_BLOB_TABLES = [
+    "employees", "schedule_data", "washing_schedule", "records_data",
+    "drivers_ws", "oils_data", "purchase_data", "workshop_data",
+]
+
+
+@app.route("/api/ws_reset", methods=["POST"])
+@login_required
+def ws_reset():
+    """Wipe EVERY workstation (id=2) store so /importantworkstation starts truly empty.
+    Workstation-only: the main site can never reach this (guard + path-based mirror)."""
+    if not is_workstation():
+        return jsonify({"success": False, "error": "workstation only"}), 404
+    try:
+        with db_connection() as conn:
+            c = conn.cursor()
+            for t in WS_BLOB_TABLES:
+                c.execute("DELETE FROM %s WHERE id = 2" % t)
+            conn.commit()
+        _ws_meta_set("ws_cleared", "1")  # user emptied it on purpose → don't auto-reseed
+        return jsonify({"success": True})
+    except Exception:
+        logger.exception("ws_reset error")
+        return jsonify({"success": False}), 500
+
+
+@app.route("/api/ws_seed", methods=["POST"])
+@login_required
+def ws_seed():
+    """Fill EVERY workstation (id=2) store with the FAKE example data (demo).
+    Workstation-only: the main site can never reach this."""
+    if not is_workstation():
+        return jsonify({"success": False, "error": "workstation only"}), 404
+    try:
+        _ws_write_examples()
+        _ws_meta_set("ws_cleared", "0")  # examples are wanted again → allow auto-seed
+        return jsonify({"success": True})
+    except Exception:
+        logger.exception("ws_seed error")
+        return jsonify({"success": False}), 500
 
 
 @app.route("/api/drivers", methods=["GET"])
 @login_required
 def get_drivers():
+    if is_workstation():
+        # Workstation: isolated, server-persistent driver list (id=2). Starts EMPTY.
+        lst = blob_get("drivers_ws") or []
+        lst = sorted(lst, key=lambda d: d.get("id", 0), reverse=True)
+        return jsonify(lst)
     with db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM drivers ORDER BY id DESC")
@@ -1076,15 +1910,33 @@ def add_driver():
     drivercard = data.get("drivercard", "").strip()
     if not name:
         return jsonify({"error": "Name is required"}), 400
+    if is_workstation():
+        # Workstation: persist to the isolated drivers_ws blob (id=2). Real table untouched.
+        lst = blob_get("drivers_ws") or []
+        new_id = max([d.get("id", 0) for d in lst], default=0) + 1
+        row = {"id": new_id, "name": name, "empid": empid, "plate": plate, "car": car,
+               "iqama": iqama, "phone": phone, "drivercard": drivercard}
+        lst.append(row)
+        blob_set("drivers_ws", lst)
+        return jsonify({"success": True, **row})
     with db_connection() as conn:
         c = conn.cursor()
-        c.execute(
-            "INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (name, empid, plate, car, iqama, phone, drivercard),
-        )
-        conn.commit()
-        new_id = c.lastrowid
-    logger.info("Driver added: %s (id=%d)", name, new_id)
+        if USE_POSTGRES:
+            c.execute(
+                "INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                (name, empid, plate, car, iqama, phone, drivercard),
+            )
+            new_id = c.fetchone()["id"]
+            conn.commit()
+        else:
+            c.execute(
+                "INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (name, empid, plate, car, iqama, phone, drivercard),
+            )
+            conn.commit()
+            new_id = c.lastrowid
+    logger.info("Driver added: %s (id=%s)", name, new_id)
     return jsonify(
         {
             "success": True,
@@ -1102,6 +1954,11 @@ def add_driver():
 @app.route("/api/drivers/<int:driver_id>", methods=["DELETE"])
 @login_required
 def delete_driver(driver_id):
+    if is_workstation():
+        # Workstation: remove from the isolated drivers_ws blob (id=2). Real table untouched.
+        lst = [d for d in (blob_get("drivers_ws") or []) if d.get("id") != driver_id]
+        blob_set("drivers_ws", lst)
+        return jsonify({"success": True})
     with db_connection() as conn:
         conn.execute("DELETE FROM drivers WHERE id = ?", (driver_id,))
         conn.commit()
@@ -1124,11 +1981,23 @@ def update_driver(driver_id):
     if not name:
         return jsonify({"error": "Name is required"}), 400
 
+    if is_workstation():
+        # Workstation: update inside the isolated drivers_ws blob (id=2). Real table untouched.
+        lst = blob_get("drivers_ws") or []
+        for d in lst:
+            if d.get("id") == driver_id:
+                d.update({"name": name, "empid": empid, "plate": plate, "car": car,
+                          "iqama": iqama, "phone": phone, "drivercard": drivercard})
+                break
+        blob_set("drivers_ws", lst)
+        return jsonify({"success": True, "id": driver_id, "name": name, "plate": plate, "car": car,
+                        "iqama": iqama, "phone": phone, "drivercard": drivercard})
+
     with db_connection() as conn:
         c = conn.cursor()
         c.execute(
             """
-            UPDATE drivers 
+            UPDATE drivers
             SET name=?, empid=?, plate=?, car=?, iqama=?, phone=?, drivercard=?
             WHERE id=?
         """,
@@ -1204,7 +2073,7 @@ def generate_po():
         ws["I9"] = data.get("empid", "")
         
         from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
-        label_fill = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")
+        label_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")  # neutral gray, B&W-print-safe
         thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
         center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
         
@@ -1336,6 +2205,19 @@ def generate_po():
         except Exception as e:
             logger.error("Logo injection failed: %s", e)
 
+        # Clean black-&-white printing: fit to one page width, centered, A4 portrait.
+        try:
+            from openpyxl.worksheet.properties import PageSetupProperties
+            from openpyxl.worksheet.page import PageMargins
+            ws.page_setup.orientation = "portrait"
+            ws.page_setup.fitToWidth = 1
+            ws.page_setup.fitToHeight = 0
+            ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+            ws.print_options.horizontalCentered = True
+            ws.page_margins = PageMargins(left=0.3, right=0.3, top=0.5, bottom=0.5, header=0.2, footer=0.2)
+        except Exception as e:
+            logger.warning("PO page setup skipped: %s", e)
+
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
@@ -1343,7 +2225,8 @@ def generate_po():
         b64 = base64.b64encode(output.read()).decode("utf-8")
         return jsonify({"success": True, "file_b64": b64})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.exception("generate_po error")
+        return jsonify({"success": False, "error": "تعذّر توليد طلب الشراء."}), 500
 
 
 @app.route("/api/generate_oils", methods=["POST"])
@@ -1621,6 +2504,7 @@ M: +966 53 975 7659 &nbsp;|&nbsp; E: damfleet@bz.sa
 
 
 def _build_html_compose(subject, body_text):
+    body_text = html.escape(body_text or "")  # user-provided → escape for the HTML email
     return f"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
@@ -1676,6 +2560,19 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 </table>
 </td></tr></table>
 </body></html>"""
+
+
+# Mirror every /api/* endpoint under /importantworkstation/api/* (same handler). Because
+# is_workstation() is path-based, those calls transparently read/write the id=2 sandbox,
+# while the real /api/* endpoints (id=1) stay completely untouched.
+for _rule in list(app.url_map.iter_rules()):
+    if _rule.rule.startswith("/api/"):
+        app.add_url_rule(
+            WS_PREFIX + _rule.rule,
+            endpoint="ws_" + _rule.endpoint,
+            view_func=app.view_functions[_rule.endpoint],
+            methods=sorted(_rule.methods - {"HEAD", "OPTIONS"}),
+        )
 
 
 if __name__ == "__main__":

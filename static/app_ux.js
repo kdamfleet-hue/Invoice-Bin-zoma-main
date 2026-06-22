@@ -4,6 +4,25 @@
  * Page Transitions, Idle Session Timeout, and Bilingual Translation.
  */
 
+// Global flag: are we inside the open /importantworkstation sandbox? Every tab uses this
+// to start EMPTY and persist to the server (id=2) instead of showing the main site's data.
+// Purely path-based, so the main site (/) is never affected — even in the same browser.
+window.BZ_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+// Isolate the workstation namespace's browser storage from the main site, so edits made
+// under /importantworkstation (employees, schedule, Excel cache, etc.) can NEVER bleed
+// into the real site's cached data. Runs first, before any tab code touches localStorage.
+(function () {
+    try {
+        if (!window.BZ_WS) return;
+        var ls = window.localStorage, ns = 'ws:';
+        var g = ls.getItem.bind(ls), s = ls.setItem.bind(ls), r = ls.removeItem.bind(ls);
+        ls.getItem = function (k) { return g(ns + k); };
+        ls.setItem = function (k, v) { return s(ns + k, v); };
+        ls.removeItem = function (k) { return r(ns + k); };
+    } catch (e) { /* ignore */ }
+})();
+
 const translations = {
     "en": {
         // Titles and headers
@@ -216,11 +235,69 @@ const translations = {
         "كرت البلدية": "Municipality Card",
         "الكرت الوظيفي": "Work ID Card",
         "حالة التامين": "Insurance Status",
-        "الاستحقاقات السنوية": "Annual Entitlements"
+        "الاستحقاقات السنوية": "Annual Entitlements",
+
+        // Navigation (with emoji, as rendered in the top bar)
+        "🏠 الرئيسية": "🏠 Home",
+        "🛒 طلب شراء": "🛒 Purchase",
+        "📋 الجدول الأسبوعي": "📋 Weekly Schedule",
+        "🛢️ الزيوت والفلاتر": "🛢️ Oils & Filters",
+        "🚿 الغسيل": "🚿 Washing",
+        "🔧 الورشة": "🔧 Workshop",
+        "👥 الموظفين": "👥 Employees",
+        "🔍 بحث": "🔍 Search",
+        "📁 التوثيق": "📁 Records",
+        "📡 مزامنة GPS": "📡 GPS Sync",
+        "🛰️ التتبع": "🛰️ Tracking",
+        "📹 الكاميرات": "📹 Cameras",
+        "📹 الكاميرات المباشرة — Hik-Connect": "📹 Live Cameras — Hik-Connect",
+        "فتح في نافذة جديدة": "Open in new window",
+        "خروج": "Logout",
+
+        // Common actions / share
+        "تصدير Excel": "Export Excel",
+        "تنزيل Excel": "Download Excel",
+        "إرسال بالبريد": "Send by Email",
+        "إرسال واتساب": "Send via WhatsApp",
+        "تنزيل PDF": "Download PDF",
+        "مشاركة / تصدير": "Share / Export",
+        "طباعة": "Print",
+        "إضافة صف": "Add Row",
+        "إضافة سائق": "Add Driver",
+        "حفظ على الخادم": "Save to Server",
+        "بحث": "Search",
+        "عرض مختصر": "Compact View",
+        "عرض كامل (كل الأعمدة)": "Full View (all columns)",
+
+        // Schedule groups / sections
+        "الجدول الرئيسي": "Main Schedule",
+        "بيانات الموظف": "Employee Data",
+        "بيانات المركبات": "Vehicle Data",
+        "بيان المركبات الاسبير والمعطلة": "Spare & Out-of-service Vehicles",
+        "السائقون في إجازة (هذا الأسبوع)": "Drivers on Leave (this week)",
+        "إرسال للجميع عبر واتساب": "Send to all via WhatsApp",
+        "ملخص الأعداد": "Counts Summary",
+
+        // Records (documentation) tab
+        "التوثيق والسجلات": "Documentation & Records",
+        "ما فائدة هذا التبويب؟": "What is this tab for?",
+        "نوع التوثيق": "Record Type",
+        "الموضوع": "Subject",
+        "التفاصيل": "Details",
+        "رقم المرجع": "Reference No.",
+        "الحالة": "Status",
+        "رابط المستند": "Document Link",
+
+        // Search tab
+        "بحث سريع": "Quick Search",
+        "ابحث بالاسم أو رقم الإقامة": "Search by name or ID number"
     }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    injectGlobalNavLinks();
+    applyWorkstationRestrictions();
+    buildEnterpriseShell();
     initThemeToggle();
     injectTopographicBackground();
     injectUXContainers();
@@ -230,20 +307,248 @@ document.addEventListener('DOMContentLoaded', () => {
     initLanguageTranslation();
 });
 
+// --- Workstation namespace (/importantworkstation/*) ---
+// A separate, open mirror of the site under a URL prefix. Detected purely by the path,
+// so the MAIN site is never affected. Internal links and /api calls are kept under the
+// prefix; the Employees/GPS-Sync/Cameras tabs show a 🔒 until unlocked.
+const WS_PREFIX = '/importantworkstation';
+function inWorkstation() { return window.location.pathname.indexOf(WS_PREFIX) === 0; }
+function getCookie(name) {
+    const m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
+    return m ? decodeURIComponent(m[1]) : '';
+}
+// Inject the "الحوادث والمخالفات" tab into every top-bar nav from one place, so the link
+// stays consistent site-wide without editing each template. Runs BEFORE the workstation
+// rewrite so its href is prefixed automatically inside /importantworkstation. Additive only —
+// the main site is unaffected apart from gaining this link.
+function injectGlobalNavLinks() {
+    const nav = document.querySelector('.bz-topbar .bz-nav');
+    if (!nav) return;
+    if (nav.querySelector('a[href$="/incidents"]')) return; // already there (e.g. the incidents page)
+    const a = document.createElement('a');
+    a.setAttribute('href', '/incidents');
+    a.textContent = '🚨 الحوادث والمخالفات';
+    const afterRecords = nav.querySelector('a[href$="/records"]');
+    if (afterRecords && afterRecords.nextSibling) nav.insertBefore(a, afterRecords.nextSibling);
+    else nav.appendChild(a);
+}
+
+// ===== Enterprise unified shell (deep-dark + right sidebar + rich topbar) =====
+// Built from one place so every tab gets the same chrome. The sidebar is CLONED from
+// the page's existing horizontal nav (so links + active state + workstation prefix/lock
+// all stay correct). Defensive: only runs on pages that have a .bz-topbar (skips the
+// dashboard — it has its own shell — plus login/lock pages). Adds NO fabricated data.
+function buildEnterpriseShell() {
+    try {
+        const topbar = document.querySelector('.bz-topbar');
+        if (!topbar) return;                               // dashboard / login / tab_lock → skip
+        if (document.querySelector('.bz-sidebar')) return; // already built (defensive)
+
+        document.body.classList.add('bz-enterprise');
+        if (localStorage.getItem('bz_side_collapsed') === '1') document.body.classList.add('side-collapsed');
+
+        // ---- sidebar (cloned from the horizontal nav) ----
+        let navHtml = '';
+        topbar.querySelectorAll('.bz-nav a').forEach(a => {
+            const txt = (a.textContent || '').trim();
+            const sp = txt.indexOf(' ');
+            const icon = sp > 0 ? txt.slice(0, sp) : '•';
+            const label = sp > 0 ? txt.slice(sp + 1).trim() : txt;
+            const cls = a.classList.contains('active') ? ' class="active"' : '';
+            navHtml += `<a href="${a.getAttribute('href')}"${cls}><span class="si">${icon}</span><span class="slab">${escapeHtml(label)}</span></a>`;
+        });
+        const aside = document.createElement('aside');
+        aside.className = 'bz-sidebar';
+        aside.innerHTML =
+            '<div class="side-brand"><img src="/static/nav_logo.png" alt="BIN ZOMAH"><div class="brand-text"><b>BIN ZOMAH INTL.</b><span>نظام إدارة الأسطول والتوثيق</span></div></div>' +
+            '<nav>' + navHtml + '</nav>' +
+            '<div class="side-foot"><button type="button" id="bzSideCollapse" title="طي/توسيع القائمة"><span>⇆</span><span class="slab">طي القائمة</span></button></div>';
+        document.body.appendChild(aside);
+        const collapseBtn = document.getElementById('bzSideCollapse');
+        if (collapseBtn) collapseBtn.addEventListener('click', () => {
+            const c = document.body.classList.toggle('side-collapsed');
+            try { localStorage.setItem('bz_side_collapsed', c ? '1' : '0'); } catch (e) {}
+        });
+
+        // ---- enrich the topbar ----
+        const actions = topbar.querySelector('.bz-actions');
+        const brand = topbar.querySelector('.bz-brand');
+
+        if (brand && !document.getElementById('bzBurger')) {
+            const burger = document.createElement('button');
+            burger.id = 'bzBurger'; burger.type = 'button'; burger.className = 'bz-icon-btn bz-side-burger';
+            burger.title = 'القائمة'; burger.textContent = '☰';
+            burger.addEventListener('click', () => aside.classList.toggle('open'));
+            brand.parentNode.insertBefore(burger, brand);
+        }
+
+        if (!document.getElementById('bzTopSearch')) {
+            const sw = document.createElement('div');
+            sw.className = 'bz-top-search';
+            sw.innerHTML = '<span class="si">🔍</span><input id="bzTopSearch" type="text" placeholder="بحث سريع في هذه الصفحة…">';
+            topbar.insertBefore(sw, actions || null);
+            document.getElementById('bzTopSearch').addEventListener('input', function () { bzQuickFilter(this.value); });
+        }
+
+        if (actions) {
+            if (!document.getElementById('bzBell')) {
+                const bell = document.createElement('a');
+                bell.id = 'bzBell'; bell.className = 'bz-top-ico'; bell.href = '/dashboard#alerts';
+                bell.title = 'تنبيهات الوثائق'; bell.textContent = '🔔';
+                actions.insertBefore(bell, actions.firstChild);
+            }
+            if (!document.getElementById('bzUser')) {
+                const user = document.createElement('div');
+                user.id = 'bzUser'; user.className = 'bz-top-user';
+                user.innerHTML = '<div class="u-meta"><b id="bzUserName">—</b><span>إدارة الأسطول</span></div><div class="u-av" id="bzUserAv">BZ</div>';
+                actions.appendChild(user);
+            }
+        }
+
+        // fill the user chip + alerts badge from REAL data only (best-effort; no fabrication)
+        fetch('/api/whoami', { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : null)
+            .then(j => {
+                if (!j) return;
+                const nm = document.getElementById('bzUserName'); if (nm && j.name) nm.textContent = j.name;
+                const av = document.getElementById('bzUserAv'); if (av && j.name) av.textContent = ((j.name.trim()[0]) || 'B');
+            }).catch(() => {});
+        fetch('/api/expiry_alerts_preview', { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : null)
+            .then(j => {
+                const bell = document.getElementById('bzBell');
+                if (j && bell && j.total > 0) bell.innerHTML = '🔔<span class="badge-dot">' + (j.total > 99 ? '99+' : j.total) + '</span>';
+            }).catch(() => {});
+    } catch (e) { console.error('enterprise shell error', e); }
+}
+
+// Top-bar quick search: forward into the page's own search box when present (keeps its
+// filtering/counters correct); otherwise generically hide non-matching rows of the
+// largest table (checks both text cells and input/select values).
+function bzQuickFilter(q) {
+    const known = ['empSearch', 'searchInput', 'assetSearch', 'seInput'];
+    for (const id of known) {
+        const el = document.getElementById(id);
+        if (el) { el.value = q; el.dispatchEvent(new Event('input', { bubbles: true })); return; }
+    }
+    const term = (q || '').trim().toLowerCase();
+    let best = null, bestN = -1;
+    document.querySelectorAll('table').forEach(t => {
+        const n = t.querySelectorAll('tbody tr').length;
+        if (n > bestN) { bestN = n; best = t; }
+    });
+    if (!best) return;
+    best.querySelectorAll('tbody tr').forEach(tr => {
+        if (!term) { tr.style.display = ''; return; }
+        let hit = (tr.textContent || '').toLowerCase().indexOf(term) !== -1;
+        if (!hit) {
+            const f = tr.querySelectorAll('input,textarea,select');
+            for (let i = 0; i < f.length; i++) { if ((f[i].value || '').toLowerCase().indexOf(term) !== -1) { hit = true; break; } }
+        }
+        tr.style.display = hit ? '' : 'none';
+    });
+}
+
+function applyWorkstationRestrictions() {
+    if (!inWorkstation()) return; // MAIN SITE: do nothing at all
+    // 1) keep every internal nav link inside the workstation prefix
+    document.querySelectorAll('a[href^="/"]').forEach(a => {
+        const h = a.getAttribute('href');
+        if (!h || h.indexOf(WS_PREFIX) === 0) return;
+        if (h === '/logout' || h.indexOf('/static') === 0 || h.indexOf('/api') === 0 || h.indexOf('//') === 0) return;
+        a.setAttribute('href', WS_PREFIX + (h === '/' ? '' : h));
+    });
+    // 3) inject a workstation-only "clear all data" button so the user can wipe the
+    //    sandbox to a truly empty start (removes any leftover id=2 data from earlier use).
+    const actions = document.querySelector('.bz-topbar .bz-actions');
+    if (actions && !document.getElementById('wsResetBtn')) {
+        const btn = document.createElement('button');
+        btn.id = 'wsResetBtn';
+        btn.type = 'button';
+        btn.className = 'bz-icon-btn';
+        btn.title = 'تفريغ كل بيانات محطة العمل (بداية فارغة) — لا يؤثر على الموقع الأساسي';
+        btn.textContent = '🗑️';
+        btn.style.cssText = 'background:rgba(220,38,38,.18);border-color:rgba(220,38,38,.45);';
+        btn.addEventListener('click', window.bzResetWorkstation);
+        actions.insertBefore(btn, actions.firstChild);
+        // "fill example data" button next to it
+        const seedBtn = document.createElement('button');
+        seedBtn.id = 'wsSeedBtn';
+        seedBtn.type = 'button';
+        seedBtn.className = 'bz-icon-btn';
+        seedBtn.title = 'تعبئة كل التبويبات ببيانات أمثلة — لا يؤثر على الموقع الأساسي';
+        seedBtn.textContent = '🧪';
+        seedBtn.style.cssText = 'background:rgba(201,162,39,.20);border-color:rgba(201,162,39,.5);';
+        seedBtn.addEventListener('click', window.bzSeedWorkstation);
+        actions.insertBefore(seedBtn, actions.firstChild);
+    }
+    // 2) lock the sensitive tabs until unlocked
+    if (getCookie('ws_unlocked') === '1') return;
+    [WS_PREFIX + '/employees', WS_PREFIX + '/gps_sync', WS_PREFIX + '/cameras', WS_PREFIX + '/tracking'].forEach(p => {
+        document.querySelectorAll('a[href="' + p + '"]').forEach(a => {
+            if (a.textContent.indexOf('🔒') === -1) {
+                a.textContent = '🔒 ' + a.textContent.trim();
+                a.title = 'مقفل — يتطلب كلمة مرور';
+            }
+        });
+    });
+}
+
+// Wipe every workstation (id=2) store + this browser's ws: cache, then reload empty.
+// Workstation-only; the main site never sees this button or endpoint.
+window.bzResetWorkstation = async function () {
+    if (!inWorkstation()) return;
+    if (!window.confirm('تفريغ كل بيانات محطة العمل؟\n\nسيُحذف كل ما أُدخل في هذا الرابط (الموظفون، الجدول، الغسيل، السائقون، الزيوت، الورشة، طلب الشراء، السجلات) ويبدأ فارغاً.\n\nالموقع الأساسي لن يتأثر إطلاقاً.')) return;
+    try {
+        // '/api/ws_reset' is rewritten to /importantworkstation/api/ws_reset by the fetch wrapper.
+        await fetch('/api/ws_reset', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    } catch (e) { /* best-effort */ }
+    // Also drop this browser's ws:-prefixed cached copies (bypass the patched instance methods).
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.indexOf('ws:') === 0) Storage.prototype.removeItem.call(localStorage, k);
+        }
+    } catch (e) { /* ignore */ }
+    window.location.reload();
+};
+
+// Fill every workstation tab with realistic FAKE example data (demo), then reload.
+// Workstation-only; the main site never sees this button or endpoint.
+window.bzSeedWorkstation = async function () {
+    if (!inWorkstation()) return;
+    if (!window.confirm('تعبئة كل تبويبات محطة العمل ببيانات أمثلة؟')) return;
+    try {
+        await fetch('/api/ws_seed', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    } catch (e) { /* best-effort */ }
+    // Drop local ws: caches so the freshly-seeded server data shows on reload.
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.indexOf('ws:') === 0) Storage.prototype.removeItem.call(localStorage, k);
+        }
+    } catch (e) { /* ignore */ }
+    window.location.reload();
+};
+
 // --- Theme Management ---
 function initThemeToggle() {
     const savedTheme = localStorage.getItem('darkMode');
-    if (savedTheme === 'true') {
-        document.body.classList.add('dark-mode');
-        updateToggleButtons(true);
-    } else {
+    // Default to dark mode for a professional look
+    if (savedTheme === 'false') {
         document.body.classList.remove('dark-mode');
+        document.documentElement.classList.remove('dark-mode');
         updateToggleButtons(false);
+    } else {
+        document.body.classList.add('dark-mode');
+        document.documentElement.classList.add('dark-mode');
+        updateToggleButtons(true);
     }
 }
 
 window.toggleDarkMode = function() {
     document.body.classList.toggle('dark-mode');
+    document.documentElement.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
     localStorage.setItem('darkMode', isDark);
     updateToggleButtons(isDark);
@@ -342,11 +647,14 @@ window.stopProgress = function() {
 // --- Fetch Wrapper for Progress ---
 function wrapFetchForProgress() {
     const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
+    window.fetch = async function(input, init) {
+        // In the workstation namespace, route /api/* calls to the sandboxed /importantworkstation/api/*
+        if (inWorkstation() && typeof input === 'string' && input.indexOf('/api/') === 0) {
+            input = WS_PREFIX + input;
+        }
         startProgress();
         try {
-            const response = await originalFetch(...args);
-            return response;
+            return await originalFetch(input, init);
         } finally {
             stopProgress();
         }
@@ -505,13 +813,22 @@ function initIdleTimeout() {
 // =============================================================================
 let translationObserver = null;
 
-function initLanguageTranslation() {
+async function initLanguageTranslation() {
     applyEnglishStyles();
-    
+
     // Auto-inject translation button
     injectLanguageToggle();
 
-    // Fetch and apply saved language
+    // Merge the comprehensive site-wide translation map (covers all tabs' UI strings)
+    try {
+        const r = await fetch('/static/i18n_en.json', { cache: 'no-cache' });
+        if (r.ok) {
+            const map = await r.json();
+            translations.en = Object.assign({}, translations.en, map);
+        }
+    } catch (e) { /* fall back to the built-in dictionary */ }
+
+    // Fetch and apply saved language (re-applies with the now-complete dictionary)
     const currentLang = localStorage.getItem('lang') || 'ar';
     setLanguage(currentLang);
 }
@@ -527,10 +844,10 @@ function setLanguage(lang) {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     
-    // Update language toggle text
+    // Update language toggle text (EN / AR)
     const langBtn = document.getElementById('languageToggleBtn');
     if (langBtn) {
-        langBtn.innerHTML = lang === 'ar' ? '🇬🇧' : '🇸🇦';
+        langBtn.innerHTML = lang === 'ar' ? 'EN' : 'AR';
         langBtn.title = lang === 'ar' ? 'Switch to English' : 'التحويل للعربية';
     }
 
@@ -547,7 +864,7 @@ function translateDOM(lang) {
     function walk(node) {
         if (node.nodeType === Node.TEXT_NODE) {
             const trimmed = node.nodeValue.trim();
-            if (trimmed) {
+            if (trimmed && node.parentElement) {
                 if (dict[trimmed]) {
                     if (!node.parentElement.hasAttribute('data-orig-text')) {
                         node.parentElement.setAttribute('data-orig-text', trimmed);
@@ -656,7 +973,7 @@ function translateSubtree(node, lang) {
     
     if (node.nodeType === Node.TEXT_NODE) {
         const trimmed = node.nodeValue.trim();
-        if (trimmed && dict[trimmed]) {
+        if (trimmed && dict[trimmed] && node.parentElement) {
             if (!node.parentElement.hasAttribute('data-orig-text')) {
                 node.parentElement.setAttribute('data-orig-text', trimmed);
             }
@@ -698,7 +1015,8 @@ function injectLanguageToggle() {
     const langBtn = document.createElement('button');
     langBtn.id = 'languageToggleBtn';
     langBtn.onclick = window.toggleLanguage;
-    
+    langBtn.setAttribute('aria-label', 'Language EN/AR');
+
     // Unified Styling
     langBtn.style.cursor = 'pointer';
     langBtn.style.border = 'none';
@@ -708,7 +1026,8 @@ function injectLanguageToggle() {
     langBtn.style.display = 'flex';
     langBtn.style.alignItems = 'center';
     langBtn.style.justifyContent = 'center';
-    langBtn.style.fontSize = '1.3rem';
+    langBtn.style.fontSize = '0.95rem';
+    langBtn.style.fontWeight = '800';
     langBtn.style.transition = 'var(--trans-spring, 0.3s)';
     langBtn.style.boxShadow = 'var(--shadow-sm, 0 4px 15px rgba(0,0,0,0.1))';
     langBtn.style.backdropFilter = 'blur(5px)';
@@ -736,7 +1055,7 @@ function injectLanguageToggle() {
         }
         
         const currentLang = localStorage.getItem('lang') || 'ar';
-        langBtn.innerHTML = currentLang === 'ar' ? '🇬🇧' : '🇸🇦';
+        langBtn.innerHTML = currentLang === 'ar' ? 'EN' : 'AR';
         darkToggle.parentNode.insertBefore(langBtn, darkToggle.nextSibling);
     } else {
         // Floating fallback
@@ -745,10 +1064,258 @@ function injectLanguageToggle() {
         langBtn.style.right = '75px';
         
         const currentLang = localStorage.getItem('lang') || 'ar';
-        langBtn.innerHTML = currentLang === 'ar' ? '🇬🇧' : '🇸🇦';
+        langBtn.innerHTML = currentLang === 'ar' ? 'EN' : 'AR';
         document.body.appendChild(langBtn);
     }
 }
+
+// =============================================================================
+// SHARED SECURITY + AUTOFILL ENGINE (used by every tab)
+// =============================================================================
+
+/** Escape a value for safe insertion into HTML (prevents stored XSS). */
+window.escapeHtml = function (value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+};
+
+/** Normalize a plate string (strip spaces, Arabic→English digits) for matching. */
+window.normalizePlate = function (plate) {
+    if (plate == null) return '';
+    let p = String(plate);
+    const ar = '٠١٢٣٤٥٦٧٨٩', en = '0123456789';
+    for (let i = 0; i < ar.length; i++) p = p.split(ar[i]).join(en[i]);
+    p = p.replace(/\s+/g, '');
+    const digits = (p.match(/\d+/g) || []).join('');
+    const letters = (p.match(/[^\d]+/g) || []).join('');
+    return digits + letters;
+};
+
+/**
+ * FleetData — single source of truth for driver/vehicle autofill across all tabs.
+ * Loads /static/fleet_data.json once and caches it.
+ */
+window.FleetData = (function () {
+    let _cache = null;
+    let _promise = null;
+
+    async function load() {
+        if (_cache) return _cache;
+        if (_promise) return _promise;
+        // Workstation is a blank slate: no preloaded fleet registry → no autofill/suggestions
+        // from the real data. The user enters everything manually (saved to the server).
+        if (window.BZ_WS) { _cache = []; return _cache; }
+        _promise = fetch('/static/fleet_data.json')
+            .then(function (r) { return r.ok ? r.json() : []; })
+            .then(function (rows) { _cache = Array.isArray(rows) ? rows : []; return _cache; })
+            .catch(function () { _cache = []; return _cache; });
+        return _promise;
+    }
+
+    function records() { return _cache || []; }
+
+    function byName(name) {
+        const n = String(name || '').trim();
+        if (!n) return null;
+        return records().find(function (d) { return (d.name || '').trim() === n; }) || null;
+    }
+
+    function byPlate(plate) {
+        const target = window.normalizePlate(plate);
+        if (!target) return null;
+        return records().find(function (d) { return window.normalizePlate(d.plate) === target; }) || null;
+    }
+
+    function byIqama(iqama) {
+        const t = String(iqama == null ? '' : iqama).replace(/\D/g, '');
+        if (!t) return null;
+        return records().find(function (d) { return String(d.iqama || '').replace(/\D/g, '') === t; }) || null;
+    }
+
+    /** Populate a <datalist> (or <select>) with all driver names. */
+    async function fillDatalist(elOrId) {
+        await load();
+        const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+        if (!el) return;
+        const tag = el.tagName.toLowerCase();
+        el.innerHTML = (tag === 'select' ? '<option value=""></option>' : '') +
+            records().map(function (d) {
+                const label = window.escapeHtml(d.name);
+                return '<option value="' + label + '"></option>';
+            }).join('');
+    }
+
+    /**
+     * Wire a name input so selecting/typing a known driver auto-fills related fields.
+     * opts: { name: '#or id of name input', fields: { iqama:'id', empid:'id', plate:'id', car:'id', phone:'id' } }
+     * Field targets may be element ids or elements; setter callbacks also supported via fields.set(record).
+     */
+    async function attachAutofill(opts) {
+        await load();
+        const nameEl = typeof opts.name === 'string'
+            ? (document.getElementById(opts.name) || document.querySelector(opts.name))
+            : opts.name;
+        if (!nameEl) return;
+        if (nameEl.tagName.toLowerCase() === 'input' && nameEl.getAttribute('list')) {
+            await fillDatalist(nameEl.getAttribute('list'));
+        }
+        const fields = opts.fields || {};
+        function apply() {
+            const rec = byName(nameEl.value);
+            if (!rec) return;
+            ['iqama', 'empid', 'plate', 'car', 'phone'].forEach(function (key) {
+                if (!fields[key]) return;
+                const t = typeof fields[key] === 'string'
+                    ? (document.getElementById(fields[key]) || document.querySelector(fields[key]))
+                    : fields[key];
+                if (t && 'value' in t && (rec[key] || rec[key] === '')) t.value = rec[key] || '';
+            });
+            if (typeof opts.onFill === 'function') opts.onFill(rec);
+        }
+        if (nameEl.dataset.bzAutofillBound === '1') return; // avoid duplicate listeners on repeat calls
+        nameEl.dataset.bzAutofillBound = '1';
+        nameEl.addEventListener('change', apply);
+        nameEl.addEventListener('input', apply);
+    }
+
+    return { load: load, records: records, byName: byName, byPlate: byPlate, byIqama: byIqama, fillDatalist: fillDatalist, attachAutofill: attachAutofill };
+})();
+
+// =============================================================================
+// SHARE / EXPORT HELPERS (used by every tab): Download · Email · WhatsApp · PDF
+// =============================================================================
+
+// Current language + translate-a-string helper (for Excel headers, dynamic text, etc.)
+window.bzLang = function () { return localStorage.getItem('lang') || 'ar'; };
+window.bzTL = function (ar) {
+    const d = (typeof translations !== 'undefined' && translations.en) ? translations.en : {};
+    const key = String(ar == null ? '' : ar).trim();
+    return (window.bzLang() === 'en' && d[key]) ? d[key] : ar;
+};
+
+window.bzBlobToBase64 = function (blob) {
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onloadend = () => resolve(String(r.result).split(',')[1]);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+    });
+};
+
+window.bzDownload = function (blob, filename) {
+    if (window.saveAs) { window.saveAs(blob, filename); return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+};
+
+window.bzEmailFile = async function (blob, filename, subject) {
+    const email = (window.prompt('أدخل البريد الإلكتروني للمستلم:', '') || '').trim();
+    if (!email) return;
+    try {
+        const b64 = await bzBlobToBase64(blob);
+        const r = await fetch('/api/send_email', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, filename: filename, file_b64: b64, subject: subject || filename })
+        });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && d.success) showToast('تم إرسال الملف إلى ' + email, 'success');
+        else showToast('تعذّر الإرسال: ' + (d.error || ''), 'error');
+    } catch (e) { showToast('تعذّر الإرسال بالبريد', 'error'); }
+};
+
+// WhatsApp web links can't carry file attachments — download the file then open a chat
+// with a note so the user attaches it. (Honest limitation of wa.me.)
+window.bzWhatsAppFile = function (blob, filename, message) {
+    bzDownload(blob, filename);
+    const phone = (window.prompt('رقم واتساب المستلم (اختياري، بصيغة 9665…) — اتركه فارغاً لاختيار المحادثة:', '') || '').replace(/\D/g, '');
+    const msg = (message || ('الملف المرفق: ' + filename)) + '\n(تم تنزيل الملف على جهازك — يرجى إرفاقه في المحادثة)';
+    const base = phone ? ('https://wa.me/' + phone) : 'https://wa.me/';
+    window.open(base + '?text=' + encodeURIComponent(msg), '_blank');
+    showToast('تم تنزيل الملف — أرفقه في واتساب', 'info');
+};
+
+let _html2pdfLoading = null;
+function bzEnsureHtml2pdf() {
+    if (window.html2pdf) return Promise.resolve();
+    if (_html2pdfLoading) return _html2pdfLoading;
+    _html2pdfLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+    });
+    return _html2pdfLoading;
+}
+
+/** Render a DOM element to a PDF Blob (Arabic-safe; rasterizes the element). */
+window.bzElementToPdfBlob = async function (element, orientation) {
+    if (!element) throw new Error('bzElementToPdfBlob: no element provided');
+    await bzEnsureHtml2pdf();
+    const opt = {
+        margin: 6, image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: orientation || 'landscape' }
+    };
+    return window.html2pdf().set(opt).from(element).toPdf().output('blob');
+};
+
+/**
+ * Unified share menu. Pass an async builder that returns a Blob, or pass {blob}.
+ * opts: { filename, subject, pdfElement (DOM el or id for PDF), waMessage }
+ */
+window.bzShare = function (getExcelBlob, opts) {
+    opts = opts || {};
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop show';
+    overlay.style.zIndex = 3000;
+    overlay.innerHTML =
+        '<div class="modal-content-custom" style="max-width:420px;">' +
+        '<div class="modal-header-custom"><h2>📤 مشاركة / تصدير</h2>' +
+        '<button class="close-btn" data-x>✕</button></div>' +
+        '<div class="modal-body-custom"><div class="bz-share-menu" style="flex-direction:column;">' +
+        '<button class="btn-primary" data-act="dl-xlsx">📥 تنزيل Excel</button>' +
+        '<button class="btn-outline" data-act="email-xlsx">📧 إرسال Excel بالبريد</button>' +
+        '<button class="btn-outline" data-act="wa-xlsx">💬 إرسال Excel واتساب</button>' +
+        (opts.pdfElement ? '<hr style="border:none;border-top:1px solid var(--border);margin:6px 0;">' +
+            '<button class="btn-primary" data-act="dl-pdf">📄 تنزيل PDF</button>' +
+            '<button class="btn-outline" data-act="email-pdf">📧 إرسال PDF بالبريد</button>' +
+            '<button class="btn-outline" data-act="wa-pdf">💬 إرسال PDF واتساب</button>' : '') +
+        '</div></div></div>';
+    document.body.appendChild(overlay);
+    const close = () => { overlay.remove(); };
+    overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.hasAttribute('data-x')) close(); });
+
+    const fnameBase = (opts.filename || 'ملف').replace(/\.(xlsx|pdf)$/i, '');
+    const getPdfEl = () => typeof opts.pdfElement === 'string' ? document.getElementById(opts.pdfElement) : opts.pdfElement;
+
+    overlay.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', async () => {
+        const act = btn.dataset.act;
+        btn.disabled = true;
+        try {
+            if (act.endsWith('xlsx')) {
+                const blob = typeof getExcelBlob === 'function' ? await getExcelBlob() : getExcelBlob;
+                if (!blob) { showToast('تعذّر تجهيز ملف Excel', 'error'); return; }
+                const fn = fnameBase + '.xlsx';
+                if (act === 'dl-xlsx') bzDownload(blob, fn);
+                else if (act === 'email-xlsx') await bzEmailFile(blob, fn, opts.subject);
+                else bzWhatsAppFile(blob, fn, opts.waMessage);
+            } else {
+                const el = getPdfEl();
+                if (!el) { showToast('لا يوجد محتوى للـ PDF', 'error'); return; }
+                const blob = await bzElementToPdfBlob(el, opts.pdfOrientation);
+                const fn = fnameBase + '.pdf';
+                if (act === 'dl-pdf') bzDownload(blob, fn);
+                else if (act === 'email-pdf') await bzEmailFile(blob, fn, opts.subject);
+                else bzWhatsAppFile(blob, fn, opts.waMessage);
+            }
+            close();
+        } catch (e) { showToast('حدث خطأ: ' + e.message, 'error'); }
+        finally { btn.disabled = false; }
+    }));
+};
 
 function applyEnglishStyles() {
     let styleEl = document.getElementById('en-layout-styles');

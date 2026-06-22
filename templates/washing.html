@@ -4,301 +4,228 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تحضير جدول الغسيل | شركة بن زومة</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
-    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css') }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js') }}"></script>
     <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Cairo', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
-                    colors: {
-                        dark: { bg: '#080C14', card: '#111726', nav: '#0B111E' },
-                        brand: { blue: '#2563EB', gold: '#C8A45A' }
-                    }
-                }
-            }
-        }
-    </script>
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #080C14; margin: 0; }
-        .mono-num { font-family: 'JetBrains Mono', monospace; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #080C14; }
-        ::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #374151; }
-        /* Current month glow */
-        .col-current { border-left: 1px solid rgba(37,99,235,0.25); border-right: 1px solid rgba(37,99,235,0.25); }
-        .col-current-head { background: rgba(37,99,235,0.15) !important; color: #60a5fa !important; }
-        .col-future td, .col-future-head { color: #374151 !important; }
-        /* Wash cell transitions */
-        .wash-cell { cursor: pointer; transition: all 0.15s ease; user-select: none; }
-        .wash-cell:hover { transform: scale(1.1); }
-        /* Mobile sidebar */
-        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 998; }
-        .sidebar-overlay.open { display: block; }
-        @media (max-width: 767px) {
-            aside.sidebar { transform: translateX(100%); position: fixed; top: 0; right: 0; bottom: 0; z-index: 999; transition: transform 0.3s ease; }
-            aside.sidebar.open { transform: translateX(0); }
+        /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
+        /* Let bz-fit size each column to its content; allow horizontal scroll on
+           very narrow screens instead of clipping header/cell text. */
+        .wash-table-wrap { overflow-x: auto; }
+        #washTable { border-collapse: collapse; width: 100%; table-layout: auto; }
+        #washTable thead { position: sticky; top: 0; z-index: 5; }
+        #washTable thead th {
+            background: var(--brand-navy, #0C2340);
+            color: #fff; padding: 12px 8px; font-size: 0.8rem; font-weight: 700;
+            text-align: center; white-space: normal; word-break: keep-all;
+            overflow-wrap: normal; hyphens: none; line-height: 1.3;
+            border-bottom: 2px solid var(--accent, #c9a227);
+        }
+        #washTable thead th.col-id { text-align: center; }
+        #washTable thead th.col-plate { text-align: right; }
+        #washTable thead th.col-type { text-align: right; }
+        #washTable thead th.col-driver { text-align: right; }
+        #washTable thead th.col-month { text-align: center; }
+        /* keep-all + overflow-wrap:normal keeps single Arabic words (e.g. المجموع) whole;
+           multi-word headers still wrap at their spaces, column grows instead of breaking. */
+        #washTable thead th { word-break: keep-all; overflow-wrap: normal; }
+        #washTable thead th.col-total { background: var(--accent, #c9a227); color: #0C2340; }
+        /* visible (not hidden) so no header/cell text is ever clipped on screen. */
+        #washTable td, #washTable th { overflow: visible; }
+        /* Current-month emphasis: a gold underline + bold so it reads even in B&W on screen */
+        #washTable thead th.col-month.current-month {
+            background: var(--accent, #c9a227); color: #0C2340; font-weight: 900;
+            box-shadow: inset 0 -3px 0 #0C2340;
+        }
+        #washTable thead th.col-month.current-month::after { content: " ⬇"; font-size: 0.7rem; }
+        #washTable tbody td.cell-wash.current-month { box-shadow: inset 2px 0 0 var(--accent, #c9a227), inset -2px 0 0 var(--accent, #c9a227); }
+
+        #washTable tbody td {
+            padding: 8px 10px; font-size: 0.85rem; text-align: center;
+            border: 1px solid var(--border); transition: background 0.15s ease;
+        }
+        #washTable tbody td.cell-plate { text-align: right; font-weight: 700; font-family: monospace; font-size: 0.9rem; }
+        #washTable tbody td.cell-type { text-align: right; font-size: 0.8rem; color: var(--text-secondary); }
+        #washTable tbody td.cell-driver { text-align: right; font-size: 0.8rem; max-width: 200px; }
+        .driver-edit-input { width: 100%; border: none; background: transparent; color: var(--text-primary); font-family: inherit; font-size: 0.85rem; font-weight: bold; text-align: right; outline: none; padding: 4px; transition: var(--trans); border-radius: 4px; }
+        .driver-edit-input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
+        #washTable tbody td.cell-total { font-weight: 800; font-size: 1rem; background: var(--surface-hover); }
+        #washTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
+
+        /* Wash status cells — meaning carried by symbol (✓/✗) AND text, never color alone */
+        .cell-wash { cursor: pointer; font-size: 1.1rem; font-weight: 700; min-width: 44px; user-select: none; }
+        .cell-wash.washed { background: #1f9d57 !important; color: #fff; }
+        .cell-wash.not-washed { color: var(--text-muted); }
+        .cell-wash.not-washed .x-mark { opacity: 0.55; }
+        .cell-wash:hover { opacity: 0.85; }
+
+        /* Monthly-invoice summary banner above the table */
+        .month-summary {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+            gap: 1.5rem; margin: 0 auto 1.25rem; padding: 0.85rem 1.25rem; max-width: 760px;
+            border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.08));
+        }
+        .month-summary .ms-title { font-weight: 800; color: var(--text-primary); }
+        .month-summary .ms-pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.95rem; }
+        .month-summary .ms-pill .badge { min-width: 28px; text-align: center; padding: 2px 10px; border-radius: 999px; font-weight: 800; }
+        .month-summary .ms-pill.received .badge { background: #1f9d57; color: #fff; }
+        .month-summary .ms-pill.pending  .badge { background: var(--surface-hover); color: var(--text-primary); border: 1.5px solid var(--border-strong); }
+
+        /* Legend */
+        .legend { display: flex; gap: 2rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-secondary); }
+        .legend-dot { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
+        .legend-dot.green { background: #1f9d57; color: #fff; }
+        .legend-dot.gray { background: var(--surface-hover); border: 1px solid var(--border-strong); color: var(--text-muted); }
+
+        /* Search */
+        .search-bar { width: 100%; max-width: 500px; margin: 0 auto 1.5rem; position: relative; }
+        .search-bar input { width: 100%; padding: 12px 20px 12px 44px; border-radius: 50px; font-size: 1rem; }
+        .search-bar::before { content: '🔍'; position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; }
+
+        @media (max-width: 768px) {
+            .bz-stats { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
-<body class="text-gray-100 min-h-screen flex">
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing" class="active">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
     <datalist id="driversList"></datalist>
 
-    <!-- Sidebar overlay for mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <div class="bz-shell">
 
-    <!-- Sidebar -->
-    <aside class="sidebar w-64 bg-dark-nav border-l border-gray-800/50 flex flex-col justify-between hidden md:flex">
-        <div>
-            <div class="p-6 border-b border-gray-800/50 flex items-center gap-3">
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">BZ</div>
-                <div>
-                    <h1 class="text-sm font-bold tracking-wide">BIN ZOMAH INTL</h1>
-                    <p class="text-[10px] text-gray-500">نظام إدارة الأسطول والتوثيق</p>
-                </div>
-            </div>
-            <nav class="p-4 space-y-1.5">
-                <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> الرئيسية
-                </a>
-                <a href="/" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="file-text" class="w-4 h-4"></i> الفواتير
-                </a>
-                <a href="/washing" class="flex items-center gap-3 px-4 py-3 bg-blue-600/10 text-blue-500 rounded-xl text-sm font-medium border-r-2 border-blue-600">
-                    <i data-lucide="droplet" class="w-4 h-4"></i> جدول الغسيل الشهري
-                </a>
-                <a href="/employees" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="users" class="w-4 h-4"></i> الموظفين والسائقين
-                </a>
-                <a href="/schedule" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="calendar" class="w-4 h-4"></i> الجدول الأسبوعي
-                </a>
-                <a href="/oils" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="fuel" class="w-4 h-4"></i> الزيوت والفلاتر
-                </a>
-                <a href="/purchase" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="shopping-cart" class="w-4 h-4"></i> طلبات الشراء
-                </a>
-                <a href="/records" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="file-check" class="w-4 h-4"></i> سجل التوثيق
-                </a>
-                <a href="/workshop" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="wrench" class="w-4 h-4"></i> الورشة
-                </a>
-                <a href="/incidents" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="alert-triangle" class="w-4 h-4"></i> الحوادث والمخالفات
-                </a>
-                <a href="/tracking" target="_blank" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800/40 rounded-xl text-sm transition-all">
-                    <i data-lucide="map-pin" class="w-4 h-4"></i> التتبع المباشر
-                </a>
-            </nav>
-        </div>
-        <div class="p-4 border-t border-gray-800/50 space-y-2">
-            {% if google_user %}
-            <div class="flex items-center gap-2 px-3 py-2 bg-gray-800/30 rounded-xl">
-                <img src="{{ google_user.picture }}" alt="" class="w-7 h-7 rounded-full">
-                <span class="text-xs text-gray-300 truncate">{{ google_user.name }}</span>
-            </div>
-            {% endif %}
-            <a href="/logout" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-400 rounded-xl text-sm hover:bg-red-500/20 transition-all">
-                <i data-lucide="log-out" class="w-4 h-4"></i> تسجيل الخروج
-            </a>
-        </div>
-    </aside>
+    <h2 class="bz-section-title">🚿 تحضير جدول الغسيل — الشهري</h2>
+    <p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">جدول غسيل المركبات الشهري — فرع الدمام 2026</p>
 
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col overflow-hidden">
+    <!-- Stats -->
+    <div class="bz-stats">
+        <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
+        <div class="bz-stat"><div class="num" id="statWashes">0</div><div class="label">إجمالي الغسلات</div></div>
+        <div class="bz-stat"><div class="num" id="statCurrent">0</div><div class="label">غسلات الشهر الحالي</div></div>
+        <div class="bz-stat"><div class="num" id="statPending">0</div><div class="label">لم تُغسل هذا الشهر</div></div>
+    </div>
 
-        <!-- Header -->
-        <header class="bg-[#080C14]/80 backdrop-blur-md border-b border-gray-800/50 px-6 md:px-8 py-4 flex items-center justify-between sticky top-0 z-50">
-            <div class="flex items-center gap-4">
-                <button class="md:hidden p-2 text-gray-400 hover:text-white" onclick="toggleSidebar()">
-                    <i data-lucide="menu" class="w-5 h-5"></i>
-                </button>
-                <div>
-                    <h2 class="text-lg font-bold">🚿 تحضير جدول الغسيل — فرع الدمام <span class="text-xs font-normal text-gray-500 mono-num">2026</span></h2>
-                    <p class="text-[11px] text-gray-500">جدول غسيل المركبات الشهري — النقر على الخلية لتغيير الحالة</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="exportXlsx()" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-xl text-sm font-medium hover:bg-emerald-600/30 transition-all border border-emerald-600/20">
-                    <i data-lucide="download" class="w-4 h-4"></i> تصدير Excel
-                </button>
-                <button onclick="saveState()" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-400 rounded-xl text-sm font-medium hover:bg-blue-600/30 transition-all border border-blue-600/20">
-                    <i data-lucide="save" class="w-4 h-4"></i> حفظ
-                </button>
-                <div class="flex items-center gap-3 border-r border-gray-800 pr-4">
-                    <div class="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-blue-500/10">BZ</div>
-                </div>
-            </div>
-        </header>
+    <!-- Monthly-invoice summary (one wash invoice per vehicle per month) -->
+    <div class="month-summary" id="monthSummary" aria-live="polite">
+        <span class="ms-title">فاتورة الشهر الحالي (<span id="msMonthName">—</span>):</span>
+        <span class="ms-pill received">استلم فاتورة <span class="badge" id="msReceived">0</span></span>
+        <span class="ms-pill pending">لم يستلم بعد <span class="badge" id="msPending">0</span></span>
+    </div>
 
-        <!-- Scrollable Content -->
-        <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+    <!-- Search -->
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." oninput="filterTable()">
+    </div>
 
-            <!-- KPI Cards -->
-            <section class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm">
-                    <div>
-                        <p class="text-xs text-gray-400 font-medium">إجمالي المركبات</p>
-                        <h3 class="text-2xl font-bold mt-1 mono-num" id="statTotal">0</h3>
-                    </div>
-                    <div class="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
-                        <i data-lucide="car" class="w-5 h-5"></i>
-                    </div>
-                </div>
-                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm">
-                    <div>
-                        <p class="text-xs text-gray-400 font-medium">إجمالي الغسلات</p>
-                        <h3 class="text-2xl font-bold mt-1 text-emerald-500 mono-num" id="statWashes">0</h3>
-                    </div>
-                    <div class="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
-                        <i data-lucide="sparkles" class="w-5 h-5"></i>
-                    </div>
-                </div>
-                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm">
-                    <div>
-                        <p class="text-xs text-gray-400 font-medium">غسلات الشهر الحالي</p>
-                        <h3 class="text-2xl font-bold mt-1 text-indigo-400 mono-num" id="statCurrent">0</h3>
-                    </div>
-                    <div class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">
-                        <i data-lucide="calendar" class="w-5 h-5"></i>
-                    </div>
-                </div>
-                <div class="bg-dark-card border border-gray-800/40 p-5 rounded-2xl flex items-center justify-between shadow-sm border-l-2 border-l-amber-500/50">
-                    <div>
-                        <p class="text-xs text-gray-400 font-medium">لم تُغسل هذا الشهر</p>
-                        <h3 class="text-2xl font-bold mt-1 text-amber-500 mono-num" id="statPending">0</h3>
-                    </div>
-                    <div class="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
-                        <i data-lucide="alert-circle" class="w-5 h-5"></i>
-                    </div>
-                </div>
-            </section>
+    <!-- Table -->
+    <div class="card" id="washPrintArea">
+    <div class="table-wrapper wash-table-wrap">
+        <table id="washTable" class="bz-fit">
+            <colgroup>
+                <col style="width:3%"><col style="width:11%"><col style="width:15%"><col style="width:16%">
+                <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
+                <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
+                <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
+                <col style="width:7%">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th class="col-id">#</th>
+                    <th class="col-plate"><span class="nb">رقم</span> <span class="nb">اللوحة</span></th>
+                    <th class="col-type"><span class="nb">نوع</span> <span class="nb">السيارة</span></th>
+                    <th class="col-driver"><span class="nb">اسم</span> <span class="nb">السائق</span></th>
+                    <th class="col-month" id="mhead-0">1</th><th class="col-month" id="mhead-1">2</th>
+                    <th class="col-month" id="mhead-2">3</th><th class="col-month" id="mhead-3">4</th>
+                    <th class="col-month" id="mhead-4">5</th><th class="col-month" id="mhead-5">6</th>
+                    <th class="col-month" id="mhead-6">7</th><th class="col-month" id="mhead-7">8</th>
+                    <th class="col-month" id="mhead-8">9</th><th class="col-month" id="mhead-9">10</th>
+                    <th class="col-month" id="mhead-10">11</th><th class="col-month" id="mhead-11">12</th>
+                    <th class="col-total"><span class="nb">المجموع</span></th>
+                </tr>
+            </thead>
+            <tbody id="washBody"></tbody>
+        </table>
+    </div>
 
-            <!-- Search & Filter Bar -->
-            <section class="bg-dark-card border border-gray-800/40 p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div class="relative w-full md:w-80">
-                    <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500">
-                        <i data-lucide="search" class="w-4 h-4"></i>
-                    </span>
-                    <input type="text" id="searchInput" placeholder="ابحث بالاسم، رقم اللوحة أو نوع السيارة..."
-                        class="w-full pl-4 pr-10 py-2 bg-[#080C14] border border-gray-800 text-sm rounded-xl focus:outline-none focus:border-blue-600 text-gray-300 transition-all"
-                        oninput="filterTable()">
-                </div>
-                <div class="flex items-center gap-3 w-full md:w-auto flex-wrap">
-                    <select id="jobFilter" class="bg-[#080C14] border border-gray-800 text-sm text-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-600 transition-all" onchange="filterTable()">
-                        <option value="">كل الوظائف</option>
-                        <option value="سائق رافعة شوكية">سائق رافعة شوكية</option>
-                        <option value="عامل تحميل وتنزيل">عامل تحميل وتنزيل</option>
-                        <option value="مندوب مبيعات جملة">مندوب مبيعات جملة</option>
-                        <option value="مشرف مبيعات جملة">مشرف مبيعات جملة</option>
-                        <option value="مصفف">مصفف</option>
-                        <option value="سائق توصيل">سائق توصيل</option>
-                        <option value="مساعد امين مخزن">مساعد أمين مخزن</option>
-                        <option value="مدير مبيعات فرع">مدير مبيعات فرع</option>
-                        <option value="مشرف سوبر ماركت">مشرف سوبر ماركت</option>
-                        <option value="مندوب مبيعات تجزئة">مندوب مبيعات تجزئة</option>
-                        <option value="مشرف مبيعات هوريكا">مشرف مبيعات هوريكا</option>
-                    </select>
-                    <div class="flex items-center gap-3 flex-1 min-w-[200px]">
-                        <span class="text-xs text-gray-400 whitespace-nowrap" id="progressLabel">التقدم:</span>
-                        <div class="flex-1 bg-[#080C14] h-2 rounded-full overflow-hidden border border-gray-800/50">
-                            <div class="bg-blue-600 h-full rounded-full transition-all duration-500" id="progressBar" style="width: 0%"></div>
-                        </div>
-                        <span class="text-xs font-semibold text-blue-400 mono-num" id="progressText">0/0</span>
-                    </div>
-                </div>
-            </section>
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item"><div class="legend-dot green">✓</div><span>استلم فاتورة الغسيل لهذا الشهر</span></div>
+        <div class="legend-item"><div class="legend-dot gray">✗</div><span>لم يستلم فاتورة هذا الشهر</span></div>
+        <div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">العمود المظلل بالذهبي ⬇ هو الشهر الحالي — انقر على أي خلية لتغيير الحالة (فاتورة واحدة لكل مركبة شهرياً)</div>
+    </div>
+    </div>
 
-            <!-- Washing Table -->
-            <section class="bg-dark-card border border-gray-800/40 rounded-2xl overflow-hidden shadow-xl">
-                <div class="overflow-x-auto">
-                    <table class="w-full border-collapse text-right text-sm" id="washTable" style="min-width: 1200px;">
-                        <thead id="washHead"></thead>
-                        <tbody id="washBody"></tbody>
-                    </table>
-                </div>
-            </section>
+    <!-- Actions -->
+    <div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+        <button class="btn-outline" onclick="reauditPlates()">↻ إعادة تدقيق اللوحات والأنواع</button>
+        <button class="btn-submit-gold" id="washExportBtn" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+        <button class="btn-submit-orange" onclick="shareWashing()">📤 مشاركة / تصدير</button>
+        <button class="btn-primary" onclick="saveState()">💾 حفظ التغييرات</button>
+    </div>
 
-            <!-- Mobile Action Buttons -->
-            <section class="flex sm:hidden gap-3 justify-center">
-                <button onclick="exportXlsx()" class="flex items-center gap-2 px-5 py-3 bg-emerald-600/20 text-emerald-400 rounded-xl text-sm font-medium hover:bg-emerald-600/30 transition-all border border-emerald-600/20">
-                    <i data-lucide="download" class="w-4 h-4"></i> تصدير Excel
-                </button>
-                <button onclick="saveState()" class="flex items-center gap-2 px-5 py-3 bg-blue-600/20 text-blue-400 rounded-xl text-sm font-medium hover:bg-blue-600/30 transition-all border border-blue-600/20">
-                    <i data-lucide="save" class="w-4 h-4"></i> حفظ
-                </button>
-            </section>
+    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي) — فرع الدمام</footer>
 
-            <!-- Legend -->
-            <section class="flex gap-6 justify-center flex-wrap text-sm text-gray-400">
-                <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i></div>
-                    <span>تم الغسيل (استلم)</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-gray-800/50 flex items-center justify-center"><div class="w-1.5 h-1.5 bg-gray-700 rounded-full"></div></div>
-                    <span>لم يتم / أيام قادمة</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md border border-dashed border-blue-500/30 flex items-center justify-center"><i data-lucide="plus" class="w-3 h-3 text-blue-400"></i></div>
-                    <span>الشهر الحالي — انقر لتسجيل</span>
-                </div>
-            </section>
-
-            <!-- Footer -->
-            <footer class="text-center py-4 text-gray-600 text-xs border-t border-gray-800/30">
-                تم الإعداد بواسطة قسم الحركة (خالد الغامدي) — BIN ZOMAH INTL. &copy; 2026
-            </footer>
-        </div>
-    </main>
+    </div><!-- /bz-shell -->
 
 <script>
-    // ===== Sidebar toggle for mobile =====
-    function toggleSidebar() {
-        document.querySelector('aside.sidebar').classList.toggle('open');
-        document.getElementById('sidebarOverlay').classList.toggle('open');
-    }
-
-    // ===== Core Data =====
     const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-    const CURRENT_MONTH = new Date().getMonth(); // 0-based
+    const CURRENT_MONTH = new Date().getMonth(); // 0-based index of the active invoice month
     let vehicles = [];
-    let driversData = [];
-    const JOB_FILTER_VALUES = {};
 
-    async function fetchDrivers() {
-        try {
-            const res = await fetch('/api/drivers');
-            driversData = await res.json();
-            const dl = document.getElementById('driversList');
-            dl.innerHTML = '';
-            driversData.forEach(d => {
-                const o = document.createElement('option');
-                o.value = d.name;
-                dl.appendChild(o);
-                // Build job lookup by driver name
-                if (d.job && d.name) JOB_FILTER_VALUES[d.name.trim()] = String(d.job).trim();
-            });
-        } catch (err) {
-            console.error('Failed to fetch drivers', err);
+    // Mark the current-month column header so the dispatch officer sees it at a glance.
+    function markCurrentMonthHeader() {
+        for (let i = 0; i < 12; i++) {
+            const th = document.getElementById('mhead-' + i);
+            if (th) th.classList.toggle('current-month', i === CURRENT_MONTH);
         }
+        const msName = document.getElementById('msMonthName');
+        if (msName) msName.textContent = MONTH_NAMES[CURRENT_MONTH];
     }
 
     function init() {
-        fetchDrivers();
+        // Detect the isolated workstation sandbox locally (robust against script-timing).
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+        // Populate the driver datalist + load fleet records for plate-based autofill
+        if (window.FleetData) {
+            FleetData.fillDatalist('driversList').catch(err => console.error('FleetData datalist', err));
+        }
+        // Fetch from server first, fallback to local or default
         fetch('/api/washing_data')
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.vehicles && data.vehicles.length > 0) {
                     vehicles = data.vehicles;
+                } else if (WS) {
+                    // Workstation: empty server => empty grid (no localStorage / no WASHING_VEHICLES seed).
+                    vehicles = [];
                 } else {
                     const saved = localStorage.getItem('washingSchedule2026');
                     if (saved) {
@@ -307,19 +234,22 @@
                         vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
                     }
                 }
-                renderHead();
                 renderTable();
                 updateStats();
             })
             .catch(err => {
                 console.error('Failed to load from server', err);
-                const saved = localStorage.getItem('washingSchedule2026');
-                if (saved) {
-                    try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                if (WS) {
+                    // Workstation: never seed from localStorage/defaults on error — keep it empty.
+                    vehicles = [];
                 } else {
-                    vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                    const saved = localStorage.getItem('washingSchedule2026');
+                    if (saved) {
+                        try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                    } else {
+                        vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                    }
                 }
-                renderHead();
                 renderTable();
                 updateStats();
             });
@@ -327,146 +257,92 @@
 
     function getTotal(v) { return v.m.reduce((a, b) => a + b, 0); }
 
-    // ===== Render Table Header (with current month glow) =====
-    function renderHead() {
-        const thead = document.getElementById('washHead');
-        let hHtml = '<tr class="bg-dark-nav border-b border-gray-800/80 text-gray-400">';
-        hHtml += '<th class="p-4 font-semibold text-center w-16 text-gray-500">#</th>';
-        hHtml += '<th class="p-4 font-semibold text-right">رقم اللوحة</th>';
-        hHtml += '<th class="p-4 font-semibold text-right">نوع السيارة</th>';
-        hHtml += '<th class="p-4 font-semibold text-right">اسم السائق</th>';
-        for (let mi = 0; mi < 12; mi++) {
-            const isCurrent = (mi === CURRENT_MONTH);
-            const isPast = (mi < CURRENT_MONTH);
-            const isFuture = (mi > CURRENT_MONTH);
-            let cls = 'p-2 font-semibold text-center mono-num w-12';
-            if (isCurrent) cls += ' col-current-head relative';
-            else if (isPast) cls += ' bg-gray-900/20';
-            else cls += ' text-gray-600';
-            hHtml += '<th class="' + cls + '">' + (mi + 1);
-            if (isCurrent) hHtml += ' <span class="inline-block w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>';
-            hHtml += '</th>';
-        }
-        hHtml += '<th class="p-4 font-semibold text-center text-blue-400 w-20">المجموع</th>';
-        hHtml += '</tr>';
-        thead.innerHTML = hHtml;
-    }
-
-    // ===== Render Table Body =====
     function renderTable(filter) {
         const tbody = document.getElementById('washBody');
-        const q = (filter || document.getElementById('searchInput').value || '').toLowerCase();
-        const jobFilter = (document.getElementById('jobFilter') || {}).value || '';
+        tbody.innerHTML = '';
+        const q = (filter || '').toLowerCase();
 
         let allHtml = '';
-        let rowNum = 0;
-
         vehicles.forEach((v, idx) => {
-            // Text search filter
-            if (q && !v.plate.toLowerCase().includes(q) && !v.driver.toLowerCase().includes(q) && !(v.type || '').toLowerCase().includes(q)) return;
+            if (q && !v.plate.toLowerCase().includes(q) && !v.driver.toLowerCase().includes(q) && !v.type.toLowerCase().includes(q)) return;
 
-            // Job filter
-            if (jobFilter) {
-                const driverJob = JOB_FILTER_VALUES[v.driver ? v.driver.trim() : ''] || '';
-                if (!driverJob.includes(jobFilter)) return;
-            }
-
-            rowNum++;
             const total = getTotal(v);
-            const isEven = (rowNum % 2 === 0);
-
-            let html = '<tr class="hover:bg-gray-800/20 transition-all group' + (isEven ? ' bg-gray-900/10' : '') + '">';
-            html += '<td class="p-4 text-center text-gray-500 mono-num">' + rowNum + '</td>';
-            html += '<td class="p-4 font-bold tracking-wider text-gray-200 mono-num text-right">' + escHTML(v.plate) + '</td>';
-            html += '<td class="p-4 text-right"><div class="font-medium text-gray-300 text-sm">' + escHTML(v.type || '-') + '</div></td>';
-            html += '<td class="p-4 text-right"><input type="text" list="driversList" value="' + escHTML(v.driver || '') + '" onchange="autofillWashingDriver(this,' + idx + ')" class="w-full bg-transparent border-0 text-gray-400 text-sm outline-none focus:text-gray-200 focus:bg-gray-800/50 rounded px-1 py-0.5 transition-all" title="' + escHTML(v.driver || '') + '"></td>';
+            const driver = v.driver || '';
+            let html = `<tr>
+                <td>${escapeHtml(v.id)}</td>
+                <td class="cell-plate">${escapeHtml(v.plate)}</td>
+                <td class="cell-type">${escapeHtml(v.type || '-')}</td>
+                <td class="cell-driver"><input type="text" class="driver-edit-input" list="driversList" value="${escapeHtml(driver)}" onchange="autofillWashingDriver(this, ${idx})" title="${escapeHtml(driver)}"></td>`;
 
             for (let mi = 0; mi < 12; mi++) {
                 const w = v.m[mi];
-                const isCurrent = (mi === CURRENT_MONTH);
-                const isPast = (mi < CURRENT_MONTH);
-                const isFuture = (mi > CURRENT_MONTH);
-
-                let cellCls = 'p-2 text-center wash-cell';
-                if (isCurrent) cellCls += ' col-current bg-blue-600/5';
-
-                if (w) {
-                    // Washed
-                    const bgCls = isCurrent ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-emerald-500/10 text-emerald-400';
-                    html += '<td class="' + cellCls + '" onclick="toggle(' + idx + ',' + mi + ')"><div class="mx-auto w-6 h-6 rounded-md ' + bgCls + ' flex items-center justify-center text-xs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>';
-                } else if (isCurrent) {
-                    // Current month, not washed — show dashed add button
-                    html += '<td class="' + cellCls + '" onclick="toggle(' + idx + ',' + mi + ')"><div class="mx-auto w-6 h-6 rounded-md border border-dashed border-blue-500/30 flex items-center justify-center text-gray-600 hover:border-blue-500 hover:text-blue-400 cursor-pointer transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div></td>';
-                } else if (isPast && !w) {
-                    // Past month, not washed — red subtle indicator
-                    html += '<td class="' + cellCls + ' bg-red-500/5" onclick="toggle(' + idx + ',' + mi + ')"><div class="mx-auto w-6 h-6 rounded-md bg-red-500/10 flex items-center justify-center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div></td>';
-                } else {
-                    // Future month — dim placeholder
-                    html += '<td class="' + cellCls + '" onclick="toggle(' + idx + ',' + mi + ')"><div class="w-1.5 h-1.5 bg-gray-800 rounded-full mx-auto"></div></td>';
-                }
+                const cur = mi === CURRENT_MONTH ? ' current-month' : '';
+                const mark = w ? '<span class="ok-mark" title="استلم">✓</span>'
+                               : '<span class="x-mark" title="لم يستلم">✗</span>';
+                html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}${cur}" onclick="toggle(${idx},${mi})" title="${escapeHtml(MONTH_NAMES[mi])}: ${w ? 'استلم' : 'لم يستلم'}">${mark}</td>`;
             }
-
-            html += '<td class="p-4 text-center font-bold text-gray-300 mono-num">' + total + '</td>';
-            html += '</tr>';
+            html += `<td class="cell-total">${total}</td></tr>`;
             allHtml += html;
         });
-
-        if (!allHtml) {
-            allHtml = '<tr><td colspan="17" class="p-8 text-center text-gray-500">لا توجد مركبات مطابقة للبحث</td></tr>';
-        }
         tbody.innerHTML = allHtml;
-        // Re-init lucide icons for any new elements
-        try { lucide.createIcons(); } catch(e) {}
     }
 
-    function escHTML(s) {
-        if (typeof escapeHtml === 'function') return escapeHtml(s);
-        return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
-    }
-
-    // ===== Driver autofill =====
     function updateDriver(idx, val) {
         vehicles[idx].driver = val;
-        saveState(false);
+        saveState(false); // background save
     }
 
     function autofillWashingDriver(elem, idx) {
         const val = elem.value.trim();
         updateDriver(idx, val);
-        const driver = driversData.find(d => d.name === val);
-        if (driver) {
+
+        // Match by PLATE (Arabic plates) via the shared FleetData engine.
+        // Latin/Arabic name mismatches used to break name-based matching — plate matching is reliable.
+        const rec = window.FleetData ? FleetData.byPlate(vehicles[idx].plate) : null;
+        if (rec) {
             let changed = false;
-            if (driver.plate && driver.plate !== 'None' && vehicles[idx].plate !== driver.plate) {
-                vehicles[idx].plate = driver.plate;
+            // Fill the vehicle type if missing/placeholder
+            if (rec.car && rec.car !== 'None' && (!vehicles[idx].type || vehicles[idx].type !== rec.car)) {
+                vehicles[idx].type = rec.car;
                 changed = true;
             }
-            if (driver.car && driver.car !== 'None' && vehicles[idx].type !== driver.car) {
-                vehicles[idx].type = driver.car;
+            // If the driver cell is empty, adopt the fleet driver name for that plate
+            if (!val && rec.name && rec.name !== 'None') {
+                vehicles[idx].driver = rec.name;
                 changed = true;
             }
             if (changed) {
-                renderTable();
+                renderTable(document.getElementById('searchInput').value);
                 saveState(false);
             }
         }
     }
 
-    // ===== Toggle wash state =====
+    // Debounced server autosave used only in the workstation sandbox (~700ms, like other tabs).
+    let _wsSaveTimer = null;
+    function wsAutosave() {
+        if (_wsSaveTimer) clearTimeout(_wsSaveTimer);
+        _wsSaveTimer = setTimeout(() => saveState(false), 700); // background POST /api/washing_data
+    }
+
     function toggle(vi, mi) {
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
         vehicles[vi].m[mi] = vehicles[vi].m[mi] ? 0 : 1;
-        renderTable();
+        renderTable(document.getElementById('searchInput').value);
         updateStats();
+        // Workstation: persist cell toggles to the server (debounced). Main "/" unchanged.
+        if (WS) wsAutosave();
     }
 
     function filterTable() {
-        renderTable();
+        renderTable(document.getElementById('searchInput').value);
     }
 
-    // ===== Stats =====
     function updateStats() {
-        const cm = CURRENT_MONTH;
+        const cm = CURRENT_MONTH; // 0-based current invoice month
         const totalV = vehicles.length;
         const totalW = vehicles.reduce((s, v) => s + getTotal(v), 0);
+        // Monthly-invoice logic: a vehicle "received" if its current-month cell == 1 (one invoice / month).
         const currentM = vehicles.filter(v => v.m[cm] === 1).length;
         const pending = totalV - currentM;
 
@@ -475,16 +351,15 @@
         document.getElementById('statCurrent').textContent = currentM;
         document.getElementById('statPending').textContent = pending;
 
-        // Update progress bar
-        const pct = totalV ? Math.round((currentM / totalV) * 100) : 0;
-        document.getElementById('progressBar').style.width = pct + '%';
-        document.getElementById('progressText').textContent = currentM + '/' + totalV;
-        document.getElementById('progressLabel').textContent = MONTH_NAMES[cm] + ':';
+        // Summary banner above the table
+        const msR = document.getElementById('msReceived');
+        const msP = document.getElementById('msPending');
+        if (msR) msR.textContent = currentM;
+        if (msP) msP.textContent = pending;
     }
 
-    // ===== Save =====
     function saveState(showMsg = true) {
-        localStorage.setItem('washingSchedule2026', JSON.stringify(vehicles));
+        localStorage.setItem('washingSchedule2026', JSON.stringify(vehicles)); // Keep local backup
         fetch('/api/washing_data', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -504,60 +379,199 @@
         });
     }
 
-    // ===== Export Excel =====
-    function exportXlsx() {
-        const btn = document.querySelector('[onclick="exportXlsx()"]');
-        const oldText = btn ? btn.innerHTML : '';
-        if (btn) { btn.innerHTML = '<span class="animate-pulse">⏳ جاري المعالجة...</span>'; btn.disabled = true; }
+    const WASH_FILENAME = 'جدول_غسيل_السيارات_الدمام.xlsx';
 
-        fetch('/api/generate_washing', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ vehicles: vehicles })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
-            if (data.success && data.file_b64) {
-                const link = document.createElement("a");
-                link.href = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + data.file_b64;
-                link.download = "جدول_غسيل_السيارات_2026.xlsx";
-                link.click();
-                showToast('تم تصدير الملف بنجاح بالشعار والتنسيق الاحترافي! 📥', 'success');
-            } else {
-                showToast('حدث خطأ أثناء التصدير: ' + (data.error || 'غير معروف'), 'error');
+    // Build the styled washing workbook and return it as an Excel Blob (for download/email/whatsapp).
+    async function buildWashingBlob() {
+        if (typeof ExcelJS === 'undefined') throw new Error('مكتبة التصدير غير محمّلة بعد');
+
+        // B&W-print-safe borders (Section 6): thin grid everywhere, medium dark
+        // border to emphasize the current-month column (emphasis = border, not color).
+        const THIN  = { style: 'thin',   color: { argb: 'FFBFBFBF' } };
+        const MED   = { style: 'medium', color: { argb: 'FF000000' } };
+        const ALL_BORDERS = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+        // Current month is the same index used on screen (one invoice / vehicle / month).
+        const curCol = 5 + CURRENT_MONTH; // E(5)=Jan … P(16)=Dec
+
+        // Apply the current-month emphasis to a single cell: keep its borders but make
+        // the side borders medium-black + bold text so it stands out in pure grayscale.
+        function emphasizeCurrentMonth(cell) {
+            const b = Object.assign({}, cell.border || ALL_BORDERS);
+            b.left = MED; b.right = MED;
+            cell.border = b;
+            cell.font = Object.assign({}, cell.font, { bold: true });
+        }
+
+        const response = await fetch('/static/washing_template.xlsx');
+        if(!response.ok) throw new Error("لم يتم العثور على قالب الإكسل الأساسي.");
+        const buffer = await response.arrayBuffer();
+
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buffer);
+        // The washing data lives in the "جدول الغسيل" sheet (with the COUNTIF totals row),
+        // not the first sheet. Select it by name; fall back to the last sheet.
+        const ws = wb.getWorksheet('جدول الغسيل') || wb.worksheets[wb.worksheets.length - 1];
+
+        // Corporate standard: RTL + freeze the header rows (data starts at row 5).
+        ws.views = [{ rightToLeft: true, state: 'frozen', ySplit: 4 }];
+
+        // B&W print setup (Section 6): fit to width, centered, show gridlines on print.
+        ws.pageSetup = Object.assign({}, ws.pageSetup, {
+            fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+            horizontalCentered: true, orientation: 'landscape',
+            margins: { left:0.3, right:0.3, top:0.5, bottom:0.5, header:0.2, footer:0.2 }
+        });
+        ws.properties = Object.assign({}, ws.properties);
+        if (ws.pageSetup) ws.pageSetup.showGridLines = true;
+
+        // Column headers (row 4): translate to EN when the EN toggle is active (bzTL).
+        const HEADERS = ['#','رقم اللوحة','نوع السيارة','اسم السائق',
+            ...MONTH_NAMES, 'المجموع'];
+        HEADERS.forEach((h, i) => {
+            const hCell = ws.getRow(4).getCell(i + 1);
+            if (hCell.value != null && hCell.value !== '') hCell.value = bzTL(h);
+        });
+
+        // Vehicles data starts at row 5 in template.
+        const startRow = 5;
+
+        // The template has 28 data rows by default (row 5 to 32).
+        // Row 34 is the Total footer (kept with its COUNTIF formulas), row 36 the bottom footer.
+        // Inserting at row 33 shifts the totals row & its COUNTIF/SUM ranges down automatically.
+        if(vehicles.length > 28) {
+            const extra = vehicles.length - 28;
+            ws.spliceRows(33, 0, ...Array.from({length: extra}).map(() => []));
+        }
+
+        // Mark the current-month column header (row 4) for B&W clarity.
+        emphasizeCurrentMonth(ws.getRow(4).getCell(curCol));
+
+        vehicles.forEach((v, idx) => {
+            const r = startRow + idx;
+            const row = ws.getRow(r);
+            row.height = Math.max(row.height || 0, 22);
+            row.getCell(1).value = v.id || (idx + 1);
+            row.getCell(2).value = v.plate || '';
+            row.getCell(3).value = v.type || '';
+            row.getCell(4).value = v.driver || '';
+
+            let total = 0;
+            for(let m = 0; m < 12; m++) {
+                const isWashed = v.m && v.m[m] === 1;
+                if(isWashed) total++;
+                // Meaning carried by TEXT/SYMBOL, never color alone (Section 6) — mirrors the
+                // on-screen ✓/✗ convention. "استلم" is matched exactly by the template's COUNTIF.
+                row.getCell(5 + m).value = isWashed ? 'استلم' : '✗';
             }
-        })
-        .catch(err => {
+            row.getCell(17).value = total;
+
+            // Copy styling from the template's first data row for any newly inserted rows.
+            if(r > 5) {
+                for(let c = 1; c <= 17; c++) {
+                    const styleCell = ws.getCell(5, c);
+                    const targetCell = row.getCell(c);
+                    targetCell.font = Object.assign({}, styleCell.font);
+                    targetCell.alignment = Object.assign({}, styleCell.alignment);
+                    targetCell.border = Object.assign({}, styleCell.border);
+                    targetCell.fill = Object.assign({}, styleCell.fill);
+                }
+            }
+
+            // Enforce the corporate B&W look on every data cell:
+            // white bg, black text, thin border every side, optional ultra-light zebra.
+            const zebra = (idx % 2 === 1);
+            for(let c = 1; c <= 17; c++) {
+                const cell = row.getCell(c);
+                cell.border = ALL_BORDERS;
+                cell.font = Object.assign({}, cell.font, { color: { argb: 'FF000000' } });
+                cell.alignment = { vertical: 'middle', horizontal: 'center', readingOrder: 'rtl' };
+                // Force white/zebra fill so no inherited color fill survives into B&W print.
+                cell.fill = { type: 'pattern', pattern: 'solid',
+                              fgColor: { argb: zebra ? 'FFF2F2F2' : 'FFFFFFFF' } };
+            }
+            row.getCell(17).font = Object.assign({}, row.getCell(17).font, { bold: true });
+            // Current-month cell emphasis (bold + medium black side borders).
+            emphasizeCurrentMonth(row.getCell(curCol));
+        });
+
+        // Total row keeps its COUNTIF/SUM formulas; emphasize its current-month cell too.
+        const totalRow = 34 + Math.max(0, vehicles.length - 28);
+        emphasizeCurrentMonth(ws.getRow(totalRow).getCell(curCol));
+
+        // Footer line with the prepared-by note and the export date (below the bottom footer).
+        const today = new Date().toISOString().slice(0, 10);
+        const footerRow = ws.getRow(totalRow + 4);
+        footerRow.getCell(1).value = bzTL('أُعدّ بواسطة قسم الحركة — فرع الدمام') + ' — ' + today
+            + '  |  ' + bzTL('الشهر الحالي') + ': ' + bzTL(MONTH_NAMES[CURRENT_MONTH]);
+        footerRow.getCell(1).font = { name: 'Tajawal', size: 11, italic: true, color: { argb: 'FF555555' } };
+        footerRow.getCell(1).alignment = { horizontal: 'right', readingOrder: 'rtl' };
+
+        const outBuffer = await wb.xlsx.writeBuffer();
+        return new Blob([outBuffer]);
+    }
+
+    async function exportXlsx() {
+        if(typeof ExcelJS === 'undefined') {
+            showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+            return;
+        }
+        const btn = document.getElementById('washExportBtn');
+        const oldText = btn ? btn.innerHTML : '';
+        if (btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
+        try {
+            const blob = await buildWashingBlob();
+            bzDownload(blob, WASH_FILENAME);
+            showToast('تم تصدير ملف الإكسل بنجاح ✅', 'success');
+        } catch (e) {
+            console.error(e);
+            showToast('حدث خطأ أثناء التصدير: ' + e.message, 'error');
+        } finally {
             if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
-            showToast('خطأ في الاتصال بالسيرفر', 'error');
+        }
+    }
+
+    // 📤 مشاركة / تصدير — Excel + PDF عبر إيميل/واتساب عبر bzShare
+    function shareWashing() {
+        bzShare(buildWashingBlob, {
+            filename: WASH_FILENAME,
+            subject: 'جدول غسيل السيارات — شركة بن زومة (فرع الدمام)',
+            waMessage: 'جدول غسيل السيارات — شركة بن زومة (فرع الدمام)',
+            pdfElement: 'washPrintArea',
+            pdfOrientation: 'landscape'
         });
     }
 
-    window.addEventListener('load', function() {
-        init();
-        lucide.createIcons();
-    });
-</script>
-<!-- GPS Session Monitor -->
-<script>
-(function () {
-    const originalFetch = window.fetch;
-    window.fetch = async function (...args) {
-        const response = await originalFetch(...args);
-        if (response.status === 401 || response.status === 440) {
-            window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
-        }
-        try {
-            const clone = response.clone();
-            const text = await clone.text();
-            if (text.includes("ERROR-100") || text.includes("Session timed out")) {
-                window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
+    // ↻ إعادة تدقيق اللوحات والأنواع — يطابق اسم السائق عبر FleetData.byName،
+    // وإن فشل يجرّب byPlate باللوحة الحالية، ثم يصحّح اللوحة ونوع المركبة.
+    async function reauditPlates() {
+        if (!window.FleetData) { showToast('بيانات الأسطول غير متاحة', 'error'); return; }
+        await FleetData.load();
+        let corrections = 0;
+        vehicles.forEach(v => {
+            // Prefer matching by the (re-audited) driver name; fall back to the current plate.
+            let rec = FleetData.byName(v.driver);
+            if (!rec) rec = FleetData.byPlate(v.plate);
+            if (!rec) return;
+            if (rec.plate && rec.plate !== 'None' && normalizePlate(rec.plate) !== normalizePlate(v.plate)) {
+                v.plate = rec.plate; corrections++;
             }
-        } catch (e) {}
-        return response;
-    };
-})();
+            if (rec.car && rec.car !== 'None' && rec.car !== v.type) {
+                v.type = rec.car; corrections++;
+            }
+        });
+        renderTable(document.getElementById('searchInput').value);
+        updateStats();
+        if (corrections > 0) {
+            saveState(false);
+            showToast('تم تصحيح ' + corrections + ' حقل (لوحات/أنواع) وحفظها ✅', 'success');
+        } else {
+            showToast('لا توجد تصحيحات — البيانات مطابقة ✓', 'info');
+        }
+    }
+
+    window.addEventListener('load', () => { markCurrentMonthHeader(); init(); });
 </script>
+<a href="https://wa.me/966570310909?text=مرحباً" target="_blank" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; font-family: Cairo;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل معنا - خالد بن محمد الغامدي</a>
 </body>
 </html>
+

@@ -4,162 +4,111 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>منشئ الفواتير الاحترافي | شركة بن زومة</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js">
-</script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js">
-</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
-    <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <style>
-        body {
-            padding-top: 180px;
+        /* ════════════════════════════════════════════════
+           HOMEPAGE — elite enterprise SaaS polish (BIN ZOMAH INTL.)
+           Visual layer only. No token edits in base_styles.css.
+           ════════════════════════════════════════════════ */
+
+        /* Premium HERO around the existing brand identity + title */
+        .bz-hero {
+            position: relative;
+            z-index: 2;
+            max-width: 1000px;
+            width: 95%;
+            margin: 1.5rem auto 2.5rem;
+            padding: 3rem 2rem 2.75rem;
+            border-radius: 24px;
+            text-align: center;
+            overflow: hidden;
+            background:
+                radial-gradient(1200px 420px at 50% -10%, rgba(59,130,246,0.16), transparent 60%),
+                linear-gradient(180deg, rgba(255,255,255,0.05), transparent 55%),
+                linear-gradient(160deg, #0d1530, #0a1020);
+            border: 1px solid rgba(255,255,255,0.07);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
         }
-        /* الهيدر الأساسي */
-        header {
-          position: absolute; /* تغيير من fixed إلى absolute لكي يختفي عند النزول للأسفل */
-          top: 0;
-          left: 0;
-          width: 100%;
-          padding: 12px 40px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background: rgba(13, 17, 23, 0.6); /* خلفية داكنة وزجاجية */
-          backdrop-filter: blur(12px);
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          z-index: 1000;
+        .bz-hero::before {
+            content: "";
+            position: absolute;
+            inset: -40% -20% auto -20%;
+            height: 80%;
+            background: radial-gradient(600px 300px at 30% 0%, rgba(201,162,39,0.12), transparent 70%);
+            pointer-events: none;
+            animation: bzHeroGlow 9s ease-in-out infinite alternate;
+        }
+        @keyframes bzHeroGlow {
+            0%   { transform: translateX(-6%) translateY(0); opacity: .75; }
+            100% { transform: translateX(6%) translateY(2%); opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .bz-hero::before { animation: none; }
+        }
+        .bz-hero > * { position: relative; z-index: 1; }
+
+        .bz-hero-logo {
+            display: inline-flex;
+            margin-bottom: 1.5rem;
+        }
+        .bz-hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            margin-bottom: 1.1rem;
+            border-radius: 50px;
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            color: #e3c766;
+            background: rgba(201,162,39,0.10);
+            border: 1px solid rgba(201,162,39,0.35);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+        .bz-hero-eyebrow strong { color: #f4e3a6; font-weight: 900; letter-spacing: 0.02em; }
+        .bz-hero-eyebrow span { color: rgba(227,199,102,0.85); font-weight: 700; }
+        .bz-hero-divider {
+            width: 64px;
+            height: 3px;
+            margin: 1.1rem auto 0;
+            border-radius: 3px;
+            background: linear-gradient(90deg, transparent, #c9a227, #e3c766, #c9a227, transparent);
         }
 
-        /* الشعار */
-        header .logo {
-          position: absolute;
-          left: 50%;
-          transform: translateX(-50%);
-        }
-        header .logo img {
-          height: 260px;
-          margin-top: 100px; /* يدفع الشعار للأسفل ليبرز خارج الهيدر بفخامة */
-          filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)) contrast(1.2) saturate(1.3) brightness(1.05); /* زيادة تباين وتشبع الألوان لجودة أفضل */
-        }
-        body.dark-mode header .logo img {
-          filter: drop-shadow(0 8px 12px rgba(255,255,255,0.15)) contrast(1.2) saturate(1.3) brightness(1.15); /* إضاءة الشعار في الوضع الليلي */
-        }
-
-        /* روابط الديسكتوب */
-        .nav-links {
-          display: flex;
-          gap: 25px;
-        }
-
-        .nav-links a {
-          text-decoration: none;
-          font-size: 18px;
-          color: #f0f6fc; /* أبيض ناعم للوضع الداكن */
-          font-weight: 600;
-          transition: 0.3s;
-        }
-
-        .nav-links a:hover {
-          color: #c9a25b; /* ذهبي فاخر */
-          transform: translateY(-2px);
-        }
-
-        /* زر القائمة للجوال */
-        .menu-icon {
-          font-size: 32px;
-          color: #f0f6fc;
-          cursor: pointer;
-          display: none;
-        }
-
-        /* القائمة الجانبية للجوال */
-        .mobile-menu {
-          position: fixed;
-          top: 0;
-          right: -250px;
-          width: 250px;
-          height: 100%;
-          background: rgba(0,0,0,0.85);
-          backdrop-filter: blur(6px);
-          display: flex;
-          flex-direction: column;
-          padding-top: 100px;
-          transition: 0.4s;
-          z-index: 999;
-        }
-
-        .mobile-menu a {
-          padding: 15px 25px;
-          text-decoration: none;
-          color: white;
-          font-size: 20px;
-          border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .mobile-menu a:hover {
-          background: rgba(255,255,255,0.1);
-        }
-
-        /* إخفاء وإظهار حسب حجم الشاشة (الجوالات) */
-        @media (max-width: 768px) {
-          .nav-links {
-            display: none;
-          }
-          .menu-icon {
-            display: block;
-          }
-          header {
-            padding: 12px 15px; /* تصغير حواف الهيدر في الجوال */
-          }
-          header .logo img {
-            height: 110px !important; /* تصغير الشعار العملاق ليتناسب مع شاشة الجوال */
-            margin-top: 50px !important;
-          }
-          body {
-            padding-top: 120px !important; /* تقليل المساحة العلوية في الجوال */
-          }
-          .user-badge {
-            top: 0.5rem !important;
-            left: 0.5rem !important;
-            padding: 3px 10px !important;
-          }
-          .user-badge span {
-            display: none; /* إخفاء اسم المستخدم في الجوال لتوفير مساحة */
-          }
-        }
-
+        /* Page-specific layout only (tokens from base_styles.css) */
         .header-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 0 auto 2rem auto;
+            margin: 0 auto;
             width: 100%;
-            max-width: 95%; /* أصبحت حرة وعريضة */
             z-index: 2;
         }
 
-        .site-logo {
-            max-width: 650px; width: 90%;
-            margin-bottom: 1rem;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
-            transition: var(--trans);
-        }
-        body.dark-mode .site-logo {
-            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.2));
-        }
-
         .header-title {
-            color: var(--text-primary);
+            color: #ffffff;
             text-align: center;
+            font-size: clamp(2.1rem, 5vw, 3.2rem);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            margin: 0;
+            background: linear-gradient(180deg, #ffffff 0%, #cdd9f3 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .header-subtitle { text-align: center; margin-bottom: 1.5rem; color: var(--text-secondary); }
+        .header-subtitle { text-align: center; margin: 0.9rem 0 1.6rem; color: rgba(203,213,225,0.85); font-weight: 600; font-size: 1.05rem; }
 
         .nav-buttons {
             display: flex;
             gap: 1rem;
-            margin-bottom: 2rem;
+            margin-bottom: 0;
             flex-wrap: wrap;
             justify-content: center;
         }
@@ -169,21 +118,17 @@
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 1.5rem;
             margin: 0 auto;
-            width: 100%;
-            max-width: 95%; /* أصبحت حرة وعريضة */
+            width: 95%;
+            max-width: 1000px;
             z-index: 2;
         }
         @media (max-width: 480px) {
-            .grid-container {
-                grid-template-columns: 1fr;
-            }
-            .financial-grid {
-                grid-template-columns: 1fr !important;
-            }
+            .grid-container { grid-template-columns: 1fr; }
+            .financial-grid { grid-template-columns: 1fr !important; }
         }
 
         .card label { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem; display: block; color: var(--text-primary); }
-        
+
         .financial-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
         @media (max-width: 600px) { .financial-grid { grid-template-columns: 1fr; } }
 
@@ -196,7 +141,13 @@
         .btn-add { background: var(--accent); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; grid-column: span 2; transition: var(--trans); }
         .btn-add:hover { transform: translateY(-2px); filter: brightness(1.1); }
         
-        .drivers-table-wrapper { width: 100%; overflow-y: auto; max-height: 70vh !important; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem; }
+        .drivers-table-wrapper { width: 100%; overflow-x: auto; overflow-y: auto; max-height: 70vh !important; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem; }
+        /* On-screen readability: every header stays on ONE line (nowrap) and is never
+           cut or broken mid-word; the wrapper (overflow-x:auto) scrolls if the table
+           needs more width than the modal. Single-word headers (السيارة/اللوحة/الإقامة/
+           الجوال) and multi-word ones (الرقم الوظيفي / بطاقة السائق) all render whole. */
+        .drivers-table.bz-fit thead th { white-space: nowrap; word-break: keep-all; overflow: visible; }
+        .drivers-table.bz-fit td { white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
         
         /* Floating Action Button */
         .fab-btn {
@@ -207,78 +158,175 @@
         }
         .fab-btn:hover { transform: scale(1.1) rotate(10deg); }
 
+        /* ── Premium invoice form cards (dark design language) ── */
+        #invoiceArea.grid-container { margin-top: 0.5rem; }
+        #invoiceArea .card {
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.035), transparent 60%),
+                linear-gradient(160deg, #0f1a36, #111a33);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+            transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease;
+        }
+        #invoiceArea .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(201,162,39,0.30);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07);
+        }
+        #invoiceArea .card label { color: #f1f5f9; }
+        #invoiceArea .card input,
+        #invoiceArea .card select,
+        #invoiceArea .card textarea {
+            background: rgba(8,13,28,0.55);
+            border: 1px solid rgba(255,255,255,0.09);
+            color: #f8fafc;
+            border-radius: 10px;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+        }
+        #invoiceArea .card input::placeholder,
+        #invoiceArea .card textarea::placeholder { color: rgba(148,163,184,0.7); }
+        #invoiceArea .card input:focus,
+        #invoiceArea .card select:focus,
+        #invoiceArea .card textarea:focus {
+            outline: none;
+            border-color: rgba(59,130,246,0.7);
+            background: rgba(8,13,28,0.75);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.28);
+        }
+        #invoiceArea .card input[readonly] { cursor: default; }
+
+        /* ── Theme-aware premium sections (من نحن / تواصل معنا / footer) ── */
+        .bz-section {
+            max-width: 900px;
+            margin: 3rem auto;
+            padding: 2.75rem;
+            z-index: 2;
+            position: relative;
+            border-radius: 20px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.025), transparent 55%),
+                var(--surface);
+            box-shadow: 0 16px 44px rgba(0,0,0,0.10);
+            border: 1px solid var(--border);
+        }
+        body.dark-mode .bz-section {
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.035), transparent 55%),
+                linear-gradient(160deg, #0f1a36, #111a33);
+            border-color: rgba(255,255,255,0.07);
+            box-shadow: 0 16px 44px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .bz-section--narrow { max-width: 700px; }
+        .bz-section h2 {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+        }
+        .bz-section-divider {
+            width: 56px; height: 3px; margin: -0.6rem auto 1.4rem; border-radius: 3px;
+            background: linear-gradient(90deg, transparent, var(--brand-gold, #c9a227), transparent);
+        }
+        .bz-about-body { color: var(--text-secondary); font-size: 1rem; line-height: 2; text-align: center; }
+        .bz-about-body p { margin-bottom: 1rem; }
+        .bz-about-body strong { color: var(--text-primary); }
+        .bz-about-meta { color: var(--text-muted); font-size: 0.9rem; }
+        .bz-about-meta a { color: var(--accent); font-weight: bold; text-decoration: none; }
+        .bz-about-meta a:hover { text-decoration: underline; }
+
+        .bz-contact-sub { text-align: center; color: var(--text-muted); margin-bottom: 2rem; }
+        .bz-contact-list { display: flex; flex-direction: column; gap: 1.2rem; align-items: center; }
+        .bz-contact-card {
+            display: flex; align-items: center; gap: 14px; text-decoration: none;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            padding: 1rem 1.6rem; border-radius: 14px; width: 100%; max-width: 420px;
+            transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        .bz-contact-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--brand-gold, #c9a227);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.14);
+        }
+        body.dark-mode .bz-contact-card:hover { box-shadow: 0 12px 28px rgba(0,0,0,0.45); }
+        .bz-contact-card .ico { font-size: 1.7rem; }
+        .bz-contact-card .lbl { font-weight: 700; color: var(--text-secondary); font-size: 0.9rem; }
+        .bz-contact-card .val { color: var(--text-primary); font-size: 1.02rem; direction: ltr; font-weight: 700; }
+
+        .bz-footer {
+            text-align: center;
+            padding: 24px 20px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            margin-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+        .bz-footer::before {
+            content: "";
+            display: block;
+            width: 48px; height: 3px; margin: 0 auto 16px; border-radius: 3px;
+            background: linear-gradient(90deg, transparent, var(--brand-gold, #c9a227), transparent);
+        }
+
+        @media (max-width: 600px) { .bz-section { padding: 1.75rem 1.25rem; } }
         @media (max-width: 768px) {
-            body { padding: 1rem; padding-top: 4rem; }
             .header-title { font-size: 1.8rem; }
+            .bz-hero { padding: 2.25rem 1.25rem 2rem; }
         }
     </style>
 
 </head>
 <body>
 
-    <!-- Mobile Toggle -->
-    <button class="mobile-toggle" onclick="document.getElementById('dashboardSidebar').classList.toggle('open')">☰</button>
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
 
-    <!-- Dashboard Sidebar -->
-    <aside class="dashboard-sidebar" id="dashboardSidebar">
-        <div class="sidebar-logo">
-            <img src="{{ url_for('static', filename='site_logo.png') }}" alt="Bin Zomah Intl Logo">
-        </div>
-        <nav class="sidebar-menu">
-            <a href="/" class="sidebar-item">🏠 الرئيسية</a>
-            <a href="/invoice" class="sidebar-item">🧾 الفاتورة الذكية</a>
-            <a href="/oils" class="sidebar-item">📄 بيان زيوت وفلاتر</a>
-            <a href="/purchase" class="sidebar-item">🛒 طلبات الشراء</a>
-            <a href="/schedule" class="sidebar-item">📋 الجدول الأسبوعي</a>
-            <a href="/employees" class="sidebar-item">👥 بيانات الموظفين</a>
-            <a href="/washing" class="sidebar-item">🚿 جدول الغسيل</a>
-            <a href="/workshop" class="sidebar-item">🔧 صيانة الورشة</a>
-            <a href="/gps_sync" class="sidebar-item">📡 مزامنة GPS</a>
-            <a href="/tracking" target="_blank" class="sidebar-item">🛰️ التتبع المباشر</a>
-            <a href="/dashboard" class="sidebar-item">📊 لوحة الإدارة</a>
-            <a href="/logout" class="sidebar-item" style="color: #ef4444; margin-top: auto;">🚪 تسجيل الخروج</a>
-        </nav>
-    </aside>
-
-
-    <header>
-      <nav class="nav-links">
-        <a href="#home">الرئيسية</a>
-        <a href="#services">الخدمات</a>
-        <a href="#about">من نحن</a>
-        <a href="https://bz.sa" target="_blank">موقعنا الرسمي</a>
-        <a href="#contact">تواصل معنا</a>
-      </nav>
-
-      <div class="logo">
-        <img src="{{ url_for('static', filename='gemini_logo_header_v223.png', v=4) }}" alt="Bin Zomah Intl Logo">
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
       </div>
-
-      <div class="menu-icon" onclick="toggleMenu()">
-        ☰
-      </div>
-
-      <nav class="mobile-menu" id="mobileMenu">
-        <a href="#home">الرئيسية</a>
-        <a href="#services">الخدمات</a>
-        <a href="#about">من نحن</a>
-        <a href="https://bz.sa" target="_blank">موقعنا الرسمي</a>
-        <a href="#contact">تواصل معنا</a>
+      <nav class="bz-nav">
+        <a href="/" class="active">🏠 الرئيسية</a>
+        <a href="/dashboard" style="background:var(--brand-gold);color:var(--brand-navy);border-color:var(--brand-gold);font-weight:800;">🎯 لوحة الإدارة</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
       </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
     </header>
 
-    <script>
-    function toggleMenu() {
-      const menu = document.getElementById("mobileMenu");
-      menu.style.right = menu.style.right === "0px" ? "-250px" : "0px";
-    }
-    </script>
+    <div class="bz-shell">
+
+    <section class="bz-hero">
 
     <div class="header-container">
+
+    <div class="bz-hero-logo logo" style="text-align: center;">
+        <img src="{{ url_for('static', filename='main_logo.png') }}" alt="Bin Zomah Intl Logo" style="height: 132px; background:#ffffff; padding:16px 30px; border-radius:18px; box-shadow:0 12px 34px rgba(0,0,0,0.38);">
+    </div>
+
+    <div class="bz-hero-eyebrow"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+
     {% if google_user %}
-    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(22, 27, 34, 0.9); padding: 5px 15px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1001; backdrop-filter: blur(5px);">
+    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1001; backdrop-filter: blur(5px);">
         <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
-        <span style="font-weight: bold; color: #f0f6fc; font-size: 0.9rem;">{{ google_user.name }}</span>
+        <span style="font-weight: bold; color: #1A3A5C; font-size: 0.9rem;">{{ google_user.name }}</span>
         <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">تسجيل خروج</a>
     </div>
     {% endif %}
@@ -286,19 +334,115 @@
     <h1 class="header-title">نظام الفواتير الذكي</h1>
         <p class="header-subtitle">اختر السائق وسيتم تعبئة البيانات تلقائياً</p>
         <div class="nav-buttons">
-            <a href="/invoice" class="btn-outline" style="text-decoration:none;">🧾 الفاتورة الذكية</a>
-    <button class="btn-outline" onclick="openModal()">⚙️ إدارة السائقين وقاعدة البيانات</button>
-    <a href="/oils" class="btn-outline" style="text-decoration:none;">📄 إنشاء بيان زيوت وفلاتر</a>
-    <a href="/purchase" class="btn-outline" style="text-decoration:none;">🛒 طلبات الشراء</a>
-    <a href="/schedule" class="btn-outline" style="text-decoration:none;">📋 الجدول الأسبوعي</a>
-    <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
-    <a href="/tracking" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
-    <a href="/gps_sync" class="btn-outline" style="text-decoration:none;">📡 مزامنة كشف GPS</a>
-</div>
+            <!-- التنقل بين التبويبات موجود في الشريط العلوي؛ هنا الإجراء الفريد فقط -->
+            <a href="/dashboard" class="btn-submit-gold" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">🎯 لوحة الإدارة التنفيذية</a>
+            <button class="btn-outline" onclick="openModal()">⚙️ إدارة السائقين وقاعدة البيانات</button>
+        </div>
+
     </div>
 
+    <div class="bz-hero-divider"></div>
+
+    </section>
+
+    <div class="grid-container" id="invoiceArea">
+        <!-- 1. اسم السائق -->
+        <div class="card card-purple span-2 glass-surface">
+            <label for="driverName">اسم السائق (اكتب للبحث)</label>
+            <input type="text" id="driverName" list="driversList" placeholder="ابحث عن اسم السائق هنا..." onchange="autofillDriver()">
+            <datalist id="driversList"></datalist>
+        </div>
+
+        <!-- 2. نوع السيارة -->
+        <div class="card card-green glass-surface">
+            <label for="carType">نوع السيارة</label>
+            <input type="text" id="carType" placeholder="مثال: ايسوزو دينا 2024">
+        </div>
+
+        <!-- 3. رقم اللوحة -->
+        <div class="card card-blue glass-surface">
+            <label for="plateNum">رقم اللوحة</label>
+            <input type="text" id="plateNum" placeholder="مثال: ا ب ج 1234">
+        </div>
+
+                <!-- 4. نوع الطلب -->
+        <div class="card card-brown glass-surface">
+            <label for="requestType">نوع الطلب</label>
+            <select id="requestType">
+                <option value="صيانة دورية">صيانة دورية</option>
+                <option value="إصلاح عطل">إصلاح عطل</option>
+                <option value="إصلاح بنشر">إصلاح بنشر</option>
+                <option value="تغيير قطع غيار">تغيير قطع غيار</option>
+                <option value="غيار زيت">غيار زيت</option>
+                <option value="أخرى">أخرى</option>
+            </select>
+        </div>
+
+        <!-- 4.5 رقم الإقامة -->
+        <div class="card card-olive glass-surface">
+            <label for="iqamaNum">رقم الإقامة</label>
+            <input type="text" id="iqamaNum" placeholder="مثال: 2441077944">
+        </div>
+
+        <!-- 4.6 التاريخ -->
+        <div class="card card-gray glass-surface">
+            <label for="invoiceDate">التاريخ</label>
+            <input type="date" id="invoiceDate">
+        </div>
+        
+        <!-- 5. الكمية والسعر -->
+        <div class="card card-maroon span-2 glass-surface">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div>
+                    <label for="quantity">الكمية</label>
+                    <input type="number" id="quantity" value="1" min="1" oninput="calcTotal()">
+                </div>
+                <div>
+                    <label for="price">السعر الإفرادي (ريال)</label>
+                    <input type="number" id="price" placeholder="0.00" oninput="calcTotal()">
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. الوصف -->
+        <div class="card card-amber span-2 glass-surface">
+            <label for="desc">الوصف / التفاصيل</label>
+            <textarea id="desc" rows="3" placeholder="أدخل تفاصيل الفاتورة أو القطع المستبدلة..."></textarea>
+        </div>
+
+        <!-- 7. الاجمالي والضريبة -->
+        <div class="card card-gray span-2 glass-surface">
+            <label>الحسابات المالية</label>
+            <div class="financial-grid">
+                <div>
+                    <span style="font-size:0.9rem; opacity:0.8;">المبلغ</span>
+                    <input type="text" id="subtotal" readonly value="0.00" style="background: rgba(0,0,0,0.3); border-color: transparent; margin-top:5px;">
+                </div>
+                <div>
+                    <span style="font-size:0.9rem; opacity:0.8;">الضريبة (15%)</span>
+                    <input type="text" id="tax" readonly value="0.00" style="background: rgba(0,0,0,0.3); border-color: transparent; margin-top:5px;">
+                </div>
+                <div>
+                    <span style="font-size:0.9rem; font-weight:bold; color:#f1c40f;">الإجمالي النهائي</span>
+                    <input type="text" id="total" readonly value="0.00" style="background: rgba(0,0,0,0.4); border-color: #f1c40f; color:#f1c40f; margin-top:5px;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 1rem; justify-content: center; max-width: 1000px; width: 95%; margin: 0 auto; width: 100%; flex-wrap: wrap; z-index: 2; position: relative;">
+        <button class="btn-submit-gold" style="flex:1; min-width: 250px;" onclick="generateExcel()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            تصدير PDF / Excel
+        </button>
+        <button class="btn-submit-orange" style="flex:1; min-width: 250px;" onclick="openCustomModal('emailModal')">
+            📧 إرسال الفاتورة للإيميل
+        </button>
         <button class="btn-submit-green" style="background-color: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; flex:1; min-width: 250px;" onclick="sendWhatsApp()">
             💬 إرسال عبر الواتساب
+        </button>
+        <button class="btn-submit-orange" style="flex:1; min-width: 250px;" onclick="openInvoiceShare()">
+            📤 مشاركة / تصدير
         </button>
         <button class="btn-outline" style="flex:1; min-width: 200px; margin-top: 3rem; border-radius: 50px; border-color: #e74c3c; color: #e74c3c; font-weight: 800; font-size: 1.2rem; display: inline-flex; align-items: center; justify-content: center;" onclick="clearInvoiceForm()">
             🗑️ إفراغ الفاتورة
@@ -324,11 +468,12 @@
                     <input type="text" id="newCar" placeholder="نوع السيارة وموديلها">
                     <input type="text" id="newIqama" placeholder="رقم الإقامة">
                     <input type="text" id="newPhone" placeholder="رقم الجوال">
+                    <input type="text" id="newDriverCard" placeholder="تاريخ انتهاء بطاقة السائق">
                     <button class="btn-add" onclick="addDriver()">إضافة إلى قاعدة البيانات ➕</button>
                 </div>
 
                 <div class="drivers-table-wrapper">
-                    <table class="drivers-table">
+                    <table class="drivers-table bz-fit">
                         <thead>
                             <tr>
                                 <th>الاسم</th>
@@ -336,15 +481,16 @@
                                 <th>السيارة</th>
                                 <th>اللوحة</th>
                                 <th>الإقامة</th>
+                                <th>بطاقة السائق</th>
                                 <th>الجوال</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody id="driversTableBody">
                             <!-- Data here -->
-                            <tr class="skeleton"><td colspan="7">تحميل البيانات...</td></tr>
-                            <tr class="skeleton"><td colspan="7">تحميل البيانات...</td></tr>
-                            <tr class="skeleton"><td colspan="7">تحميل البيانات...</td></tr>
+                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
+                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
+                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -377,7 +523,7 @@
                 const merged = `${d.name || 'لا يوجد'} - ${d.iqama || 'بدون إقامة'} - ${d.plate || 'بدون لوحة'} - ${d.phone || 'بدون جوال'} - ${d.car || 'بدون موديل'}`;
                 d._merged = merged;
                 const option = document.createElement('option');
-                option.value = merged;
+                option.value = merged; // value via property is safe (not parsed as HTML)
                 list.appendChild(option);
             });
         }
@@ -389,7 +535,7 @@
             if (driversData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7">
+                        <td colspan="8">
                             <div class="empty-state">
                                 <div class="empty-state-icon">📭</div>
                                 <h3>لا يوجد بيانات</h3>
@@ -403,16 +549,18 @@
 
             driversData.forEach(d => {
                 const tr = document.createElement('tr');
+                const id = Number(d.id);
                 tr.innerHTML = `
-                    <td>${d.name}</td>
-                    <td>${d.empid || '-'}</td>
-                    <td>${d.car || '-'}</td>
-                    <td>${d.plate || '-'}</td>
-                    <td>${d.iqama || '-'}</td>
-                    <td>${d.phone || '-'}</td>
+                    <td>${escapeHtml(d.name)}</td>
+                    <td>${escapeHtml(d.empid || '-')}</td>
+                    <td>${escapeHtml(d.car || '-')}</td>
+                    <td>${escapeHtml(d.plate || '-')}</td>
+                    <td>${escapeHtml(d.iqama || '-')}</td>
+                    <td>${escapeHtml(d.drivercard || '-')}</td>
+                    <td>${escapeHtml(d.phone || '-')}</td>
                     <td>
-                        <button class="btn-outline" style="padding:4px 8px;font-size:0.8rem;border-color:#3498db;color:#3498db;" onclick="editDriver(${d.id})">تعديل</button>
-                        <button class="btn-delete" style="padding:4px 8px;font-size:0.8rem;" onclick="deleteDriver(${d.id})">حذف</button>
+                        <button class="btn-outline" style="padding:4px 8px;font-size:0.8rem;border-color:#3498db;color:#3498db;" onclick="editDriver(${id})">تعديل</button>
+                        <button class="btn-delete" style="padding:4px 8px;font-size:0.8rem;" onclick="deleteDriver(${id})">حذف</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -426,6 +574,7 @@
             const car = document.getElementById('newCar').value;
             const iqama = document.getElementById('newIqama').value;
             const phone = document.getElementById('newPhone').value;
+            const drivercard = document.getElementById('newDriverCard').value;
             
             if(!name) {
                 showToast('الاسم مطلوب!', 'error');
@@ -436,7 +585,7 @@
                 const res = await fetch('/api/drivers', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({name, empid, plate, car, iqama, phone})
+                    body: JSON.stringify({name, empid, plate, car, iqama, phone, drivercard})
                 });
                 if(res.ok) {
                     document.getElementById('newName').value = '';
@@ -445,6 +594,7 @@
                     document.getElementById('newCar').value = '';
                     document.getElementById('newIqama').value = '';
                     document.getElementById('newPhone').value = '';
+                    document.getElementById('newDriverCard').value = '';
                     showToast('تم إضافة السائق بنجاح!', 'success');
                     await fetchDrivers();
                 } else {
@@ -462,6 +612,7 @@
             const newCar = prompt('تعديل نوع السيارة:', d.car || '');
             const newPlate = prompt('تعديل رقم اللوحة:', d.plate || '');
             const newIqama = prompt('تعديل رقم الإقامة:', d.iqama || '');
+            const newDriverCard = prompt('تعديل تاريخ انتهاء بطاقة السائق:', d.drivercard || '');
             const newPhone = prompt('تعديل رقم الجوال:', d.phone || '');
             if (!newName) {
                 showToast('الاسم مطلوب!', 'error');
@@ -472,7 +623,7 @@
                 const res = await fetch(`/api/drivers/${id}`, {
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({name: newName, empid: newEmpid, car: newCar, plate: newPlate, iqama: newIqama, phone: newPhone})
+                    body: JSON.stringify({name: newName, empid: newEmpid, car: newCar, plate: newPlate, iqama: newIqama, phone: newPhone, drivercard: newDriverCard})
                 });
                 if(res.ok) {
                     showToast('تم تعديل السائق بنجاح', 'success');
@@ -498,17 +649,34 @@
         function openModal() { openCustomModal('driversModal'); }
         function closeModal() { closeCustomModal('driversModal'); }
 
-        // Fetch on load
-        window.onload = fetchDrivers;
+        // Fetch on load + preload the shared FleetData engine for autofill
+        window.onload = function () {
+            fetchDrivers();
+            if (window.FleetData && typeof FleetData.load === 'function') {
+                FleetData.load().catch(function () {});
+            }
+        };
+
+        // Holds the phone of the last auto-filled driver (used by WhatsApp/email)
+        window._selectedDriverPhone = '';
+
+        function clean(v) { return (v && v !== 'None') ? v : ''; }
 
         function autofillDriver() {
             const val = document.getElementById('driverName').value;
-            const driver = driversData.find(d => d._merged === val || d.name === val);
+            let driver = driversData.find(d => d._merged === val || d.name === val);
+            // Fallback to the shared FleetData engine (by name) if not found locally
+            if (!driver && window.FleetData) {
+                const rec = FleetData.byName(val);
+                if (rec) driver = rec;
+            }
             if (driver) {
-                document.getElementById('driverName').value = driver.name && driver.name !== 'None' ? driver.name : '';
-                document.getElementById('carType').value = driver.car && driver.car !== 'None' ? driver.car : '';
-                document.getElementById('plateNum').value = driver.plate && driver.plate !== 'None' ? driver.plate : '';
-                document.getElementById('iqamaNum').value = driver.iqama && driver.iqama !== 'None' ? driver.iqama : '';
+                document.getElementById('driverName').value = clean(driver.name);
+                document.getElementById('carType').value = clean(driver.car);
+                document.getElementById('plateNum').value = clean(driver.plate);
+                document.getElementById('iqamaNum').value = clean(driver.iqama);
+                window._selectedDriverPhone = clean(driver.phone);
+                saveInvoiceForm();
             }
         }
 
@@ -597,29 +765,37 @@
         }
 
         async function createInvoiceBuffer() {
+            // Ensure totals are synced before reading them
+            calcTotal();
+
             const driver = document.getElementById('driverName').value || 'غير محدد';
             const car = document.getElementById('carType').value || 'غير محدد';
             const plate = document.getElementById('plateNum').value || 'غير محدد';
             const iqamaNum = document.getElementById('iqamaNum').value || 'غير محدد';
+            const phone = (window._selectedDriverPhone || '') || 'غير محدد';
             const req = document.getElementById('requestType').value;
             const invoiceDate = document.getElementById('invoiceDate').value;
-            const qty = document.getElementById('quantity').value;
+            const qty = document.getElementById('quantity').value || '1';
             const price = document.getElementById('price').value || '0';
-            const subtotal = document.getElementById('subtotal').value;
-            const tax = document.getElementById('tax').value;
-            const total = document.getElementById('total').value;
+            const subtotal = document.getElementById('subtotal').value || '0';
+            const tax = document.getElementById('tax').value || '0';
+            const total = document.getElementById('total').value || '0';
             const desc = document.getElementById('desc').value || 'لا يوجد وصف';
 
             const wb = new ExcelJS.Workbook();
-            const ws = wb.addWorksheet('الفاتورة', { views: [{ rightToLeft: true }] });
+            const ws = wb.addWorksheet('الفاتورة', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 12 }] });
 
-            ws.getCell('A1').font = { name: 'Cairo', size: 12 };
-            const P = 'FF1A3A5C'; const G = 'FFC8A45A'; const W = 'FFFFFFFF'; const L = 'FFF0F2F5';
-            const thinBorder = { style: 'thin', color: { argb: 'FFD0D5DD' } };
+            ws.getCell('A1').font = { name: 'Tajawal', size: 12 };
+            // B&W print-safe palette (DESIGN_SYSTEM §6): navy is the ONLY heavy fill.
+            const P = 'FF0C2340';      // brand navy — header/title fill, white text on it
+            const G = 'FFC9A227';      // gold — used ONLY for thin accent borders (prints as a thin line)
+            const W = 'FFFFFFFF';      // white — data backgrounds + text on navy
+            const BLACK = 'FF000000';  // data text + grid borders
+            const thinBorder = { style: 'thin', color: { argb: BLACK } };
+            const allBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
 
             ws.columns = [ { width: 5 }, { width: 25 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 25 }, { width: 5 } ];
 
-            for(let c=1; c<=7; c++) ws.getCell(1, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: G } };
             ws.getRow(1).height = 5;
 
             const new_logo = "{{ b64_en }}";
@@ -633,20 +809,27 @@
 
             ws.mergeCells('B6:F6');
             const title = ws.getCell('B6');
-            title.value = "فــاتــورة طـلـب صـيـانـة / خـدمـة";
-            title.font = { name: 'Cairo', size: 16, bold: true, color: { argb: P } };
+            title.value = bzTL("بيان فاتورة طلب صيانة / خدمة — شركة بن زومة للتجارة والإنماء");
+            title.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: W } };
             title.alignment = { horizontal: 'center', vertical: 'middle' };
-            title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: L } };
-            title.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
-            ws.getRow(6).height = 35;
+            title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } };
+            title.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
+            ws.getRow(6).height = 38;
+
+            ws.mergeCells('B7:F7');
+            const subTitle = ws.getCell('B7');
+            subTitle.value = "BIN ZOMAH INTL. — Dammam Branch";
+            subTitle.font = { name: 'Arial', size: 11, bold: true, color: { argb: BLACK } };
+            subTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+            ws.getRow(7).height = 20;
 
             ws.getRow(8).height = 25; ws.getRow(9).height = 25;
 
             function setInfo(cell1, lbl, cell2, val) {
                 const c1 = ws.getCell(cell1);
-                c1.value = lbl; c1.font = { name: 'Cairo', size: 12, bold: true, color: { argb: W } }; c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c1.alignment = { horizontal: 'center', vertical: 'middle' }; c1.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+                c1.value = bzTL(lbl); c1.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: W } }; c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c1.alignment = { horizontal: 'center', vertical: 'middle' }; c1.border = allBorders;
                 const c2 = ws.getCell(cell2);
-                c2.value = val; c2.font = { name: 'Cairo', size: 12, bold: true, color: { argb: 'FF333333' } }; c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }; c2.alignment = { horizontal: 'center', vertical: 'middle' }; c2.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+                c2.value = val; c2.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } }; c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } }; c2.alignment = { horizontal: 'center', vertical: 'middle' }; c2.border = allBorders;
             }
 
             setInfo('B8', 'اسم السائق', 'C8', driver);
@@ -655,56 +838,76 @@
             setInfo('D9', 'رقم اللوحة', 'E9', plate);
             setInfo('B10', 'نوع الطلب', 'C10', req);
             setInfo('D10', 'رقم الإقامة', 'E10', iqamaNum);
-            
-            ws.getRow(10).height = 25;
+            setInfo('B11', 'جوال السائق', 'C11', phone);
+            setInfo('D11', '', 'E11', '');
+
+            ws.getRow(10).height = 25; ws.getRow(11).height = 25;
             ws.mergeCells('B8:B8'); ws.mergeCells('C8:C8'); ws.mergeCells('D8:D8'); ws.mergeCells('E8:F8');
             ws.mergeCells('B9:B9'); ws.mergeCells('C9:C9'); ws.mergeCells('D9:D9'); ws.mergeCells('E9:F9');
             ws.mergeCells('B10:B10'); ws.mergeCells('C10:C10'); ws.mergeCells('D10:D10'); ws.mergeCells('E10:F10');
+            ws.mergeCells('C11:F11');
 
-            ws.getRow(12).height = 30;
-            const headers = ['م', 'الوصف / البيان', 'الكمية', 'السعر الإفرادي', 'المبلغ'];
+            ws.getRow(13).height = 30;
+            const headers = ['م', 'الوصف / البيان', 'الكمية', 'السعر الإفرادي', 'المبلغ'].map(h => bzTL(h));
             const hCols = ['B', 'C', 'D', 'E', 'F'];
             for(let i=0; i<headers.length; i++) {
-                const c = ws.getCell(hCols[i] + '12');
-                c.value = headers[i]; c.font = { name: 'Cairo', size: 11, bold: true, color: { argb: W } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C4A6E' } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+                const c = ws.getCell(hCols[i] + '13');
+                c.value = headers[i]; c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: W } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
             }
 
-            ws.getRow(13).height = 35;
-            const data = [1, desc, parseFloat(qty), parseFloat(price), parseFloat(subtotal)];
+            ws.getRow(14).height = 35;
+            const data = [1, desc, parseFloat(qty) || 0, parseFloat(price) || 0, parseFloat(subtotal) || 0];
             for(let i=0; i<data.length; i++) {
-                const c = ws.getCell(hCols[i] + '13');
-                c.value = data[i]; c.font = { name: 'Cairo', size: 11, color: { argb: 'FF1A1A2E' } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; c.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+                const c = ws.getCell(hCols[i] + '14');
+                c.value = data[i]; c.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; c.border = allBorders;
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
                 if(i > 1) c.numFmt = '#,##0.00';
             }
 
-            function addTotalRow(r, lbl, val, bold, color, fill) {
+            // B&W-safe totals: emphasis via bold + borders, NOT color fills.
+            // grand=true -> navy fill + white text (the one allowed heavy fill) with a darker top edge.
+            function addTotalRow(r, lbl, val, grand) {
                 ws.getRow(r).height = 35; ws.mergeCells(`B${r}:E${r}`);
+                const txt = grand ? W : BLACK;
+                const fill = grand ? P : W;
+                const topEdge = grand ? { style: 'medium', color: { argb: BLACK } } : thinBorder;
+                const border = { top: topEdge, bottom: thinBorder, left: thinBorder, right: thinBorder };
                 const lCell = ws.getCell(`B${r}`);
-                lCell.value = lbl; lCell.font = { name: 'Cairo', size: 12, bold: true, color: { argb: color } }; lCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; lCell.alignment = { horizontal: 'left', vertical: 'middle' }; lCell.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+                lCell.value = bzTL(lbl); lCell.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: txt } }; lCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; lCell.alignment = { horizontal: 'left', vertical: 'middle' }; lCell.border = border;
                 const vCell = ws.getCell(`F${r}`);
-                vCell.value = parseFloat(val); vCell.font = { name: 'Cairo', size: bold ? 14 : 12, bold: bold, color: { argb: color } }; vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; vCell.alignment = { horizontal: 'center', vertical: 'middle' }; vCell.border = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder }; vCell.numFmt = '#,##0.00';
+                vCell.value = parseFloat(val) || 0; vCell.font = { name: 'Tajawal', size: grand ? 14 : 12, bold: true, color: { argb: txt } }; vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; vCell.alignment = { horizontal: 'center', vertical: 'middle' }; vCell.border = border; vCell.numFmt = '#,##0.00';
             }
 
-            addTotalRow(14, "المبلغ الإجمالي (قبل الضريبة)", subtotal, false, P, 'FFF9FAFB');
-            addTotalRow(15, "ضريبة القيمة المضافة (15%)", tax, false, 'FFC0392B', 'FFFFF9F9');
-            addTotalRow(16, "المجموع الكلي (مع الضريبة)", total, true, W, P);
+            addTotalRow(15, "المبلغ الإجمالي (قبل الضريبة)", subtotal, false);
+            addTotalRow(16, "ضريبة القيمة المضافة (15%)", tax, false);
+            addTotalRow(17, "المجموع الكلي (مع الضريبة)", total, true);
 
-            ws.getRow(19).height = 25;
-            ws.getCell('B19').value = "توقيع السائق"; ws.getCell('F19').value = "اعتماد الإدارة";
-            [ws.getCell('B19'), ws.getCell('F19')].forEach(c => { c.font = { name: 'Cairo', size: 11, bold: true, color: { argb: P } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; });
-            ws.getRow(20).height = 40;
-            const bBottom = { bottom: { style: 'medium', color: { argb: P } } };
-            ws.getCell('B20').border = bBottom; ws.getCell('F20').border = bBottom;
+            ws.getRow(20).height = 25;
+            ws.getCell('B20').value = bzTL("توقيع السائق"); ws.getCell('F20').value = bzTL("اعتماد الإدارة");
+            [ws.getCell('B20'), ws.getCell('F20')].forEach(c => { c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: BLACK } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; });
+            ws.getRow(21).height = 40;
+            const bBottom = { bottom: { style: 'medium', color: { argb: BLACK } } };
+            ws.getCell('B21').border = bBottom; ws.getCell('F21').border = bBottom;
 
             
         ws.addRow([]);
-        const footerRow = ws.addRow(['تم الإعداد بواسطة قسم الحركة (خالد الغامدي)']);
+        const footerDate = invoiceDate || new Date().toISOString().slice(0, 10);
+        const footerRow = ws.addRow([`${bzTL("أُعدّ بواسطة قسم الحركة — فرع الدمام")}    |    ${bzTL("التاريخ")}: ${footerDate}`]);
         ws.mergeCells(`A${footerRow.number}:G${footerRow.number}`);
         footerRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-        footerRow.getCell(1).font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF5A6A7A' } };
-        footerRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDF2F7' } };
+        footerRow.getCell(1).font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
+        footerRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
         footerRow.height = 30;
-        
+
+        // Clean B&W print setup (DESIGN_SYSTEM §6): fit to one page width, centered, show grid on print.
+        ws.pageSetup = {
+            fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+            orientation: 'portrait', horizontalCentered: true,
+            margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+        };
+        ws.properties.showGridLines = false;
+        ws.printOptions = { gridLines: true, horizontalCentered: true };
+
         const buffer = await wb.xlsx.writeBuffer();
 
             return { buffer, filename: `فاتورة_${driver}_${plate}.xlsx` };
@@ -714,6 +917,25 @@
             const { buffer, filename } = await createInvoiceBuffer();
             const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
             saveAs(blob, filename);
+        }
+
+        // Returns the invoice Excel as a Blob (for the shared bzShare menu)
+        async function createInvoiceBlob() {
+            const { buffer } = await createInvoiceBuffer();
+            return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        }
+
+        // Unified share/export (Excel + PDF via email / WhatsApp / download)
+        function openInvoiceShare() {
+            const driver = document.getElementById('driverName').value || 'غير محدد';
+            const plate = document.getElementById('plateNum').value || 'غير محدد';
+            bzShare(createInvoiceBlob, {
+                filename: `فاتورة_${driver}_${plate}.xlsx`,
+                subject: bzTL('فاتورة طلب صيانة / خدمة — شركة بن زومة'),
+                pdfElement: 'invoiceArea',
+                pdfOrientation: 'portrait',
+                waMessage: bzTL('مرفق فاتورة طلب الصيانة / الخدمة — إدارة الحركة بفرع الدمام.')
+            });
         }
 
         async function sendExcelEmail() {
@@ -752,83 +974,94 @@
     
 </script>
 
+
 <!-- ═══════════════════════════════════════════ -->
-<!-- قسم الخدمات -->
+<!-- فريق العمل (سلايدر كروت) -->
 <!-- ═══════════════════════════════════════════ -->
-<section id="services" style="max-width:1100px; margin:3rem auto; padding:2rem 1.5rem; z-index:2; position:relative;">
-    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:2rem;">🛠️ خدماتنا</h2>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.2rem;">
-        <a href="#" onclick="event.preventDefault(); openModal();" style="text-decoration:none;">
-            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
-                <div style="font-size:2rem; margin-bottom:0.5rem;">👥</div>
-                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">إدارة السائقين وقاعدة البيانات</h3>
-                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">إضافة وتعديل وحذف بيانات السائقين والسيارات</p>
-            </div>
-        </a>
-        <a href="/oils" style="text-decoration:none;">
-            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
-                <div style="font-size:2rem; margin-bottom:0.5rem;">📄</div>
-                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">إنشاء بيان زيوت وفلاتر</h3>
-                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">تسجيل ومتابعة استهلاك الزيوت والفلاتر</p>
-            </div>
-        </a>
-        <a href="/purchase" style="text-decoration:none;">
-            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
-                <div style="font-size:2rem; margin-bottom:0.5rem;">🛒</div>
-                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">طلبات الشراء</h3>
-                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">إنشاء وإدارة طلبات شراء قطع الغيار والإصلاح</p>
-            </div>
-        </a>
-        <a href="/schedule" style="text-decoration:none;">
-            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
-                <div style="font-size:2rem; margin-bottom:0.5rem;">📋</div>
-                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">الجدول الأسبوعي</h3>
-                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">جدولة توزيع السائقين والمركبات أسبوعياً</p>
-            </div>
-        </a>
-        <a href="/washing" style="text-decoration:none;">
-            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
-                <div style="font-size:2rem; margin-bottom:0.5rem;">🚿</div>
-                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">تحضير جدول الغسيل</h3>
-                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">متابعة جداول غسيل المركبات الشهرية</p>
-            </div>
-        </a>
-        <a href="/tracking" target="_blank" style="text-decoration:none;">
-            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
-                <div style="font-size:2rem; margin-bottom:0.5rem;">🛰️</div>
-                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">التتبع المباشر</h3>
-                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">مراقبة مواقع المركبات لحظياً عبر GPS</p>
-            </div>
-        </a>
-        <a href="/gps_sync" style="text-decoration:none;">
-            <div style="background:white; border-radius:14px; padding:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid #e8ecf1; transition:all 0.3s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(26,58,92,0.15)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
-                <div style="font-size:2rem; margin-bottom:0.5rem;">📡</div>
-                <h3 style="color:#1A3A5C; font-size:1.1rem; margin-bottom:0.4rem;">مزامنة كشف GPS</h3>
-                <p style="color:#6B7B8D; font-size:0.85rem; margin:0;">مزامنة وتحديث بيانات التتبع مع النظام</p>
-            </div>
-        </a>
-    </div>
+<style>
+  .team-section { max-width:1100px; margin:3rem auto 2rem; padding:0 1rem; position:relative; z-index:2; }
+  .team-section > h2 { text-align:center; font-size:2rem; font-weight:800; letter-spacing:-0.01em; color:var(--text-primary,#0C2340); margin-bottom:.4rem; }
+  .team-section .sub { text-align:center; color:var(--text-secondary,#5a6a7a); margin:0 0 1.6rem; font-weight:600; }
+  body.dark-mode .team-section > h2 { color:#fff; }
+  .team-slider { display:flex; align-items:center; gap:.6rem; }
+  .team-track { display:flex; gap:1.2rem; overflow-x:auto; scroll-snap-type:x mandatory; scroll-behavior:smooth; padding:12px 4px 22px; flex:1; scrollbar-width:none; }
+  .team-track::-webkit-scrollbar { height:0; display:none; }
+  .team-card { flex:0 0 230px; scroll-snap-align:center;
+    background:linear-gradient(180deg, rgba(255,255,255,0.035), transparent 55%), var(--surface,#fff);
+    border:1px solid var(--border,#eef2f5); border-radius:22px; padding:18px 16px; text-align:center;
+    box-shadow:0 10px 30px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition:transform .3s cubic-bezier(0.16,1,0.3,1), box-shadow .3s ease, border-color .3s ease; }
+  .team-card:hover { transform:translateY(-6px); border-color:rgba(201,162,39,0.40); box-shadow:0 18px 42px rgba(12,35,64,0.22); }
+  body.dark-mode .team-card { border-color:rgba(255,255,255,0.07); }
+  .team-card .img-box { width:148px; height:148px; margin:0 auto 14px; border-radius:50%; overflow:hidden;
+    border:4px solid var(--brand-gold,#c9a227); background:var(--surface-hover,#f1f5f9);
+    box-shadow:0 0 0 1px rgba(201,162,39,0.35), 0 8px 22px rgba(201,162,39,0.18); }
+  .team-card .img-box img { width:100%; height:100%; object-fit:cover; display:block; }
+  .team-card .t-name { color:var(--text-primary,#1a2b49); font-size:1.02rem; font-weight:800; margin:4px 0; line-height:1.4; }
+  .team-card .t-title { color:var(--brand-gold,#c9a227); font-weight:700; font-size:.9rem; margin:2px 0 6px; }
+  .team-card .t-branch { color:var(--text-secondary,#5a6a7a); font-size:.8rem; margin:0; }
+  .team-nav { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0); border-radius:50%; width:46px; height:46px; min-width:46px; font-size:1.15rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(0,0,0,0.12); color:var(--text-primary,#0C2340); transition:transform .25s cubic-bezier(0.34,1.56,0.64,1), background .25s ease, color .25s ease, border-color .25s ease; }
+  .team-nav:hover { background:var(--brand-gold,#c9a227); color:#1a1407; border-color:var(--brand-gold,#c9a227); transform:scale(1.08); }
+  .team-nav:active { transform:scale(0.97); }
+  @media (max-width:520px){ .team-card{ flex-basis:200px; } }
+</style>
+<section class="team-section" id="team">
+  <h2>👥 فريق عمل فرع الدمام</h2>
+  <p class="sub">شركة بن زومة الدولية للتجارة والإنماء</p>
+  <div class="team-slider">
+    <button class="team-nav" type="button" onclick="teamMove(-1)" aria-label="السابق">&#10095;</button>
+    <div class="team-track" id="teamTrack"></div>
+    <button class="team-nav" type="button" onclick="teamMove(1)" aria-label="التالي">&#10094;</button>
+  </div>
 </section>
+<script>
+  (function () {
+    var track = document.getElementById('teamTrack');
+    if (!track) return;
+    var idx = 0, cards = [];
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+    fetch('/static/team/team.json').then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+      track.innerHTML = (list || []).map(function (p) {
+        var title = p.title ? '<p class="t-title">' + esc(p.title) + '</p>' : '';
+        return '<div class="team-card">' +
+          '<div class="img-box"><img src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy"></div>' +
+          '<p class="t-name">' + esc(p.name) + '</p>' + title +
+          '<p class="t-branch">' + esc(p.branch || '') + '</p></div>';
+      }).join('');
+      cards = Array.prototype.slice.call(track.querySelectorAll('.team-card'));
+    }).catch(function () {});
+    window.teamMove = function (dir) {
+      if (!cards.length) return;
+      idx = Math.max(0, Math.min(cards.length - 1, idx + dir));
+      cards[idx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    };
+  })();
+</script>
 
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم من نحن -->
 <!-- ═══════════════════════════════════════════ -->
-<section id="about" style="max-width:900px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
-    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:1.5rem;">🏢 من نحن</h2>
-    <div style="color:#3A4A5A; font-size:1rem; line-height:2; text-align:center;">
-        <p style="margin-bottom:1rem;">
-            <strong style="color:#1A3A5C;">شركة بن زومة للتجارة الدولية والإنماء المحدودة</strong> — فرع الدمام، قسم الحركة والنقل.
+<section id="about" class="bz-section">
+    <h2>🏢 من نحن</h2>
+    <div class="bz-section-divider"></div>
+    <div class="bz-about-body">
+        <p>
+            <strong>شركة بن زومة للتجارة الدولية والإنماء المحدودة</strong> — فرع الدمام، قسم الحركة والنقل.
         </p>
-        <p style="margin-bottom:1rem;">
+        <p>
             نحن فريق متخصص في إدارة الأسطول والمركبات، نعمل على تقديم حلول ذكية ومتكاملة لإدارة حركة السيارات والسائقين بكفاءة عالية.
         </p>
-        <p style="margin-bottom:1rem;">
-            يُدار هذا النظام الإلكتروني بواسطة <strong style="color:#1A3A5C;">قسم الحركة</strong>، ويهدف إلى أتمام جميع العمليات اليومية من فوترة وصيانة وتتبع وجداول، مما يضمن سير العمل بسلاسة ودقة.
+        <p>
+            يُدار هذا النظام الإلكتروني بواسطة <strong>قسم الحركة</strong>، ويهدف إلى أتمام جميع العمليات اليومية من فوترة وصيانة وتتبع وجداول، مما يضمن سير العمل بسلاسة ودقة.
         </p>
-        <p style="color:#6B7B8D; font-size:0.9rem;">
+        <p class="bz-about-meta">
             📍 المملكة العربية السعودية — فرع الدمام<br>
             الموقع الرسمي للشركة<br>
-            🌐 <a href="https://bz.sa" target="_blank" style="color:#1A3A5C; font-weight:bold;">bz.sa</a>
+            🌐 <a href="https://bz.sa" target="_blank">bz.sa</a>
         </p>
     </div>
 </section>
@@ -836,27 +1069,29 @@
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم تواصل معنا -->
 <!-- ═══════════════════════════════════════════ -->
-<section id="contact" style="max-width:700px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
-    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:2rem;">📞 تواصل معنا</h2>
-    <div style="display:flex; flex-direction:column; gap:1.2rem; align-items:center;">
-        <a href="mailto:damfleet@bz.sa" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''">
-            <span style="font-size:1.8rem;">📧</span>
+<section id="contact" class="bz-section bz-section--narrow">
+    <h2>📞 تواصل معنا</h2>
+    <div class="bz-section-divider"></div>
+    <p class="bz-contact-sub">قسم الحركة — مسؤول النظام: خالد بن محمد الغامدي</p>
+    <div class="bz-contact-list">
+        <a href="mailto:damfleet@bz.sa" class="bz-contact-card">
+            <span class="ico">📧</span>
             <div>
-                <div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">البريد الإلكتروني</div>
-                <div style="color:#3A4A5A; font-size:1rem; direction:ltr;">damfleet@bz.sa</div>
+                <div class="lbl">البريد الإلكتروني</div>
+                <div class="val">damfleet@bz.sa</div>
             </div>
         </a>
-        <a href="tel:0138959850" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''">
-            <span style="font-size:1.8rem;">📱</span>
+        <a href="https://wa.me/966570310909?text=مرحباً" target="_blank" class="bz-contact-card">
+            <span class="ico">📱</span>
             <div>
-                <div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">رقم الهاتف</div>
-                <div style="color:#3A4A5A; font-size:1rem; direction:ltr;">0138959850</div>
+                <div class="lbl">الجوال / واتساب</div>
+                <div class="val">0570310909</div>
             </div>
         </a>
     </div>
 </section>
 
-<footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
+<footer class="bz-footer">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
 
 
     <div class="modal-backdrop" id="emailModal">
@@ -868,14 +1103,14 @@
             <div class="modal-body-custom">
                 <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
                     <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
-                    <input type="email" id="targetEmail" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+                    <input type="email" id="targetEmail" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);">
                 </div>
                 <div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
                     <div style="display:flex;align-items:center;gap:8px">
                         <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة إلى:</label>
                         <div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
                             <div class="cc-row" style="display:flex;gap:5px;align-items:center">
-                                <input type="email" class="cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);">
+                                <input type="email" class="cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);">
                                 <button type="button" onclick="addCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
                             </div>
                         </div>
@@ -883,7 +1118,7 @@
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
                     <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
-                    <input type="text" id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+                    <input type="text" id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);">
                 </div>
                 <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
                     <button type="button" onclick="if(confirm('هل تريد حفظه في سطح المكتب؟')) { generateExcel(); }" class="btn-outline">حفظ في سطح المكتب 💾</button>
@@ -906,14 +1141,14 @@
         <form id="composeForm" class="modal-body-custom" style="display:flex;flex-direction:column;gap:12px">
             <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
                 <label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
-                <input type="email" name="email" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+                <input type="email" name="email" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);">
             </div>
             <div style="border-bottom:1px solid var(--border);padding-bottom:8px">
                 <div style="display:flex;align-items:center;gap:8px">
                     <label style="font-weight:bold;color:var(--text-primary);min-width:50px">نسخة:</label>
                     <div id="composeCcContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
                         <div class="compose-cc-row" style="display:flex;gap:5px;align-items:center">
-                            <input type="email" class="compose-cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);">
+                            <input type="email" class="compose-cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);">
                             <button type="button" onclick="addComposeCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
                         </div>
                     </div>
@@ -921,9 +1156,9 @@
             </div>
             <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
                 <label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
-                <input type="text" name="subject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
+                <input type="text" name="subject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);">
             </div>
-            <textarea name="body" rows="5" placeholder="اكتب رسالتك هنا..." style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:Cairo;font-size:1rem;resize:vertical;outline:none"></textarea>
+            <textarea name="body" rows="5" placeholder="اكتب رسالتك هنا..." style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:inherit;font-size:1rem;resize:vertical;outline:none"></textarea>
             <div style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer" onclick="document.getElementById('composeFile').click()">
                 <span style="font-size:1.3rem">📎</span>
                 <span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو أي ملف آخر</span>
@@ -972,7 +1207,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
             const row = document.createElement('div');
             row.className = 'cc-row';
             row.style.cssText = 'display:flex;gap:5px;align-items:center';
-            row.innerHTML = '<input type="email" class="cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
+            row.innerHTML = '<input type="email" class="cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
             container.appendChild(row);
         }
         function getCcEmails() {
@@ -1021,12 +1256,12 @@ document.getElementById('composeForm').addEventListener('submit', async function
                 const newWindow = window.open(url, '_blank');
                 if(!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
                     // Popup blocked
-                    alert('⚠️ المتصفح قام بحظر فتح نافذة الواتساب. يرجى السماح بالنوافذ المنبثقة (Pop-ups) لهذا الموقع من أعلى المتصفح.');
+                    showToast('تم حظر نافذة الواتساب. سيتم فتحها في نفس الصفحة.', 'info');
                     window.location.href = url; // fallback to same window
                 }
             } catch(e) {
                 console.error(e);
-                alert('حدث خطأ غير متوقع: ' + e.message);
+                showToast('حدث خطأ غير متوقع: ' + e.message, 'error');
             }
         }
 
@@ -1035,31 +1270,14 @@ document.getElementById('composeForm').addEventListener('submit', async function
             const row = document.createElement('div');
             row.className = 'compose-cc-row';
             row.style.cssText = 'display:flex;gap:5px;align-items:center';
-            row.innerHTML = '<input type="email" class="compose-cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:Cairo;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
+            row.innerHTML = '<input type="email" class="compose-cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
             container.appendChild(row);
         }
 </script>
 
-<!-- GPS Session Monitor -->
-<script>
-(function () {
-    const originalFetch = window.fetch;
-    window.fetch = async function (...args) {
-        const response = await originalFetch(...args);
-        if (response.status === 401 || response.status === 440) {
-            window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
-        }
-        try {
-            const clone = response.clone();
-            const text = await clone.text();
-            if (text.includes("ERROR-100") || text.includes("Session timed out")) {
-                window.location.href = "https://landing-clust03.gpscockpit.com/Account/Login";
-            }
-        } catch (e) {}
-        return response;
-    };
-})();
-</script>
+    </div><!-- /.bz-shell -->
+
+<a href="https://wa.me/966570310909?text=مرحباً" target="_blank" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; background-color: #25d366; color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>تواصل معنا - خالد بن محمد الغامدي</a>
 </body>
 </html>
 
