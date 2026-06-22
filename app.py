@@ -447,7 +447,8 @@ def login():
 # Cameras/Employees/GPS-Sync tabs are password-locked. The MAIN site (/) is untouched.
 WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
 WS_TABS = {
-    "": "index", "dashboard": "dashboard", "kpis": "kpis", "schedule": "schedule", "oils": "oils", "purchase": "purchase",
+    "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "invoice", "fleet_dashboard": "fleet_dashboard",
+    "schedule": "schedule", "oils": "oils", "purchase": "purchase",
     "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
     "incidents": "incidents",
     "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync",
@@ -767,6 +768,29 @@ def gps_dashboard():
 def gps_devices():
     # GPS tracking-device inventory (active / broken / issue) — sub-tab of the GPS page.
     return render_template("gps_devices.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/invoice")
+@login_required
+def invoice():
+    # Standalone smart-invoice page (ported from Antigravity).
+    return render_template("invoice.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/fleet_dashboard")
+@login_required
+def fleet_dashboard():
+    # Standalone fleet KPI dashboard (ported from Antigravity).
+    return render_template("fleet_dashboard.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/sw.js")
+def service_worker():
+    # Serve the PWA service worker from the root so its scope covers the whole site.
+    resp = app.send_static_file("sw.js")
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 @app.route("/oils")

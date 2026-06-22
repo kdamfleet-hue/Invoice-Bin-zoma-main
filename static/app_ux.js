@@ -305,7 +305,29 @@ document.addEventListener('DOMContentLoaded', () => {
     wrapFetchForProgress();
     initIdleTimeout();
     initLanguageTranslation();
+    registerPWA();
 });
+
+// --- PWA: manifest + theme color + service worker (تثبيت كتطبيق + عمل دون اتصال) ---
+function registerPWA() {
+    try {
+        if (!document.querySelector('link[rel="manifest"]')) {
+            var l = document.createElement('link');
+            l.rel = 'manifest'; l.href = '/static/manifest.json';
+            document.head.appendChild(l);
+        }
+        if (!document.querySelector('meta[name="theme-color"]')) {
+            var m = document.createElement('meta');
+            m.name = 'theme-color'; m.content = '#0C2340';
+            document.head.appendChild(m);
+        }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+            });
+        }
+    } catch (e) {}
+}
 
 // --- Workstation namespace (/importantworkstation/*) ---
 // A separate, open mirror of the site under a URL prefix. Detected purely by the path,
@@ -324,13 +346,18 @@ function getCookie(name) {
 function injectGlobalNavLinks() {
     const nav = document.querySelector('.bz-topbar .bz-nav');
     if (!nav) return;
-    if (nav.querySelector('a[href$="/incidents"]')) return; // already there (e.g. the incidents page)
-    const a = document.createElement('a');
-    a.setAttribute('href', '/incidents');
-    a.textContent = '🚨 الحوادث والمخالفات';
-    const afterRecords = nav.querySelector('a[href$="/records"]');
-    if (afterRecords && afterRecords.nextSibling) nav.insertBefore(a, afterRecords.nextSibling);
-    else nav.appendChild(a);
+    function addLink(href, text, afterSel) {
+        if (nav.querySelector('a[href$="' + href + '"]')) return; // already present
+        const a = document.createElement('a');
+        a.setAttribute('href', href);
+        a.textContent = text;
+        const after = afterSel ? nav.querySelector(afterSel) : null;
+        if (after && after.nextSibling) nav.insertBefore(a, after.nextSibling);
+        else nav.appendChild(a);
+    }
+    addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
+    addLink('/fleet_dashboard', '🚛 لوحة الأسطول', 'a[href$="/dashboard"]');
+    addLink('/invoice', '🧾 الفاتورة الذكية', null);
 }
 
 // ===== Enterprise unified shell (deep-dark + right sidebar + rich topbar) =====
