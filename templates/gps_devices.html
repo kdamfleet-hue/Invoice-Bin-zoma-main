@@ -508,6 +508,29 @@
     .plate-badge { font-size: 12px; }
     .serial-text { display: none; }
   }
+
+  /* ── التعديل: أزرار الإجراءات + شريط الأدوات + نافذة التعديل ── */
+  .act-cell { white-space: nowrap; }
+  .ico-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-sub); width: 30px; height: 30px; border-radius: 7px; cursor: pointer; font-size: 14px; margin: 0 2px; transition: all .15s; }
+  .ico-btn.edit:hover { border-color: var(--accent); color: var(--accent); }
+  .ico-btn.del:hover { border-color: var(--danger); color: #fca5a5; }
+  .add-btn { background: var(--accent-dim); border: 1px solid rgba(0,201,167,0.4); color: var(--accent); font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .add-btn:hover { background: rgba(0,201,167,0.22); }
+  .save-status { font-size: 12px; color: var(--text-sub); min-width: 64px; }
+  .hbar-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .gps-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+  .gps-modal.open { display: flex; }
+  .gps-modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; width: 620px; max-width: 96vw; max-height: 92vh; overflow-y: auto; direction: rtl; }
+  .gps-modal-box h2 { font-size: 17px; font-weight: 700; color: var(--accent); margin-bottom: 18px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .fg { display: flex; flex-direction: column; gap: 5px; }
+  .fg label { font-size: 12px; color: var(--text-sub); font-weight: 600; }
+  .fg input, .fg select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 13px; outline: none; }
+  .fg input:focus, .fg select:focus { border-color: var(--accent); }
+  .fg select option { background: var(--surface); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+  .btn-save { background: var(--accent); color: #03110d; padding: 9px 22px; border-radius: 8px; border: none; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-sub); padding: 9px 18px; border-radius: 8px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 13px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -603,7 +626,11 @@
   <div class="table-wrap">
     <div class="table-header-bar">
       <div class="section-title" style="margin:0">قائمة المركبات</div>
-      <div class="count-label">عرض <span class="count-num" id="showingCount">76</span> مركبة</div>
+      <div class="hbar-actions">
+        <span class="save-status" id="saveStatus"></span>
+        <button class="add-btn" onclick="openAdd()">➕ إضافة مركبة</button>
+        <div class="count-label">عرض <span class="count-num" id="showingCount">76</span> مركبة</div>
+      </div>
     </div>
     <div style="overflow-x:auto;">
       <table>
@@ -618,6 +645,7 @@
             <th>الرقم التسلسلي</th>
             <th>حالة الجهاز</th>
             <th>المدة</th>
+            <th>إجراءات</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -631,12 +659,35 @@
 
 </main>
 
+<div class="gps-modal" id="gpsModal" onclick="if(event.target===this)closeModal()">
+  <div class="gps-modal-box">
+    <h2 id="modalTitle">تعديل المركبة</h2>
+    <div class="form-grid">
+      <div class="fg"><label>م (الرقم)</label><input type="number" id="f-num"></div>
+      <div class="fg"><label>رقم اللوحة</label><input type="text" id="f-plate" placeholder="أ ب ج 1234"></div>
+      <div class="fg"><label>نوع التسجيل</label><input type="text" id="f-type" placeholder="نقل عام / نقل خاص / خاص"></div>
+      <div class="fg"><label>الماركة</label><input type="text" id="f-brand"></div>
+      <div class="fg"><label>الطراز</label><input type="text" id="f-model"></div>
+      <div class="fg"><label>سنة الصنع</label><input type="number" id="f-year"></div>
+      <div class="fg"><label>الرقم التسلسلي</label><input type="text" id="f-serial"></div>
+      <div class="fg"><label>رقم الهيكل</label><input type="text" id="f-hull"></div>
+      <div class="fg"><label>حالة الجهاز</label>
+        <select id="f-status"><option value="نشط">نشط</option><option value="معطلة">معطلة</option><option value="مشكله">يوجد مشكلة</option></select></div>
+      <div class="fg"><label>المدة (مدة الانقطاع)</label><input type="text" id="f-since" placeholder="مثال: منذ شهر"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
+      <button class="btn-save" onclick="saveModal()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
 <footer>
   فرع الدمام · بن زومة للتجارة الدولية والتنمية · كشف أجهزة التتبع GPS 2026
 </footer>
 
 <script>
-const vehicles = [
+const DEFAULT_VEHICLES = [
   {num:1, plate:"ر و د 1693", type:"خاص", brand:"سوزوكي", model:"DZIRE", year:2025, serial:"966200220", hull:"151666SA26ZFDF3MA", status:"نشط", since:""},
   {num:2, plate:"ر ل ر 5062", type:"خاص", brand:"سوزوكي", model:"ديز اير", year:2025, serial:"709509020", hull:"491185RG18C6MBHZF", status:"معطلة", since:"منذ شهر"},
   {num:3, plate:"أ ر ع 2232", type:"نقل عام", brand:"متسوبيشي", model:"صندوق", year:2020, serial:"386860810", hull:"001887LK5P6G7B6JL", status:"معطلة", since:"منذ عامين"},
@@ -715,7 +766,104 @@ const vehicles = [
   {num:77, plate:"ر ل ر 5059", type:"نقل خاص", brand:"سوزوكي", model:"ديز اير", year:2024, serial:"598509020", hull:"517277RG12C6MBHZF", status:"معطلة", since:""},
 ];
 
+// ===== نسخة عمل قابلة للتعديل + الحفظ على الخادم (معزولة لمحطة العمل id=2) =====
+let vehicles = DEFAULT_VEHICLES.map(function (v) { return Object.assign({}, v); });
 let currentFilter = 'all';
+var WS_PREFIX = location.pathname.indexOf('/importantworkstation') === 0 ? '/importantworkstation' : '';
+var GPS_API = WS_PREFIX + '/api/gps_devices';
+var editIdx = -1, saveTimer = null;
+var FIELDS = ['plate','type','brand','model','year','serial','hull','status','since'];
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+function loadData() {
+  fetch(GPS_API, { headers: { 'Accept': 'application/json' } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) {
+      if (j && j.success && Array.isArray(j.rows) && j.rows.length) vehicles = j.rows;
+      recompute(); filterTable();
+    })
+    .catch(function () { recompute(); filterTable(); });
+}
+
+function saveData() {
+  var s = document.getElementById('saveStatus'); if (s) s.textContent = '… جارٍ الحفظ';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function () {
+    fetch(GPS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: vehicles }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (s) s.textContent = (j && j.success) ? '✅ تم الحفظ' : '⚠️ تعذّر الحفظ'; })
+      .catch(function () { if (s) s.textContent = '⚠️ تعذّر الحفظ'; });
+  }, 400);
+}
+
+function recompute() {
+  var total = vehicles.length;
+  var active = vehicles.filter(function (v) { return (v.status||'').trim() === 'نشط'; }).length;
+  var broken = vehicles.filter(function (v) { return (v.status||'').trim() === 'معطلة'; }).length;
+  var issue = total - active - broken;
+  function setq(sel, val) { var e = document.querySelector(sel); if (e) e.textContent = val; }
+  setq('.stat-card.total .stat-value', total);
+  setq('#activeCount', active); setq('#brokenCount', broken); setq('#issueCount', issue);
+  function pct(n) { return total ? ((n / total * 100).toFixed(1) + '% من الإجمالي') : '—'; }
+  setq('.stat-card.active .stat-pct', pct(active));
+  setq('.stat-card.broken .stat-pct', pct(broken));
+  setq('.stat-card.issue .stat-pct', pct(issue));
+  setq('.header-badge', total + ' مركبة');
+  var fb = document.querySelectorAll('.filter-btn');
+  if (fb[0]) fb[0].textContent = 'الكل (' + total + ')';
+  if (fb[1]) fb[1].textContent = '✅ نشط (' + active + ')';
+  if (fb[2]) fb[2].textContent = '❌ معطلة (' + broken + ')';
+  if (fb[3]) fb[3].textContent = '⚠️ مشكلة (' + issue + ')';
+  recomputeBrands();
+}
+
+function recomputeBrands() {
+  var counts = {};
+  vehicles.forEach(function (v) { var b = (v.brand || '').trim() || 'أخرى'; counts[b] = (counts[b] || 0) + 1; });
+  var sorted = Object.keys(counts).map(function (k) { return [k, counts[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+  var top = sorted.slice(0, 4);
+  var other = sorted.slice(4).reduce(function (s, e) { return s + e[1]; }, 0);
+  if (other) top.push(['أخرى', other]);
+  var max = vehicles.length || 1;
+  var colors = ['linear-gradient(90deg,#00c9a7,#007cf0)','linear-gradient(90deg,#a78bfa,#7c3aed)','linear-gradient(90deg,#f59e0b,#d97706)','linear-gradient(90deg,#ef4444,#b91c1c)','linear-gradient(90deg,#8b949e,#484f58)'];
+  var wrap = document.querySelector('.brand-bars'); if (!wrap) return;
+  wrap.innerHTML = top.map(function (e, i) {
+    return '<div class="brand-row"><div class="brand-name">' + esc(e[0]) + '</div><div class="brand-track"><div class="brand-fill" style="width:' + Math.round(e[1] / max * 100) + '%; background:' + colors[i % colors.length] + ';"></div></div><div class="brand-count">' + e[1] + '</div></div>';
+  }).join('');
+}
+
+// ===== إضافة / تعديل / حذف =====
+function showModal() { document.getElementById('gpsModal').classList.add('open'); }
+function closeModal() { document.getElementById('gpsModal').classList.remove('open'); }
+function setForm(v) {
+  document.getElementById('f-num').value = (v.num != null ? v.num : '');
+  FIELDS.forEach(function (k) { var e = document.getElementById('f-' + k); if (e) e.value = (v[k] != null ? v[k] : ''); });
+}
+function openAdd() {
+  editIdx = -1;
+  document.getElementById('modalTitle').textContent = '➕ إضافة مركبة';
+  var maxNum = vehicles.reduce(function (m, v) { return Math.max(m, parseInt(v.num) || 0); }, 0);
+  setForm({ num: maxNum + 1, plate: '', type: 'نقل عام', brand: '', model: '', year: '', serial: '', hull: '', status: 'معطلة', since: '' });
+  showModal();
+}
+function openEdit(idx) {
+  editIdx = idx; var v = vehicles[idx]; if (!v) return;
+  document.getElementById('modalTitle').textContent = '✏️ تعديل المركبة';
+  setForm(v); showModal();
+}
+function saveModal() {
+  var obj = { num: parseInt(document.getElementById('f-num').value) || (vehicles.length + 1) };
+  FIELDS.forEach(function (k) { var e = document.getElementById('f-' + k); obj[k] = e ? e.value.trim() : ''; });
+  if (obj.year) obj.year = parseInt(obj.year) || obj.year;
+  if (!obj.plate) { alert('الرجاء إدخال رقم اللوحة'); return; }
+  if (editIdx >= 0) vehicles[editIdx] = obj; else vehicles.push(obj);
+  closeModal(); recompute(); filterTable(); saveData();
+}
+function delRow(idx) {
+  if (!confirm('حذف هذه المركبة من الكشف؟')) return;
+  vehicles.splice(idx, 1);
+  recompute(); filterTable(); saveData();
+}
 
 function statusPill(status) {
   const s = status.trim();
@@ -734,7 +882,7 @@ function filterTable() {
   tbody.innerHTML = '';
   let count = 0;
 
-  vehicles.forEach(v => {
+  vehicles.forEach((v, idx) => {
     const matchFilter =
       currentFilter === 'all' ||
       (currentFilter === 'نشط' && v.status === 'نشط') ||
@@ -762,6 +910,7 @@ function filterTable() {
         <td class="serial-text" style="font-size:11px;color:var(--text-muted);font-family:monospace;">${v.serial}</td>
         <td>${statusPill(v.status)}</td>
         <td class="since-text">${v.since || '—'}</td>
+        <td class="act-cell"><button class="ico-btn edit" onclick="openEdit(${idx})" title="تعديل">✏️</button><button class="ico-btn del" onclick="delRow(${idx})" title="حذف">🗑️</button></td>
       `;
       tbody.appendChild(tr);
     }
@@ -783,8 +932,8 @@ function setFilter(f, btn) {
   filterTable();
 }
 
-// Initial render
-filterTable();
+// تحميل البيانات المحفوظة من الخادم ثم العرض
+loadData();
 </script>
 </body>
 </html>

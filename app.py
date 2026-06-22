@@ -341,6 +341,9 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS incidents_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS gps_devices_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Workstation-only blob stores (id=2 sandbox). Additive & never seeded, so the
             # /importantworkstation namespace starts EMPTY and persists what the user types.
             # The MAIN site (/) never reads or writes these.
@@ -1403,6 +1406,27 @@ def incidents_data():
         return jsonify({"success": False, "rows": []})
 
 
+@app.route("/api/gps_devices", methods=["GET", "POST"])
+@login_required
+def gps_devices_data():
+    """Persist the GPS tracking-device inventory (editable). Sandboxed for workstation."""
+    if request.method == "POST":
+        try:
+            rows = (request.json or {}).get("rows", [])
+            blob_set("gps_devices_data", rows)
+            _audit_add("تحديث", "كشف أجهزة التتبع GPS", len(rows) if isinstance(rows, list) else None)
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("gps_devices_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ كشف الأجهزة."}), 500
+    try:
+        data = blob_get("gps_devices_data")
+        return jsonify({"success": True, "rows": data if data is not None else []})
+    except Exception:
+        logger.exception("gps_devices_data GET error")
+        return jsonify({"success": False, "rows": []})
+
+
 @app.route("/api/audit_log", methods=["GET"])
 @login_required
 def audit_log_data():
@@ -1688,6 +1712,7 @@ def workshop_data():
 WS_BLOB_TABLES = [
     "employees", "schedule_data", "washing_schedule", "records_data",
     "drivers_ws", "oils_data", "purchase_data", "workshop_data",
+    "gps_devices_data",
 ]
 
 
