@@ -361,6 +361,16 @@
       });
     });
     ALERTS.sort(function (a, b) { return a.st.rank - b.st.rank || ((a.st.days == null ? 1e9 : a.st.days) - (b.st.days == null ? 1e9 : b.st.days)); });
+    // Apply saved date overrides from localStorage
+    var dateOverrides = JSON.parse(localStorage.getItem('alertDateOverrides') || '{}');
+    ALERTS.forEach(function (a) {
+      var aid = getAlertId(a);
+      if (dateOverrides[aid]) {
+        a.date = dateOverrides[aid];
+        a.st = statusOf(dateOverrides[aid]);
+      }
+    });
+    ALERTS.sort(function (a, b) { return a.st.rank - b.st.rank || ((a.st.days == null ? 1e9 : a.st.days) - (b.st.days == null ? 1e9 : b.st.days)); });
   }
 
   var alFilter = 'attention'; // attention = expired+d30+d90
@@ -381,38 +391,123 @@
       { k: 'd30', t: '🟠 ≤ 30 يوم', n: counts.d30 },
       { k: 'd90', t: '🟡 ≤ 90 يوم', n: counts.d90 },
       { k: 'valid', t: '🟢 سارية', n: counts.valid },
-      { k: 'resolved', t: 'المقيدة', n: resolvedSet.size },
+      { k: 'resolved', t: '✅ مُقيّدة', n: resolvedSet.size },
       { k: 'all', t: 'الكل', n: ALERTS.length }
     ];
-    
-        if($('t-alerts-count')) $('t-alerts-count').textContent = list.length + ' وثيقة';
-        if($('bellCount')) $('bellCount').textContent = counts.expired + counts.d30;
-        
-        $('t-alerts-filters').innerHTML = defs.map(function (d) {
-          return '<button class="px-2 py-1 text-xs rounded border ' + (alFilter === d.k ? 'bg-secondary text-white border-secondary' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50') + '" data-k="' + d.k + '">' + d.t + ' (' + d.n + ')</button>';
-        }).join('');
-        Array.prototype.forEach.call($('t-alerts-filters').querySelectorAll('button'), function (c) {
-          c.onclick = function () { alFilter = c.getAttribute('data-k'); renderAlerts(); };
-        });
-        
-        if (!list.length) { $('t-alerts').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">لا توجد وثائق ✓</p>'; return; }
-            '<td>${esc(a.doc)}</td>' +
-            '<td><input type="date" class="date-input" value="${a.date}" data-index="${i}" onchange="updateAlertDate(this)"></td>' +
-            '<td class="days-left">${fmtDays(a.st)}</td>' +
-            '<td><select class="status-select" data-index="${i}" onchange="updateAlertStatus(this)"><option value="valid" ${a.st.key === 'valid' ? 'selected' : ''}>سارية</option><option value="d30" ${a.st.key === 'd30' ? 'selected' : ''}>≤30 يوم</option><option value="d90" ${a.st.key === 'd90' ? 'selected' : ''}>≤90 يوم</option><option value="expired" ${a.st.key === 'expired' ? 'selected' : ''}>منتهية</option></select></td>' +
-            '<td><button class="btn-outline" onclick="saveAlert(${i})">💾 حفظ</button></td>' +
-            '<div class="text-left">' +
-              '<span class="text-xs text-white px-2 py-1 rounded shadow-sm whitespace-nowrap ' + badgeBg + '">' + a.st.label + ' (' + fmtDays(a.st) + ')</span>' +
-            '</div>' +
-          '</div>';
-        }).join('');
-        return;
-    //
-    if (!list.length) { $('alBody').innerHTML = '<tr><td colspan="6" class="empty-hint">لا توجد وثائق في هذا التصنيف ✓</td></tr>'; return; }
-    $('alBody').innerHTML = list.slice(0, 400).map(function (a) {
-      return '<tr><td>' + esc(a.name) + '</td><td><span class="plate">' + esc(a.plate || '—') + '</span></td><td>' + esc(a.doc) +
-        '</td><td>' + esc(a.date) + '</td><td class="days-left">' + fmtDays(a.st) + '</td><td><span class="badge ' + a.st.cls + '">' + a.st.label + '</span></td></tr>';
+
+    // filter list
+    var list;
+    if (alFilter === 'attention') {
+      list = ALERTS.filter(function (a) { return a.st.key === 'expired' || a.st.key === 'd30' || a.st.key === 'd90'; });
+    } else if (alFilter === 'resolved') {
+      list = ALERTS.filter(function (a) { return resolvedSet.has(getAlertId(a)); });
+    } else if (alFilter === 'all') {
+      list = ALERTS.slice();
+    } else {
+      list = ALERTS.filter(function (a) { return a.st.key === alFilter; });
+    }
+
+    if($('t-alerts-count')) $('t-alerts-count').textContent = list.length + ' وثيقة';
+    if($('bellCount')) $('bellCount').textContent = counts.expired + counts.d30;
+
+    $('t-alerts-filters').innerHTML = defs.map(function (d) {
+      return '<button class="px-2 py-1 text-xs rounded border ' + (alFilter === d.k ? 'bg-secondary text-white border-secondary' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50') + '" data-k="' + d.k + '">' + d.t + ' (' + d.n + ')</button>';
     }).join('');
+    Array.prototype.forEach.call($('t-alerts-filters').querySelectorAll('button'), function (c) {
+      c.onclick = function () { alFilter = c.getAttribute('data-k'); renderAlerts(); };
+    });
+
+    if (!list.length) { $('t-alerts').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">لا توجد وثائق ✓</p>'; return; }
+
+    $('t-alerts').innerHTML = list.slice(0, 400).map(function (a, i) {
+      var aid = getAlertId(a);
+      var isResolved = resolvedSet.has(aid);
+      var note = alertNotes[aid] || '';
+      var badgeBg = { expired: 'bg-red-500', d30: 'bg-orange-500', d90: 'bg-yellow-500', valid: 'bg-green-500', unknown: 'bg-gray-400' }[a.st.key] || 'bg-gray-400';
+
+      return '<div class="p-3 rounded-lg border ' + (isResolved ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50') + '" data-aid="' + esc(aid) + '">' +
+        '<div class="flex justify-between items-start gap-2 flex-wrap">' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="font-bold text-gray-800 text-sm truncate">' + esc(a.name) + '</p>' +
+            '<p class="text-xs text-gray-500">' + esc(a.plate || '—') + ' • ' + esc(a.doc) + '</p>' +
+          '</div>' +
+          '<div class="text-left">' +
+            '<span class="text-xs text-white px-2 py-1 rounded shadow-sm whitespace-nowrap ' + badgeBg + '">' + a.st.label + ' (' + fmtDays(a.st) + ')</span>' +
+          '</div>' +
+        '</div>' +
+        /* ── Inline Edit Controls ── */
+        '<div class="mt-2 pt-2 border-t border-gray-200">' +
+          '<div class="flex flex-wrap gap-2 items-end">' +
+            /* Date edit */
+            '<div class="flex-1" style="min-width:130px;">' +
+              '<label class="text-xs text-gray-500 block mb-1">📅 تاريخ الانتهاء</label>' +
+              '<input type="date" class="w-full text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-800 al-date-input" value="' + esc(a.date) + '" data-aid="' + esc(aid) + '">' +
+            '</div>' +
+            /* Status select */
+            '<div style="min-width:100px;">' +
+              '<label class="text-xs text-gray-500 block mb-1">📋 الحالة</label>' +
+              '<select class="w-full text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-800 al-status-select" data-aid="' + esc(aid) + '">' +
+                '<option value=""' + (isResolved ? '' : ' selected') + '>تلقائي</option>' +
+                '<option value="resolved"' + (isResolved ? ' selected' : '') + '>✅ تم التجديد</option>' +
+              '</select>' +
+            '</div>' +
+            /* Note input */
+            '<div class="flex-1" style="min-width:150px;">' +
+              '<label class="text-xs text-gray-500 block mb-1">📝 ملاحظة</label>' +
+              '<input type="text" class="w-full text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-800 al-note-input" placeholder="أضف ملاحظة..." value="' + esc(note) + '" data-aid="' + esc(aid) + '">' +
+            '</div>' +
+            /* Save button */
+            '<button class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded shadow al-save-btn" data-aid="' + esc(aid) + '" style="height:26px;">💾 حفظ</button>' +
+          '</div>' +
+          (note ? '<p class="text-xs text-blue-600 mt-1">📝 ' + esc(note) + '</p>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    // Bind save buttons
+    Array.prototype.forEach.call($('t-alerts').querySelectorAll('.al-save-btn'), function (btn) {
+      btn.onclick = function () {
+        var aid = btn.getAttribute('data-aid');
+        var card = btn.closest('[data-aid]');
+        var dateInput = card.querySelector('.al-date-input');
+        var statusSelect = card.querySelector('.al-status-select');
+        var noteInput = card.querySelector('.al-note-input');
+
+        // Save note
+        var noteVal = noteInput ? noteInput.value.trim() : '';
+        if (noteVal) { alertNotes[aid] = noteVal; } else { delete alertNotes[aid]; }
+        localStorage.setItem('alertNotes', JSON.stringify(alertNotes));
+
+        // Save resolved status
+        if (statusSelect && statusSelect.value === 'resolved') {
+          resolvedSet.add(aid);
+        } else {
+          resolvedSet.delete(aid);
+        }
+        localStorage.setItem('resolvedAlerts', JSON.stringify(Array.from(resolvedSet)));
+
+        // Save date override
+        if (dateInput) {
+          var dateOverrides = JSON.parse(localStorage.getItem('alertDateOverrides') || '{}');
+          dateOverrides[aid] = dateInput.value;
+          localStorage.setItem('alertDateOverrides', JSON.stringify(dateOverrides));
+          // Update the alert object in memory
+          for (var j = 0; j < ALERTS.length; j++) {
+            if (getAlertId(ALERTS[j]) === aid) {
+              ALERTS[j].date = dateInput.value;
+              ALERTS[j].st = statusOf(dateInput.value);
+              break;
+            }
+          }
+        }
+
+        // Visual feedback
+        btn.textContent = '✅ تم الحفظ';
+        btn.classList.remove('bg-blue-600');
+        btn.classList.add('bg-green-600');
+        setTimeout(function () { renderAlerts(); }, 800);
+      };
+    });
   }
 
   // ---------- KPIs ----------
