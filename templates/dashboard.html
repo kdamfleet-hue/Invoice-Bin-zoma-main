@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة الإدارة التنفيذية — BIN ZOMAH INTL.</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=6) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=6) }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=7) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=7) }}"></script>
     <!-- washing fallback seed (provides window.WASHING_VEHICLES if the API is empty) -->
     <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -15,31 +15,31 @@
            All tokens scoped to .bz-dash so the rest of the site is untouched.
            ============================================================ */
         .bz-dash {
-            /* ===== LIGHT theme (default) ===== */
-            --d-bg: #eef1f7; --d-bg2: #f5f8fc; --d-card: #ffffff; --d-card-2: #f6f9fd;
-            --d-border: #e3e9f3; --d-border-2: #eef2f8;
-            --d-text: #1e293b; --d-text-2: #475569; --d-muted: #5b6b86;
+            /* ===== DEFAULT theme — glossy charcoal + muted-gold (matches the rest of the site) ===== */
+            --d-bg: #1A1A1A; --d-bg2: #161616; --d-card: #2D2D2D; --d-card-2: #262626;
+            --d-border: #3a3a3a; --d-border-2: #2f2f2f;
+            --d-text: #F4F4F4; --d-text-2: #B0B0B0; --d-muted: #9a9a9a;
             /* dark right-sidebar surfaces (the sidebar stays dark in both themes) */
             --s-bg: #131c2f; --s-bg2: #0e1626; --s-text: #c7d2e5; --s-muted: #7a86a0; --s-border: rgba(255,255,255,.07);
             /* brand */
-            --gold: #c9a227; --gold-soft: #856310; --gold-on-dark: #e3c766; --navy: #0C2340; --navy-2: #16335c;
+            --gold: #C5A059; --gold-soft: #e0c489; --gold-on-dark: #e0c489; --navy: #0C2340; --navy-2: #16335c;
             --green: #10b981; --amber: #f59e0b; --yellow: #eab308; --red: #ef4444; --blue: #2563eb; --purple: #7c3aed; --teal: #0d9488;
-            --shadow: 0 1px 3px rgba(16,24,40,.06), 0 10px 28px rgba(16,24,40,.05);
-            --shadow-sm: 0 1px 2px rgba(16,24,40,.07);
+            --shadow: 0 1px 3px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.5);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
             /* semantic surfaces — tokenized so the theme toggle flips everything via one class */
-            --top-bg: rgba(255,255,255,.9);
-            --btn-bg: #fff; --btn-hover-bg: #f1f5fb; --btn-hover-fg: var(--navy);
-            --input-bg: #fff; --track-bg: #edf1f8; --row-hover: #f6f9fd;
-            --head-color: var(--navy); --num-color: var(--navy);
-            --kpi-red: #dc2626; --kpi-amber: #b45309; --kpi-green: #047857;
+            --top-bg: rgba(20,20,20,.85);
+            --btn-bg: rgba(255,255,255,.05); --btn-hover-bg: rgba(255,255,255,.12); --btn-hover-fg: #fff;
+            --input-bg: #2D2D2D; --track-bg: rgba(255,255,255,.06); --row-hover: rgba(255,255,255,.04);
+            --head-color: #fff; --num-color: #fff;
+            --kpi-red: #fca5a5; --kpi-amber: #fcd34d; --kpi-green: #6ee7b7;
             --focus-ring: 0 0 0 3px rgba(201,162,39,.15);
             /* status chips / badges */
-            --ok-bg: rgba(16,185,129,.13); --ok-fg: #047857;
-            --bad-bg: rgba(239,68,68,.12); --bad-fg: #b91c1c;
-            --warn-bg: rgba(245,158,11,.15); --warn-fg: #b45309;
-            --y-bg: rgba(234,179,8,.18); --y-fg: #a16207;
-            --info-bg: rgba(37,99,235,.13); --info-fg: #1d4ed8;
-            --neutral-bg: #eef2f8; --neutral-fg: #64748b;
+            --ok-bg: rgba(16,185,129,.15); --ok-fg: #6ee7b7;
+            --bad-bg: rgba(239,68,68,.15); --bad-fg: #fca5a5;
+            --warn-bg: rgba(245,158,11,.16); --warn-fg: #fcd34d;
+            --y-bg: rgba(234,179,8,.14); --y-fg: #fde68a;
+            --info-bg: rgba(59,130,246,.15); --info-fg: #93c5fd;
+            --neutral-bg: rgba(255,255,255,.07); --neutral-fg: #8593ad;
             margin: 0; background: var(--d-bg); color: var(--d-text);
             font-family: 'Tajawal','Cairo',system-ui,sans-serif; min-height: 100vh;
             transition: background .25s, color .25s;
@@ -72,10 +72,13 @@
         /* ---- Top bar ---- */
         .dash-top {
             position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 1rem;
-            padding: .7rem 1.25rem; background: var(--top-bg); backdrop-filter: blur(18px);
-            border-bottom: 1px solid var(--d-border); box-shadow: var(--shadow-sm);
+            padding: .7rem 1.25rem; backdrop-filter: blur(18px);
+            background: linear-gradient(180deg,#2c2c2c 0%,#1a1a1a 48%,#0e0e0e 100%) !important;
+            border-bottom: 1px solid var(--d-border);
+            box-shadow: 0 6px 26px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
+            transition: background .25s, box-shadow .25s;
         }
-        .dash-top::after { content: ''; position: absolute; inset-inline: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, var(--gold), var(--navy)); opacity: .92; }
+        .dash-top::after { content: ''; position: absolute; inset-inline: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, var(--gold), var(--gold-soft)); opacity: .92; }
         .dash-top .brand { display: flex; align-items: center; gap: .7rem; }
         .dash-top .brand img { height: 42px; width: auto; background: #fff; border-radius: 8px; padding: 3px; box-shadow: var(--shadow-sm); }
         .dash-top .brand b { font-size: 1rem; font-weight: 800; letter-spacing: .3px; display: block; color: var(--head-color); }
@@ -83,6 +86,8 @@
         .dash-top .spacer { flex: 1; }
         .dash-top .meta { text-align: left; font-size: .72rem; color: var(--d-muted); line-height: 1.5; white-space: nowrap; }
         .dash-top .meta b { color: var(--d-text); }
+        /* relocated date line (now in the content): brighter label + gold date values */
+        #topMeta b { color: var(--gold-soft); font-weight: 800; }
         .dash-top .tbtn {
             width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--d-border);
             background: var(--btn-bg); color: var(--d-text-2); cursor: pointer; font-size: 1rem;
@@ -100,8 +105,11 @@
         .dash-layout { display: flex; align-items: flex-start; }
         .dash-side {
             width: 248px; flex: 0 0 248px; position: sticky; top: 58px; align-self: flex-start;
-            height: calc(100vh - 58px); overflow-y: auto; padding: 1rem .8rem; background: var(--s-bg);
-            border-inline-start: 1px solid var(--s-border); box-shadow: var(--shadow);
+            height: calc(100vh - 58px); overflow-y: auto; padding: 1rem .8rem;
+            background: linear-gradient(180deg,#242424 0%,#161616 42%,#0c0c0c 100%) !important;
+            border-inline-start: 1px solid rgba(197,160,89,.22);
+            box-shadow: 0 10px 34px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
+            transition: background .25s, box-shadow .25s;
         }
         .dash-side .side-title { font-size: .68rem; color: var(--s-muted); font-weight: 700; margin: 1rem .6rem .4rem; letter-spacing: .5px; }
         .dash-side a {
@@ -110,7 +118,7 @@
             transition: .15s; border-inline-start: 3px solid transparent;
         }
         .dash-side a:hover { background: rgba(255,255,255,.06); color: #fff; }
-        .dash-side a.active { background: rgba(201,162,39,.16); color: var(--gold-on-dark); border-inline-start-color: var(--gold); }
+        .dash-side a.active { background: rgba(197,160,89,.18); color: var(--gold-on-dark); border-inline-start-color: var(--gold); }
         .dash-side a .ic { font-size: 1.05rem; width: 22px; text-align: center; }
 
         .dash-main { flex: 1; min-width: 0; padding: 1.4rem clamp(1rem, 3vw, 2.2rem) 4rem; }
@@ -277,7 +285,6 @@
             <div><b>BIN ZOMAH INTL.</b><span>لوحة الإدارة التنفيذية — فرع الدمام</span></div>
         </div>
         <div class="spacer"></div>
-        <div class="meta" id="topMeta">—</div>
         <button class="tbtn" id="themeBtn" onclick="bzToggleDashTheme()" title="التبديل للوضع الداكن">🌙</button>
         <a class="back-link" id="backLink" href="/">← الموقع</a>
     </header>
@@ -300,6 +307,9 @@
 
         <!-- ===== Main ===== -->
         <main class="dash-main">
+
+            <!-- date line (relocated out of the top bar; populated by topMeta() via id) -->
+            <div class="meta" id="topMeta" style="font-size:.82rem;color:var(--d-text-2);margin:.2rem 0 .1rem;line-height:1.6;">—</div>
 
             <!-- Overview / KPIs -->
             <div class="dash-h" id="overview">نظرة عامة تنفيذية <span class="sub" id="ovSub">جارٍ التحميل…</span></div>

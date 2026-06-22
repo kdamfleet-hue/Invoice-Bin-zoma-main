@@ -298,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
     injectGlobalNavLinks();
     applyWorkstationRestrictions();
     buildEnterpriseShell();
+    injectContactDock();
     initThemeToggle();
     injectTopographicBackground();
     injectUXContainers();
@@ -357,6 +358,21 @@ function injectGlobalNavLinks() {
     }
     addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
     // (no separate "الفاتورة" link — the homepage "الرئيسية" IS the invoice; /invoice aliases to it)
+}
+
+// Floating contact dock (WhatsApp + Email), bottom-left, on EVERY tab.
+// Skips if the page already provides its own dock (e.g. the homepage).
+function injectContactDock() {
+    try {
+        if (document.querySelector('.bz-dock')) return;
+        const dock = document.createElement('div');
+        dock.className = 'bz-dock';
+        dock.setAttribute('aria-label', 'إجراءات سريعة');
+        dock.innerHTML =
+            '<a class="bz-dock-btn wa" href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" data-label="واتساب" title="تواصل عبر واتساب" aria-label="واتساب">💬</a>' +
+            '<a class="bz-dock-btn mail" href="mailto:damfleet@bz.sa" data-label="إرسال بالإيميل" title="إرسال عبر الإيميل" aria-label="إرسال عبر الإيميل">📧</a>';
+        document.body.appendChild(dock);
+    } catch (e) { /* non-critical */ }
 }
 
 // ===== Enterprise unified shell (deep-dark + right sidebar + rich topbar) =====
