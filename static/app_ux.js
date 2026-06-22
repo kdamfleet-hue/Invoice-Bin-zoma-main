@@ -357,6 +357,7 @@ function injectGlobalNavLinks() {
         else nav.appendChild(a);
     }
     addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
+    addLink('/handover', '🚗 تسليم واستلام مركبة', 'a[href$="/"]');
     // (no separate "الفاتورة" link — the homepage "الرئيسية" IS the invoice; /invoice aliases to it)
 }
 

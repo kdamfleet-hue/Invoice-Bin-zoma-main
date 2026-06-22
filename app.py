@@ -450,7 +450,7 @@ WS_TABS = {
     "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard",
     "schedule": "schedule", "oils": "oils", "purchase": "purchase",
     "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
-    "incidents": "incidents",
+    "incidents": "incidents", "handover": "handover",
     "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync",
     "gps_dashboard": "gps_dashboard", "gps_devices": "gps_devices", "cameras": "cameras",
 }
@@ -755,6 +755,13 @@ def dashboard():
 def kpis():
     # Static strategic KPI reference page (descriptive only — no data binding).
     return render_template("kpis.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/handover")
+@login_required
+def handover():
+    # Vehicle delivery/receipt inspection form with touch signature pads (client-side only).
+    return render_template("handover.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
 @app.route("/gps_dashboard")
