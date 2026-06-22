@@ -444,7 +444,7 @@ def login():
 # Cameras/Employees/GPS-Sync tabs are password-locked. The MAIN site (/) is untouched.
 WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
 WS_TABS = {
-    "": "index", "dashboard": "dashboard", "schedule": "schedule", "oils": "oils", "purchase": "purchase",
+    "": "index", "dashboard": "dashboard", "kpis": "kpis", "schedule": "schedule", "oils": "oils", "purchase": "purchase",
     "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
     "incidents": "incidents",
     "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync", "cameras": "cameras",
@@ -742,6 +742,13 @@ def dashboard():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("dashboard.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/kpis")
+@login_required
+def kpis():
+    # Static strategic KPI reference page (descriptive only — no data binding).
+    return render_template("kpis.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
 @app.route("/oils")
