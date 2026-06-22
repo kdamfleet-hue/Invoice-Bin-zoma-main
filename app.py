@@ -1,4 +1,7 @@
 import os
+import html
+import hmac
+from datetime import datetime
 import io
 import logging
 import shutil
@@ -213,6 +216,13 @@ def init_db():
                 )
             """)
             
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS gps_devices_data (
+                    id INTEGER PRIMARY KEY,
+                    data TEXT NOT NULL
+                )
+            """)
+            
             # Auto-seed database from drivers_data.js if missing new drivers
             count = db.execute("SELECT COUNT(*) FROM drivers").fetchone()[0]
             if count < 200:
@@ -415,6 +425,62 @@ def workshop():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("workshop.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/kpis")
+@login_required
+def kpis():
+    google_user = session.get("google_user")
+    b64_en = load_logo()
+    return render_template("kpis.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/gps_dashboard")
+@login_required
+def gps_dashboard():
+    google_user = session.get("google_user")
+    b64_en = load_logo()
+    return render_template("gps_dashboard.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/gps_devices")
+@login_required
+def gps_devices():
+    google_user = session.get("google_user")
+    b64_en = load_logo()
+    return render_template("gps_devices.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/api/gps_devices", methods=["GET", "POST"])
+@login_required
+def gps_devices_data():
+    if request.method == "POST":
+        try:
+            rows = (request.json or {}).get("rows", [])
+            data_str = json.dumps(rows, ensure_ascii=False)
+            with db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT id FROM gps_devices_data WHERE id = 1")
+                if c.fetchone():
+                    c.execute("UPDATE gps_devices_data SET data = ? WHERE id = 1", (data_str,))
+                else:
+                    c.execute("INSERT INTO gps_devices_data (id, data) VALUES (1, ?)", (data_str,))
+                conn.commit()
+            return jsonify({"success": True})
+        except Exception as e:
+            logger.error("gps_devices_data POST error: %s", e)
+            return jsonify({"success": False, "error": str(e)}), 500
+    try:
+        with db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT data FROM gps_devices_data WHERE id = 1")
+            row = c.fetchone()
+        if row:
+            return jsonify({"success": True, "rows": json.loads(row["data"])})
+        return jsonify({"success": True, "rows": []})
+    except Exception as e:
+        logger.error("gps_devices_data GET error: %s", e)
+        return jsonify({"success": False, "rows": []})
 
 
 @app.route("/api/download_workshop_template")
@@ -1683,4 +1749,172 @@ if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     logger.info("Starting server on port %d (debug=%s)", port, debug)
     app.run(host="0.0.0.0", port=port, debug=debug)
+
+
+
+# ── Expiry Alerts Configuration ──────────────────────────────────────────────
+ALERT_RECIPIENTS = [e.strip() for e in os.environ.get("ALERT_RECIPIENTS", "").split(",") if e.strip()]
+ALERT_CRON_KEY = os.environ.get("ALERT_CRON_KEY", "")
+
+def _parse_iso_date(s):
+    if not isinstance(s, str):
+        return None
+    m = re.match('^\\s*(\\d{4})-(\\d{2})-(\\d{2})\\s*$', s)
+    if not m:
+        return None
+    try:
+        y, mo, da = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        if y < 2000 or y > 2100:
+            return None
+        return datetime(y, mo, da)
+    except Exception:
+        return None
+
+def _collect_expiry_alerts(window_days=90):
+    """Return the list of documents expiring within `window_days` (or already expired)."""
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    out = []
+
+    def add(name, plate, doc, dstr):
+        d = _parse_iso_date(dstr)
+        if not d:
+            return
+        days = (d - today).days
+        if days > window_days:
+            return
+        if days < 0:
+            key, label = ('expired', 'منتهي')
+        elif days <= 30:
+            key, label = ('d30', '≤ 30 يوم')
+        else:
+            key, label = ('d90', '≤ 90 يوم')
+        out.append({'name': name or '—', 'plate': plate or '', 'doc': doc, 'date': dstr, 'days': days, 'key': key, 'label': label})
+    sd = blob_get('schedule_data') or {}
+    if isinstance(sd, dict):
+        for sect in ('main', 'spare'):
+            for r in sd.get(sect) or []:
+                if not isinstance(r, dict):
+                    continue
+                nm, pl = (r.get('name'), r.get('plate'))
+                add(nm, pl, 'الفحص الدوري', r.get('inspect'))
+                add(nm, pl, 'رخصة السير', r.get('license'))
+                add(nm, pl, 'بطاقة التشغيل', r.get('opcard'))
+                add(nm, pl, 'بطاقة السائق', r.get('drivercard'))
+    emps = blob_get('employees') or []
+    if isinstance(emps, list):
+        for row in emps:
+            if not isinstance(row, list):
+                continue
+            nm = (row[2] if len(row) > 2 else '') or (row[3] if len(row) > 3 else '')
+            pl = row[9] if len(row) > 9 else ''
+            if len(row) > 10:
+                add(nm, pl, 'انتهاء الإقامة', row[10])
+            if len(row) > 11:
+                add(nm, pl, 'انتهاء الجواز', row[11])
+    rank = {'expired': 0, 'd30': 1, 'd90': 2}
+    out.sort(key=lambda a: (rank.get(a['key'], 9), a['days']))
+    return out
+
+def _build_alert_email_html(alerts, filter_label=''):
+    today_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    def days_txt(a):
+        d = a.get('days')
+        if d is None:
+            return '—'
+        if d < 0:
+            return 'منذ %d يوم' % abs(d)
+        if d == 0:
+            return 'اليوم'
+        return 'خلال %d يوم' % d
+    colors = {'expired': '#dc2626', 'd30': '#d97706', 'd90': '#ca8a04', 'valid': '#16a34a', 'unknown': '#6b7280'}
+    rows = ''
+    for a in alerts[:300]:
+        c = colors.get(a.get('key'), '#6b7280')
+        rows += "<tr><td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td><td style='padding:9px 12px;border-bottom:1px solid #eee;direction:ltr;font-family:monospace;'>%s</td><td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td><td style='padding:9px 12px;border-bottom:1px solid #eee;white-space:nowrap;'>%s</td><td style='padding:9px 12px;border-bottom:1px solid #eee;color:%s;font-weight:700;white-space:nowrap;'>%s · %s</td></tr>" % (html.escape(str(a.get('name') or '—')), html.escape(str(a.get('plate') or '—')), html.escape(str(a.get('doc') or '')), html.escape(str(a.get('date') or '')), c, html.escape(str(a.get('label') or '')), days_txt(a))
+    scope = html.escape(str(filter_label or 'الكل'))
+    return "<div style='font-family:Tahoma,Arial,sans-serif;direction:rtl;text-align:right;background:#f4f6fb;padding:22px;'><div style='max-width:760px;margin:auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e6e9f0;'><div style='background:#0C2340;padding:18px 24px;border-bottom:4px solid #c9a227;'><div style='color:#fff;font-size:18px;font-weight:800;'>BIN ZOMAH INTL. — شركة بن زومة</div><div style='color:#c9a227;font-size:13px;font-weight:700;'>تنبيه وثائق الأسطول — فرع الدمام</div></div><div style='padding:20px 24px;'><p style='color:#334;font-size:14px;margin:0 0 16px;'>الفرز المُرسَل: <b>%s</b> &nbsp;•&nbsp; العدد: <b>%d</b> &nbsp;•&nbsp; حتى تاريخ <b>%s</b></p><table style='width:100%%;border-collapse:collapse;font-size:13px;color:#222;'><thead><tr style='background:#0C2340;color:#fff;'><th style='padding:10px 12px;text-align:right;'>الاسم</th><th style='padding:10px 12px;text-align:right;'>اللوحة</th><th style='padding:10px 12px;text-align:right;'>الوثيقة</th><th style='padding:10px 12px;text-align:right;'>تاريخ الانتهاء</th><th style='padding:10px 12px;text-align:right;'>الحالة</th></tr></thead><tbody>%s</tbody></table><p style='color:#94a3b8;font-size:11px;margin-top:18px;'>هذه رسالة آلية من نظام إدارة الأسطول — شركة بن زومة. الرجاء عدم الرد عليها.</p></div></div></div>" % (scope, len(alerts), today_str, rows)
+
+def _send_expiry_alert_email(recipients, rows=None, filter_label=''):
+    """Send the alert email. If `rows` is given (from the dashboard's selected filter),
+    email EXACTLY those rows; otherwise fall back to the 'need-action' set."""
+    if rows is not None:
+        alerts = []
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            try:
+                days = int(r.get('days')) if r.get('days') not in (None, '') else None
+            except (TypeError, ValueError):
+                days = None
+            alerts.append({'name': r.get('name') or '—', 'plate': r.get('plate') or '', 'doc': r.get('doc') or '', 'date': r.get('date') or '', 'days': days, 'key': r.get('key') or '', 'label': r.get('label') or ''})
+        if not filter_label:
+            filter_label = 'مُختار'
+    else:
+        alerts = [a for a in _collect_expiry_alerts() if a['key'] in ('expired', 'd30', 'd90')]
+        filter_label = filter_label or 'تحتاج إجراء'
+    if not alerts:
+        return {'sent': False, 'reason': 'no_alerts', 'count': 0}
+    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        return {'sent': False, 'reason': 'mail_not_configured', 'count': len(alerts)}
+    recipients = [r for r in recipients or [] if r]
+    if not recipients:
+        return {'sent': False, 'reason': 'no_recipients', 'count': len(alerts)}
+    try:
+        subject = '🚨 تنبيه وثائق الأسطول — شركة بن زومة (فرع الدمام)'
+        if filter_label:
+            subject += ' — ' + filter_label
+        msg = Message(subject=subject, recipients=recipients, html=_build_alert_email_html(alerts, filter_label), sender=app.config.get('MAIL_DEFAULT_SENDER') or app.config.get('MAIL_USERNAME'))
+        mail.send(msg)
+        return {'sent': True, 'count': len(alerts), 'recipients': recipients}
+    except Exception as e:
+        logger.exception('send expiry alert email failed')
+        return {'sent': False, 'reason': 'send_error', 'error': str(e), 'count': len(alerts)}
+
+@app.route('/api/expiry_alerts_preview', methods=['GET'])
+@login_required
+def expiry_alerts_preview():
+    """Counts + list the server sees (lets the dashboard show what WOULD be emailed)."""
+    try:
+        alerts = _collect_expiry_alerts()
+        attention = [a for a in alerts if a['key'] in ('expired', 'd30', 'd90')]
+        counts = {'expired': 0, 'd30': 0, 'd90': 0}
+        for a in attention:
+            counts[a['key']] += 1
+        return jsonify({'success': True, 'counts': counts, 'total': len(attention), 'mail_configured': bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')), 'default_recipients': ALERT_RECIPIENTS})
+    except Exception:
+        logger.exception('expiry preview error')
+        return jsonify({'success': False, 'counts': {}, 'total': 0})
+
+@app.route('/api/send_expiry_alerts', methods=['POST'])
+@login_required
+def send_expiry_alerts():
+    """Manual 'send now' from the dashboard. Recipients from the request or ALERT_RECIPIENTS."""
+    body = request.json or {}
+    recips = body.get('recipients') or ALERT_RECIPIENTS
+    if isinstance(recips, str):
+        recips = [e.strip() for e in re.split('[,;\\s]+', recips) if e.strip()]
+    rows = body.get('rows')
+    filt = (body.get('filter') or '').strip()
+    if isinstance(rows, list) and rows:
+        res = _send_expiry_alert_email(recips, rows=rows[:1000], filter_label=filt)
+    else:
+        res = _send_expiry_alert_email(recips, filter_label=filt)
+    if res.get('sent'):
+        _audit_add('إرسال', 'تنبيهات الوثائق بالبريد', res.get('count'), ('الفرز: ' + filt + ' — ' if filt else '') + 'إلى: ' + ', '.join(res.get('recipients', [])))
+    return jsonify({'success': res.get('sent', False), **res})
+
+@app.route('/api/cron/expiry_alerts', methods=['GET', 'POST'])
+def cron_expiry_alerts():
+    """Token-protected trigger for an external daily scheduler (ArabCord cron / cron-job.org).
+    Not login-protected; guarded by ALERT_CRON_KEY. Uses ALERT_RECIPIENTS for the recipient list."""
+    key = request.args.get('key', '')
+    if not key and request.is_json:
+        key = (request.json or {}).get('key', '')
+    if not ALERT_CRON_KEY or not hmac.compare_digest(str(key), ALERT_CRON_KEY):
+        return (jsonify({'success': False, 'error': 'unauthorized'}), 401)
+    res = _send_expiry_alert_email(ALERT_RECIPIENTS)
+    if res.get('sent'):
+        _audit_add('إرسال تلقائي', 'تنبيهات الوثائق بالبريد', res.get('count'), 'مجدول — إلى: ' + ', '.join(res.get('recipients', [])))
+    return jsonify({'success': res.get('sent', False), **res})
 

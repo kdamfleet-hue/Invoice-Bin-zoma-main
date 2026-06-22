@@ -795,7 +795,24 @@
     var to = (($('alMailTo') && $('alMailTo').value) || '').trim();
     var btn = $('alMailBtn'), hint = $('alMailHint');
     if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
-    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to }) })
+
+    var list;
+    if (alFilter === 'attention') {
+      list = ALERTS.filter(function (a) { return a.st.key === 'expired' || a.st.key === 'd30' || a.st.key === 'd90'; });
+    } else if (alFilter === 'resolved') {
+      list = ALERTS.filter(function (a) { return resolvedSet.has(getAlertId(a)); });
+    } else if (alFilter === 'all') {
+      list = ALERTS.slice();
+    } else {
+      list = ALERTS.filter(function (a) { return a.st.key === alFilter; });
+    }
+    
+    var labelMap = { attention: 'تحتاج إجراء', expired: 'منتهية', d30: '≤ 30 يوم', d90: '≤ 90 يوم', valid: 'سارية', resolved: 'مُقيّدة', all: 'الكل' };
+    var filterLabel = labelMap[alFilter] || 'الكل';
+
+    var payload = { recipients: to, rows: list, filter: filterLabel };
+
+    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       .then(function (r) { return r.json(); })
       .then(function (res) {
         var msg;
@@ -808,7 +825,7 @@
         if (window.showToast && res.success) showToast('تم إرسال التنبيه بالبريد', 'success');
       })
       .catch(function () { if (hint) hint.innerHTML = '<span style="color:#fca5a5">تعذّر الاتصال بالخادم.</span>'; })
-      .finally(function () { if (btn) { btn.disabled = false; btn.textContent = 'إرسال الآن'; } });
+      .finally(function () { if (btn) { btn.disabled = false; btn.textContent = 'إرسال'; } });
   };
 
   // ---------- audit log (server-side, read-only, append-only) ----------
