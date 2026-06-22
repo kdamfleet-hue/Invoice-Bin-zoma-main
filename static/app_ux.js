@@ -397,7 +397,10 @@ function buildEnterpriseShell() {
             const burger = document.createElement('button');
             burger.id = 'bzBurger'; burger.type = 'button'; burger.className = 'bz-icon-btn bz-side-burger';
             burger.title = 'القائمة'; burger.textContent = '☰';
-            burger.addEventListener('click', () => aside.classList.toggle('open'));
+            burger.addEventListener('click', () => {
+                if (window.matchMedia('(max-width: 1024px)').matches) aside.classList.toggle('open');   // mobile: slide-in drawer
+                else document.body.classList.toggle('side-hidden');                                     // desktop: hide/show the sidebar
+            });
             brand.parentNode.insertBefore(burger, brand);
         }
 
