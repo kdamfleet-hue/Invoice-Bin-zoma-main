@@ -320,6 +320,20 @@ def init_db():
 
 init_db()
 
+# Ensure default admin user exists
+
+def ensure_admin():
+    with app.app_context():
+        with db_connection() as db:
+            row = db.execute("SELECT * FROM users WHERE username = ?", ("admin",)).fetchone()
+            if not row:
+                pwd_hash = generate_password_hash("admin123")
+                db.execute("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", ("admin", pwd_hash, "admin"))
+                db.commit()
+                logger.info("Created default admin user")
+
+ensure_admin()
+
 
 # Security Decorators
 def login_required(f):
