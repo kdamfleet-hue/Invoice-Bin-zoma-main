@@ -266,7 +266,7 @@
                 <div id="alMailBar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.7rem .8rem;background:var(--d-card-2);border:1px solid var(--d-border);border-radius:12px;">
                     <span style="font-weight:700;font-size:.84rem;">📧 إرسال تنبيهات الوثائق بالبريد:</span>
                     <input id="alMailTo" type="text" placeholder="بريد المستلمين (افصل بفاصلة)" style="flex:1;min-width:220px;background:var(--d-bg2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:8px 12px;font:inherit;font-size:.82rem;outline:none;">
-                    <button class="chip on" id="alMailBtn" onclick="sendExpiryMail()">إرسال الآن</button>
+                    <button class="chip on" id="alMailBtn" onclick="sendExpiryMail()">📧 إرسال حسب الفرز</button>
                     <span class="muted-note" id="alMailHint" style="width:100%;margin-top:2px;">…</span>
                 </div>
                 <div class="filters" id="alFilters"></div>
@@ -772,30 +772,41 @@
       var hint = $('alMailHint'); if (!hint || !j) return;
       var dr = (j.default_recipients && j.default_recipients.length) ? j.default_recipients.join('، ') : '';
       if (dr && $('alMailTo') && !$('alMailTo').value) $('alMailTo').value = dr;
-      var parts = [(j.total || 0) + ' وثيقة تحتاج إجراءً الآن'];
+      var parts = ['يُرسَل <b>حسب الفرز المختار</b> في الأعلى (منتهية / ≤30 / ≤90 / سارية…) — لا كل التنبيهات. (' + (j.total || 0) + ' تحتاج إجراءً الآن)'];
       if (!j.mail_configured) parts.push('<span style="color:#fca5a5">⚠ البريد غير مُهيّأ على الخادم (اضبط MAIL_USERNAME / MAIL_PASSWORD)</span>');
       else parts.push('للإرسال التلقائي اليومي: اضبط ALERT_RECIPIENTS و ALERT_CRON_KEY وشغّل مجدولاً على <code>/api/cron/expiry_alerts?key=…</code>');
       hint.innerHTML = parts.join(' • ');
     });
   }
+  var AL_FILTER_LABELS = { attention: 'تحتاج إجراء', expired: 'منتهية', d30: '≤ 30 يوم', d90: '≤ 90 يوم', valid: 'سارية', all: 'الكل', unknown: 'غير محدد' };
   window.sendExpiryMail = function () {
     var to = (($('alMailTo') && $('alMailTo').value) || '').trim();
     var btn = $('alMailBtn'), hint = $('alMailHint');
+    var scopeLabel = AL_FILTER_LABELS[alFilter] || '';
+    // الصفوف المطابقة للفرز المختار حالياً (نفس منطق العرض)
+    var rows = ALERTS.filter(function (a) {
+      if (alFilter === 'all') return true;
+      if (alFilter === 'attention') return a.st.rank <= 2;
+      return a.st.key === alFilter;
+    }).map(function (a) {
+      return { name: a.name, plate: a.plate, doc: a.doc, date: a.date, label: a.st.label, key: a.st.key, days: a.st.days };
+    });
+    if (!rows.length) { if (hint) hint.innerHTML = '<span style="color:#fcd34d">لا توجد وثائق في الفرز المختار «' + esc(scopeLabel) + '».</span>'; return; }
     if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
-    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to }) })
+    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to, rows: rows, filter: scopeLabel }) })
       .then(function (r) { return r.json(); })
       .then(function (res) {
         var msg;
-        if (res.success) msg = '<span style="color:#6ee7b7">✓ أُرسل التنبيه (' + (res.count || 0) + ' وثيقة) إلى: ' + esc((res.recipients || []).join('، ')) + '</span>';
+        if (res.success) msg = '<span style="color:#6ee7b7">✓ أُرسل (' + (res.count || 0) + ' وثيقة — الفرز: ' + esc(scopeLabel) + ') إلى: ' + esc((res.recipients || []).join('، ')) + '</span>';
         else if (res.reason === 'mail_not_configured') msg = '<span style="color:#fca5a5">⚠ البريد غير مُهيّأ على الخادم — اضبط MAIL_USERNAME و MAIL_PASSWORD.</span>';
         else if (res.reason === 'no_recipients') msg = '<span style="color:#fcd34d">أدخل بريد مستلم واحد على الأقل.</span>';
-        else if (res.reason === 'no_alerts') msg = '<span style="color:#6ee7b7">لا توجد وثائق تحتاج تنبيهاً حالياً ✓</span>';
+        else if (res.reason === 'no_alerts') msg = '<span style="color:#6ee7b7">لا توجد وثائق في الفرز المختار ✓</span>';
         else msg = '<span style="color:#fca5a5">تعذّر الإرسال' + (res.error ? ': ' + esc(res.error) : '') + '</span>';
         if (hint) hint.innerHTML = msg;
-        if (window.showToast && res.success) showToast('تم إرسال التنبيه بالبريد', 'success');
+        if (window.showToast && res.success) showToast('تم إرسال التنبيه (الفرز: ' + scopeLabel + ')', 'success');
       })
       .catch(function () { if (hint) hint.innerHTML = '<span style="color:#fca5a5">تعذّر الاتصال بالخادم.</span>'; })
-      .finally(function () { if (btn) { btn.disabled = false; btn.textContent = 'إرسال الآن'; } });
+      .finally(function () { if (btn) { btn.disabled = false; btn.textContent = '📧 إرسال حسب الفرز'; } });
   };
 
   // ---------- audit log (server-side, read-only, append-only) ----------

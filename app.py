@@ -1521,24 +1521,24 @@ def _collect_expiry_alerts(window_days=90):
     return out
 
 
-def _build_alert_email_html(alerts):
-    counts = {"expired": 0, "d30": 0, "d90": 0}
-    for a in alerts:
-        counts[a["key"]] = counts.get(a["key"], 0) + 1
+def _build_alert_email_html(alerts, filter_label=""):
     today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     def days_txt(a):
-        d = a["days"]
+        d = a.get("days")
+        if d is None:
+            return "—"
         if d < 0:
             return "منذ %d يوم" % abs(d)
         if d == 0:
             return "اليوم"
         return "خلال %d يوم" % d
 
-    colors = {"expired": "#dc2626", "d30": "#d97706", "d90": "#ca8a04"}
+    colors = {"expired": "#dc2626", "d30": "#d97706", "d90": "#ca8a04",
+              "valid": "#16a34a", "unknown": "#6b7280"}
     rows = ""
-    for a in alerts[:120]:
-        c = colors.get(a["key"], "#6b7280")
+    for a in alerts[:300]:
+        c = colors.get(a.get("key"), "#6b7280")
         rows += (
             "<tr>"
             "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td>"
@@ -1547,9 +1547,11 @@ def _build_alert_email_html(alerts):
             "<td style='padding:9px 12px;border-bottom:1px solid #eee;white-space:nowrap;'>%s</td>"
             "<td style='padding:9px 12px;border-bottom:1px solid #eee;color:%s;font-weight:700;white-space:nowrap;'>%s · %s</td>"
             "</tr>"
-        ) % (html.escape(str(a["name"])), html.escape(str(a["plate"] or "—")),
-         html.escape(str(a["doc"])), html.escape(str(a["date"])), c, a["label"], days_txt(a))
+        ) % (html.escape(str(a.get("name") or "—")), html.escape(str(a.get("plate") or "—")),
+             html.escape(str(a.get("doc") or "")), html.escape(str(a.get("date") or "")),
+             c, html.escape(str(a.get("label") or "")), days_txt(a))
 
+    scope = html.escape(str(filter_label or "الكل"))
     return (
         "<div style='font-family:Tahoma,Arial,sans-serif;direction:rtl;text-align:right;background:#f4f6fb;padding:22px;'>"
         "<div style='max-width:760px;margin:auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e6e9f0;'>"
@@ -1557,15 +1559,7 @@ def _build_alert_email_html(alerts):
         "<div style='color:#fff;font-size:18px;font-weight:800;'>BIN ZOMAH INTL. — شركة بن زومة</div>"
         "<div style='color:#c9a227;font-size:13px;font-weight:700;'>تنبيه وثائق الأسطول — فرع الدمام</div></div>"
         "<div style='padding:20px 24px;'>"
-        "<p style='color:#334;font-size:14px;margin:0 0 16px;'>ملخّص الوثائق التي تحتاج إجراءً حتى تاريخ <b>%s</b>:</p>"
-        "<div style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;'>"
-        "<div style='flex:1;min-width:150px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;text-align:center;'>"
-        "<div style='font-size:26px;font-weight:800;color:#dc2626;'>%d</div><div style='font-size:12px;color:#991b1b;'>🔴 منتهية</div></div>"
-        "<div style='flex:1;min-width:150px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;text-align:center;'>"
-        "<div style='font-size:26px;font-weight:800;color:#d97706;'>%d</div><div style='font-size:12px;color:#92400e;'>🟠 خلال 30 يوم</div></div>"
-        "<div style='flex:1;min-width:150px;background:#fefce8;border:1px solid #fef08a;border-radius:10px;padding:12px;text-align:center;'>"
-        "<div style='font-size:26px;font-weight:800;color:#ca8a04;'>%d</div><div style='font-size:12px;color:#854d0e;'>🟡 خلال 90 يوم</div></div>"
-        "</div>"
+        "<p style='color:#334;font-size:14px;margin:0 0 16px;'>الفرز المُرسَل: <b>%s</b> &nbsp;•&nbsp; العدد: <b>%d</b> &nbsp;•&nbsp; حتى تاريخ <b>%s</b></p>"
         "<table style='width:100%%;border-collapse:collapse;font-size:13px;color:#222;'>"
         "<thead><tr style='background:#0C2340;color:#fff;'>"
         "<th style='padding:10px 12px;text-align:right;'>الاسم</th>"
@@ -1576,31 +1570,51 @@ def _build_alert_email_html(alerts):
         "<tbody>%s</tbody></table>"
         "<p style='color:#94a3b8;font-size:11px;margin-top:18px;'>هذه رسالة آلية من نظام إدارة الأسطول — شركة بن زومة. الرجاء عدم الرد عليها.</p>"
         "</div></div></div>"
-    ) % (today_str, counts.get("expired", 0), counts.get("d30", 0), counts.get("d90", 0), rows)
+    ) % (scope, len(alerts), today_str, rows)
 
 
-def _send_expiry_alert_email(recipients):
-    alerts = _collect_expiry_alerts()
-    attention = [a for a in alerts if a["key"] in ("expired", "d30", "d90")]
-    if not attention:
+def _send_expiry_alert_email(recipients, rows=None, filter_label=""):
+    """Send the alert email. If `rows` is given (from the dashboard's selected filter),
+    email EXACTLY those rows; otherwise fall back to the 'need-action' set."""
+    if rows is not None:
+        alerts = []
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            try:
+                days = int(r.get("days")) if r.get("days") not in (None, "") else None
+            except (TypeError, ValueError):
+                days = None
+            alerts.append({"name": r.get("name") or "—", "plate": r.get("plate") or "",
+                           "doc": r.get("doc") or "", "date": r.get("date") or "",
+                           "days": days, "key": r.get("key") or "", "label": r.get("label") or ""})
+        if not filter_label:
+            filter_label = "مُختار"
+    else:
+        alerts = [a for a in _collect_expiry_alerts() if a["key"] in ("expired", "d30", "d90")]
+        filter_label = filter_label or "تحتاج إجراء"
+    if not alerts:
         return {"sent": False, "reason": "no_alerts", "count": 0}
     if not app.config.get("MAIL_USERNAME") or not app.config.get("MAIL_PASSWORD"):
-        return {"sent": False, "reason": "mail_not_configured", "count": len(attention)}
+        return {"sent": False, "reason": "mail_not_configured", "count": len(alerts)}
     recipients = [r for r in (recipients or []) if r]
     if not recipients:
-        return {"sent": False, "reason": "no_recipients", "count": len(attention)}
+        return {"sent": False, "reason": "no_recipients", "count": len(alerts)}
     try:
+        subject = "🚨 تنبيه وثائق الأسطول — شركة بن زومة (فرع الدمام)"
+        if filter_label:
+            subject += " — " + filter_label
         msg = Message(
-            subject="🚨 تنبيه وثائق الأسطول — شركة بن زومة (فرع الدمام)",
+            subject=subject,
             recipients=recipients,
-            html=_build_alert_email_html(attention),
+            html=_build_alert_email_html(alerts, filter_label),
             sender=app.config.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME"),
         )
         mail.send(msg)
-        return {"sent": True, "count": len(attention), "recipients": recipients}
+        return {"sent": True, "count": len(alerts), "recipients": recipients}
     except Exception as e:
         logger.exception("send expiry alert email failed")
-        return {"sent": False, "reason": "send_error", "error": str(e), "count": len(attention)}
+        return {"sent": False, "reason": "send_error", "error": str(e), "count": len(alerts)}
 
 
 @app.route("/api/expiry_alerts_preview", methods=["GET"])
@@ -1629,10 +1643,15 @@ def send_expiry_alerts():
     recips = body.get("recipients") or ALERT_RECIPIENTS
     if isinstance(recips, str):
         recips = [e.strip() for e in re.split(r"[,;\s]+", recips) if e.strip()]
-    res = _send_expiry_alert_email(recips)
+    rows = body.get("rows")
+    filt = (body.get("filter") or "").strip()
+    if isinstance(rows, list) and rows:
+        res = _send_expiry_alert_email(recips, rows=rows[:1000], filter_label=filt)
+    else:
+        res = _send_expiry_alert_email(recips, filter_label=filt)
     if res.get("sent"):
         _audit_add("إرسال", "تنبيهات الوثائق بالبريد", res.get("count"),
-                   "إلى: " + ", ".join(res.get("recipients", [])))
+                   (("الفرز: " + filt + " — ") if filt else "") + "إلى: " + ", ".join(res.get("recipients", [])))
     return jsonify({"success": res.get("sent", False), **res})
 
 
