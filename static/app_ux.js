@@ -299,6 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     applyWorkstationRestrictions();
     buildEnterpriseShell();
     injectContactDock();
+    injectHeroLogo();
     initThemeToggle();
     injectTopographicBackground();
     injectUXContainers();
@@ -358,6 +359,7 @@ function injectGlobalNavLinks() {
     }
     addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
     addLink('/handover', '🚗 تسليم واستلام مركبة', 'a[href$="/"]');
+    addLink('/settings', '⚙️ الإعدادات', 'a[href$="/cameras"]');
     // (no separate "الفاتورة" link — the homepage "الرئيسية" IS the invoice; /invoice aliases to it)
 }
 
@@ -373,6 +375,19 @@ function injectContactDock() {
             '<a class="bz-dock-btn wa" href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" data-label="واتساب" title="تواصل عبر واتساب" aria-label="واتساب">💬</a>' +
             '<a class="bz-dock-btn mail" href="mailto:damfleet@bz.sa" data-label="إرسال بالإيميل" title="إرسال عبر الإيميل" aria-label="إرسال عبر الإيميل">📧</a>';
         document.body.appendChild(dock);
+    } catch (e) { /* non-critical */ }
+}
+
+// Big company logo at the top of EVERY content tab (skips pages that already show one).
+function injectHeroLogo() {
+    try {
+        const shell = document.querySelector('.bz-shell');
+        if (!shell) return;
+        if (document.querySelector('.bz-hero-logo, .logo, .ho-head, .site-logo')) return;
+        const div = document.createElement('div');
+        div.className = 'bz-hero-logo';
+        div.innerHTML = '<img src="/static/main_logo_v2.jpg" alt="شركة بن زومة">';
+        shell.insertBefore(div, shell.firstChild);
     } catch (e) { /* non-critical */ }
 }
 

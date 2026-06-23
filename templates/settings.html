@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإعدادات | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=9) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=9) }}"></script>
+    <style>
+        .set-wrap { max-width: 920px; margin: 0 auto; }
+        .set-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.4rem 1.5rem; margin-bottom: 1.4rem; }
+        .set-card h3 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
+        .set-card .sub { color: var(--text-secondary); font-size: .9rem; line-height: 1.8; margin-bottom: 1.1rem; }
+        .set-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .8rem; align-items: end; }
+        .set-form .fld label { display: block; font-size: .8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+        .set-form .pw-wrap { position: relative; }
+        .set-form .pw-wrap .eye { position: absolute; inset-inline-start: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1rem; opacity: .7; background: none; border: none; }
+        .set-add { padding: 12px 18px; white-space: nowrap; }
+        @media (max-width: 720px) { .set-form { grid-template-columns: 1fr; } }
+        .set-msg { margin-top: 10px; font-size: .86rem; font-weight: 700; min-height: 1.1rem; }
+        .users-tbl { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        .users-tbl th, .users-tbl td { padding: 11px 12px; text-align: right; border-bottom: 1px solid var(--border); font-size: .88rem; }
+        .users-tbl th { background: var(--surface-hover); color: var(--text-secondary); font-weight: 800; }
+        .users-tbl td { color: var(--text-primary); }
+        .users-tbl .uname { font-family: monospace; direction: ltr; unicode-bidi: plaintext; display: inline-block; color: var(--brand-gold); }
+        .users-empty { text-align: center; color: var(--text-muted); padding: 1.6rem; font-weight: 700; }
+        .u-del { background: rgba(220,38,38,.12); color: #f87171; border: 1px solid rgba(220,38,38,.3); border-radius: 8px; padding: 5px 12px; font-weight: 800; cursor: pointer; font-size: .8rem; transition: var(--trans, .2s); }
+        .u-del:hover { background: #dc2626; color: #fff; }
+        .admin-note { display: flex; align-items: center; gap: 10px; background: rgba(197,160,89,.08); border: 1px solid rgba(197,160,89,.25); border-radius: 12px; padding: 12px 16px; color: var(--text-secondary); font-size: .86rem; }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/handover">🚗 تسليم واستلام مركبة</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/search">🔍 بحث</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+        <a href="/cameras">📹 الكاميرات</a>
+        <a href="/settings" class="active">⚙️ الإعدادات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">⚙️ الإعدادات</h2>
+      <div class="set-wrap">
+
+        <div class="set-card">
+          <h3>🔑 مشاركة الموقع — حسابات الدخول</h3>
+          <div class="sub">أنشئ <b>اسم مستخدم وكلمة مرور</b> لكل شخص تريد مشاركته الموقع. يستطيع الدخول من صفحة تسجيل الدخول بنفس البيانات. تُحفظ كلمات المرور <b>مشفّرة</b> ولا تظهر مرة أخرى.</div>
+
+          <form id="addForm" class="set-form" autocomplete="off">
+            <div class="fld"><label for="u-name">الاسم</label><input type="text" id="u-name" placeholder="مثال: محمد العتيبي"></div>
+            <div class="fld"><label for="u-username">اسم المستخدم</label><input type="text" id="u-username" placeholder="مثال: m.alotaibi" required></div>
+            <div class="fld"><label for="u-pass">كلمة المرور</label>
+              <div class="pw-wrap"><input type="password" id="u-pass" placeholder="4 أحرف على الأقل" required>
+              <button type="button" class="eye" onclick="hoTogglePw()" title="إظهار/إخفاء">👁️</button></div>
+            </div>
+            <button type="submit" class="btn-submit-gold set-add">➕ إضافة مستخدم</button>
+          </form>
+          <div class="set-msg" id="addMsg"></div>
+        </div>
+
+        <div class="set-card">
+          <h3>👥 المستخدمون المشاركون <span class="sub" id="uCount" style="margin:0;font-weight:700;"></span></h3>
+          <div class="dtable-wrap" style="overflow-x:auto;">
+            <table class="users-tbl">
+              <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>تاريخ الإنشاء</th><th>إجراء</th></tr></thead>
+              <tbody id="usersBody"><tr><td colspan="4" class="users-empty">جارٍ التحميل…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="set-card">
+          <div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هذه القائمة للحسابات المُشارَكة فقط.</span></div>
+        </div>
+
+      </div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  window.hoTogglePw = function () { var i = $('u-pass'); if (i) i.type = i.type === 'password' ? 'text' : 'password'; };
+
+  function loadUsers() {
+    fetch('/api/users', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var users = (j && j.users) || [];
+        $('uCount').textContent = '(' + users.length + ')';
+        if (!users.length) { $('usersBody').innerHTML = '<tr><td colspan="4" class="users-empty">لا يوجد مستخدمون مشاركون بعد. أضِف أول مستخدم من الأعلى.</td></tr>'; return; }
+        $('usersBody').innerHTML = users.map(function (u) {
+          return '<tr><td>' + esc(u.name || '—') + '</td><td><span class="uname">' + esc(u.username) + '</span></td><td>' + esc(u.created || '—') +
+            '</td><td><button class="u-del" data-u="' + esc(u.username) + '">🗑️ حذف</button></td></tr>';
+        }).join('');
+        Array.prototype.forEach.call(document.querySelectorAll('.u-del'), function (b) {
+          b.addEventListener('click', function () { delUser(b.getAttribute('data-u')); });
+        });
+      })
+      .catch(function () { $('usersBody').innerHTML = '<tr><td colspan="4" class="users-empty">تعذّر تحميل المستخدمين.</td></tr>'; });
+  }
+
+  function delUser(username) {
+    if (!confirm('حذف المستخدم «' + username + '»؟ لن يستطيع الدخول بعد الآن.')) return;
+    fetch('/api/users', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: username }) })
+      .then(function (r) { return r.json(); })
+      .then(function () { if (window.showToast) showToast('تم حذف المستخدم', 'success'); loadUsers(); });
+  }
+
+  $('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('u-name').value.trim(), username = $('u-username').value.trim(), password = $('u-pass').value;
+    var msg = $('addMsg');
+    fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, username: username, password: password }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.success) {
+          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تمت إضافة المستخدم «' + esc(username) + '»</span>';
+          $('u-name').value = ''; $('u-username').value = ''; $('u-pass').value = '';
+          if (window.showToast) showToast('تمت إضافة المستخدم ✓', 'success');
+          loadUsers();
+        } else {
+          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + esc((res.j && res.j.reason) || 'تعذّرت الإضافة') + '</span>';
+        }
+      })
+      .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+  });
+
+  loadUsers();
+})();
+</script>
+
+</body>
+</html>

@@ -29,6 +29,7 @@ from dotenv import load_dotenv
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
@@ -344,6 +345,10 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS gps_devices_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Shared login accounts (created from the locked Settings tab; main site id=1 only).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS app_users (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Workstation-only blob stores (id=2 sandbox). Additive & never seeded, so the
             # /importantworkstation namespace starts EMPTY and persists what the user types.
             # The MAIN site (/) never reads or writes these.
@@ -425,13 +430,19 @@ def login():
             logger.error("MASTER_PASSWORD environment variable is not set!")
             return render_template("login.html", error="خطأ في إعداد النظام. يرجى التواصل مع المدير.")
 
-        # Constant-time comparison; only the configured ADMIN_USERNAME is accepted.
-        user_ok = hmac.compare_digest(username, master_user)
-        pass_ok = hmac.compare_digest(password, master_pass)
-        if user_ok and pass_ok:
+        # The configured ADMIN_USERNAME (constant-time) OR any shared account created in Settings.
+        authed_name = None
+        if hmac.compare_digest(username, master_user) and hmac.compare_digest(password, master_pass):
+            authed_name = username
+        else:
+            for u in get_users():
+                if u.get("username") == username and u.get("pw_hash") and check_password_hash(u["pw_hash"], password):
+                    authed_name = u.get("name") or username
+                    break
+        if authed_name:
             session["authenticated"] = True
             session.permanent = True
-            session["google_user"] = {"name": username, "email": "admin@system.local"}
+            session["google_user"] = {"name": authed_name, "email": (username or "user") + "@binzomah.local"}
             logger.info("Successful login")
             return redirect(url_for("index"))
         else:
@@ -516,6 +527,17 @@ def blob_set(table, data_obj):
         else:
             c.execute("INSERT INTO %s (id, data) VALUES (?, ?)" % table, (rid, data_str))
         conn.commit()
+
+
+# ── Shared login accounts (created from the locked Settings tab) ──────────────
+def get_users():
+    """List of shared accounts: [{username, name, pw_hash, created}] (main-site id=1)."""
+    d = blob_get("app_users")
+    return d.get("users", []) if isinstance(d, dict) else []
+
+
+def save_users(users):
+    blob_set("app_users", {"users": users})
 
 
 # ── Audit log (append-only; never edited or deleted from the UI) ──────────────
@@ -762,6 +784,62 @@ def kpis():
 def handover():
     # Vehicle delivery/receipt inspection form with touch signature pads (client-side only).
     return render_template("handover.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    # Locked admin tab: re-enter the MASTER_PASSWORD to open, then manage shared accounts.
+    master_pass = os.environ.get("MASTER_PASSWORD")
+    if request.method == "POST" and "password" in request.form:
+        if master_pass and hmac.compare_digest(request.form.get("password", ""), master_pass):
+            session["settings_unlocked"] = True
+            return redirect(url_for("settings"))
+        return render_template("tab_lock.html", next="/settings", action="/settings",
+                               error="كلمة المرور غير صحيحة")
+    if not session.get("settings_unlocked"):
+        return render_template("tab_lock.html", next="/settings", action="/settings")
+    return render_template("settings.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/api/users", methods=["GET", "POST", "DELETE"])
+@login_required
+def api_users():
+    # Manage shared login accounts — only reachable from the unlocked Settings tab.
+    if not session.get("settings_unlocked"):
+        return jsonify({"error": "locked"}), 403
+    if request.method == "GET":
+        return jsonify({"users": [
+            {"username": u.get("username"), "name": u.get("name"), "created": u.get("created")}
+            for u in get_users()
+        ]})
+    body = request.get_json(silent=True) or {}
+    if request.method == "POST":
+        username = (body.get("username") or "").strip()
+        name = (body.get("name") or "").strip()
+        password = body.get("password") or ""
+        if not username or not password:
+            return jsonify({"error": "missing", "reason": "اسم المستخدم وكلمة المرور مطلوبان"}), 400
+        if len(password) < 4:
+            return jsonify({"error": "weak", "reason": "كلمة المرور قصيرة جداً (4 أحرف على الأقل)"}), 400
+        if not re.match(r"^[A-Za-z0-9_.@-]{2,40}$", username):
+            return jsonify({"error": "bad_username", "reason": "اسم المستخدم: حروف/أرقام إنجليزية و . _ @ - فقط"}), 400
+        if username == os.environ.get("ADMIN_USERNAME", "admin"):
+            return jsonify({"error": "reserved", "reason": "اسم المستخدم محجوز للمدير"}), 400
+        users = get_users()
+        if any(u.get("username") == username for u in users):
+            return jsonify({"error": "exists", "reason": "اسم المستخدم موجود مسبقاً"}), 400
+        users.append({
+            "username": username, "name": name or username,
+            "pw_hash": generate_password_hash(password),
+            "created": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        })
+        save_users(users)
+        return jsonify({"success": True})
+    # DELETE
+    username = (body.get("username") or "").strip()
+    save_users([u for u in get_users() if u.get("username") != username])
+    return jsonify({"success": True})
 
 
 @app.route("/gps_dashboard")
