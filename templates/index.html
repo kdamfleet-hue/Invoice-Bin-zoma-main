@@ -718,9 +718,9 @@
   .team-section .sub { text-align:center; color:var(--text-secondary,#5a6a7a); margin:0 0 1.6rem; font-weight:600; }
   body.dark-mode .team-section > h2 { color:#fff; }
   .team-slider { display:flex; align-items:center; gap:.6rem; }
-  .team-track { display:flex; gap:1.2rem; overflow-x:auto; scroll-snap-type:x mandatory; scroll-behavior:smooth; padding:12px 4px 22px; flex:1; scrollbar-width:none; }
+  .team-track { display:flex; gap:1.2rem; overflow-x:auto; scroll-behavior:smooth; padding:12px 4px 22px; flex:1; scrollbar-width:none; }
   .team-track::-webkit-scrollbar { height:0; display:none; }
-  .team-card { flex:0 0 230px; scroll-snap-align:center; background:var(--surface,#fff); border:1px solid var(--border,#eef2f5); border-radius:22px; padding:18px 16px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.08); transition:transform .3s ease, box-shadow .3s ease; }
+  .team-card { flex:0 0 230px; background:var(--surface,#fff); border:1px solid var(--border,#eef2f5); border-radius:22px; padding:18px 16px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.08); transition:transform .3s ease, box-shadow .3s ease; }
   .team-card:hover { transform:translateY(-6px); box-shadow:0 16px 38px rgba(12,35,64,0.18); }
   .team-card .img-box { width:148px; height:148px; margin:0 auto 14px; border-radius:50%; overflow:hidden; border:4px solid var(--brand-gold,#c9a227); background:var(--surface-hover,#f1f5f9); }
   .team-card .img-box img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -745,6 +745,7 @@
   (function () {
     var track = document.getElementById('teamTrack');
     if (!track) return;
+    var slider = track.closest ? track.closest('.team-slider') : null;
     var idx = 0, cards = [];
     function esc(s) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -760,12 +761,44 @@
           '<p class="t-branch">' + esc(p.branch || '') + '</p></div>';
       }).join('');
       cards = Array.prototype.slice.call(track.querySelectorAll('.team-card'));
+      startAuto();
     }).catch(function () {});
+
     window.teamMove = function (dir) {
       if (!cards.length) return;
       idx = Math.max(0, Math.min(cards.length - 1, idx + dir));
       cards[idx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      hold(2600);   // let the manual move finish before auto resumes
     };
+
+    // ── Auto ping-pong motion: cards drift right ↔ left continuously ─────────
+    var dir = -1, carry = 0, raf = null, hovering = false, holdUntil = 0;
+    var SPEED = 0.8;  // px per frame (~48px/s) — calm, readable drift
+    var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    function step(ts) {
+      raf = requestAnimationFrame(step);
+      if (reduce || hovering || cards.length < 2 || (ts || 0) < holdUntil) return;
+      var max = track.scrollWidth - track.clientWidth;
+      if (max <= 1) return;                        // everything fits — nothing to scroll
+      carry += dir * SPEED;
+      var d = carry < 0 ? Math.ceil(carry) : Math.floor(carry);  // whole-px step (avoids sub-pixel rounding stalls)
+      if (!d) return;
+      carry -= d;
+      var before = track.scrollLeft;
+      track.scrollLeft = before + d;
+      if (track.scrollLeft === before) { dir = -dir; carry = 0; }  // clamped at an edge → reverse
+    }
+    function startAuto() { if (!raf && !reduce) raf = requestAnimationFrame(step); }
+    function hold(ms) { var now = (window.performance && performance.now) ? performance.now() : 0; holdUntil = now + ms; }
+
+    if (slider) {
+      slider.addEventListener('mouseenter', function () { hovering = true; });
+      slider.addEventListener('mouseleave', function () { hovering = false; });
+    }
+    track.addEventListener('touchstart', function () { hold(3000); }, { passive: true });
+    track.addEventListener('wheel', function () { hold(3000); }, { passive: true });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) hold(400); });
   })();
 </script>
 
