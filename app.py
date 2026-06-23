@@ -368,6 +368,10 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS workshop_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Vehicle handover/receipt submissions (append log of signed forms).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS handover_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Tiny key/value flags for the workstation (e.g. "did we auto-seed example data?").
             db.execute(
                 "CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)"
@@ -1923,11 +1927,202 @@ def workshop_data():
         return jsonify({"success": False, "data": None})
 
 
+# ── Vehicle handover/receipt form: save the signed record + email it ──────────
+HANDOVER_KEEP = 200            # cap stored submissions per mode to bound DB growth
+_DATAURI_RE = re.compile(r"^data:(image/[A-Za-z0-9.+-]+);base64,(.+)$", re.S)
+
+
+def _decode_data_uri(uri):
+    """Return (mime, bytes) from a data: URI, or (None, None) if it isn't one."""
+    if not isinstance(uri, str):
+        return None, None
+    m = _DATAURI_RE.match(uri.strip())
+    if not m:
+        return None, None
+    try:
+        return m.group(1), base64.b64decode(m.group(2))
+    except Exception:
+        return None, None
+
+
+def _h_esc(s):
+    """Minimal HTML escaping for values embedded in the handover email."""
+    return (str("" if s is None else s)
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def _build_handover_email_html(rec):
+    """Branded HTML summary of one handover form; signatures referenced via cid:.
+    Built by concatenation (no %/format) and every user value is HTML-escaped."""
+    g = rec.get
+    full_from = (g("from_first", "") + " " + g("from_last", "")).strip()
+    full_to = (g("to_first", "") + " " + g("to_last", "")).strip()
+
+    def row(lbl, val):
+        v = _h_esc(val) if (val not in (None, "")) else "—"
+        return ("<tr><td style='padding:7px 12px;color:#6b7280;font-weight:700;white-space:nowrap;"
+                "border-bottom:1px solid #eee'>" + _h_esc(lbl) + "</td>"
+                "<td style='padding:7px 12px;color:#111;border-bottom:1px solid #eee'>" + v + "</td></tr>")
+
+    rows = (
+        row("رقم اللوحة", g("plate", "")) +
+        row("تاريخ التسليم", g("date", "")) +
+        row("المسلِّم", full_from) +
+        row("المستلِم", full_to) +
+        row("العداد (كم)", g("odo", "")) +
+        row("الوقود", g("fuel", "")) +
+        row("مسؤول الحركة", g("officer", "")) +
+        row("اسم المستلم", g("recipient", ""))
+    )
+    damage = _h_esc(g("damage", "") or "لا توجد أضرار مذكورة.")
+    return (
+        '<div style="font-family:Tahoma,Arial,sans-serif;direction:rtl;max-width:640px;margin:0 auto;'
+        'border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">'
+        '<div style="background:#1a1a1a;color:#fff;padding:18px 20px;text-align:center">'
+        '<div style="font-size:1.15rem;font-weight:800;color:#C5A059">نموذج تسليم واستلام مركبة</div>'
+        '<div style="font-size:.8rem;opacity:.85;margin-top:4px">شركة بن زومة للتجارة الدولية والإنماء — فرع الدمام</div>'
+        '</div>'
+        '<table style="width:100%;border-collapse:collapse;font-size:.9rem">' + rows + '</table>'
+        '<div style="padding:16px 20px">'
+        '<div style="font-weight:800;color:#111;margin-bottom:6px">تفاصيل الأضرار</div>'
+        '<div style="color:#374151;font-size:.88rem;white-space:pre-wrap">' + damage + '</div>'
+        '</div>'
+        '<div style="display:flex;gap:16px;flex-wrap:wrap;padding:0 20px 18px">'
+        '<div style="flex:1;min-width:240px">'
+        '<div style="font-weight:700;color:#6b7280;font-size:.82rem;margin-bottom:4px">توقيع مسؤول الحركة (' + _h_esc(g("officer", "")) + ')</div>'
+        '<img src="cid:sig_officer" style="max-width:100%;border:1px solid #ddd;border-radius:8px;background:#fff">'
+        '</div>'
+        '<div style="flex:1;min-width:240px">'
+        '<div style="font-weight:700;color:#6b7280;font-size:.82rem;margin-bottom:4px">توقيع المستلم (' + _h_esc(g("recipient", "")) + ')</div>'
+        '<img src="cid:sig_recipient" style="max-width:100%;border:1px solid #ddd;border-radius:8px;background:#fff">'
+        '</div>'
+        '</div>'
+        '<div style="background:#faf7f0;color:#8a7a55;text-align:center;font-size:.72rem;padding:10px">'
+        'أُرسل تلقائياً من نظام إدارة الأسطول · ' + _h_esc(rec.get("ts", "")) +
+        '</div>'
+        '</div>'
+    )
+
+
+def _send_handover_email(rec, recipients):
+    """Email one handover record (signatures inline via cid, photos attached)."""
+    if not app.config.get("MAIL_USERNAME") or not app.config.get("MAIL_PASSWORD"):
+        return {"sent": False, "reason": "mail_not_configured"}
+    recipients = [r for r in (recipients or []) if r]
+    if not recipients:
+        return {"sent": False, "reason": "no_recipients"}
+    try:
+        plate = rec.get("plate", "") or "—"
+        msg = Message(
+            subject="🚗 نموذج تسليم/استلام مركبة — لوحة %s (فرع الدمام)" % plate,
+            recipients=recipients,
+            html=_build_handover_email_html(rec),
+            sender=app.config.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME"),
+        )
+        # signatures inline (cid)
+        for key, cid in (("sig_officer", "sig_officer"), ("sig_recipient", "sig_recipient")):
+            mime, data = _decode_data_uri(rec.get(key))
+            if data:
+                msg.attach("%s.png" % cid, mime or "image/png", data,
+                           disposition="inline", headers=[("Content-ID", "<%s>" % cid)])
+        # uploaded photos as regular attachments
+        for i, img in enumerate(rec.get("images", []) or []):
+            mime, data = _decode_data_uri(img.get("data") if isinstance(img, dict) else img)
+            if data:
+                ext = (mime or "image/jpeg").split("/")[-1]
+                name = (isinstance(img, dict) and img.get("name")) or ("photo_%d.%s" % (i + 1, ext))
+                msg.attach(name, mime or "image/jpeg", data)
+        mail.send(msg)
+        return {"sent": True, "recipients": recipients}
+    except Exception as e:
+        logger.exception("handover email failed")
+        return {"sent": False, "reason": "send_error", "error": str(e)}
+
+
+@app.route("/api/handover/submit", methods=["POST"])
+@login_required
+def handover_submit():
+    """Save a signed handover form (always) and email it (if SMTP is configured)."""
+    body = request.get_json(silent=True) or {}
+    plate = (body.get("plate") or "").strip()
+    if not plate:
+        return jsonify({"success": False, "reason": "missing_plate"}), 400
+    if not _decode_data_uri(body.get("sig_officer"))[1] or not _decode_data_uri(body.get("sig_recipient"))[1]:
+        return jsonify({"success": False, "reason": "missing_signature"}), 400
+
+    rec = {
+        "id": int(datetime.now().timestamp() * 1000),
+        "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "plate": plate,
+        "date": (body.get("date") or "").strip(),
+        "from_first": (body.get("from_first") or "").strip(),
+        "from_last": (body.get("from_last") or "").strip(),
+        "to_first": (body.get("to_first") or "").strip(),
+        "to_last": (body.get("to_last") or "").strip(),
+        "odo": (str(body.get("odo")) if body.get("odo") not in (None, "") else "").strip(),
+        "fuel": (body.get("fuel") or "").strip(),
+        "damage": (body.get("damage") or "").strip(),
+        "officer": (body.get("officer") or "").strip(),
+        "recipient": (body.get("recipient") or "").strip(),
+        "sig_officer": body.get("sig_officer") or "",
+        "sig_recipient": body.get("sig_recipient") or "",
+        "images": [im for im in (body.get("images") or []) if isinstance(im, dict) and im.get("data")][:8],
+    }
+
+    # ── Save (must succeed independently of email) ──
+    try:
+        log = blob_get("handover_data")
+        if not isinstance(log, list):
+            log = []
+        log.append(rec)
+        if len(log) > HANDOVER_KEEP:
+            log = log[-HANDOVER_KEEP:]
+        blob_set("handover_data", log)
+    except Exception:
+        logger.exception("handover save error")
+        return jsonify({"success": False, "reason": "save_error"}), 500
+    _audit_add("تسليم/استلام مركبة", plate, None,
+               "من: %s — إلى: %s" % (rec["from_first"], rec["to_first"]))
+
+    # ── Email (best-effort) ──
+    recips = body.get("email_to")
+    if isinstance(recips, str):
+        recips = [e.strip() for e in re.split(r"[,;\s]+", recips) if e.strip()]
+    if not recips:
+        recips = ALERT_RECIPIENTS or ([app.config.get("MAIL_USERNAME")] if app.config.get("MAIL_USERNAME") else [])
+    mail_result = _send_handover_email(rec, recips)
+
+    return jsonify({"success": True, "saved": True, "id": rec["id"], "mail": mail_result})
+
+
+@app.route("/api/handover/list", methods=["GET"])
+@login_required
+def handover_list():
+    """Recent saved handover forms (lightweight: text fields only, no images/signatures)."""
+    try:
+        log = blob_get("handover_data")
+        if not isinstance(log, list):
+            log = []
+        out = [{
+            "id": r.get("id"), "ts": r.get("ts"), "plate": r.get("plate"),
+            "date": r.get("date"),
+            "from": (r.get("from_first", "") + " " + r.get("from_last", "")).strip(),
+            "to": (r.get("to_first", "") + " " + r.get("to_last", "")).strip(),
+            "officer": r.get("officer", ""), "recipient": r.get("recipient", ""),
+            "photos": len(r.get("images", []) or []),
+        } for r in reversed(log[-50:])]
+        return jsonify({"success": True, "records": out,
+                        "mail_configured": bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD"))})
+    except Exception:
+        logger.exception("handover list error")
+        return jsonify({"success": False, "records": []})
+
+
 # All id=2 stores used by the workstation sandbox. Used by the reset endpoint below.
 WS_BLOB_TABLES = [
     "employees", "schedule_data", "washing_schedule", "records_data",
     "drivers_ws", "oils_data", "purchase_data", "workshop_data",
-    "gps_devices_data",
+    "gps_devices_data", "handover_data",
 ]
 
 

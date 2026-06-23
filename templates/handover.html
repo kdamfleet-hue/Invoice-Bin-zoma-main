@@ -139,13 +139,28 @@
             </div>
           </div>
 
+          <div class="ho-sec">
+            <div class="ho-sec-title">الإرسال والحفظ</div>
+            <div class="ho-grp"><label for="ho-email">بريد المستلم للإرسال (اختياري — افصل بين عدة عناوين بفاصلة)</label>
+              <input type="text" id="ho-email" placeholder="يُرسل تلقائياً لبريد الإدارة إذا تُرك فارغاً" inputmode="email"></div>
+            <div class="ho-grp" id="ho-mailhint" style="font-size:.76rem;color:var(--text-muted);margin:0"></div>
+          </div>
+
           <div class="ho-actions">
-            <button type="submit" class="btn-submit-gold" style="padding:14px;border-radius:10px;font-weight:800;font-size:1rem;">✅ اعتماد وإرسال النموذج</button>
+            <button type="submit" class="btn-submit-gold" style="padding:14px;border-radius:10px;font-weight:800;font-size:1rem;">✅ اعتماد وحفظ وإرسال</button>
             <button type="button" class="btn-outline" style="padding:14px;border-radius:10px;font-weight:700;" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
           </div>
+          <div id="ho-status" style="text-align:center;font-size:.9rem;padding:4px 20px 0;min-height:1.2rem"></div>
           <div class="ho-foot">Powered by Bin Zomah Fleet Operations &copy; 2026</div>
 
         </form>
+
+        <div class="ho-card" style="margin-top:18px">
+          <div class="ho-sec" style="border-bottom:none">
+            <div class="ho-sec-title">📁 النماذج المحفوظة (آخر التسليمات)</div>
+            <div id="ho-saved" style="font-size:.85rem;color:var(--text-secondary)">جارٍ التحميل…</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -157,6 +172,63 @@
     var box = inp.parentElement.querySelector('.fname');
     if (box) box.textContent = (inp.files && inp.files.length) ? (inp.files.length > 1 ? (inp.files.length + ' ملفات مرفقة') : inp.files[0].name) : '';
   };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+  function toast(msg, type) { if (window.showToast) showToast(msg, type); else if (type === 'error') alert(msg); }
+
+  // read a file, downscale to <= maxDim px, return a JPEG data URL (keeps the upload light)
+  function readScaled(file, maxDim, quality) {
+    return new Promise(function (resolve) {
+      var fr = new FileReader();
+      fr.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          var cw = Math.max(1, Math.round(img.width * scale)), ch = Math.max(1, Math.round(img.height * scale));
+          var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+          try { c.getContext('2d').drawImage(img, 0, 0, cw, ch); resolve(c.toDataURL('image/jpeg', quality)); }
+          catch (e) { resolve(fr.result); }
+        };
+        img.onerror = function () { resolve(fr.result); };
+        img.src = fr.result;
+      };
+      fr.onerror = function () { resolve(null); };
+      fr.readAsDataURL(file);
+    });
+  }
+  function collectImages() {
+    var tasks = [];
+    ['ho-odo-img', 'ho-fuel-img', 'ho-damage-img'].forEach(function (id) {
+      var inp = document.getElementById(id);
+      if (!inp || !inp.files) return;
+      Array.prototype.forEach.call(inp.files, function (f) {
+        tasks.push(readScaled(f, 1280, 0.7).then(function (d) { return d ? { name: f.name, data: d } : null; }));
+      });
+    });
+    return Promise.all(tasks).then(function (arr) { return arr.filter(Boolean).slice(0, 8); });
+  }
+  function loadSaved() {
+    var box = document.getElementById('ho-saved'); if (!box) return;
+    fetch('/api/handover/list').then(function (r) { return r.json(); }).then(function (j) {
+      var recs = (j && j.records) || [];
+      var hint = document.getElementById('ho-mailhint');
+      if (hint) hint.textContent = (j && j.mail_configured) ? '' : 'ملاحظة: إرسال البريد غير مُفعّل على الخادم حالياً — سيُحفظ النموذج بدون إرسال.';
+      if (!recs.length) { box.innerHTML = '<div style="color:var(--text-muted)">لا توجد نماذج محفوظة بعد.</div>'; return; }
+      box.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">' +
+        '<thead><tr>' + ['التاريخ/الوقت', 'اللوحة', 'من', 'إلى', 'المسؤول', 'صور'].map(function (h) {
+          return '<th style="text-align:right;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-secondary);white-space:nowrap">' + h + '</th>';
+        }).join('') + '</tr></thead><tbody>' +
+        recs.map(function (x) {
+          return '<tr>' + [x.ts, x.plate, x['from'], x.to, x.officer, x.photos].map(function (c) {
+            return '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">' + esc(c == null ? '' : String(c)) + '</td>';
+          }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+    }).catch(function () { box.innerHTML = '<div style="color:var(--bad-fg)">تعذّر تحميل النماذج المحفوظة.</div>'; });
+  }
 
   function start() {
     // today's date
@@ -189,19 +261,62 @@
       b.addEventListener('click', function () { var c = document.getElementById(b.getAttribute('data-pad')); if (c && c._clear) c._clear(); });
     });
 
-    // ---- submit: require both signatures ----
+    // ---- submit: validate signatures, then SAVE + EMAIL via the server ----
     var form = document.getElementById('hoForm');
     if (form) form.addEventListener('submit', function (e) {
       e.preventDefault();
       var o = document.getElementById('sigOfficer'), r = document.getElementById('sigRecipient');
       if ((o && o._empty && o._empty()) || (r && r._empty && r._empty())) {
-        if (window.showToast) showToast('يرجى توقيع الطرفين (مسؤول الحركة والمستلم) قبل الاعتماد', 'error');
-        else alert('يرجى توقيع الطرفين قبل الاعتماد');
+        toast('يرجى توقيع الطرفين (مسؤول الحركة والمستلم) قبل الاعتماد', 'error');
         return;
       }
-      if (window.showToast) showToast('تم اعتماد وإرسال نموذج تسليم/استلام المركبة بنجاح ✓', 'success');
-      else alert('تم اعتماد وإرسال النموذج بنجاح!');
+      var btn = form.querySelector('button[type=submit]');
+      var status = document.getElementById('ho-status');
+      if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الحفظ والإرسال…'; }
+      if (status) status.innerHTML = '';
+      var val = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+
+      collectImages().then(function (images) {
+        return fetch('/api/handover/submit', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plate: val('ho-plate'), date: val('ho-date'),
+            from_first: val('ho-from-first'), from_last: val('ho-from-last'),
+            to_first: val('ho-to-first'), to_last: val('ho-to-last'),
+            odo: val('ho-odo'), fuel: val('ho-fuel'), damage: val('ho-damage'),
+            officer: val('ho-officer'), recipient: val('ho-recipient'),
+            email_to: val('ho-email'),
+            sig_officer: o.toDataURL('image/png'),
+            sig_recipient: r.toDataURL('image/png'),
+            images: images
+          })
+        });
+      }).then(function (res) { return res.json().then(function (j) { return { ok: res.ok, j: j }; }); })
+        .then(function (res) {
+          if (res.ok && res.j.success) {
+            var m = res.j.mail || {};
+            var emailMsg = m.sent ? ' وأُرسل بالبريد إلى: ' + ((m.recipients || []).join('، '))
+              : (m.reason === 'mail_not_configured' ? ' (الحفظ تم؛ البريد غير مُهيّأ على الخادم)'
+                : m.reason === 'no_recipients' ? ' (الحفظ تم؛ لا يوجد مستلم للبريد)'
+                : ' (الحفظ تم؛ تعذّر إرسال البريد)');
+            if (status) status.innerHTML = '<span style="color:var(--ok-fg,#10b981);font-weight:800">✅ تم حفظ النموذج' + esc(emailMsg) + '</span>';
+            toast('تم حفظ نموذج التسليم/الاستلام ✓', 'success');
+            loadSaved();
+          } else {
+            var reason = (res.j && res.j.reason) || 'error';
+            var map = { missing_plate: 'أدخل رقم اللوحة أولاً', missing_signature: 'توقيع الطرفين مطلوب', save_error: 'تعذّر الحفظ على الخادم' };
+            if (status) status.innerHTML = '<span style="color:var(--bad-fg,#ef4444);font-weight:800">⚠ ' + esc(map[reason] || 'تعذّر الحفظ') + '</span>';
+            toast(map[reason] || 'تعذّر الحفظ', 'error');
+          }
+        })
+        .catch(function () {
+          if (status) status.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>';
+          toast('تعذّر الاتصال بالخادم', 'error');
+        })
+        .finally(function () { if (btn) { btn.disabled = false; btn.textContent = '✅ اعتماد وحفظ وإرسال'; } });
     });
+
+    loadSaved();
   }
 
   // run AFTER app_ux.js builds the sidebar (so the canvas is sized to its final width)
