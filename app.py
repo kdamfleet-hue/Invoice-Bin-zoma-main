@@ -349,6 +349,10 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS app_users (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Dated version snapshots of each data tab (auto-saved on every change; restore from Settings).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS data_snapshots (id %s, tab TEXT, ts TEXT, data TEXT, mode INTEGER)" % _pk_clause()
+            )
             # Workstation-only blob stores (id=2 sandbox). Additive & never seeded, so the
             # /importantworkstation namespace starts EMPTY and persists what the user types.
             # The MAIN site (/) never reads or writes these.
@@ -527,6 +531,40 @@ def blob_set(table, data_obj):
         else:
             c.execute("INSERT INTO %s (id, data) VALUES (?, ?)" % table, (rid, data_str))
         conn.commit()
+    _snapshot(table, data_str)
+
+
+# ── Dated version snapshots (auto-saved per data tab; restored from Settings) ──
+SNAPSHOT_TABLES = {"schedule_data", "washing_schedule", "records_data", "employees",
+                   "incidents_data", "gps_devices_data", "oils_data", "purchase_data", "workshop_data"}
+SNAP_KEEP = 30
+SNAP_LABELS = {
+    "schedule_data": "الجدول الأسبوعي", "washing_schedule": "الغسيل", "records_data": "التوثيق",
+    "employees": "الموظفون", "incidents_data": "الحوادث والمخالفات", "gps_devices_data": "أجهزة التتبع",
+    "oils_data": "الزيوت والفلاتر", "purchase_data": "طلبات الشراء", "workshop_data": "الورشة",
+}
+
+
+def _snapshot(table, data_str):
+    """Append a dated snapshot of a data tab; keep the last SNAP_KEEP per (tab, mode); dedup identical."""
+    if table not in SNAPSHOT_TABLES:
+        return
+    mode = _row_id()
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT data FROM data_snapshots WHERE tab = ? AND mode = ? ORDER BY id DESC LIMIT 1", (table, mode))
+            last = c.fetchone()
+            if last and last["data"] == data_str:
+                return  # no change since the last snapshot
+            c.execute("INSERT INTO data_snapshots (tab, ts, data, mode) VALUES (?, ?, ?, ?)", (table, ts, data_str, mode))
+            c.execute("DELETE FROM data_snapshots WHERE tab = ? AND mode = ? AND id NOT IN "
+                      "(SELECT id FROM data_snapshots WHERE tab = ? AND mode = ? ORDER BY id DESC LIMIT ?)",
+                      (table, mode, table, mode, SNAP_KEEP))
+            conn.commit()
+    except Exception as e:
+        logger.warning("snapshot failed for %s: %s", table, e)
 
 
 # ── Shared login accounts (created from the locked Settings tab) ──────────────
@@ -839,6 +877,50 @@ def api_users():
     # DELETE
     username = (body.get("username") or "").strip()
     save_users([u for u in get_users() if u.get("username") != username])
+    return jsonify({"success": True})
+
+
+@app.route("/api/snapshots", methods=["GET"])
+@login_required
+def api_snapshots():
+    # Dated version history per data tab — listed only from the unlocked Settings tab.
+    if not session.get("settings_unlocked"):
+        return jsonify({"error": "locked"}), 403
+    tab = request.args.get("tab", "")
+    if tab not in SNAPSHOT_TABLES:
+        return jsonify({"tabs": [{"key": k, "label": SNAP_LABELS.get(k, k)} for k in sorted(SNAPSHOT_TABLES)], "snapshots": []})
+    mode = _row_id()
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, ts FROM data_snapshots WHERE tab = ? AND mode = ? ORDER BY id DESC", (tab, mode))
+        rows = c.fetchall()
+    return jsonify({
+        "tabs": [{"key": k, "label": SNAP_LABELS.get(k, k)} for k in sorted(SNAPSHOT_TABLES)],
+        "label": SNAP_LABELS.get(tab, tab),
+        "snapshots": [{"id": r["id"], "ts": r["ts"]} for r in rows],
+    })
+
+
+@app.route("/api/snapshots/restore", methods=["POST"])
+@login_required
+def api_snapshots_restore():
+    if not session.get("settings_unlocked"):
+        return jsonify({"error": "locked"}), 403
+    body = request.get_json(silent=True) or {}
+    sid = body.get("id")
+    mode = _row_id()
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT tab, data FROM data_snapshots WHERE id = ? AND mode = ?", (sid, mode))
+        row = c.fetchone()
+    if not row:
+        return jsonify({"error": "not_found"}), 404
+    try:
+        data = json.loads(row["data"])
+    except (ValueError, TypeError):
+        return jsonify({"error": "corrupt"}), 500
+    blob_set(row["tab"], data)   # restore the snapshot (also versioned as the new latest state)
+    _audit_add("استعادة نسخة", SNAP_LABELS.get(row["tab"], row["tab"]), None, "من سجل النسخ المؤرّخة")
     return jsonify({"success": True})
 
 
@@ -1751,6 +1833,9 @@ def expiry_alerts_preview():
 def send_expiry_alerts():
     """Manual 'send now' from the dashboard. Recipients from the request or ALERT_RECIPIENTS."""
     body = request.json or {}
+    # Lock: require the access code before sending (matches the workstation password).
+    if not hmac.compare_digest(str(body.get("lock", "")), WORKSTATION_PASSWORD):
+        return jsonify({"success": False, "reason": "locked"}), 403
     recips = body.get("recipients") or ALERT_RECIPIENTS
     if isinstance(recips, str):
         recips = [e.strip() for e in re.split(r"[,;\s]+", recips) if e.strip()]

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة الإدارة التنفيذية — BIN ZOMAH INTL.</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=9) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=9) }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=10) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=10) }}"></script>
     <!-- washing fallback seed (provides window.WASHING_VEHICLES if the API is empty) -->
     <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -927,8 +927,10 @@
       scopeLabel = AL_FILTER_LABELS[alFilter] || '';
     }
     if (!rows.length) { if (hint) hint.innerHTML = '<span style="color:var(--warn-fg)">حدّد صفوفاً أو اختر فرزاً فيه وثائق أولاً.</span>'; return; }
+    var lockCode = window.prompt('🔒 أدخل رمز الإرسال للمتابعة:');
+    if (lockCode === null) return;   // أُلغيت العملية
     if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
-    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to, rows: rows, filter: scopeLabel }) })
+    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to, rows: rows, filter: scopeLabel, lock: lockCode }) })
       .then(function (r) { return r.json(); })
       .then(function (res) {
         var msg;
@@ -936,6 +938,7 @@
         else if (res.reason === 'mail_not_configured') msg = '<span style="color:var(--bad-fg)">⚠ البريد غير مُهيّأ على الخادم — اضبط MAIL_USERNAME و MAIL_PASSWORD.</span>';
         else if (res.reason === 'no_recipients') msg = '<span style="color:var(--warn-fg)">أدخل بريد مستلم واحد على الأقل.</span>';
         else if (res.reason === 'no_alerts') msg = '<span style="color:var(--ok-fg)">لا توجد وثائق للإرسال ✓</span>';
+        else if (res.reason === 'locked') msg = '<span style="color:var(--bad-fg)">🔒 رمز الإرسال غير صحيح — لم يتم الإرسال.</span>';
         else msg = '<span style="color:var(--bad-fg)">تعذّر الإرسال' + (res.error ? ': ' + esc(res.error) : '') + '</span>';
         if (hint) hint.innerHTML = msg;
         if (window.showToast && res.success) showToast('تم إرسال التنبيه (' + scopeLabel + ')', 'success');

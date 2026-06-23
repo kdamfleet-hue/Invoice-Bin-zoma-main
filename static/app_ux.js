@@ -300,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
     buildEnterpriseShell();
     injectContactDock();
     injectHeroLogo();
+    injectClock();
     initThemeToggle();
     injectTopographicBackground();
     injectUXContainers();
@@ -388,6 +389,25 @@ function injectHeroLogo() {
         div.className = 'bz-hero-logo';
         div.innerHTML = '<img src="/static/main_logo_v2.jpg" alt="شركة بن زومة">';
         shell.insertBefore(div, shell.firstChild);
+    } catch (e) { /* non-critical */ }
+}
+
+// Live date/time line at the very top of every content tab (same format site-wide).
+function injectClock() {
+    try {
+        const shell = document.querySelector('.bz-shell');
+        if (!shell || document.querySelector('.bz-clockline')) return;
+        const line = document.createElement('div');
+        line.className = 'bz-clockline';
+        shell.insertBefore(line, shell.firstChild);
+        function weekNo(d) { var t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7)); var w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7); }
+        function tick() {
+            const n = new Date();
+            line.innerHTML = 'التاريخ: <b>' + n.toLocaleDateString('ar-EG', { dateStyle: 'medium' }) +
+                '</b> · الوقت: <b>' + n.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+                '</b> · الأسبوع <b>' + weekNo(n) + '</b>';
+        }
+        tick(); setInterval(tick, 1000);
     } catch (e) { /* non-critical */ }
 }
 

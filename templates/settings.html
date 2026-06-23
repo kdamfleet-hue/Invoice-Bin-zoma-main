@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الإعدادات | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=9) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=9) }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=10) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=10) }}"></script>
     <style>
         .set-wrap { max-width: 920px; margin: 0 auto; }
         .set-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.4rem 1.5rem; margin-bottom: 1.4rem; }
@@ -27,6 +27,18 @@
         .u-del { background: rgba(220,38,38,.12); color: #f87171; border: 1px solid rgba(220,38,38,.3); border-radius: 8px; padding: 5px 12px; font-weight: 800; cursor: pointer; font-size: .8rem; transition: var(--trans, .2s); }
         .u-del:hover { background: #dc2626; color: #fff; }
         .admin-note { display: flex; align-items: center; gap: 10px; background: rgba(197,160,89,.08); border: 1px solid rgba(197,160,89,.25); border-radius: 12px; padding: 12px 16px; color: var(--text-secondary); font-size: .86rem; }
+        .snap-bar { display: flex; gap: .7rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
+        .snap-bar .fld { flex: 1; min-width: 220px; }
+        .snap-bar label { display: block; font-size: .8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+        .snap-bar select { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text-primary); font-family: inherit; font-size: .9rem; }
+        .snap-list { list-style: none; margin: 0; padding: 0; }
+        .snap-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: .55rem; background: var(--surface-hover); }
+        .snap-list .snap-when { font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: plaintext; }
+        .snap-list .snap-when small { color: var(--text-muted); font-weight: 700; margin-inline-start: 8px; }
+        .snap-restore { background: rgba(197,160,89,.14); color: var(--brand-gold); border: 1px solid rgba(197,160,89,.35); border-radius: 9px; padding: 7px 15px; font-weight: 800; cursor: pointer; font-size: .82rem; transition: var(--trans, .2s); white-space: nowrap; }
+        .snap-restore:hover { background: var(--brand-gold); color: #1a1a1a; }
+        .snap-restore:disabled { opacity: .5; cursor: default; }
+        .snap-empty { text-align: center; color: var(--text-muted); padding: 1.4rem; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -89,6 +101,19 @@
         </div>
 
         <div class="set-card">
+          <h3>🕓 حفظ المتغيرات — السجل الزمني</h3>
+          <div class="sub">يُحفظ تلقائياً عند كل تعديل في أي تبويب نسخة <b>مؤرّخة بالتاريخ والوقت</b>. اختر التبويب لعرض النسخ السابقة، ويمكنك <b>الرجوع لأي نسخة</b> بضغطة زر (يُحتفظ بآخر 30 نسخة لكل تبويب).</div>
+          <div class="snap-bar">
+            <div class="fld">
+              <label for="snapTab">التبويب</label>
+              <select id="snapTab"><option value="">— اختر تبويباً —</option></select>
+            </div>
+          </div>
+          <ul class="snap-list" id="snapList"><li class="snap-empty">اختر تبويباً لعرض النسخ المؤرّخة.</li></ul>
+          <div class="set-msg" id="snapMsg"></div>
+        </div>
+
+        <div class="set-card">
           <div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هذه القائمة للحسابات المُشارَكة فقط.</span></div>
         </div>
 
@@ -146,7 +171,63 @@
       .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
   });
 
+  // ── السجل الزمني (النسخ المؤرّخة) ───────────────────────────────
+  function loadSnapTabs() {
+    fetch('/api/snapshots', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var tabs = (j && j.tabs) || [], sel = $('snapTab');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">— اختر تبويباً —</option>' + tabs.map(function (t) {
+          return '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>';
+        }).join('');
+      })
+      .catch(function () {});
+  }
+
+  function loadSnaps(tab) {
+    var list = $('snapList');
+    if (!tab) { list.innerHTML = '<li class="snap-empty">اختر تبويباً لعرض النسخ المؤرّخة.</li>'; return; }
+    list.innerHTML = '<li class="snap-empty">جارٍ التحميل…</li>';
+    fetch('/api/snapshots?tab=' + encodeURIComponent(tab), { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var snaps = (j && j.snapshots) || [];
+        if (!snaps.length) { list.innerHTML = '<li class="snap-empty">لا توجد نسخ محفوظة لهذا التبويب بعد.</li>'; return; }
+        list.innerHTML = snaps.map(function (s, i) {
+          var tag = i === 0 ? ' <small>(الأحدث)</small>' : '';
+          return '<li><span class="snap-when">' + esc(s.ts) + tag + '</span>' +
+            '<button class="snap-restore" data-id="' + esc(s.id) + '">↩ استعادة هذه النسخة</button></li>';
+        }).join('');
+        Array.prototype.forEach.call(list.querySelectorAll('.snap-restore'), function (b) {
+          b.addEventListener('click', function () { restoreSnap(b.getAttribute('data-id'), tab); });
+        });
+      })
+      .catch(function () { list.innerHTML = '<li class="snap-empty">تعذّر تحميل النسخ.</li>'; });
+  }
+
+  function restoreSnap(id, tab) {
+    if (!confirm('استعادة هذه النسخة؟ ستحلّ محل البيانات الحالية لهذا التبويب — والحالة الحالية تبقى محفوظة في السجل ويمكنك الرجوع إليها.')) return;
+    var msg = $('snapMsg');
+    msg.innerHTML = '<span style="color:var(--text-secondary)">جارٍ الاستعادة…</span>';
+    fetch('/api/snapshots/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.success) {
+          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تمت الاستعادة بنجاح.</span>';
+          if (window.showToast) showToast('تمت استعادة النسخة ✓', 'success');
+          loadSnaps(tab);
+        } else {
+          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ تعذّرت الاستعادة' + (res.j && res.j.error ? ' (' + esc(res.j.error) + ')' : '') + '.</span>';
+        }
+      })
+      .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+  }
+
+  $('snapTab').addEventListener('change', function () { $('snapMsg').innerHTML = ''; loadSnaps(this.value); });
+
   loadUsers();
+  loadSnapTabs();
 })();
 </script>
 
