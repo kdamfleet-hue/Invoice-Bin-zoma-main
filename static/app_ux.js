@@ -345,7 +345,7 @@ function injectBranchSwitcher() {
     try {
         if (typeof WS_PREFIX === 'string' && location.pathname.indexOf(WS_PREFIX) === 0) return;
         var actions = document.querySelector('.bz-topbar .bz-actions');
-        if (!actions || document.getElementById('bzBranchSel')) return;
+        if (!actions || document.getElementById('bzBranchWrap')) return;
         fetch('/api/branch', { headers: { 'Accept': 'application/json' } })
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (j) {
@@ -353,34 +353,58 @@ function injectBranchSwitcher() {
                 window.BZ_BRANCH = j.name || 'الدمام';
                 var sub = document.querySelector('.bz-brand-text span');
                 if (sub) sub.textContent = 'نظام إدارة الأسطول — فرع ' + window.BZ_BRANCH;
+                if (j.is_admin) injectOverviewLink();           // HQ link to the all-branches center
+                if (document.getElementById('bzBranchWrap')) return;
                 var wrap = document.createElement('label');
                 wrap.className = 'bz-branch-wrap';
-                wrap.title = 'الفرع النشط — تبديله يبدّل كل بيانات الموقع';
-                var sel = document.createElement('select');
-                sel.id = 'bzBranchSel';
-                sel.className = 'bz-branch-select';
-                sel.innerHTML = j.branches.map(function (b) {
-                    return '<option value="' + b.id + '"' + (b.id === j.id ? ' selected' : '') + '>🏢 فرع ' + b.name + '</option>';
-                }).join('');
-                sel.addEventListener('change', function () {
-                    var id = parseInt(sel.value, 10);
-                    var name = sel.options[sel.selectedIndex].text.replace('🏢 فرع ', '');
-                    if (!confirm('تبديل الفرع إلى «' + name + '»؟\nستظهر بيانات هذا الفرع في كل التبويبات.')) {
-                        sel.value = String(j.id); return;
-                    }
-                    sel.disabled = true;
-                    fetch('/api/branch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
-                        .then(function (r) { return r.json(); })
-                        .then(function (res) {
-                            if (res && res.success) { location.reload(); }
-                            else { sel.disabled = false; sel.value = String(j.id); if (window.showToast) showToast('تعذّر تبديل الفرع', 'error'); }
-                        })
-                        .catch(function () { sel.disabled = false; sel.value = String(j.id); });
-                });
-                wrap.appendChild(sel);
+                wrap.id = 'bzBranchWrap';
+                if (j.can_switch) {
+                    wrap.title = 'الفرع النشط — تبديله يبدّل كل بيانات الموقع';
+                    var sel = document.createElement('select');
+                    sel.id = 'bzBranchSel';
+                    sel.className = 'bz-branch-select';
+                    sel.innerHTML = j.branches.map(function (b) {
+                        return '<option value="' + b.id + '"' + (b.id === j.id ? ' selected' : '') + '>🏢 فرع ' + b.name + '</option>';
+                    }).join('');
+                    sel.addEventListener('change', function () {
+                        var id = parseInt(sel.value, 10);
+                        var name = sel.options[sel.selectedIndex].text.replace('🏢 فرع ', '');
+                        if (!confirm('تبديل الفرع إلى «' + name + '»؟\nستظهر بيانات هذا الفرع في كل التبويبات.')) {
+                            sel.value = String(j.id); return;
+                        }
+                        sel.disabled = true;
+                        fetch('/api/branch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
+                            .then(function (r) { return r.json(); })
+                            .then(function (res) {
+                                if (res && res.success) { location.reload(); }
+                                else { sel.disabled = false; sel.value = String(j.id); if (window.showToast) showToast('تعذّر تبديل الفرع', 'error'); }
+                            })
+                            .catch(function () { sel.disabled = false; sel.value = String(j.id); });
+                    });
+                    wrap.appendChild(sel);
+                } else {
+                    // branch-locked account: static badge, no switching
+                    wrap.title = 'فرعك (مقفل على حسابك)';
+                    var badge = document.createElement('span');
+                    badge.className = 'bz-branch-badge';
+                    badge.textContent = '🏢 فرع ' + window.BZ_BRANCH;
+                    wrap.appendChild(badge);
+                }
                 actions.insertBefore(wrap, actions.firstChild);
             })
             .catch(function () {});
+    } catch (e) { /* non-critical */ }
+}
+
+function injectOverviewLink() {
+    try {
+        var nav = document.querySelector('.bz-topbar .bz-nav');
+        if (!nav || nav.querySelector('a[href="/overview"]')) return;
+        var a = document.createElement('a');
+        a.href = '/overview';
+        a.textContent = '🏢 مركز الفروع';
+        if (location.pathname === '/overview') a.className = 'active';
+        nav.insertBefore(a, nav.firstChild);
     } catch (e) { /* non-critical */ }
 }
 

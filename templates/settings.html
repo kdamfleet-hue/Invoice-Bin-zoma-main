@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الإعدادات | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=11) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=11) }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=12) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=12) }}"></script>
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }};</script>
     <style>
         .set-wrap { max-width: 920px; margin: 0 auto; }
@@ -115,7 +115,19 @@
         </div>
 
         <div class="set-card">
-          <div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هذه القائمة للحسابات المُشارَكة فقط.</span></div>
+          <h3>🏢 حسابات الفروع — اسم مستخدم ورمز لكل فرع</h3>
+          <div class="sub">عيّن لكل فرع <b>اسم مستخدم ورمز دخول</b>. عند الدخول بهذه البيانات يُقفَل المستخدم تلقائياً على فرعه فقط، وتُنسب كل تعديلاته لاسم مستخدمه في <b>مركز الفروع</b>. الرموز تُحفظ <b>مشفّرة</b>.</div>
+          <div class="dtable-wrap" style="overflow-x:auto;">
+            <table class="users-tbl">
+              <thead><tr><th>الفرع</th><th>اسم المستخدم</th><th>الرمز</th><th>إجراء</th></tr></thead>
+              <tbody id="baBody"><tr><td colspan="4" class="users-empty">جارٍ التحميل…</td></tr></tbody>
+            </table>
+          </div>
+          <div class="set-msg" id="baMsg"></div>
+        </div>
+
+        <div class="set-card">
+          <div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هو وحده من يبدّل بين كل الفروع ويرى <b>مركز الفروع</b>.</span></div>
         </div>
 
       </div>
@@ -227,8 +239,62 @@
 
   $('snapTab').addEventListener('change', function () { $('snapMsg').innerHTML = ''; loadSnaps(this.value); });
 
+  // ── حسابات الفروع (اسم مستخدم + رمز لكل فرع) ─────────────────────────────
+  function loadBranchAccounts() {
+    fetch('/api/branch_accounts', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var rows = (j && j.rows) || [];
+        if (!rows.length) { $('baBody').innerHTML = '<tr><td colspan="4" class="users-empty">—</td></tr>'; return; }
+        $('baBody').innerHTML = rows.map(function (r) {
+          return '<tr data-bid="' + r.branch_id + '">' +
+            '<td style="font-weight:800">🏢 ' + esc(r.branch_name) + '</td>' +
+            '<td><input class="ba-user" type="text" value="' + esc(r.username) + '" placeholder="اسم مستخدم بالإنجليزية" style="width:150px;font-family:monospace;direction:ltr"></td>' +
+            '<td><input class="ba-code" type="text" placeholder="' + (r.has_code ? '•••• (محفوظ — اكتب لتغييره)' : 'رمز جديد (4+ أحرف)') + '" style="width:170px;direction:ltr"></td>' +
+            '<td><button class="btn-submit-gold ba-save" style="padding:6px 12px;font-size:.8rem;border-radius:8px">حفظ</button>' +
+            (r.has_code ? ' <button class="u-del ba-del">🗑️</button>' : '') + '</td></tr>';
+        }).join('');
+        Array.prototype.forEach.call(document.querySelectorAll('.ba-save'), function (b) {
+          b.addEventListener('click', function () { saveBA(b.closest('tr')); });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('.ba-del'), function (b) {
+          b.addEventListener('click', function () { delBA(b.closest('tr')); });
+        });
+      })
+      .catch(function () { $('baBody').innerHTML = '<tr><td colspan="4" class="users-empty">تعذّر التحميل.</td></tr>'; });
+  }
+
+  function saveBA(tr) {
+    var bid = parseInt(tr.getAttribute('data-bid'), 10);
+    var username = tr.querySelector('.ba-user').value.trim();
+    var code = tr.querySelector('.ba-code').value;
+    var msg = $('baMsg');
+    if (!username || !code) { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">أدخل اسم المستخدم والرمز معاً.</span>'; return; }
+    fetch('/api/branch_accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch_id: bid, username: username, code: code }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.success) {
+          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ حساب الفرع.</span>';
+          if (window.showToast) showToast('تم حفظ حساب الفرع ✓', 'success');
+          loadBranchAccounts();
+        } else {
+          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + esc((res.j && res.j.reason) || 'تعذّر الحفظ') + '</span>';
+        }
+      })
+      .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+  }
+
+  function delBA(tr) {
+    var bid = parseInt(tr.getAttribute('data-bid'), 10);
+    if (!confirm('حذف حساب هذا الفرع؟ لن يستطيع الدخول باسمه بعد الآن.')) return;
+    fetch('/api/branch_accounts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch_id: bid }) })
+      .then(function (r) { return r.json(); })
+      .then(function () { if (window.showToast) showToast('تم حذف حساب الفرع', 'success'); loadBranchAccounts(); });
+  }
+
   loadUsers();
   loadSnapTabs();
+  loadBranchAccounts();
 })();
 </script>
 

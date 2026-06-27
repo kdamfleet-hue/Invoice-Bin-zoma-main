@@ -377,6 +377,10 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS drivers_branch (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Per-branch login accounts (username + hashed code → branch id). GLOBAL (id=1).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS branch_accounts (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Tiny key/value flags for the workstation (e.g. "did we auto-seed example data?").
             db.execute(
                 "CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)"
@@ -443,19 +447,34 @@ def login():
             logger.error("MASTER_PASSWORD environment variable is not set!")
             return render_template("login.html", error="خطأ في إعداد النظام. يرجى التواصل مع المدير.")
 
-        # The configured ADMIN_USERNAME (constant-time) OR any shared account created in Settings.
+        # 1) Master/HQ admin (constant-time)  2) a per-branch account (locked to its branch)
+        # 3) a general shared account.
         authed_name = None
+        is_admin = False
+        branch_id = None
         if hmac.compare_digest(username, master_user) and hmac.compare_digest(password, master_pass):
             authed_name = username
+            is_admin = True
         else:
-            for u in get_users():
-                if u.get("username") == username and u.get("pw_hash") and check_password_hash(u["pw_hash"], password):
-                    authed_name = u.get("name") or username
+            for a in get_branch_accounts():
+                if a.get("username") == username and a.get("code_hash") and check_password_hash(a["code_hash"], password):
+                    authed_name = username
+                    branch_id = a.get("branch_id")
                     break
+            if not authed_name:
+                for u in get_users():
+                    if u.get("username") == username and u.get("pw_hash") and check_password_hash(u["pw_hash"], password):
+                        authed_name = u.get("name") or username
+                        break
         if authed_name:
+            session.clear()                       # fresh session — drop any prior role/branch
             session["authenticated"] = True
             session.permanent = True
             session["google_user"] = {"name": authed_name, "email": (username or "user") + "@binzomah.local"}
+            session["is_admin"] = is_admin
+            if branch_id in BRANCH_IDS:
+                session["branch_id"] = branch_id
+                session["is_branch_user"] = True
             logger.info("Successful login")
             return redirect(url_for("index"))
         else:
@@ -613,34 +632,52 @@ def _snapshot(table, data_str):
         logger.warning("snapshot failed for %s: %s", table, e)
 
 
-# ── Shared login accounts (created from the locked Settings tab) ──────────────
-# GLOBAL across every branch and the workstation: login happens before a branch is
-# chosen, so accounts always live at the fixed row (id=1) regardless of _row_id() —
-# otherwise managing users while on another branch would write to the wrong row and
-# silently break login.
-APP_USERS_ROW = 1
-
-
-def get_users():
-    """List of shared accounts: [{username, name, pw_hash, created}] — global (id=1)."""
+# ── GLOBAL (id=1) blobs: login accounts live here regardless of the active branch ─────
+# Login happens before a branch is chosen, so accounts always live at the fixed row (id=1)
+# and must NOT go through _row_id() — otherwise managing them while on another branch would
+# write to the wrong row and silently break login.
+def _global_blob_get(table):
+    table = _safe_tbl(table)
     with db_connection() as conn:
         c = conn.cursor()
-        c.execute("SELECT data FROM app_users WHERE id = ?", (APP_USERS_ROW,))
+        c.execute("SELECT data FROM %s WHERE id = 1" % table)
         row = c.fetchone()
-    d = _loads_blob(row)
+    return _loads_blob(row)
+
+
+def _global_blob_set(table, data_obj):
+    table = _safe_tbl(table)
+    data_str = json.dumps(data_obj, ensure_ascii=False)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id FROM %s WHERE id = 1" % table)
+        if c.fetchone():
+            c.execute("UPDATE %s SET data = ? WHERE id = 1" % table, (data_str,))
+        else:
+            c.execute("INSERT INTO %s (id, data) VALUES (1, ?)" % table, (data_str,))
+        conn.commit()
+
+
+# ── Shared login accounts (created from the locked Settings tab) ──────────────
+def get_users():
+    """List of shared accounts: [{username, name, pw_hash, created}] — global (id=1)."""
+    d = _global_blob_get("app_users")
     return d.get("users", []) if isinstance(d, dict) else []
 
 
 def save_users(users):
-    data_str = json.dumps({"users": users}, ensure_ascii=False)
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT id FROM app_users WHERE id = ?", (APP_USERS_ROW,))
-        if c.fetchone():
-            c.execute("UPDATE app_users SET data = ? WHERE id = ?", (data_str, APP_USERS_ROW))
-        else:
-            c.execute("INSERT INTO app_users (id, data) VALUES (?, ?)", (APP_USERS_ROW, data_str))
-        conn.commit()
+    _global_blob_set("app_users", {"users": users})
+
+
+# ── Per-branch login accounts (username + code → locked to one branch) ────────
+def get_branch_accounts():
+    """[{branch_id, username, code_hash, created}] — global (id=1)."""
+    d = _global_blob_get("branch_accounts")
+    return d.get("accounts", []) if isinstance(d, dict) else []
+
+
+def save_branch_accounts(accounts):
+    _global_blob_set("branch_accounts", {"accounts": accounts})
 
 
 # ── Audit log (append-only; never edited or deleted from the UI) ──────────────
@@ -2182,9 +2219,12 @@ def handover_list():
 @app.route("/api/branch", methods=["GET", "POST"])
 @login_required
 def api_branch():
-    """GET: list branches + the active one. POST {id}: switch the session's active branch
-    (which swaps every blob store via _row_id). Workstation paths ignore this."""
+    """GET: active branch + list + role flags. POST {id}: switch the session branch (swaps
+    every blob store via _row_id). Branch-locked accounts may NOT switch."""
+    can_switch = not session.get("is_branch_user")
     if request.method == "POST":
+        if not can_switch:
+            return jsonify({"success": False, "reason": "locked_branch"}), 403
         body = request.get_json(silent=True) or {}
         try:
             bid = int(body.get("id"))
@@ -2197,7 +2237,104 @@ def api_branch():
         _audit_add("تبديل الفرع", BRANCH_NAME.get(bid, str(bid)))
         return jsonify({"success": True, "id": bid, "name": BRANCH_NAME[bid]})
     return jsonify({"success": True, "id": current_branch_id(),
-                    "name": current_branch_name(), "branches": BRANCHES})
+                    "name": current_branch_name(), "branches": BRANCHES,
+                    "can_switch": can_switch, "is_admin": bool(session.get("is_admin"))})
+
+
+def _audit_get_at(rid):
+    """Read the audit list for a SPECIFIC mode/branch id (used by the HQ overview)."""
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT data FROM audit_log WHERE id = ?", (rid,))
+        row = c.fetchone()
+    try:
+        d = json.loads(row["data"]) if row else []
+        return d if isinstance(d, list) else []
+    except Exception:
+        return []
+
+
+@app.route("/api/branch_accounts", methods=["GET", "POST", "DELETE"])
+@login_required
+def api_branch_accounts():
+    """Manage per-branch login accounts — only from the unlocked Settings tab."""
+    if not session.get("settings_unlocked"):
+        return jsonify({"error": "locked"}), 403
+    if request.method == "GET":
+        accts = {a.get("branch_id"): a for a in get_branch_accounts()}
+        return jsonify({"success": True, "rows": [
+            {"branch_id": b["id"], "branch_name": b["name"],
+             "username": (accts.get(b["id"], {}).get("username") or ""),
+             "has_code": bool(accts.get(b["id"], {}).get("code_hash"))}
+            for b in BRANCHES
+        ]})
+    body = request.get_json(silent=True) or {}
+    try:
+        bid = int(body.get("branch_id"))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "reason": "bad_branch"}), 400
+    if bid not in BRANCH_IDS:
+        return jsonify({"success": False, "reason": "unknown_branch"}), 400
+    accounts = get_branch_accounts()
+    if request.method == "DELETE":
+        accounts = [a for a in accounts if a.get("branch_id") != bid]
+        save_branch_accounts(accounts)
+        _audit_add("حذف حساب فرع", BRANCH_NAME.get(bid, str(bid)))
+        return jsonify({"success": True})
+    # POST: create/replace this branch's account
+    username = (body.get("username") or "").strip()
+    code = body.get("code") or ""
+    if not re.match(r"^[A-Za-z0-9_.@-]{2,40}$", username):
+        return jsonify({"success": False, "reason": "اسم المستخدم: حروف/أرقام إنجليزية و . _ @ - فقط"}), 400
+    if len(code) < 4:
+        return jsonify({"success": False, "reason": "الرمز قصير جداً (4 أحرف على الأقل)"}), 400
+    if username == os.environ.get("ADMIN_USERNAME", "admin"):
+        return jsonify({"success": False, "reason": "اسم المستخدم محجوز للمدير"}), 400
+    if any(a.get("username") == username and a.get("branch_id") != bid for a in accounts):
+        return jsonify({"success": False, "reason": "اسم المستخدم مستخدم في فرع آخر"}), 400
+    if any(u.get("username") == username for u in get_users()):
+        return jsonify({"success": False, "reason": "اسم المستخدم موجود ضمن الحسابات المشتركة"}), 400
+    accounts = [a for a in accounts if a.get("branch_id") != bid]
+    accounts.append({"branch_id": bid, "username": username,
+                     "code_hash": generate_password_hash(code),
+                     "created": datetime.now().strftime("%Y-%m-%d %H:%M")})
+    save_branch_accounts(accounts)
+    _audit_add("ضبط حساب فرع", "%s (%s)" % (BRANCH_NAME.get(bid, str(bid)), username))
+    return jsonify({"success": True})
+
+
+@app.route("/overview")
+@login_required
+def overview():
+    """HQ-only page aggregating every branch's recent activity."""
+    if not session.get("is_admin"):
+        return redirect(url_for("index"))
+    return render_template("overview.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/api/overview", methods=["GET"])
+@login_required
+def api_overview():
+    """Cross-branch activity feed + per-branch status. HQ/admin only."""
+    if not session.get("is_admin"):
+        return jsonify({"error": "forbidden"}), 403
+    today = datetime.now().strftime("%Y-%m-%d")
+    acct_by_branch = {a.get("branch_id"): a.get("username") for a in get_branch_accounts()}
+    summary, feed = [], []
+    for b in BRANCHES:
+        entries = _audit_get_at(b["id"])
+        last_ts = max((e.get("ts", "") for e in entries), default="")
+        today_n = sum(1 for e in entries if str(e.get("ts", "")).startswith(today))
+        summary.append({"id": b["id"], "name": b["name"],
+                        "username": acct_by_branch.get(b["id"], ""),
+                        "last_ts": last_ts, "today": today_n, "total": len(entries)})
+        for e in entries:
+            feed.append({"branch_id": b["id"], "branch": b["name"],
+                         "ts": e.get("ts", ""), "user": e.get("user", ""),
+                         "action": e.get("action", ""), "target": e.get("target", ""),
+                         "detail": e.get("detail", ""), "hits": e.get("hits", 1)})
+    feed.sort(key=lambda e: e.get("ts", ""), reverse=True)
+    return jsonify({"success": True, "branches": summary, "feed": feed[:150]})
 
 
 # All id=2 stores used by the workstation sandbox. Used by the reset endpoint below.
