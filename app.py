@@ -1766,10 +1766,15 @@ def _parse_iso_date(s):
         return None
 
 
-def _collect_expiry_alerts(window_days=90):
-    """Return the list of documents expiring within `window_days` (or already expired)."""
+def _collect_expiry_alerts(window_days=90, rid=None):
+    """Return the list of documents expiring within `window_days` (or already expired).
+    Pass `rid` to compute for a SPECIFIC branch (used by the HQ aggregation); otherwise
+    the active branch's data is used."""
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     out = []
+
+    def _bg(table):
+        return _blob_get_at(table, rid) if rid is not None else blob_get(table)
 
     def add(name, plate, doc, dstr):
         d = _parse_iso_date(dstr)
@@ -1787,7 +1792,7 @@ def _collect_expiry_alerts(window_days=90):
         out.append({"name": name or "—", "plate": plate or "", "doc": doc,
                     "date": dstr, "days": days, "key": key, "label": label})
 
-    sd = blob_get("schedule_data") or {}
+    sd = _bg("schedule_data") or {}
     if isinstance(sd, dict):
         for sect in ("main", "spare"):
             for r in (sd.get(sect) or []):
@@ -1799,7 +1804,7 @@ def _collect_expiry_alerts(window_days=90):
                 add(nm, pl, "بطاقة التشغيل", r.get("opcard"))
                 add(nm, pl, "بطاقة السائق", r.get("drivercard"))
 
-    emps = blob_get("employees") or []
+    emps = _bg("employees") or []
     if isinstance(emps, list):
         for row in emps:
             if not isinstance(row, list):
@@ -1915,16 +1920,31 @@ def _send_expiry_alert_email(recipients, rows=None, filter_label=""):
 @app.route("/api/expiry_alerts_preview", methods=["GET"])
 @login_required
 def expiry_alerts_preview():
-    """Counts + list the server sees (lets the dashboard show what WOULD be emailed)."""
+    """Counts the server sees. The HQ/admin bell aggregates EVERY branch; a branch user
+    sees only its own (data is already partitioned by branch)."""
     try:
-        alerts = _collect_expiry_alerts()
-        attention = [a for a in alerts if a["key"] in ("expired", "d30", "d90")]
-        counts = {"expired": 0, "d30": 0, "d90": 0}
-        for a in attention:
-            counts[a["key"]] += 1
-        return jsonify({"success": True, "counts": counts, "total": len(attention),
-                        "mail_configured": bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD")),
-                        "default_recipients": ALERT_RECIPIENTS})
+        def _counts(alerts):
+            c = {"expired": 0, "d30": 0, "d90": 0}
+            for a in alerts:
+                if a["key"] in c:
+                    c[a["key"]] += 1
+            return c
+        mail_cfg = bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD"))
+        if session.get("is_admin"):
+            counts = {"expired": 0, "d30": 0, "d90": 0}
+            per_branch = []
+            for b in BRANCHES:
+                bc = _counts(_collect_expiry_alerts(rid=b["id"]))
+                for k in counts:
+                    counts[k] += bc[k]
+                per_branch.append({"id": b["id"], "name": b["name"], "counts": bc, "total": sum(bc.values())})
+            return jsonify({"success": True, "counts": counts, "total": sum(counts.values()),
+                            "aggregated": True, "per_branch": per_branch,
+                            "mail_configured": mail_cfg, "default_recipients": ALERT_RECIPIENTS})
+        counts = _counts(_collect_expiry_alerts())
+        return jsonify({"success": True, "counts": counts, "total": sum(counts.values()),
+                        "aggregated": False,
+                        "mail_configured": mail_cfg, "default_recipients": ALERT_RECIPIENTS})
     except Exception:
         logger.exception("expiry preview error")
         return jsonify({"success": False, "counts": {}, "total": 0})
@@ -2321,20 +2341,116 @@ def api_overview():
     today = datetime.now().strftime("%Y-%m-%d")
     acct_by_branch = {a.get("branch_id"): a.get("username") for a in get_branch_accounts()}
     summary, feed = [], []
+    alert_totals = {"expired": 0, "d30": 0, "d90": 0}
     for b in BRANCHES:
         entries = _audit_get_at(b["id"])
         last_ts = max((e.get("ts", "") for e in entries), default="")
         today_n = sum(1 for e in entries if str(e.get("ts", "")).startswith(today))
+        ac = {"expired": 0, "d30": 0, "d90": 0}
+        for a in _collect_expiry_alerts(rid=b["id"]):
+            if a["key"] in ac:
+                ac[a["key"]] += 1
+        for k in alert_totals:
+            alert_totals[k] += ac[k]
         summary.append({"id": b["id"], "name": b["name"],
                         "username": acct_by_branch.get(b["id"], ""),
-                        "last_ts": last_ts, "today": today_n, "total": len(entries)})
+                        "last_ts": last_ts, "today": today_n, "total": len(entries),
+                        "alerts": ac, "alerts_total": sum(ac.values())})
         for e in entries:
             feed.append({"branch_id": b["id"], "branch": b["name"],
                          "ts": e.get("ts", ""), "user": e.get("user", ""),
                          "action": e.get("action", ""), "target": e.get("target", ""),
                          "detail": e.get("detail", ""), "hits": e.get("hits", 1)})
     feed.sort(key=lambda e: e.get("ts", ""), reverse=True)
-    return jsonify({"success": True, "branches": summary, "feed": feed[:150]})
+    return jsonify({"success": True, "branches": summary, "feed": feed[:150],
+                    "alert_totals": alert_totals, "alerts_grand": sum(alert_totals.values())})
+
+
+def _blob_get_at(table, rid):
+    """Read a tab blob for a SPECIFIC branch id (used by the all-branches view)."""
+    table = _safe_tbl(table)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT data FROM %s WHERE id = ?" % table, (rid,))
+        row = c.fetchone()
+    return _loads_blob(row)
+
+
+def _blob_count(data):
+    """Generic record count across varied tab shapes: list → len; dict → sum of its list
+    values (covers {rows:[…]} and {main:[],spare:[],…}); else rows/keys."""
+    if data is None:
+        return 0
+    if isinstance(data, list):
+        return len(data)
+    if isinstance(data, dict):
+        lists = [v for v in data.values() if isinstance(v, list)]
+        if lists:
+            return sum(len(v) for v in lists)
+        if isinstance(data.get("rows"), list):
+            return len(data["rows"])
+        return len(data)
+    return 0
+
+
+BRANCH_DATA_CATEGORIES = [
+    {"key": "drivers", "label": "السائقون", "table": None},   # special: الدمام = SQL drivers
+    {"key": "employees", "label": "الموظفون", "table": "employees"},
+    {"key": "schedule_data", "label": "الجدول الأسبوعي", "table": "schedule_data"},
+    {"key": "washing_schedule", "label": "الغسيل", "table": "washing_schedule"},
+    {"key": "workshop_data", "label": "الورشة", "table": "workshop_data"},
+    {"key": "oils_data", "label": "الزيوت والفلاتر", "table": "oils_data"},
+    {"key": "purchase_data", "label": "طلبات الشراء", "table": "purchase_data"},
+    {"key": "incidents_data", "label": "الحوادث", "table": "incidents_data"},
+    {"key": "gps_devices_data", "label": "أجهزة التتبع", "table": "gps_devices_data"},
+    {"key": "records_data", "label": "التوثيق", "table": "records_data"},
+    {"key": "handover_data", "label": "تسليم/استلام", "table": "handover_data"},
+]
+
+
+def _branch_driver_count(bid):
+    if bid == 1:   # الدمام keeps its frozen SQL roster
+        try:
+            with db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT COUNT(*) AS n FROM drivers")
+                return c.fetchone()["n"]
+        except Exception:
+            return 0
+    return _blob_count(_blob_get_at("drivers_branch", bid))
+
+
+@app.route("/branches")
+@login_required
+def branches_all():
+    """HQ-only page showing ALL branches' data side by side."""
+    if not session.get("is_admin"):
+        return redirect(url_for("index"))
+    return render_template("branches_all.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/api/branches_overview", methods=["GET"])
+@login_required
+def api_branches_overview():
+    """Per-branch record counts across every data category. HQ/admin only."""
+    if not session.get("is_admin"):
+        return jsonify({"error": "forbidden"}), 403
+    acct_by_branch = {a.get("branch_id"): a.get("username") for a in get_branch_accounts()}
+    cats = [{"key": c["key"], "label": c["label"]} for c in BRANCH_DATA_CATEGORIES]
+    branches, totals = [], {c["key"]: 0 for c in BRANCH_DATA_CATEGORIES}
+    for b in BRANCHES:
+        counts = {}
+        for c in BRANCH_DATA_CATEGORIES:
+            n = _branch_driver_count(b["id"]) if c["key"] == "drivers" else _blob_count(_blob_get_at(c["table"], b["id"]))
+            counts[c["key"]] = n
+            totals[c["key"]] += n
+        entries = _audit_get_at(b["id"])
+        branches.append({"id": b["id"], "name": b["name"],
+                         "username": acct_by_branch.get(b["id"], ""),
+                         "last_ts": max((e.get("ts", "") for e in entries), default=""),
+                         "counts": counts, "total": sum(counts.values())})
+    return jsonify({"success": True, "categories": cats, "branches": branches,
+                    "totals": totals, "grand_total": sum(totals.values())})
 
 
 # All id=2 stores used by the workstation sandbox. Used by the reset endpoint below.

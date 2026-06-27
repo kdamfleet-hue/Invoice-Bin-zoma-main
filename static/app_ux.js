@@ -353,7 +353,11 @@ function injectBranchSwitcher() {
                 window.BZ_BRANCH = j.name || 'الدمام';
                 var sub = document.querySelector('.bz-brand-text span');
                 if (sub) sub.textContent = 'نظام إدارة الأسطول — فرع ' + window.BZ_BRANCH;
-                if (j.is_admin) injectOverviewLink();           // HQ link to the all-branches center
+                if (j.is_admin) {                               // HQ links + aggregated alerts bell
+                    injectAdminLinks();
+                    var _bell = document.getElementById('bzBell');
+                    if (_bell) { _bell.href = '/overview'; _bell.title = 'تنبيهات وثائق كل الفروع'; }
+                }
                 if (document.getElementById('bzBranchWrap')) return;
                 var wrap = document.createElement('label');
                 wrap.className = 'bz-branch-wrap';
@@ -396,15 +400,19 @@ function injectBranchSwitcher() {
     } catch (e) { /* non-critical */ }
 }
 
-function injectOverviewLink() {
+function injectAdminLinks() {
     try {
         var nav = document.querySelector('.bz-topbar .bz-nav');
-        if (!nav || nav.querySelector('a[href="/overview"]')) return;
-        var a = document.createElement('a');
-        a.href = '/overview';
-        a.textContent = '🏢 مركز الفروع';
-        if (location.pathname === '/overview') a.className = 'active';
-        nav.insertBefore(a, nav.firstChild);
+        if (!nav) return;
+        [{ href: '/overview', text: '🏢 مركز الفروع' },
+         { href: '/branches', text: '📊 جميع الفروع' }].forEach(function (L) {
+            if (nav.querySelector('a[href="' + L.href + '"]')) return;
+            var a = document.createElement('a');
+            a.href = L.href;
+            a.textContent = L.text;
+            if (location.pathname === L.href) a.className = 'active';
+            nav.insertBefore(a, nav.firstChild);
+        });
     } catch (e) { /* non-critical */ }
 }
 
