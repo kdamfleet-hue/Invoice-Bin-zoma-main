@@ -192,22 +192,7 @@
     .sched-premium .exp-legend span { display:inline-flex; align-items:center; gap:5px; }
     .sched-premium .exp-legend i { width:14px; height:14px; border-radius:3px; display:inline-block; }
 
-    /* ── SUMMARY (green section like the reference) ──────────── */
-    .sched-premium .summary-card.card {
-      margin-top:1.5rem; background:linear-gradient(135deg,#243027 0%,#2D2D2D 100%);
-      border:1px solid rgba(33,168,94,.3); border-radius:14px; box-shadow:none; padding:20px 22px;
-    }
-    .sched-premium .summary-card h3 { color:#55EFC4; }
-    .sched-premium .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.8rem; }
-    .sched-premium .sum-box {
-      border:1px solid rgba(33,168,94,.25); border-radius:10px; padding:14px; text-align:center;
-      background:rgba(33,168,94,.10);
-    }
-    .sched-premium .sum-box label { display:block; font-size:.8rem; color:var(--p-muted); font-weight:700; margin-bottom:6px; }
-    .sched-premium .sum-box .v { font-size:1.7rem; font-weight:900; color:#55EFC4; }
-    .sched-premium .sum-box.vac { border-color:var(--p-gold); background:rgba(200,155,60,.10); }
-    .sched-premium .sum-box.vac .v { color:var(--p-gold2); }
-    .sched-premium .summary-card .btn-outline { background:rgba(255,255,255,.07); color:var(--p-text); border:1px solid rgba(255,255,255,.15); }
+    /* (green «ملخص الأعداد» summary card removed — counts shown in the stat cards above) */
 
     /* ── SIGNATURE / FOOTER ──────────────────────────────────── */
     .sched-premium .sign-block { margin-top:1.5rem; text-align:center; color:var(--p-muted);
@@ -298,22 +283,6 @@
 
     <!-- ALERT BAR -->
     <div class="sp-alert hidden" id="schedAlertBar">⚠️ <span id="schedAlertMsg"></span></div>
-
-    <!-- Summary -->
-    <div class="card summary-card">
-      <div class="flex-between" style="margin-bottom:.8rem;">
-        <h3 style="margin:0;">📊 ملخص الأعداد</h3>
-        <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="recomputeSummary()">↻ حساب تلقائي من الجداول</button>
-      </div>
-      <div class="summary-grid">
-        <div class="sum-box"><label>عدد السائقين</label><div class="v" id="sumDrivers">0</div></div>
-        <div class="sum-box"><label>عدد الدينات</label><div class="v" id="sumDinas">0</div></div>
-        <div class="sum-box"><label>عدد اللواري</label><div class="v" id="sumLorries">0</div></div>
-        <div class="sum-box"><label>عدد الموصلين</label><div class="v" id="sumDelivery">0</div></div>
-        <div class="sum-box"><label>عدد الموزعين</label><div class="v" id="sumDistributors">0</div></div>
-        <div class="sum-box vac"><label>عدد السائقين في إجازة (هذا الأسبوع)</label><div class="v" id="sumVacation">0</div></div>
-      </div>
-    </div>
 
     <!-- TABS — every existing table stays reachable and editable -->
     <div class="sp-tabs">
@@ -617,13 +586,6 @@
       // vacation always reflects the editable vacation table; others prefer stored value, fall back to computed
       const c = computeCounts();
       const s = state.summary || {};
-      const pick = (v, comp) => (v != null && v !== '' ? v : comp);
-      document.getElementById('sumDrivers').textContent = pick(s.drivers, c.drivers);
-      document.getElementById('sumDinas').textContent = pick(s.dinas, c.dinas);
-      document.getElementById('sumLorries').textContent = pick(s.lorries, c.lorries);
-      document.getElementById('sumDelivery').textContent = pick(s.delivery, c.delivery);
-      document.getElementById('sumDistributors').textContent = pick(s.distributors, c.distributors);
-      document.getElementById('sumVacation').textContent = c.vacation; // editable via vacation table
       state.summary = Object.assign({}, s, { vacation: String(c.vacation) });
       refreshStatsAndAlerts(c, s);
     }
@@ -710,12 +672,6 @@
       if (btn) btn.classList.add('active');
       const panel = document.getElementById('spPanel-' + name);
       if (panel) panel.classList.add('active');
-    }
-    function recomputeSummary() {
-      const c = computeCounts();
-      state.summary = { drivers: String(c.drivers), dinas: String(c.dinas), lorries: String(c.lorries), delivery: String(c.delivery), distributors: String(c.distributors), vacation: String(c.vacation) };
-      updateSummary(); scheduleSave();
-      if (window.showToast) showToast('تم حساب الأعداد من الجداول', 'success');
     }
 
     // ---- persistence ----

@@ -2061,7 +2061,10 @@ def oils_data():
 def purchase_data():
     if request.method == "POST":
         try:
-            blob_set("purchase_data", request.json or {})
+            body = request.json or {}
+            blob_set("purchase_data", body)
+            _n = sum(len(v) for v in body.values() if isinstance(v, list)) if isinstance(body, dict) else None
+            _audit_add("تحديث", "طلبات الشراء", _n or None)
             return jsonify({"success": True})
         except Exception:
             logger.exception("purchase_data POST error")
@@ -2409,6 +2412,51 @@ def api_overview():
     feed.sort(key=lambda e: e.get("ts", ""), reverse=True)
     return jsonify({"success": True, "branches": summary, "feed": feed[:150],
                     "alert_totals": alert_totals, "alerts_grand": sum(alert_totals.values())})
+
+
+# Which audited changes raise an HQ notification toast (target → icon/kind).
+NOTIFY_TARGETS = {
+    "الجدول الأسبوعي": {"icon": "📋", "kind": "schedule"},
+    "طلبات الشراء": {"icon": "🛒", "kind": "purchase"},
+    "بيانات الموظفين": {"icon": "👥", "kind": "employees"},
+}
+
+
+@app.route("/api/notifications", methods=["GET"])
+@login_required
+def api_notifications():
+    """HQ-only feed for the overview toasts: recent relevant changes across branches
+    (schedule / purchase / employees) + document-expiry alerts. Each item carries a stable
+    key so the client animates only NEW ones."""
+    if not session.get("is_admin"):
+        return jsonify({"error": "forbidden"}), 403
+    items = []
+    cutoff = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+    for b in BRANCHES:
+        for e in _audit_get_at(b["id"]):
+            meta = NOTIFY_TARGETS.get(e.get("target", ""))
+            ts = e.get("ts", "")
+            if not meta or ts < cutoff:
+                continue
+            items.append({
+                "key": "ev|%s|%s|%s|%s" % (b["id"], ts, e.get("target", ""), e.get("action", "")),
+                "kind": meta["kind"], "icon": meta["icon"],
+                "title": "%s — %s" % (e.get("action", "تحديث"), e.get("target", "")),
+                "branch": b["name"], "user": e.get("user", ""), "ts": ts,
+            })
+        ac = {"expired": 0, "d30": 0, "d90": 0}
+        for a in _collect_expiry_alerts(rid=b["id"]):
+            if a["key"] in ac:
+                ac[a["key"]] += 1
+        if sum(ac.values()):
+            items.append({
+                "key": "docs|%s|%s|%s|%s" % (b["id"], ac["expired"], ac["d30"], ac["d90"]),
+                "kind": "docs", "icon": "📄",
+                "title": "وثائق قريبة الانتهاء — منتهية %d · ≤30 يوم %d · ≤90 يوم %d" % (ac["expired"], ac["d30"], ac["d90"]),
+                "branch": b["name"], "user": "", "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            })
+    items.sort(key=lambda x: x.get("ts", ""), reverse=True)
+    return jsonify({"success": True, "items": items[:60]})
 
 
 def _blob_get_at(table, rid):
