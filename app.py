@@ -543,12 +543,24 @@ def _row_id():
     return 2 if is_workstation() else current_branch_id()
 
 
+# Maps each data-tab route to its snapshot table, so every tab can show its own history.
+SNAP_TAB_BY_ROUTE = {
+    "/schedule": "schedule_data", "/washing": "washing_schedule", "/employees": "employees",
+    "/records": "records_data", "/incidents": "incidents_data", "/oils": "oils_data",
+    "/purchase": "purchase_data", "/workshop": "workshop_data", "/gps_devices": "gps_devices_data",
+}
+
+
 @app.context_processor
 def inject_branch():
-    """Make the active branch available to every template (header subtitle, invoice…)."""
+    """Make the active branch + current tab's snapshot key available to every template."""
+    path = request.path or "/"
+    if path.startswith(WS_PREFIX):
+        path = path[len(WS_PREFIX):] or "/"
     return {"active_branch": current_branch_name(),
             "active_branch_id": current_branch_id(),
-            "branches": BRANCHES}
+            "branches": BRANCHES,
+            "snap_tab": SNAP_TAB_BY_ROUTE.get(path, "")}
 
 
 def _safe_tbl(table):
@@ -982,25 +994,45 @@ def api_users():
     return jsonify({"success": True})
 
 
-@app.route("/api/snapshots", methods=["GET"])
-@login_required
-def api_snapshots():
-    # Dated version history per data tab — listed only from the unlocked Settings tab.
-    if not session.get("settings_unlocked"):
-        return jsonify({"error": "locked"}), 403
-    tab = request.args.get("tab", "")
-    if tab not in SNAPSHOT_TABLES:
-        return jsonify({"tabs": [{"key": k, "label": SNAP_LABELS.get(k, k)} for k in sorted(SNAPSHOT_TABLES)], "snapshots": []})
-    mode = _row_id()
+def _snapshot_list(tab, mode):
     with db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT id, ts FROM data_snapshots WHERE tab = ? AND mode = ? ORDER BY id DESC", (tab, mode))
         rows = c.fetchall()
-    return jsonify({
-        "tabs": [{"key": k, "label": SNAP_LABELS.get(k, k)} for k in sorted(SNAPSHOT_TABLES)],
-        "label": SNAP_LABELS.get(tab, tab),
-        "snapshots": [{"id": r["id"], "ts": r["ts"]} for r in rows],
-    })
+    return [{"id": r["id"], "ts": r["ts"]} for r in rows]
+
+
+def _restore_snapshot(sid, mode, require_tab=None):
+    """Restore one dated snapshot into its tab's blob. Returns (ok, info)."""
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT tab, data FROM data_snapshots WHERE id = ? AND mode = ?", (sid, mode))
+        row = c.fetchone()
+    if not row:
+        return False, "not_found"
+    if require_tab is not None and row["tab"] != require_tab:
+        return False, "tab_mismatch"
+    try:
+        data = json.loads(row["data"])
+    except (ValueError, TypeError):
+        return False, "corrupt"
+    blob_set(row["tab"], data)   # restore (also versioned as the new latest state)
+    _audit_add("استعادة نسخة", SNAP_LABELS.get(row["tab"], row["tab"]), None, "من سجل النسخ المؤرّخة")
+    return True, row["tab"]
+
+
+@app.route("/api/snapshots", methods=["GET"])
+@login_required
+def api_snapshots():
+    # Dated version history per data tab — full all-tabs list from the unlocked Settings tab.
+    if not session.get("settings_unlocked"):
+        return jsonify({"error": "locked"}), 403
+    tab = request.args.get("tab", "")
+    tabs = [{"key": k, "label": SNAP_LABELS.get(k, k)} for k in sorted(SNAPSHOT_TABLES)]
+    if tab not in SNAPSHOT_TABLES:
+        return jsonify({"tabs": tabs, "snapshots": []})
+    return jsonify({"tabs": tabs, "label": SNAP_LABELS.get(tab, tab),
+                    "snapshots": _snapshot_list(tab, _row_id())})
 
 
 @app.route("/api/snapshots/restore", methods=["POST"])
@@ -1008,21 +1040,34 @@ def api_snapshots():
 def api_snapshots_restore():
     if not session.get("settings_unlocked"):
         return jsonify({"error": "locked"}), 403
+    ok, info = _restore_snapshot((request.get_json(silent=True) or {}).get("id"), _row_id())
+    if not ok:
+        return jsonify({"error": info}), (404 if info == "not_found" else 500)
+    return jsonify({"success": True})
+
+
+# Per-tab version history — available INSIDE each data tab to any logged-in editor.
+# Scoped to the current branch (via _row_id) AND to the requested tab.
+@app.route("/api/tab_history", methods=["GET"])
+@login_required
+def api_tab_history():
+    tab = request.args.get("tab", "")
+    if tab not in SNAPSHOT_TABLES:
+        return jsonify({"success": False, "snapshots": []}), 400
+    return jsonify({"success": True, "label": SNAP_LABELS.get(tab, tab),
+                    "snapshots": _snapshot_list(tab, _row_id())})
+
+
+@app.route("/api/tab_history/restore", methods=["POST"])
+@login_required
+def api_tab_history_restore():
     body = request.get_json(silent=True) or {}
-    sid = body.get("id")
-    mode = _row_id()
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT tab, data FROM data_snapshots WHERE id = ? AND mode = ?", (sid, mode))
-        row = c.fetchone()
-    if not row:
-        return jsonify({"error": "not_found"}), 404
-    try:
-        data = json.loads(row["data"])
-    except (ValueError, TypeError):
-        return jsonify({"error": "corrupt"}), 500
-    blob_set(row["tab"], data)   # restore the snapshot (also versioned as the new latest state)
-    _audit_add("استعادة نسخة", SNAP_LABELS.get(row["tab"], row["tab"]), None, "من سجل النسخ المؤرّخة")
+    tab = body.get("tab") or ""
+    if tab not in SNAPSHOT_TABLES:
+        return jsonify({"success": False, "reason": "bad_tab"}), 400
+    ok, info = _restore_snapshot(body.get("id"), _row_id(), require_tab=tab)
+    if not ok:
+        return jsonify({"success": False, "reason": info}), (404 if info == "not_found" else 400)
     return jsonify({"success": True})
 
 

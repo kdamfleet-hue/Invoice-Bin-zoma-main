@@ -328,6 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     injectContactDock();
     injectHeroLogo();
     injectClock();
+    injectTabHistory();
     initThemeToggle();
     injectTopographicBackground();
     injectUXContainers();
@@ -416,6 +417,68 @@ function injectAdminLinks() {
             if (location.pathname === L.href) a.className = 'active';
             nav.insertBefore(a, nav.firstChild);
         });
+    } catch (e) { /* non-critical */ }
+}
+
+// --- Per-tab dated version history: list previous snapshots + restore any with one click ---
+function injectTabHistory() {
+    try {
+        var tab = window.BZ_SNAP_TAB;
+        if (!tab) return;                                    // only on data tabs that are snapshotted
+        var shell = document.querySelector('.bz-shell');
+        if (!shell || document.getElementById('bzHistWrap')) return;
+
+        var wrap = document.createElement('div');
+        wrap.id = 'bzHistWrap'; wrap.className = 'bz-hist-wrap';
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'bz-hist-btn';
+        btn.innerHTML = '🕓 السجل الزمني — النسخ المؤرّخة';
+        var panel = document.createElement('div');
+        panel.className = 'bz-hist-panel'; panel.style.display = 'none';
+        wrap.appendChild(btn); wrap.appendChild(panel);
+
+        var title = shell.querySelector('.bz-section-title');
+        if (title && title.nextSibling) shell.insertBefore(wrap, title.nextSibling);
+        else shell.insertBefore(wrap, shell.firstChild);
+
+        var loaded = false;
+        btn.addEventListener('click', function () {
+            var show = panel.style.display === 'none';
+            panel.style.display = show ? 'block' : 'none';
+            if (show && !loaded) { loaded = true; loadHist(); }
+        });
+
+        function loadHist() {
+            panel.innerHTML = '<div class="bz-hist-empty">جارٍ التحميل…</div>';
+            fetch('/api/tab_history?tab=' + encodeURIComponent(tab), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    var snaps = (j && j.snapshots) || [];
+                    if (!snaps.length) { panel.innerHTML = '<div class="bz-hist-empty">لا توجد نسخ محفوظة بعد — تُحفظ نسخة تلقائياً عند كل تعديل.</div>'; return; }
+                    panel.innerHTML = '<div class="bz-hist-hd">انقر تاريخاً للرجوع إليه (آخر ' + snaps.length + ' نسخة):</div>' +
+                        snaps.map(function (s, i) {
+                            return '<button class="bz-hist-item" data-id="' + s.id + '"><span class="t">' + s.ts + '</span>' +
+                                (i === 0 ? '<span class="cur">الأحدث</span>' : '<span class="go">↩ رجوع</span>') + '</button>';
+                        }).join('');
+                    Array.prototype.forEach.call(panel.querySelectorAll('.bz-hist-item'), function (b) {
+                        b.addEventListener('click', function () { restoreHist(b.getAttribute('data-id'), b.querySelector('.t').textContent); });
+                    });
+                })
+                .catch(function () { panel.innerHTML = '<div class="bz-hist-empty">تعذّر تحميل السجل.</div>'; });
+        }
+
+        function restoreHist(id, ts) {
+            if (!confirm('الرجوع إلى نسخة ' + ts + '؟\nستحلّ محل البيانات الحالية لهذا التبويب — والحالة الحالية تبقى محفوظة في السجل.')) return;
+            fetch('/api/tab_history/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: parseInt(id, 10), tab: tab }) })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res && res.success) {
+                        if (window.showToast) showToast('تمت الاستعادة ✓ — يُعاد التحميل', 'success');
+                        setTimeout(function () { location.reload(); }, 600);
+                    } else if (window.showToast) showToast('تعذّرت الاستعادة', 'error');
+                })
+                .catch(function () { if (window.showToast) showToast('تعذّر الاتصال', 'error'); });
+        }
     } catch (e) { /* non-critical */ }
 }
 
