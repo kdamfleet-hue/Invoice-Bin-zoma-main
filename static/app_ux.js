@@ -9,17 +9,43 @@
 // Purely path-based, so the main site (/) is never affected — even in the same browser.
 window.BZ_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
 
-// Isolate the workstation namespace's browser storage from the main site, so edits made
-// under /importantworkstation (employees, schedule, Excel cache, etc.) can NEVER bleed
-// into the real site's cached data. Runs first, before any tab code touches localStorage.
+// Active branch id (injected per-page before this script runs; الدمام = 1 by default).
+// Non-الدمام branches are "isolated" like the workstation: they start EMPTY and must never
+// inherit الدمام's locally-cached data or its bundled seed files.
+window.BZ_BRANCH_ID = window.BZ_BRANCH_ID || 1;
+window.BZ_ISOLATED = window.BZ_WS || (window.BZ_BRANCH_ID !== 1);
+
+// Isolate this mode's browser storage so cached edits can NEVER bleed across branches or
+// into الدمام. Runs first, before any tab code touches localStorage. الدمام (id=1) keeps
+// NO prefix → byte-for-byte unchanged; workstation = 'ws:'; other branches = 'b<id>:'.
 (function () {
     try {
-        if (!window.BZ_WS) return;
-        var ls = window.localStorage, ns = 'ws:';
+        var ns = window.BZ_WS ? 'ws:' : (window.BZ_BRANCH_ID !== 1 ? ('b' + window.BZ_BRANCH_ID + ':') : '');
+        if (!ns) return;
+        var ls = window.localStorage;
         var g = ls.getItem.bind(ls), s = ls.setItem.bind(ls), r = ls.removeItem.bind(ls);
         ls.getItem = function (k) { return g(ns + k); };
         ls.setItem = function (k, v) { return s(ns + k, v); };
         ls.removeItem = function (k) { return r(ns + k); };
+    } catch (e) { /* ignore */ }
+})();
+
+// A fresh non-الدمام branch must NOT inherit الدمام's static seed files (employees/schedule/
+// fleet defaults), so make those specific fetches resolve empty. الدمام and the workstation
+// keep their existing behavior untouched.
+(function () {
+    try {
+        if (window.BZ_BRANCH_ID === 1 || window.BZ_WS) return;   // only the other branches
+        var SEED = /\/static\/(employees_default|schedule_data|fleet_data)\.json(\?|$)/;
+        var of = window.fetch ? window.fetch.bind(window) : null;
+        if (!of) return;
+        window.fetch = function (input, init) {
+            var url = (typeof input === 'string') ? input : (input && input.url) || '';
+            if (SEED.test(url)) {
+                return Promise.resolve(new Response('null', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+            }
+            return of(input, init);
+        };
     } catch (e) { /* ignore */ }
 })();
 
@@ -298,6 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
     injectGlobalNavLinks();
     applyWorkstationRestrictions();
     buildEnterpriseShell();
+    injectBranchSwitcher();
     injectContactDock();
     injectHeroLogo();
     injectClock();
@@ -310,6 +337,52 @@ document.addEventListener('DOMContentLoaded', () => {
     initLanguageTranslation();
     registerPWA();
 });
+
+// --- Branch switcher: swap the active branch site-wide (multi-branch data isolation) ---
+// Skips workstation pages (the workstation is its own isolated mode). Updates the header
+// subtitle on every tab, exposes window.BZ_BRANCH, and reloads after switching so all data refreshes.
+function injectBranchSwitcher() {
+    try {
+        if (typeof WS_PREFIX === 'string' && location.pathname.indexOf(WS_PREFIX) === 0) return;
+        var actions = document.querySelector('.bz-topbar .bz-actions');
+        if (!actions || document.getElementById('bzBranchSel')) return;
+        fetch('/api/branch', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (j) {
+                if (!j || !j.branches) return;
+                window.BZ_BRANCH = j.name || 'الدمام';
+                var sub = document.querySelector('.bz-brand-text span');
+                if (sub) sub.textContent = 'نظام إدارة الأسطول — فرع ' + window.BZ_BRANCH;
+                var wrap = document.createElement('label');
+                wrap.className = 'bz-branch-wrap';
+                wrap.title = 'الفرع النشط — تبديله يبدّل كل بيانات الموقع';
+                var sel = document.createElement('select');
+                sel.id = 'bzBranchSel';
+                sel.className = 'bz-branch-select';
+                sel.innerHTML = j.branches.map(function (b) {
+                    return '<option value="' + b.id + '"' + (b.id === j.id ? ' selected' : '') + '>🏢 فرع ' + b.name + '</option>';
+                }).join('');
+                sel.addEventListener('change', function () {
+                    var id = parseInt(sel.value, 10);
+                    var name = sel.options[sel.selectedIndex].text.replace('🏢 فرع ', '');
+                    if (!confirm('تبديل الفرع إلى «' + name + '»؟\nستظهر بيانات هذا الفرع في كل التبويبات.')) {
+                        sel.value = String(j.id); return;
+                    }
+                    sel.disabled = true;
+                    fetch('/api/branch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
+                        .then(function (r) { return r.json(); })
+                        .then(function (res) {
+                            if (res && res.success) { location.reload(); }
+                            else { sel.disabled = false; sel.value = String(j.id); if (window.showToast) showToast('تعذّر تبديل الفرع', 'error'); }
+                        })
+                        .catch(function () { sel.disabled = false; sel.value = String(j.id); });
+                });
+                wrap.appendChild(sel);
+                actions.insertBefore(wrap, actions.firstChild);
+            })
+            .catch(function () {});
+    } catch (e) { /* non-critical */ }
+}
 
 // --- PWA: manifest + theme color + service worker (تثبيت كتطبيق + عمل دون اتصال) ---
 function registerPWA() {

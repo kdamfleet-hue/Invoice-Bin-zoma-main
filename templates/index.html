@@ -6,11 +6,12 @@
     <title>منشئ الفواتير الاحترافي | شركة بن زومة</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=10) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=11) }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=10) }}"></script>
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=11) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }};</script>
     <style>
         /* Page-specific layout only (tokens from base_styles.css) */
         .header-container {
@@ -201,6 +202,12 @@
         <div class="card card-gray glass-surface">
             <label for="invoiceDate">التاريخ</label>
             <input type="date" id="invoiceDate">
+        </div>
+
+        <!-- 4.7 الفرع (يتبع مبدّل الفرع في أعلى الصفحة) -->
+        <div class="card card-gray glass-surface">
+            <label>الفرع</label>
+            <div id="invoiceBranch" style="font-weight:800;font-size:1.05rem;color:var(--brand-gold,#c9a227);padding-top:8px">فرع {{ active_branch }}</div>
         </div>
         
         <!-- 6. الوصف -->
@@ -626,7 +633,7 @@
             
         ws.addRow([]);
         const footerDate = invoiceDate || new Date().toISOString().slice(0, 10);
-        const footerRow = ws.addRow([`${bzTL("أُعدّ بواسطة قسم الحركة — فرع الدمام")}    |    ${bzTL("التاريخ")}: ${footerDate}`]);
+        const footerRow = ws.addRow([`${bzTL("أُعدّ بواسطة قسم الحركة — فرع " + (window.BZ_BRANCH || "الدمام"))}    |    ${bzTL("التاريخ")}: ${footerDate}`]);
         ws.mergeCells(`A${footerRow.number}:G${footerRow.number}`);
         footerRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
         footerRow.getCell(1).font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
@@ -668,7 +675,7 @@
                 subject: bzTL('فاتورة طلب صيانة / خدمة — شركة بن زومة'),
                 pdfElement: 'invoiceArea',
                 pdfOrientation: 'portrait',
-                waMessage: bzTL('مرفق فاتورة طلب الصيانة / الخدمة — إدارة الحركة بفرع الدمام.')
+                waMessage: bzTL('مرفق فاتورة طلب الصيانة / الخدمة — إدارة الحركة بفرع ' + (window.BZ_BRANCH || 'الدمام') + '.')
             });
         }
 
@@ -1012,7 +1019,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
                 const plate = document.getElementById('plateNum').value || 'غير محدد';
                 const date = document.getElementById('invoiceDate').value;
 
-                const msg = `مرحباً بك عزيزي السائق (${rawName})،\n\nنود إعلامك بأنه تم إصدار فاتورة / طلب لمركبتك:\n🚗 نوع السيارة: ${car}\n🔢 رقم اللوحة: ${plate}\n🛠️ نوع الطلب: ${req}\n📅 التاريخ: ${date}\n\nشكراً لتعاونكم - إدارة الحركة بفرع الدمام.`;
+                const msg = `مرحباً بك عزيزي السائق (${rawName})،\n\nنود إعلامك بأنه تم إصدار فاتورة / طلب لمركبتك:\n🚗 نوع السيارة: ${car}\n🔢 رقم اللوحة: ${plate}\n🛠️ نوع الطلب: ${req}\n📅 التاريخ: ${date}\n\nشكراً لتعاونكم - إدارة الحركة بفرع ${window.BZ_BRANCH || 'الدمام'}.`;
                 
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
                 // Force open

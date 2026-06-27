@@ -372,6 +372,11 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS handover_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Per-branch driver rosters (id = branch id). الدمام keeps its own SQL `drivers`
+            # table; other branches store their drivers here and start EMPTY.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS drivers_branch (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Tiny key/value flags for the workstation (e.g. "did we auto-seed example data?").
             db.execute(
                 "CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)"
@@ -482,8 +487,49 @@ def is_workstation():
     return request.path.startswith(WS_PREFIX)
 
 
+# ── Branches (multi-branch data isolation) ───────────────────────────────────
+# Each branch is a distinct storage "mode" (row id) shared across EVERY blob table,
+# so switching branch swaps ALL operational data at once. id=1 is الدمام (the existing,
+# FROZEN data); id=2 is reserved for the workstation sandbox; 3+ are the other branches
+# and start EMPTY. Never renumber 1 or 2.
+BRANCHES = [
+    {"id": 1, "name": "الدمام"},
+    {"id": 3, "name": "جدة"},
+    {"id": 4, "name": "الرياض"},
+    {"id": 5, "name": "حفر الباطن"},
+    {"id": 6, "name": "بالجرشي"},
+    {"id": 7, "name": "جيزان"},
+]
+BRANCH_IDS = {b["id"] for b in BRANCHES}
+BRANCH_NAME = {b["id"]: b["name"] for b in BRANCHES}
+
+
+def current_branch_id():
+    """Active branch id from the session (defaults to الدمام = 1). Validated against the
+    known set so a stale/forged cookie — or a call outside a request — can never point
+    at an unknown store."""
+    try:
+        bid = int(session.get("branch_id", 1))
+    except (TypeError, ValueError, RuntimeError):
+        return 1
+    return bid if bid in BRANCH_IDS else 1
+
+
+def current_branch_name():
+    return BRANCH_NAME.get(current_branch_id(), "الدمام")
+
+
 def _row_id():
-    return 2 if is_workstation() else 1
+    # The workstation sandbox (path-based) always wins; otherwise partition by branch.
+    return 2 if is_workstation() else current_branch_id()
+
+
+@app.context_processor
+def inject_branch():
+    """Make the active branch available to every template (header subtitle, invoice…)."""
+    return {"active_branch": current_branch_name(),
+            "active_branch_id": current_branch_id(),
+            "branches": BRANCHES}
 
 
 def _safe_tbl(table):
@@ -506,19 +552,15 @@ def _loads_blob(row):
 
 
 def blob_get(table):
-    """Read a single-row JSON blob.
-    Main site reads id=1. The workstation reads ONLY its own id=2 sandbox and NEVER
-    falls back to id=1 — so /importantworkstation starts EMPTY instead of mirroring the
-    real site's data."""
+    """Read a single-row JSON blob for the active mode (branch id, or 2 for workstation).
+    Each mode reads ONLY its own row and NEVER falls back to another — so the workstation
+    sandbox AND every non-الدمام branch start EMPTY instead of mirroring الدمام (id=1)."""
     table = _safe_tbl(table)
     rid = _row_id()
     with db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT data FROM %s WHERE id = ?" % table, (rid,))
         row = c.fetchone()
-        if not row and rid != 1 and not is_workstation():
-            c.execute("SELECT data FROM %s WHERE id = 1" % table)
-            row = c.fetchone()
     return _loads_blob(row)
 
 
@@ -572,14 +614,33 @@ def _snapshot(table, data_str):
 
 
 # ── Shared login accounts (created from the locked Settings tab) ──────────────
+# GLOBAL across every branch and the workstation: login happens before a branch is
+# chosen, so accounts always live at the fixed row (id=1) regardless of _row_id() —
+# otherwise managing users while on another branch would write to the wrong row and
+# silently break login.
+APP_USERS_ROW = 1
+
+
 def get_users():
-    """List of shared accounts: [{username, name, pw_hash, created}] (main-site id=1)."""
-    d = blob_get("app_users")
+    """List of shared accounts: [{username, name, pw_hash, created}] — global (id=1)."""
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT data FROM app_users WHERE id = ?", (APP_USERS_ROW,))
+        row = c.fetchone()
+    d = _loads_blob(row)
     return d.get("users", []) if isinstance(d, dict) else []
 
 
 def save_users(users):
-    blob_set("app_users", {"users": users})
+    data_str = json.dumps({"users": users}, ensure_ascii=False)
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id FROM app_users WHERE id = ?", (APP_USERS_ROW,))
+        if c.fetchone():
+            c.execute("UPDATE app_users SET data = ? WHERE id = ?", (data_str, APP_USERS_ROW))
+        else:
+            c.execute("INSERT INTO app_users (id, data) VALUES (?, ?)", (APP_USERS_ROW, data_str))
+        conn.commit()
 
 
 # ── Audit log (append-only; never edited or deleted from the UI) ──────────────
@@ -2118,6 +2179,27 @@ def handover_list():
         return jsonify({"success": False, "records": []})
 
 
+@app.route("/api/branch", methods=["GET", "POST"])
+@login_required
+def api_branch():
+    """GET: list branches + the active one. POST {id}: switch the session's active branch
+    (which swaps every blob store via _row_id). Workstation paths ignore this."""
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        try:
+            bid = int(body.get("id"))
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "reason": "bad_id"}), 400
+        if bid not in BRANCH_IDS:
+            return jsonify({"success": False, "reason": "unknown_branch"}), 400
+        session["branch_id"] = bid
+        session.permanent = True
+        _audit_add("تبديل الفرع", BRANCH_NAME.get(bid, str(bid)))
+        return jsonify({"success": True, "id": bid, "name": BRANCH_NAME[bid]})
+    return jsonify({"success": True, "id": current_branch_id(),
+                    "name": current_branch_name(), "branches": BRANCHES})
+
+
 # All id=2 stores used by the workstation sandbox. Used by the reset endpoint below.
 WS_BLOB_TABLES = [
     "employees", "schedule_data", "washing_schedule", "records_data",
@@ -2162,14 +2244,28 @@ def ws_seed():
         return jsonify({"success": False}), 500
 
 
+def _driver_store():
+    """Where the current context's drivers live:
+    'ws'   → workstation blob (drivers_ws, id=2)
+    'sql'  → الدمام's real drivers table (id=1, FROZEN)
+    'blob' → another branch's drivers blob (drivers_branch, partitioned by branch id)"""
+    if is_workstation():
+        return "ws"
+    return "sql" if current_branch_id() == 1 else "blob"
+
+
+def _driver_blob_table(store):
+    return "drivers_ws" if store == "ws" else "drivers_branch"
+
+
 @app.route("/api/drivers", methods=["GET"])
 @login_required
 def get_drivers():
-    if is_workstation():
-        # Workstation: isolated, server-persistent driver list (id=2). Starts EMPTY.
-        lst = blob_get("drivers_ws") or []
-        lst = sorted(lst, key=lambda d: d.get("id", 0), reverse=True)
-        return jsonify(lst)
+    store = _driver_store()
+    if store in ("ws", "blob"):
+        # Isolated, server-persistent driver list (workstation id=2, or a branch row). Starts EMPTY.
+        lst = blob_get(_driver_blob_table(store)) or []
+        return jsonify(sorted(lst, key=lambda d: d.get("id", 0), reverse=True))
     with db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM drivers ORDER BY id DESC")
@@ -2367,14 +2463,16 @@ def add_driver():
     drivercard = data.get("drivercard", "").strip()
     if not name:
         return jsonify({"error": "Name is required"}), 400
-    if is_workstation():
-        # Workstation: persist to the isolated drivers_ws blob (id=2). Real table untouched.
-        lst = blob_get("drivers_ws") or []
+    store = _driver_store()
+    if store in ("ws", "blob"):
+        # Isolated blob roster (workstation id=2 or a branch row). الدمام's real table untouched.
+        tbl = _driver_blob_table(store)
+        lst = blob_get(tbl) or []
         new_id = max([d.get("id", 0) for d in lst], default=0) + 1
         row = {"id": new_id, "name": name, "empid": empid, "plate": plate, "car": car,
                "iqama": iqama, "phone": phone, "drivercard": drivercard}
         lst.append(row)
-        blob_set("drivers_ws", lst)
+        blob_set(tbl, lst)
         return jsonify({"success": True, **row})
     with db_connection() as conn:
         c = conn.cursor()
@@ -2411,10 +2509,12 @@ def add_driver():
 @app.route("/api/drivers/<int:driver_id>", methods=["DELETE"])
 @login_required
 def delete_driver(driver_id):
-    if is_workstation():
-        # Workstation: remove from the isolated drivers_ws blob (id=2). Real table untouched.
-        lst = [d for d in (blob_get("drivers_ws") or []) if d.get("id") != driver_id]
-        blob_set("drivers_ws", lst)
+    store = _driver_store()
+    if store in ("ws", "blob"):
+        # Remove from the isolated blob roster (workstation/branch). الدمام's real table untouched.
+        tbl = _driver_blob_table(store)
+        lst = [d for d in (blob_get(tbl) or []) if d.get("id") != driver_id]
+        blob_set(tbl, lst)
         return jsonify({"success": True})
     with db_connection() as conn:
         conn.execute("DELETE FROM drivers WHERE id = ?", (driver_id,))
@@ -2438,15 +2538,17 @@ def update_driver(driver_id):
     if not name:
         return jsonify({"error": "Name is required"}), 400
 
-    if is_workstation():
-        # Workstation: update inside the isolated drivers_ws blob (id=2). Real table untouched.
-        lst = blob_get("drivers_ws") or []
+    store = _driver_store()
+    if store in ("ws", "blob"):
+        # Update inside the isolated blob roster (workstation/branch). الدمام's real table untouched.
+        tbl = _driver_blob_table(store)
+        lst = blob_get(tbl) or []
         for d in lst:
             if d.get("id") == driver_id:
                 d.update({"name": name, "empid": empid, "plate": plate, "car": car,
                           "iqama": iqama, "phone": phone, "drivercard": drivercard})
                 break
-        blob_set("drivers_ws", lst)
+        blob_set(tbl, lst)
         return jsonify({"success": True, "id": driver_id, "name": name, "plate": plate, "car": car,
                         "iqama": iqama, "phone": phone, "drivercard": drivercard})
 
