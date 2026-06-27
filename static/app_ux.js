@@ -367,10 +367,13 @@ function injectBranchSwitcher() {
                     var sel = document.createElement('select');
                     sel.id = 'bzBranchSel';
                     sel.className = 'bz-branch-select';
-                    sel.innerHTML = j.branches.map(function (b) {
+                    var opts = j.branches.map(function (b) {
                         return '<option value="' + b.id + '"' + (b.id === j.id ? ' selected' : '') + '>🏢 فرع ' + b.name + '</option>';
                     }).join('');
+                    if (j.is_admin) opts = '<option value="__all__">🏢 جميع الفروع</option>' + opts;   // HQ shortcut
+                    sel.innerHTML = opts;
                     sel.addEventListener('change', function () {
+                        if (sel.value === '__all__') { location.href = '/branches'; return; }   // open the all-branches page
                         var id = parseInt(sel.value, 10);
                         var name = sel.options[sel.selectedIndex].text.replace('🏢 فرع ', '');
                         if (!confirm('تبديل الفرع إلى «' + name + '»؟\nستظهر بيانات هذا الفرع في كل التبويبات.')) {
