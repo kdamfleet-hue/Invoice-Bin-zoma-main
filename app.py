@@ -15,6 +15,7 @@ import requests
 import json
 import re
 import html
+import absher_sync          # محرّك مزامنة أبشر (قارئ xlsx بالمكتبة القياسية + الفروقات)
 from datetime import datetime
 from functools import wraps
 
@@ -385,6 +386,10 @@ def init_db():
             # shown under the weekly schedule. Per-branch blob.
             db.execute(
                 "CREATE TABLE IF NOT EXISTS deauthorized_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # One-level backup of the drivers roster taken before each Absher sync apply.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS drivers_backup (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
             # Tiny key/value flags for the workstation (e.g. "did we auto-seed example data?").
             db.execute(
@@ -2555,7 +2560,7 @@ def api_branches_overview():
 WS_BLOB_TABLES = [
     "employees", "schedule_data", "washing_schedule", "records_data",
     "drivers_ws", "oils_data", "purchase_data", "workshop_data",
-    "gps_devices_data", "handover_data", "deauthorized_data",
+    "gps_devices_data", "handover_data", "deauthorized_data", "drivers_backup",
 ]
 
 
@@ -2575,6 +2580,130 @@ def api_deauthorized():
     data = blob_get("deauthorized_data")
     rows = data if isinstance(data, list) else (data.get("rows", []) if isinstance(data, dict) else [])
     return jsonify({"success": True, "rows": rows})
+
+
+# ── مستورِد أبشر داخل الموقع: ارفع ملفات أبشر → الخادم يحدّث سجل السائقين تلقائياً ──
+def _drivers_list_for_sync():
+    """(store, قائمة سائقي الفرع النشط) — SQL للدمام، blob لبقية الفروع/المحطة."""
+    store = _driver_store()
+    if store == "sql":
+        with db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT id, name, empid, plate, car, iqama, phone, drivercard FROM drivers ORDER BY id")
+            return store, [dict(r) for r in c.fetchall()]
+    return store, (blob_get(_driver_blob_table(store)) or [])
+
+
+def _absher_parse_uploads(files):
+    recs = []
+    for f in files:
+        if not f or not getattr(f, "filename", ""):
+            continue
+        recs += absher_sync.parse_file(io.BytesIO(f.read()))
+    return recs
+
+
+def _absher_apply(diff, store):
+    # نسخة احتياطية كاملة للفرع الحالي قبل أي تعديل (للرجوع عند الحاجة)
+    _, current = _drivers_list_for_sync()
+    blob_set("drivers_backup", {"ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "rows": current})
+    if store == "sql":
+        with db_connection() as conn:
+            c = conn.cursor()
+            for u in diff["updates"]:
+                sets, params = [], []
+                for f, v in u["changes"].items():
+                    sets.append("%s = ?" % f)
+                    params.append(v)
+                if not sets:
+                    continue
+                params.append(u["id"])
+                c.execute("UPDATE drivers SET %s WHERE id = ?" % ", ".join(sets), params)
+            for n in diff["new"]:
+                c.execute("INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) VALUES (?,?,?,?,?,?,?)",
+                          (n["name"], "", n["plate"], n["car"], n["iqama"], "", ""))
+            conn.commit()
+    else:
+        tbl = _driver_blob_table(store)
+        lst = blob_get(tbl) or []
+        idx = {}
+        for i, d in enumerate(lst):
+            iq = absher_sync.norm_id(d.get("iqama"))
+            if iq:
+                idx[iq] = i
+        for u in diff["updates"]:
+            i = idx.get(u["iqama"])
+            if i is not None:
+                lst[i].update(u["changes"])
+        nid = max([d.get("id", 0) for d in lst], default=0) + 1
+        for n in diff["new"]:
+            lst.append({"id": nid, "name": n["name"], "empid": "", "plate": n["plate"],
+                        "car": n["car"], "iqama": n["iqama"], "phone": "", "drivercard": ""})
+            nid += 1
+        blob_set(tbl, lst)
+    blob_set("deauthorized_data", diff["deauthorized"])
+    _audit_add("مزامنة أبشر", "سجل السائقين", len(diff["new"]) + len(diff["updates"]),
+               "إضافة %d · تحديث %d · إلغاء تفويض %d" % (len(diff["new"]), len(diff["updates"]), len(diff["deauthorized"])))
+
+
+def _absher_summary(diff):
+    return {
+        "counts": {"new": len(diff["new"]), "updates": len(diff["updates"]),
+                   "deauthorized": len(diff["deauthorized"]), "no_vehicle": len(diff["no_vehicle"]),
+                   "unchanged": diff["unchanged"]},
+        "deauthorized": diff["deauthorized"][:300],
+        "new_sample": diff["new"][:60],
+        "updates_sample": diff["updates"][:60],
+    }
+
+
+@app.route("/absher_import")
+@login_required
+def absher_import():
+    """صفحة المستورِد — للمدير الرئيسي فقط."""
+    if not session.get("is_admin"):
+        return redirect(url_for("index"))
+    return render_template("absher_import.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+def _absher_run(apply_it):
+    if not session.get("is_admin"):
+        return jsonify({"success": False, "reason": "forbidden"}), 403
+    files = request.files.getlist("files")
+    if not files or not any(getattr(f, "filename", "") for f in files):
+        return jsonify({"success": False, "reason": "no_files"}), 400
+    try:
+        recs = _absher_parse_uploads(files)
+    except Exception as e:
+        logger.exception("absher parse error")
+        return jsonify({"success": False, "reason": "parse_error", "error": str(e)}), 400
+    if not recs:
+        return jsonify({"success": False, "reason": "empty"}), 400
+    by = absher_sync.index_by_iqama(recs)
+    store, db = _drivers_list_for_sync()
+    diff = absher_sync.compute_diff(db, by, update_names=bool(request.form.get("update_names")))
+    if apply_it:
+        try:
+            _absher_apply(diff, store)
+        except Exception as e:
+            logger.exception("absher apply error")
+            return jsonify({"success": False, "reason": "apply_error", "error": str(e)}), 500
+    out = _absher_summary(diff)
+    out.update({"success": True, "applied": apply_it, "branch": current_branch_name(),
+                "vehicles": len(recs), "authorized": len(by), "db": len(db)})
+    return jsonify(out)
+
+
+@app.route("/api/absher/preview", methods=["POST"])
+@login_required
+def absher_preview():
+    return _absher_run(False)
+
+
+@app.route("/api/absher/apply", methods=["POST"])
+@login_required
+def absher_apply():
+    return _absher_run(True)
 
 
 @app.route("/api/ws_reset", methods=["POST"])

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مزامنة أبشر | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=18) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=18) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        .ab-wrap { max-width: 1000px; margin: 0 auto; }
+        .ab-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.4rem 1.5rem; margin-bottom: 1.3rem; }
+        .ab-card h3 { margin: 0 0 6px; font-size: 1.12rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
+        .ab-card .sub { color: var(--text-secondary); font-size: .9rem; line-height: 1.9; margin-bottom: 1rem; }
+        .ab-drop { border: 2px dashed var(--accent, #c5a059); border-radius: 14px; padding: 26px; text-align: center; color: var(--accent); font-weight: 800; cursor: pointer; background: rgba(197,160,89,.06); transition: var(--trans, .2s); }
+        .ab-drop:hover { background: rgba(197,160,89,.14); }
+        .ab-files { margin-top: 10px; font-size: .84rem; color: var(--text-secondary); }
+        .ab-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+        .ab-btn { padding: 12px 20px; border-radius: 11px; font-weight: 800; font-size: .92rem; cursor: pointer; border: none; }
+        .ab-btn.preview { background: rgba(197,160,89,.14); color: var(--brand-gold); border: 1px solid rgba(197,160,89,.4); }
+        .ab-btn.apply { background: var(--accent-gradient, linear-gradient(135deg,#C5A059,#d8b87a)); color: #1a1a1a; }
+        .ab-btn:disabled { opacity: .5; cursor: default; }
+        .ab-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 6px 0 4px; }
+        .ab-kpi { background: var(--surface-hover); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+        .ab-kpi .v { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .ab-kpi .l { font-size: .76rem; color: var(--text-secondary); font-weight: 700; margin-top: 3px; }
+        .ab-kpi.add .v { color: #10b981; } .ab-kpi.upd .v { color: #f59e0b; } .ab-kpi.deauth .v { color: #ef4444; } .ab-kpi.keep .v { color: var(--text-secondary); }
+        .ab-tbl { width: 100%; border-collapse: collapse; font-size: .82rem; }
+        .ab-tbl th, .ab-tbl td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--border); }
+        .ab-tbl th { background: var(--surface-hover); color: var(--text-secondary); font-weight: 800; position: sticky; top: 0; }
+        .ab-tbl td { color: var(--text-primary); }
+        .ab-scroll { max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 12px; margin-top: 8px; }
+        .ab-msg { font-weight: 800; margin-top: 12px; min-height: 1.2rem; }
+        .ab-note { display:flex; gap:10px; align-items:flex-start; background: rgba(197,160,89,.08); border: 1px solid rgba(197,160,89,.25); border-radius: 12px; padding: 12px 14px; color: var(--text-secondary); font-size: .84rem; line-height:1.8; }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/settings">⚙️ الإعدادات</a>
+      </nav>
+      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">🔄 مزامنة أبشر — تحديث سجل السائقين تلقائياً</h2>
+      <div class="ab-wrap">
+
+        <div class="ab-card">
+          <h3>① ارفع ملف/ملفات أبشر (Excel)</h3>
+          <div class="sub">صدّر «قائمة المركبات» من أبشر/تم بصيغة Excel وارفعها هنا. يستخرج النظام: رقم اللوحة · نوع المركبة · رقم الإقامة · اسم الموظف، ويطابقها بقاعدة البيانات عبر <b>رقم الإقامة</b>. الفرع النشط: <b>{{ active_branch }}</b>.</div>
+          <label class="ab-drop" for="abFiles">📥 اضغط لاختيار ملفات أبشر (xlsx) — يمكن اختيار أكثر من ملف</label>
+          <input id="abFiles" type="file" accept=".xlsx" multiple style="display:none">
+          <div class="ab-files" id="abFilesList">لم تُختر ملفات بعد.</div>
+          <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.84rem;color:var(--text-secondary);font-weight:700;cursor:pointer;">
+            <input type="checkbox" id="abUpdNames"> استبدال الأسماء بأسماء أبشر (افتراضياً تُحفظ الأسماء الحالية الأنظف)
+          </label>
+          <div class="ab-actions">
+            <button class="ab-btn preview" id="abPreviewBtn" disabled>👁️ معاينة (بدون تعديل)</button>
+            <button class="ab-btn apply" id="abApplyBtn" disabled>✅ تطبيق التحديث على قاعدة البيانات</button>
+          </div>
+          <div class="ab-msg" id="abMsg"></div>
+        </div>
+
+        <div class="ab-card" id="abResult" style="display:none">
+          <h3>② النتيجة</h3>
+          <div class="ab-kpis" id="abKpis"></div>
+          <div class="ab-note">ℹ️ <span>رقم الجوال غير موجود في تصدير أبشر — يُحفظ كما هو من قاعدة البيانات. النسخة الاحتياطية تُؤخذ تلقائياً قبل أي تطبيق.</span></div>
+          <h3 style="margin-top:16px">🚫 تم إلغاء تفويضهم</h3>
+          <div class="ab-scroll">
+            <table class="ab-tbl"><thead><tr><th>الاسم</th><th>الإقامة</th><th>اللوحة</th><th>نوع المركبة</th></tr></thead>
+              <tbody id="abDeauth"></tbody></table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  var input = $('abFiles');
+
+  $('abFilesList').parentNode.querySelector('.ab-drop').addEventListener('click', function () { input.click(); });
+  input.addEventListener('change', function () {
+    var names = Array.prototype.map.call(input.files, function (f) { return f.name; });
+    $('abFilesList').textContent = names.length ? ('الملفات: ' + names.join(' · ')) : 'لم تُختر ملفات بعد.';
+    $('abPreviewBtn').disabled = $('abApplyBtn').disabled = !names.length;
+  });
+
+  function send(url, applying) {
+    if (!input.files.length) return;
+    var fd = new FormData();
+    Array.prototype.forEach.call(input.files, function (f) { fd.append('files', f); });
+    if ($('abUpdNames').checked) fd.append('update_names', '1');
+    var msg = $('abMsg');
+    msg.style.color = 'var(--text-secondary)';
+    msg.textContent = applying ? 'جارٍ التطبيق على قاعدة البيانات…' : 'جارٍ التحليل…';
+    $('abPreviewBtn').disabled = $('abApplyBtn').disabled = true;
+    fetch(url, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) {
+      $('abPreviewBtn').disabled = $('abApplyBtn').disabled = false;
+      if (!j || !j.success) {
+        msg.style.color = 'var(--bad-fg,#ef4444)';
+        msg.textContent = '⚠ تعذّر: ' + ((j && (j.error || j.reason)) || 'خطأ غير معروف');
+        return;
+      }
+      render(j, applying);
+      msg.style.color = 'var(--ok-fg,#10b981)';
+      msg.textContent = applying
+        ? ('✅ تم التطبيق على فرع ' + j.branch + ' — إضافة ' + j.counts.new + '، تحديث ' + j.counts.updates + '، إلغاء تفويض ' + j.counts.deauthorized)
+        : ('✓ معاينة جاهزة — راجع النتيجة ثم اضغط «تطبيق».');
+      if (window.showToast) showToast(applying ? 'تمت المزامنة ✓' : 'المعاينة جاهزة', 'success');
+    }).catch(function () {
+      $('abPreviewBtn').disabled = $('abApplyBtn').disabled = false;
+      msg.style.color = 'var(--bad-fg,#ef4444)'; msg.textContent = 'تعذّر الاتصال بالخادم.';
+    });
+  }
+
+  function render(j, applied) {
+    $('abResult').style.display = 'block';
+    var c = j.counts || {};
+    $('abKpis').innerHTML =
+      kpi('add', j.vehicles, 'مركبات أبشر') +
+      kpi('keep', j.authorized, 'مفوّضون') +
+      kpi('add', c.new, 'إضافة') +
+      kpi('upd', c.updates, 'تحديث') +
+      kpi('deauth', c.deauthorized, 'إلغاء تفويض') +
+      kpi('keep', c.unchanged, 'بدون تغيير');
+    var rows = j.deauthorized || [];
+    $('abDeauth').innerHTML = rows.length ? rows.map(function (d) {
+      return '<tr><td>' + esc(d.name) + '</td><td style="direction:ltr;unicode-bidi:plaintext">' + esc(d.iqama) +
+        '</td><td>' + esc(d.plate) + '</td><td>' + esc(d.car) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem">لا يوجد</td></tr>';
+  }
+  function kpi(cls, v, l) { return '<div class="ab-kpi ' + cls + '"><div class="v">' + (v || 0) + '</div><div class="l">' + l + '</div></div>'; }
+
+  $('abPreviewBtn').addEventListener('click', function () { send('/api/absher/preview', false); });
+  $('abApplyBtn').addEventListener('click', function () {
+    if (!confirm('تطبيق التحديث على قاعدة البيانات لفرع ' + (window.BZ_BRANCH || '') + '؟\nتُؤخذ نسخة احتياطية تلقائياً قبل التعديل.')) return;
+    send('/api/absher/apply', true);
+  });
+})();
+</script>
+
+</body>
+</html>

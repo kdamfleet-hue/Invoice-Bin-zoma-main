@@ -410,7 +410,8 @@ function injectAdminLinks() {
         var nav = document.querySelector('.bz-topbar .bz-nav');
         if (!nav) return;
         [{ href: '/overview', text: '🏢 مركز الفروع' },
-         { href: '/branches', text: '📊 جميع الفروع' }].forEach(function (L) {
+         { href: '/branches', text: '📊 جميع الفروع' },
+         { href: '/absher_import', text: '🔄 مزامنة أبشر' }].forEach(function (L) {
             if (nav.querySelector('a[href="' + L.href + '"]')) return;
             var a = document.createElement('a');
             a.href = L.href;
