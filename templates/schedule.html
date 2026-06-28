@@ -361,14 +361,19 @@
       </div>
     </div>
 
-    <!-- تم إلغاء تفويضهم (من مزامنة أبشر) — يظهر دائماً أسفل الجدول -->
+    <!-- تم إلغاء تفويضهم (من مزامنة أبشر) — يظهر دائماً أسفل الجدول، قابل للتعديل والحذف والتصدير -->
     <div class="sec-title" style="margin-top:2rem;"><h2 style="color:#FF6B6B;">🚫 تم إلغاء تفويضهم</h2>
       <span class="sp-chip red" id="deauthCount">0</span></div>
-    <p class="hint" style="margin:-6px 0 10px;">سائقون لم يعودوا المستخدم الفعلي لأي مركبة في آخر تحديث من أبشر (أُلغي تفويضهم).</p>
-    <div class="sched-table-wrap">
-      <table class="sched">
-        <thead><tr><th>#</th><th>الاسم</th><th>الرقم الوظيفي</th><th>رقم الإقامة</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>رقم الجوال</th></tr></thead>
-        <tbody id="deauthBody"><tr><td colspan="7" style="text-align:center;padding:1.2rem;color:var(--p-muted,#94a3b8)">لا يوجد.</td></tr></tbody>
+    <p class="hint" style="margin:-6px 0 10px;">سائقون لم يعودوا المستخدم الفعلي لأي مركبة في آخر تحديث من أبشر. يمكنك <b>التعديل والحذف</b> مباشرةً، والبيانات الناقصة (الجوال/الرقم الوظيفي) تُكمَّل تلقائياً من بيانات الموظفين.</p>
+    <div class="sched-toolbar" style="margin-bottom:10px;">
+      <button class="btn-submit-gold" onclick="exportDeauthorized()">📥 تصدير Excel</button>
+      <button class="btn-outline" onclick="deauthAddRow()">➕ إضافة صف</button>
+      <span class="hint" id="deauthSaveHint" style="margin-inline-start:auto;"></span>
+    </div>
+    <div class="sched-table-wrap" id="deauthPrintArea">
+      <table class="sched bz-fit">
+        <thead><tr><th>#</th><th>الاسم</th><th>الرقم الوظيفي</th><th>رقم الإقامة</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>رقم الجوال</th><th>إجراء</th></tr></thead>
+        <tbody id="deauthBody"><tr><td colspan="8" style="text-align:center;padding:1.2rem;color:var(--p-muted,#94a3b8)">لا يوجد.</td></tr></tbody>
       </table>
     </div>
 
@@ -745,23 +750,94 @@
       if (s && s.value.trim()) window.filterVehicles(s.value);
     }
 
-    // ===== «تم إلغاء تفويضهم» — من مزامنة أبشر (بلوب deauthorized_data) =====
+    // ===== «تم إلغاء تفويضهم» — قابل للتعديل/الحذف/التصدير (بلوب deauthorized_data) =====
     async function loadDeauthorized() {
-      const body = document.getElementById('deauthBody'); if (!body) return;
       let rows = [];
       try { const r = await fetch('/api/deauthorized', { headers: { 'Accept': 'application/json' } }); if (r.ok) { const j = await r.json(); rows = (j && j.rows) || []; } } catch (e) {}
+      window.__deauthAll = rows;
+      renderDeauth();
+    }
+    function renderDeauth() {
+      const body = document.getElementById('deauthBody'); if (!body) return;
+      const rows = window.__deauthAll || [];
       const chip = document.getElementById('deauthCount'); if (chip) chip.textContent = rows.length;
-      if (!rows.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:1.2rem;color:var(--p-muted,#94a3b8)">لا يوجد — كل السائقين مفوّضون ✓</td></tr>'; return; }
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:1.2rem;color:var(--p-muted,#94a3b8)">لا يوجد — كل السائقين مفوّضون ✓</td></tr>'; return; }
+      function inp(i, k, v, ltr) { return '<input class="deauth-in" data-i="' + i + '" data-k="' + k + '" value="' + vesc(v) + '"' + (ltr ? ' style="direction:ltr;unicode-bidi:plaintext"' : '') + '>'; }
       body.innerHTML = rows.map(function (d, i) {
         return '<tr><td>' + (i + 1) + '</td>' +
-          '<td>' + vesc(d.name) + '</td>' +
-          '<td style="direction:ltr;unicode-bidi:plaintext">' + vesc(d.empid) + '</td>' +
-          '<td style="direction:ltr;unicode-bidi:plaintext">' + vesc(d.iqama) + '</td>' +
-          '<td style="font-weight:700">' + vesc(d.plate) + '</td>' +
-          '<td>' + vesc(d.car) + '</td>' +
-          '<td style="direction:ltr;unicode-bidi:plaintext">' + vesc(d.phone) + '</td></tr>';
+          '<td>' + inp(i, 'name', d.name) + '</td>' +
+          '<td>' + inp(i, 'empid', d.empid, true) + '</td>' +
+          '<td>' + inp(i, 'iqama', d.iqama, true) + '</td>' +
+          '<td>' + inp(i, 'plate', d.plate) + '</td>' +
+          '<td>' + inp(i, 'car', d.car) + '</td>' +
+          '<td>' + inp(i, 'phone', d.phone, true) + '</td>' +
+          '<td><button class="btn-outline" style="padding:4px 11px;color:#FF6B6B;border-color:#FF6B6B" onclick="deauthDelete(' + i + ')">🗑 حذف</button></td></tr>';
       }).join('');
     }
+    document.addEventListener('input', function (e) {
+      var t = e.target;
+      if (t && t.classList && t.classList.contains('deauth-in')) {
+        var i = +t.getAttribute('data-i'), k = t.getAttribute('data-k');
+        if (window.__deauthAll && window.__deauthAll[i]) { window.__deauthAll[i][k] = t.value; deauthSaveDebounced(); }
+      }
+    });
+    window.deauthDelete = function (i) {
+      window.bzConfirm('حذف هذا الاسم من القائمة؟').then(function (ok) {
+        if (!ok) return;
+        (window.__deauthAll || []).splice(i, 1); renderDeauth(); saveDeauthorized();
+      });
+    };
+    window.deauthAddRow = function () {
+      (window.__deauthAll = window.__deauthAll || []).push({ name: '', empid: '', iqama: '', plate: '', car: '', phone: '' });
+      renderDeauth();
+    };
+    var _deauthT = null;
+    function deauthSaveDebounced() { clearTimeout(_deauthT); _deauthT = setTimeout(saveDeauthorized, 700); }
+    function saveDeauthorized() {
+      var hint = document.getElementById('deauthSaveHint'); if (hint) hint.textContent = 'جارٍ الحفظ…';
+      fetch('/api/deauthorized', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: window.__deauthAll || [] }) })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { if (hint) hint.textContent = (j && j.success) ? '✓ تم الحفظ' : 'تعذّر الحفظ'; })
+        .catch(function () { if (hint) hint.textContent = 'تعذّر الاتصال'; });
+    }
+    async function exportDeauthorized() {
+      var rows = window.__deauthAll || [];
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('تم إلغاء تفويضهم', { views: [{ rightToLeft: true, showGridLines: false }] });
+      var heads = ['#', 'الاسم', 'الرقم الوظيفي', 'رقم الإقامة', 'رقم اللوحة', 'نوع المركبة', 'رقم الجوال'];
+      [6, 30, 14, 16, 16, 22, 16].forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
+      ws.mergeCells(1, 1, 1, heads.length);
+      var t = ws.getCell('A1');
+      t.value = 'تم إلغاء تفويضهم — فرع ' + (window.BZ_BRANCH || 'الدمام') + ' ' + new Date().getFullYear();
+      t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0C2340' } };
+      t.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+      t.alignment = { horizontal: 'center', vertical: 'center' }; ws.getRow(1).height = 22;
+      var hr = ws.getRow(2);
+      heads.forEach(function (h, i) {
+        var c = hr.getCell(i + 1); c.value = h;
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC9A227' } };
+        c.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0C2340' } };
+        c.alignment = { horizontal: 'center', vertical: 'center' };
+        c.border = { top: { style: 'thin' }, bottom: { style: 'medium', color: { argb: 'FF0C2340' } }, left: { style: 'thin' }, right: { style: 'thin' } };
+      });
+      hr.height = 18;
+      rows.forEach(function (d, i) {
+        var r = ws.getRow(i + 3);
+        [i + 1, d.name || '', d.empid || '', d.iqama || '', d.plate || '', d.car || '', d.phone || ''].forEach(function (v, ci) {
+          var c = r.getCell(ci + 1); c.value = v;
+          c.alignment = { horizontal: 'center', vertical: 'center' };
+          c.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+          if (i % 2) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F2E6' } };
+        });
+      });
+      var fr = rows.length + 4; ws.mergeCells(fr, 1, fr, heads.length);
+      var fc = ws.getCell(fr, 1);
+      fc.value = 'أُعدّ بواسطة قسم الحركة — فرع ' + (window.BZ_BRANCH || 'الدمام') + '   |   ' + new Date().toISOString().slice(0, 10);
+      fc.alignment = { horizontal: 'center' }; fc.font = { name: 'Calibri', size: 11, bold: true };
+      try { var buf = await wb.xlsx.writeBuffer(); saveAs(new Blob([buf]), 'تم_الغاء_تفويضهم_' + new Date().toISOString().slice(0, 10) + '.xlsx'); }
+      catch (e) { if (window.showToast) showToast('تعذّر التصدير', 'error'); }
+    }
+    window.exportDeauthorized = exportDeauthorized;
 
     // ---- persistence ----
     function scheduleSave() {

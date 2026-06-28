@@ -2583,22 +2583,63 @@ WS_BLOB_TABLES = [
 ]
 
 
+def _enrich_deauth(rows):
+    """يكمل الرقم الوظيفي/الجوال الناقص لكل اسم بمطابقته (بالإقامة ثم الاسم) مع بيانات
+    الموظفين وسجل السائقين للفرع النشط."""
+    if not rows:
+        return rows
+    by_iq, by_name = {}, {}
+
+    def _add(iq, nm, empid, phone):
+        rec = {"empid": (str(empid).strip() if empid else ""), "phone": (str(phone).strip() if phone else "")}
+        if iq and iq not in by_iq:
+            by_iq[iq] = rec
+        if nm and nm.strip() and nm.strip() not in by_name:
+            by_name[nm.strip()] = rec
+
+    emp = blob_get("employees")
+    emp_rows = emp if isinstance(emp, list) else (emp.get("rows") if isinstance(emp, dict) else [])
+    for r in (emp_rows or []):
+        if isinstance(r, list) and len(r) > 2:
+            _add(absher_sync.norm_id(r[1] if len(r) > 1 else ""),
+                 str(r[2]).strip() if r[2] else "",
+                 r[0] if r[0] else "",
+                 r[7] if len(r) > 7 and r[7] else "")
+    try:
+        _, drv = _drivers_list_for_sync()
+        for d in drv:
+            _add(absher_sync.norm_id(d.get("iqama")), (d.get("name") or "").strip(), d.get("empid"), d.get("phone"))
+    except Exception:
+        pass
+
+    for row in rows:
+        if (row.get("empid") or "") and (row.get("phone") or ""):
+            continue
+        src = by_iq.get(absher_sync.norm_id(row.get("iqama"))) or by_name.get((row.get("name") or "").strip())
+        if src:
+            if not row.get("empid") and src.get("empid"):
+                row["empid"] = src["empid"]
+            if not row.get("phone") and src.get("phone"):
+                row["phone"] = src["phone"]
+    return rows
+
+
 @app.route("/api/deauthorized", methods=["GET", "POST"])
 @login_required
 def api_deauthorized():
     """قائمة «تم إلغاء تفويضهم» (من مزامنة أبشر) — تظهر أسفل الجدول الأسبوعي.
-    GET: متاح لأي مستخدم مسجّل (مقسومة حسب الفرع). POST: للمدير فقط (لدفع القائمة)."""
+    قابلة للعرض/التعديل/الحذف لأي مستخدم مسجّل، مقسومة حسب الفرع النشط."""
     if request.method == "POST":
-        if not session.get("is_admin"):
-            return jsonify({"success": False, "reason": "forbidden"}), 403
         body = request.get_json(silent=True) or {}
         rows = body.get("rows", body if isinstance(body, list) else [])
-        blob_set("deauthorized_data", rows if isinstance(rows, list) else [])
-        _audit_add("تحديث", "قائمة إلغاء التفويض", len(rows) if isinstance(rows, list) else None)
-        return jsonify({"success": True, "count": len(rows) if isinstance(rows, list) else 0})
+        if not isinstance(rows, list):
+            rows = []
+        blob_set("deauthorized_data", rows)
+        _audit_add("تحديث", "قائمة إلغاء التفويض", len(rows))
+        return jsonify({"success": True, "count": len(rows)})
     data = blob_get("deauthorized_data")
     rows = data if isinstance(data, list) else (data.get("rows", []) if isinstance(data, dict) else [])
-    return jsonify({"success": True, "rows": rows})
+    return jsonify({"success": True, "rows": _enrich_deauth(rows)})
 
 
 # ── مستورِد أبشر داخل الموقع: ارفع ملفات أبشر → الخادم يحدّث سجل السائقين تلقائياً ──
