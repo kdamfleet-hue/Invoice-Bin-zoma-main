@@ -2613,6 +2613,22 @@ def _drivers_list_for_sync():
     return store, (blob_get(_driver_blob_table(store)) or [])
 
 
+def _employee_iqamas():
+    """أرقام إقامات الموظفين المعتمدين (تبويب الموظفين) للفرع النشط — عمود «الإقامة - البطاقة» (الفهرس 1)."""
+    data = blob_get("employees")
+    rows = data if isinstance(data, list) else (data.get("rows") if isinstance(data, dict) else [])
+    out = set()
+    for r in (rows or []):
+        iq = None
+        if isinstance(r, list) and len(r) > 1:
+            iq = absher_sync.norm_id(r[1])
+        elif isinstance(r, dict):
+            iq = absher_sync.norm_id(r.get("iqama") or r.get("الإقامة - البطاقة") or r.get("الإقامة"))
+        if iq:
+            out.add(iq)
+    return out
+
+
 def _absher_parse_uploads(files):
     recs = []
     for f in files:
@@ -2622,10 +2638,13 @@ def _absher_parse_uploads(files):
     return recs
 
 
-def _absher_apply(diff, store):
+def _absher_apply(diff, store, remove_non_emp=False):
     # نسخة احتياطية كاملة للفرع الحالي قبل أي تعديل (للرجوع عند الحاجة)
     _, current = _drivers_list_for_sync()
     blob_set("drivers_backup", {"ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "rows": current})
+    non_emp = diff.get("non_employees", []) if remove_non_emp else []
+    non_emp_ids = set(x.get("id") for x in non_emp if x.get("id") is not None)
+    non_emp_iqamas = set(x.get("iqama") for x in non_emp if x.get("iqama"))
     if store == "sql":
         with db_connection() as conn:
             c = conn.cursor()
@@ -2641,6 +2660,8 @@ def _absher_apply(diff, store):
             for n in diff["new"]:
                 c.execute("INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) VALUES (?,?,?,?,?,?,?)",
                           (n["name"], "", n["plate"], n["car"], n["iqama"], "", ""))
+            for nid in non_emp_ids:                                  # حذف من ليسوا في بيانات الموظفين
+                c.execute("DELETE FROM drivers WHERE id = ?", (nid,))
             conn.commit()
     else:
         tbl = _driver_blob_table(store)
@@ -2659,20 +2680,27 @@ def _absher_apply(diff, store):
             lst.append({"id": nid, "name": n["name"], "empid": "", "plate": n["plate"],
                         "car": n["car"], "iqama": n["iqama"], "phone": "", "drivercard": ""})
             nid += 1
+        if non_emp_iqamas:
+            lst = [d for d in lst if absher_sync.norm_id(d.get("iqama")) not in non_emp_iqamas]
         blob_set(tbl, lst)
     blob_set("deauthorized_data", diff["deauthorized"])
     _audit_add("مزامنة أبشر", "سجل السائقين", len(diff["new"]) + len(diff["updates"]),
-               "إضافة %d · تحديث %d · إلغاء تفويض %d" % (len(diff["new"]), len(diff["updates"]), len(diff["deauthorized"])))
+               "إضافة %d · تحديث %d · حذف غير موظفين %d · إلغاء تفويض %d" % (
+                   len(diff["new"]), len(diff["updates"]), len(non_emp), len(diff["deauthorized"])))
 
 
 def _absher_summary(diff):
     return {
         "counts": {"new": len(diff["new"]), "updates": len(diff["updates"]),
                    "deauthorized": len(diff["deauthorized"]), "no_vehicle": len(diff["no_vehicle"]),
-                   "unchanged": diff["unchanged"]},
+                   "unchanged": diff["unchanged"],
+                   "non_employees": len(diff.get("non_employees", [])),
+                   "ignored_non_employee": diff.get("ignored_non_employee", 0)},
         "deauthorized": diff["deauthorized"][:300],
+        "non_employees": diff.get("non_employees", [])[:300],
         "new_sample": diff["new"][:60],
         "updates_sample": diff["updates"][:60],
+        "used_employee_filter": diff.get("used_employee_filter", False),
     }
 
 
@@ -2700,16 +2728,18 @@ def _absher_run(apply_it):
         return jsonify({"success": False, "reason": "empty"}), 400
     by = absher_sync.index_by_iqama(recs)
     store, db = _drivers_list_for_sync()
-    diff = absher_sync.compute_diff(db, by, update_names=bool(request.form.get("update_names")))
+    emp_iqamas = _employee_iqamas()
+    diff = absher_sync.compute_diff(db, by, update_names=bool(request.form.get("update_names")),
+                                    employee_iqamas=emp_iqamas)
     if apply_it:
         try:
-            _absher_apply(diff, store)
+            _absher_apply(diff, store, remove_non_emp=bool(request.form.get("remove_non_emp")))
         except Exception as e:
             logger.exception("absher apply error")
             return jsonify({"success": False, "reason": "apply_error", "error": str(e)}), 500
     out = _absher_summary(diff)
     out.update({"success": True, "applied": apply_it, "branch": current_branch_name(),
-                "vehicles": len(recs), "authorized": len(by), "db": len(db)})
+                "vehicles": len(recs), "authorized": len(by), "db": len(db), "employees": len(emp_iqamas)})
     return jsonify(out)
 
 

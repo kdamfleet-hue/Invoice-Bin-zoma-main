@@ -53,11 +53,14 @@
 
         <div class="ab-card">
           <h3>① ارفع ملف/ملفات أبشر (Excel)</h3>
-          <div class="sub">صدّر «قائمة المركبات» من أبشر/تم بصيغة Excel وارفعها هنا. يستخرج النظام: رقم اللوحة · نوع المركبة · رقم الإقامة · اسم الموظف، ويطابقها بقاعدة البيانات عبر <b>رقم الإقامة</b>. الفرع النشط: <b>{{ active_branch }}</b>.</div>
+          <div class="sub">صدّر «قائمة المركبات» من أبشر/تم بصيغة Excel وارفعها هنا. تتم المزامنة <b>حصراً حسب بيانات الموظفين</b> (مطابقة عبر <b>رقم الإقامة</b>): يُحدَّث الموظفون الموجودون فقط، وأي اسم في أبشر <b>ليس موظفاً يُتجاهل تلقائياً</b>. الفرع النشط: <b>{{ active_branch }}</b>.</div>
           <label class="ab-drop" for="abFiles">📥 اضغط لاختيار ملفات أبشر (xlsx) — يمكن اختيار أكثر من ملف</label>
           <input id="abFiles" type="file" accept=".xlsx" multiple style="display:none">
           <div class="ab-files" id="abFilesList">لم تُختر ملفات بعد.</div>
           <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.84rem;color:var(--text-secondary);font-weight:700;cursor:pointer;">
+            <input type="checkbox" id="abRemoveNonEmp" checked> 🧹 حذف الأسماء الموجودة في السجل لكنها ليست ضمن بيانات الموظفين
+          </label>
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:.84rem;color:var(--text-secondary);font-weight:700;cursor:pointer;">
             <input type="checkbox" id="abUpdNames"> استبدال الأسماء بأسماء أبشر (افتراضياً تُحفظ الأسماء الحالية الأنظف)
           </label>
           <div class="ab-actions">
@@ -100,6 +103,7 @@
     var fd = new FormData();
     Array.prototype.forEach.call(input.files, function (f) { fd.append('files', f); });
     if ($('abUpdNames').checked) fd.append('update_names', '1');
+    if ($('abRemoveNonEmp').checked) fd.append('remove_non_emp', '1');
     var msg = $('abMsg');
     msg.style.color = 'var(--text-secondary)';
     msg.textContent = applying ? 'جارٍ التطبيق على قاعدة البيانات…' : 'جارٍ التحليل…';
@@ -127,11 +131,13 @@
     $('abResult').style.display = 'block';
     var c = j.counts || {};
     $('abKpis').innerHTML =
-      kpi('add', j.vehicles, 'مركبات أبشر') +
-      kpi('keep', j.authorized, 'مفوّضون') +
-      kpi('add', c.new, 'إضافة') +
+      kpi('keep', j.employees, 'بيانات الموظفين') +
+      kpi('keep', j.vehicles, 'مركبات أبشر') +
+      kpi('add', c.new, 'إضافة (موظفون)') +
       kpi('upd', c.updates, 'تحديث') +
       kpi('deauth', c.deauthorized, 'إلغاء تفويض') +
+      kpi('deauth', c.non_employees, 'غير موظفين (حذف)') +
+      kpi('keep', c.ignored_non_employee, 'تجاهُل من أبشر') +
       kpi('keep', c.unchanged, 'بدون تغيير');
     var rows = j.deauthorized || [];
     $('abDeauth').innerHTML = rows.length ? rows.map(function (d) {

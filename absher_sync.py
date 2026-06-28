@@ -5,7 +5,6 @@
 
 يعمل على الخادم كما هو (لا يتطلب openpyxl/pandas).
 """
-import io
 import re
 import zipfile
 from xml.etree import ElementTree as ET
@@ -163,12 +162,33 @@ def index_by_iqama(records):
     return by
 
 
-def compute_diff(db_drivers, by_iqama, update_names=False):
-    """db_drivers: list of dicts {name, empid, iqama, plate, car, phone}."""
+def compute_diff(db_drivers, by_iqama, update_names=False, employee_iqamas=None):
+    """db_drivers: list of dicts {id?, name, empid, iqama, plate, car, phone}.
+
+    employee_iqamas: مجموعة أرقام إقامات «الموظفين» المعتمدة. إن مُرّرت (غير فارغة) تُفرز
+    المزامنة بحسبها: يُتجاهل أي اسم من أبشر ليس موظفاً، وتُعلَّم أسماء السجل التي ليست ضمن
+    الموظفين للحذف. إن كانت فارغة (لا توجد بيانات موظفين) لا يحدث أي حذف (أماناً)."""
+    emp = set(x for x in (employee_iqamas or []) if x)
+    use_emp = len(emp) > 0
+    ignored_non_employee = 0
+    if use_emp:
+        filtered = {}
+        for iq, r in by_iqama.items():
+            if iq in emp:
+                filtered[iq] = r
+            else:
+                ignored_non_employee += 1
+        by_iqama = filtered
+
     db_iqamas = {norm_id(d.get("iqama")) for d in db_drivers if norm_id(d.get("iqama"))}
-    updates, deauth, no_vehicle, unchanged = [], [], [], []
+    updates, deauth, no_vehicle, unchanged, non_employees = [], [], [], [], []
     for d in db_drivers:
         iq = norm_id(d.get("iqama"))
+        # اسم في السجل لكنه ليس ضمن بيانات الموظفين → مرشّح للحذف
+        if use_emp and iq and iq not in emp:
+            non_employees.append({"id": d.get("id"), "name": d.get("name"), "empid": d.get("empid"),
+                                  "iqama": iq, "plate": d.get("plate"), "car": d.get("car")})
+            continue
         ex = by_iqama.get(iq) if iq else None
         if ex:
             chg = {}
@@ -190,4 +210,6 @@ def compute_diff(db_drivers, by_iqama, update_names=False):
     new = [{"name": ex["name"], "iqama": iq, "plate": ex["plate"], "car": ex["vehicle"], "phone": ""}
            for iq, ex in by_iqama.items() if iq not in db_iqamas]
     return {"updates": updates, "new": new, "deauthorized": deauth,
-            "no_vehicle": no_vehicle, "unchanged": len(unchanged)}
+            "no_vehicle": no_vehicle, "unchanged": len(unchanged),
+            "non_employees": non_employees, "ignored_non_employee": ignored_non_employee,
+            "used_employee_filter": use_emp}
