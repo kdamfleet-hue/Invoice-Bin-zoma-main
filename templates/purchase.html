@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلبات الشراء | شركة بن زومة فرع الدمام</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        /* ── Page-specific layout only (tokens from base_styles.css) ── */
+        .header-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 auto 1rem auto;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .site-logo {
+            max-width: 280px;
+            width: 90%;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.12));
+            transition: var(--trans);
+        }
+
+        body.dark-mode .site-logo { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)); }
+
+        .nav-buttons {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .table-container {
+            width: 100%;
+            padding: 1.5rem;
+            margin: 1.5rem auto 0 auto;
+        }
+
+        /* On-screen readability for the multi-column bz-fit tables (parts/repairs/
+           tires/batteries/summary). The .excel-table base style clips with
+           overflow:hidden (for rounded corners) which can cut header text; for the
+           bz-fit tables we make overflow visible so single-word Arabic headers
+           (الموديل / الحمولة / المسافة …) are never cut and multi-word headers wrap
+           at spaces. table-layout:auto (from bz-fit) sizes each column to content.
+           Export logic / data are untouched. */
+        .excel-table.bz-fit { overflow: visible; }
+        .excel-table.bz-fit thead th {
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+            overflow: visible;
+        }
+        /* The blue full-width section bar (e.g. "البطاريات", "ملخص الإجماليات")
+           should stay on one line — it has ample room across all columns. */
+        .excel-table.bz-fit thead th.excel-header {
+            white-space: nowrap;
+        }
+        /* Narrow screens: the base CSS widens each editable cell (min-width) so the
+           multi-column bz-fit tables (up to 9 cols) become wider than the viewport.
+           Make each such table scroll HORIZONTALLY inside its own bordered, rounded
+           box instead of overflowing/clipping. display:block is required for a
+           <table> to honour overflow-x; the inner table reverts to table layout so
+           sizing/headers are unchanged. Desktop (>920px) keeps the no-scroll
+           fit-to-width layout untouched. Export/PDF logic is not affected. */
+        @media (max-width: 920px) {
+            .excel-table.bz-fit {
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                border-radius: 8px;
+            }
+            .excel-table.bz-fit thead,
+            .excel-table.bz-fit tbody {
+                display: table;
+                width: 100%;
+                table-layout: auto;
+            }
+        }
+
+        .section-title {
+            background: var(--accent);
+            color: #fff;
+            text-align: center;
+            padding: 10px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            border-radius: 10px;
+            margin: 15px 0 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-remove {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: var(--trans);
+        }
+
+        .btn-remove:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+        }
+
+        /* Floating Action Button */
+        .fab-btn {
+            position: fixed;
+            bottom: 25px;
+            left: 25px;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            font-size: 1.7rem;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--trans);
+        }
+
+        .fab-btn:hover {
+            transform: scale(1.08) rotate(8deg);
+        }
+
+        /* ── Corporate "Excel-look" form tables (kept; this is the page's signature layout) ── */
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 22px;
+            border: 1px solid var(--border-strong);
+            background: var(--surface);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid var(--border);
+            padding: 0;
+            margin: 0;
+        }
+        .excel-header {
+            background: var(--accent) !important;
+            color: #fff !important;
+            text-align: center;
+            font-weight: 800;
+            padding: 9px !important;
+            font-size: 1.05rem;
+            border-bottom: 2px solid var(--gold, #c9a227);
+        }
+        .excel-label {
+            background: var(--surface-hover) !important;
+            color: var(--text-primary) !important;
+            text-align: center;
+            font-weight: 700;
+            padding: 6px !important;
+            font-size: 0.92rem;
+            width: 12%;
+            white-space: nowrap;
+        }
+        .excel-table th {
+            background: var(--accent);
+            color: #fff;
+            text-align: center;
+            font-weight: 700;
+            padding: 7px !important;
+            font-size: 0.92rem;
+        }
+        .excel-input {
+            width: 21%;
+        }
+        .excel-input input, .excel-table td input,
+        .excel-table td textarea {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: none !important;
+            padding: 8px;
+            background: transparent;
+            font-family: inherit;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: center;
+            outline: none;
+            min-height: 35px;
+        }
+        .excel-input input:focus, .excel-table td input:focus,
+        .excel-table td textarea:focus {
+            background: var(--accent-glow);
+        }
+        .btn-add-row {
+            background: var(--gold, #c9a227);
+            color: #0C2340;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 800;
+            font-size: 0.85rem;
+            margin-right: 15px;
+        }
+        .btn-add-row:hover {
+            filter: brightness(0.95);
+        }
+        /* Force readable dark text on the printed/notes black-text rows in dark mode */
+        body.dark-mode .excel-table td[style*="color:#000"],
+        body.dark-mode .excel-table th[style*="color:#000"] { color: var(--text-primary) !important; }
+    </style>
+</head>
+
+<body>
+
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+    <!-- Standard top bar -->
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase" class="active">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <datalist id="driversList"></datalist>
+    <datalist id="platesList"></datalist>
+
+  <div class="bz-shell">
+    <div class="header-container">
+        <img src="{{ url_for('static', filename='main_logo.png') }}" alt="Logo" class="site-logo" style="width: 300px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+                {% if google_user %}
+        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:var(--surface);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
+            <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
+            <span style="font-weight:bold;color:var(--text-primary);font-size:0.9rem">{{ google_user.name }}</span>
+            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
+        </div>
+        {% endif %}
+        <h1 class="bz-section-title" style="text-align:center;">نموذج طلب شراء وإصلاح سيارة</h1>
+        <div class="nav-buttons">
+            <a href="/" class="btn-outline">🔙 العودة للرئيسية</a>
+            <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
+            <a href="/tracking" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
+        </div>
+    </div>
+
+    <!-- Vehicle Info -->
+    <div class="table-container glass-surface" id="poFormArea">
+        <div class="section-title">🚗 بيانات السيارة والسائق</div>
+
+        <!-- Universal Search -->
+        <div style="position:relative;margin-bottom:15px;">
+            <label style="font-weight:bold;color:var(--accent);font-size:1rem;display:block;margin-bottom:6px;">🔍 بحث شامل (اسم / رقم إقامة / رقم لوحة / جوال):</label>
+            <input type="text" id="universalSearch" placeholder="ابحث هنا... مثال: خالد أو 7775 أو 2487345031" oninput="universalSearchFn()" style="width:100%;padding:14px 16px;border:2px solid var(--accent);border-radius:10px;font-size:1.05rem;font-family:'Cairo';font-weight:700;background:var(--surface);color:var(--text-primary);box-sizing:border-box;transition:var(--trans);">
+            <div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:0 0 10px 10px;max-height:300px;overflow-y:auto;z-index:100;box-shadow:var(--shadow-md);"></div>
+        </div>
+
+        
+        <table class="excel-table">
+            <thead>
+                <tr><th colspan="6" class="excel-header">بيانات السيارة والسائق</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th class="excel-label">اسم السائق:</th><td class="excel-input"><input type="text" id="poDriver" list="driversList" onchange="poAutofill()"></td>
+                    <th class="excel-label">الفرع:</th><td class="excel-input"><input type="text" id="poBranch" value="الدمام"></td>
+                    <th class="excel-label">الوظيفة:</th><td class="excel-input"><input type="text" id="poJob" value="سائق"></td>
+                </tr>
+                <tr>
+                    <th class="excel-label">نوع السيارة:</th><td class="excel-input"><input type="text" id="poCar"></td>
+                    <th class="excel-label">رقم اللوحة:</th><td class="excel-input"><input type="text" id="poPlate" list="platesList" onchange="poAutofill()"></td>
+                    <th class="excel-label">الموديل:</th><td class="excel-input"><input type="text" id="poModel"></td>
+                </tr>
+                <tr>
+                    <th class="excel-label">عداد السيارة:</th><td class="excel-input" colspan="5"><input type="number" id="odometer" required placeholder="مثال: 150000"></td>
+                </tr>
+                <tr>
+                    <th class="excel-label">الرقم الوظيفي:</th><td class="excel-input"><input type="text" id="poEmpid"></td>
+                    <th class="excel-label">رقم الجوال:</th><td class="excel-input"><input type="text" id="poPhone"></td>
+                    <th class="excel-label">التاريخ:</th><td class="excel-input"><input type="date" id="poDate"></td>
+                </tr>
+                <tr>
+                    <th class="excel-label">الرقم التسلسلي:</th><td class="excel-input" colspan="5"><input type="text" id="poSerial" readonly style="background: rgba(0,0,0,0.05); color: #d35400;"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Parts -->
+        <table id="partsTable" class="excel-table bz-fit">
+            <thead>
+                <tr><th colspan="7" class="excel-header">قطع الغيار <button class="btn-add-row" onclick="addPartRow()">+ إضافة</button></th></tr>
+                <tr>
+                    <th style="width: 5%;">م</th>
+                    <th style="width: 35%;">البيان</th>
+                    <th style="width: 10%;">الكمية</th>
+                    <th style="width: 15%;">السعر</th>
+                    <th style="width: 15%;">القيمة</th>
+                    <th style="width: 15%;">ملاحظات</th>
+                    <th style="width: 5%;">حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Repairs -->
+        <table id="repairsTable" class="excel-table bz-fit">
+            <thead>
+                <tr><th colspan="5" class="excel-header">الإصلاح <button class="btn-add-row" onclick="addRepairRow()">+ إضافة</button></th></tr>
+                <tr>
+                    <th style="width: 5%;">م</th>
+                    <th style="width: 45%;">الوصف</th>
+                    <th style="width: 20%;">القيمة</th>
+                    <th style="width: 25%;">ملاحظات</th>
+                    <th style="width: 5%;">حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Tires -->
+        <table id="tiresTable" class="excel-table bz-fit">
+            <thead>
+                <tr><th colspan="9" class="excel-header">الكفرات <button class="btn-add-row" onclick="addTireRow()">+ إضافة</button></th></tr>
+                <tr>
+                    <th style="width: 5%;">م</th>
+                    <th style="width: 15%;">تاريخ التغيير</th>
+                    <th style="width: 10%;">العدد</th>
+                    <th style="width: 10%;">أمامية</th>
+                    <th style="width: 10%;">خلفية</th>
+                    <th style="width: 15%;">قراءة سابقة</th>
+                    <th style="width: 15%;">قراءة حالية</th>
+                    <th style="width: 15%;">المسافة</th>
+                    <th style="width: 5%;">حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Batteries -->
+        <table id="batteriesTable" class="excel-table bz-fit">
+            <thead>
+                <tr><th colspan="8" class="excel-header">البطاريات <button class="btn-add-row" onclick="addBatteryRow()">+ إضافة</button></th></tr>
+                <tr>
+                    <th style="width: 5%;">م</th>
+                    <th style="width: 30%;">الوصف</th>
+                    <th style="width: 10%;">العدد</th>
+                    <th style="width: 15%;">المقاس</th>
+                    <th style="width: 10%;">أمبير</th>
+                    <th style="width: 15%;">السعر للوحدة</th>
+                    <th style="width: 10%;">التاريخ</th>
+                    <th style="width: 5%;">حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Summary Totals -->
+        <table id="summaryTable" class="excel-table bz-fit">
+            <thead>
+                <tr><th colspan="7" class="excel-header">ملخص الإجماليات</th></tr>
+                <tr>
+                    <th style="width: 14%;">قطع الغيار</th>
+                    <th style="width: 14%;">الإصلاح</th>
+                    <th style="width: 14%;">الكفرات</th>
+                    <th style="width: 14%;">البطاريات</th>
+                    <th style="width: 15%;">الإجمالي (قبل الضريبة)</th>
+                    <th style="width: 14%;">ضريبة 15%</th>
+                    <th style="width: 15%;">الإجمالي شامل الضريبة</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input type="number" id="sumParts" oninput="recalcSummary()" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="الإجمالي"></td>
+                    <td><input type="number" id="sumRepairs" oninput="recalcSummary()" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="الإجمالي"></td>
+                    <td><input type="number" id="sumTires" oninput="recalcSummary()" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="أدخل يدوياً"></td>
+                    <td><input type="number" id="sumBatteries" oninput="recalcSummary()" style="font-weight:bold;text-align:center;background:var(--surface);" placeholder="الإجمالي"></td>
+                    <td><input type="number" id="sumSubtotal" readonly style="background:var(--surface-hover);font-weight:bold;text-align:center;color:var(--accent);"></td>
+                    <td><input type="number" id="sumVat" readonly style="background:var(--surface-hover);font-weight:bold;text-align:center;color:#e67e22;"></td>
+                    <td><input type="number" id="sumGrandTotal" readonly style="background:var(--surface-hover);font-weight:bold;text-align:center;color:#27ae60;font-size:1.1rem;"></td>
+                </tr>
+            </tbody>
+        </table>
+
+                <!-- User Notes -->
+        <table class="excel-table" style="margin-top: 15px;">
+            <tr>
+                <th class="excel-label" style="width:15%">ملاحظات:</th>
+                <td style="padding:0;"><textarea id="poNotes" rows="2" placeholder="حقل الملاحظات..." style="width:100%; height:100%; padding:8px; border:none; resize:none; font-family:inherit; font-weight:bold; outline:none; font-size:1rem; background:transparent; color:var(--text-primary);"></textarea></td>
+            </tr>
+        </table>
+
+        <!-- Signatures Row -->
+        <div style="border-top: 2px solid #b8860b; border-bottom: 2px solid #b8860b; padding: 40px 0 10px 0; display: flex; justify-content: space-between; font-weight: bold; margin-top: 30px; font-size: 0.95rem;">
+            <div style="width:14%; text-align:center; color:var(--text-primary);">السائق</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">الميكانيكي</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">قسم الحركة</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">مسئول الشراء</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">الحسابات</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">مدير الفرع</div>
+            <div style="width:16%; text-align:center; color:var(--text-primary);">اعتماد الإدارة</div>
+        </div>
+
+        <!-- Notes Section -->
+        <div style="text-align: center; font-weight: bold; margin-top: 40px; margin-bottom: 5px; color:var(--text-primary);">
+            تم إعداد هذا الجدول بواسطة قسم الحركة
+        </div>
+        
+        <table class="excel-table" style="margin-top: 0; margin-bottom: 30px;">
+            <thead>
+                <tr><th class="excel-header" style="background-color: var(--accent) !important; text-align: center; padding:4px !important;">ملاحظات هامة</th></tr>
+            </thead>
+            <tbody>
+                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">1- يعبأ الطلب من قبل مسئول الورشة بعد توقيعه وتوقيع السائق والميكانيكي</td></tr>
+                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">2- يوقع بعد ذلك من المحاسبة ويتم ارساله للإدارة عن طريق محاسب الفرع ليتم اعتماده من الإدارة</td></tr>
+                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">3- عند وجود ملاحظة لأي من الأطراف يمكن تدوينها في حقل الملاحظات أعلاه</td></tr>
+                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">4- ترفق صورة للإدارة المالية وصورة لقسم الحركة بالإدارة، ويتم حفظ صورة من الطلب لدى الورشة</td></tr>
+            </tbody>
+        </table>
+
+        <div style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
+            <button class="btn-submit-gold" onclick="downloadPO(this)">📥 استخراج الطلب (Excel)</button>
+            <button class="btn-primary" onclick="sharePO(this)">📤 مشاركة / تصدير</button>
+            <button class="btn-submit-orange" onclick="openCustomModal('emailModal')">📧 إرسال عبر الإيميل</button>
+        </div>
+    </div>
+    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);width:100%">
+        تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
+  </div><!-- /bz-shell -->
+
+
+
+    <script>
+        let driversData = [];
+        async function fetchDrivers() { 
+            try { 
+                driversData = await (await fetch('/api/drivers')).json(); 
+                const dl = document.getElementById('driversList'); 
+                const pl = document.getElementById('platesList');
+                dl.innerHTML = ''; 
+                pl.innerHTML = '';
+                driversData.forEach(d => { 
+                    if (d.name) {
+                        const o = document.createElement('option'); o.value = d.name; dl.appendChild(o); 
+                    }
+                    if (d.plate && d.plate !== 'None') {
+                        const o2 = document.createElement('option'); o2.value = d.plate; pl.appendChild(o2); 
+                    }
+                }) 
+            } catch (e) { } 
+        }
+
+        function poAutofill() {
+            const driverVal = document.getElementById('poDriver').value;
+            const plateVal = document.getElementById('poPlate').value;
+            
+            let d = null;
+            if (driverVal && driversData.some(x => x.name === driverVal)) {
+                d = driversData.find(x => x.name === driverVal);
+            } else if (plateVal && driversData.some(x => x.plate === plateVal)) {
+                d = driversData.find(x => x.plate === plateVal);
+            }
+
+            if (d) { fillDriverFields(d); }
+        }
+
+        function fillDriverFields(d) {
+            if (d.name) document.getElementById('poDriver').value = d.name;
+            if (d.car && d.car !== 'None') {
+                document.getElementById('poCar').value = d.car;
+                const match = d.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+                if (match) {
+                    document.getElementById('poModel').value = match[1];
+                }
+            }
+            if (d.plate && d.plate !== 'None') document.getElementById('poPlate').value = d.plate;
+            if (d.empid && d.empid !== 'None') document.getElementById('poEmpid').value = d.empid;
+            if (d.phone && d.phone !== 'None') document.getElementById('poPhone').value = d.phone;
+        }
+
+        // Universal search: searches name, iqama, plate, phone
+        function universalSearchFn() {
+            const q = document.getElementById('universalSearch').value.trim().toLowerCase();
+            const resultsDiv = document.getElementById('searchResults');
+            if (!q || q.length < 2) { resultsDiv.style.display = 'none'; return; }
+
+            const matches = driversData.filter(d => {
+                return (d.name && d.name.toLowerCase().includes(q)) ||
+                       (d.iqama && d.iqama.includes(q)) ||
+                       (d.plate && d.plate.replace(/\s/g,'').includes(q.replace(/\s/g,''))) ||
+                       (d.phone && d.phone.includes(q)) ||
+                       (d.empid && d.empid.includes(q));
+            });
+
+            if (matches.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding:12px;color:var(--text-muted);text-align:center;">لا توجد نتائج</div>';
+            } else {
+                const esc = window.escapeHtml || (s => s);
+                resultsDiv.innerHTML = matches.slice(0, 10).map(d => {
+                    const parts = [];
+                    if (d.iqama) parts.push('🪪 ' + esc(d.iqama));
+                    if (d.plate) parts.push('🚗 ' + esc(d.plate));
+                    if (d.car) parts.push('🚛 ' + esc(d.car));
+                    if (d.phone) parts.push('📱 ' + esc(d.phone));
+                    const safeName = esc(d.name);
+                    const attrName = String(d.name).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, "\\'");
+                    return `<div onclick="selectSearchResult('${attrName}')"
+                        style="padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:var(--trans);"
+                        onmouseover="this.style.background='var(--surface-hover)'"
+                        onmouseout="this.style.background='transparent'">
+                        <div style="font-weight:bold;color:var(--text-primary);font-size:1rem;">👤 ${safeName}</div>
+                        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:3px;">${parts.join(' | ')}</div>
+                    </div>`;
+                }).join('');
+            }
+            resultsDiv.style.display = 'block';
+        }
+
+        function selectSearchResult(name) {
+            const d = driversData.find(x => x.name === name);
+            if (d) {
+                fillDriverFields(d);
+                document.getElementById('universalSearch').value = d.name;
+                document.getElementById('searchResults').style.display = 'none';
+            }
+        }
+
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#universalSearch') && !e.target.closest('#searchResults')) {
+                document.getElementById('searchResults').style.display = 'none';
+            }
+        });
+
+        // ── Auto-calculate summary totals ──
+        function updateSummaryFieldsFromTables() {
+            let partsTotal = 0;
+            document.querySelectorAll('#partsTable tbody tr:not(.empty-row)').forEach(tr => {
+                partsTotal += parseFloat(tr.querySelector('.p-val')?.value) || 0;
+            });
+            let repairsTotal = 0;
+            document.querySelectorAll('#repairsTable tbody tr:not(.empty-row)').forEach(tr => {
+                repairsTotal += parseFloat(tr.querySelector('.r-val')?.value) || 0;
+            });
+            let batteriesTotal = 0;
+            document.querySelectorAll('#batteriesTable tbody tr:not(.empty-row)').forEach(tr => {
+                const count = parseFloat(tr.querySelector('.b-count')?.value) || 0;
+                const price = parseFloat(tr.querySelector('.b-price')?.value) || 0;
+                batteriesTotal += count * price;
+            });
+
+            if (partsTotal > 0) document.getElementById('sumParts').value = partsTotal.toFixed(2);
+            if (repairsTotal > 0) document.getElementById('sumRepairs').value = repairsTotal.toFixed(2);
+            if (batteriesTotal > 0) document.getElementById('sumBatteries').value = batteriesTotal.toFixed(2);
+        }
+
+        function recalcSummary() {
+            let partsTotal = parseFloat(document.getElementById('sumParts').value) || 0;
+            let repairsTotal = parseFloat(document.getElementById('sumRepairs').value) || 0;
+            let tiresTotal = parseFloat(document.getElementById('sumTires').value) || 0;
+            let batteriesTotal = parseFloat(document.getElementById('sumBatteries').value) || 0;
+
+            const subtotal = partsTotal + repairsTotal + tiresTotal + batteriesTotal;
+            const vat = subtotal * 0.15;
+            const grandTotal = subtotal + vat;
+
+            document.getElementById('sumSubtotal').value = subtotal ? subtotal.toFixed(2) : '';
+            document.getElementById('sumVat').value = vat ? vat.toFixed(2) : '';
+            document.getElementById('sumGrandTotal').value = grandTotal ? grandTotal.toFixed(2) : '';
+        }
+
+        // Recalc on any input change within tables
+        document.addEventListener('input', function(e) {
+            if (e.target.closest('#partsTable') || e.target.closest('#repairsTable') || e.target.closest('#batteriesTable')) {
+                updateSummaryFieldsFromTables();
+                recalcSummary();
+            } else if (e.target.id === 'sumParts' || e.target.id === 'sumRepairs' || e.target.id === 'sumTires' || e.target.id === 'sumBatteries') {
+                recalcSummary();
+            }
+        });
+
+        let pc = 0;
+        function addPartRow() {
+            pc++;
+            const t = document.querySelector('#partsTable tbody');
+            const empty = t.querySelector('.empty-row');
+            if (empty) empty.remove();
+            const r = document.createElement('tr');
+            r.innerHTML = `<td>${pc}</td><td><input class="p-desc"></td><td><input type="number" class="p-qty" oninput="calcPartVal(this);updateSummaryFieldsFromTables();recalcSummary();updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="number" class="p-price" oninput="calcPartVal(this);updateSummaryFieldsFromTables();recalcSummary();updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="number" class="p-val" readonly></td><td><input class="p-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updatePartIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
+            t.appendChild(r);
+        }
+        function updatePartIds() {
+            const tb = document.querySelector('#partsTable tbody');
+            pc = 0;
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r => { pc++; r.cells[0].innerText = pc; });
+            if (pc === 0) tb.innerHTML = '<tr class="empty-row"><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد بيانات</h3></div></td></tr>';
+        }
+        function calcPartVal(el) { const tr = el.closest('tr'); const q = parseFloat(tr.querySelector('.p-qty').value) || 0; const p = parseFloat(tr.querySelector('.p-price').value) || 0; tr.querySelector('.p-val').value = (q * p).toFixed(2); recalcSummary(); }
+
+        let rc = 0;
+        function addRepairRow() {
+            rc++;
+            const t = document.querySelector('#repairsTable tbody');
+            const empty = t.querySelector('.empty-row');
+            if (empty) empty.remove();
+            const r = document.createElement('tr');
+            r.innerHTML = `<td>${rc}</td><td><input class="r-desc"></td><td><input type="number" class="r-val" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input class="r-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateRepairIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
+            t.appendChild(r);
+        }
+        function updateRepairIds() {
+            const tb = document.querySelector('#repairsTable tbody');
+            rc = 0;
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r => { rc++; r.cells[0].innerText = rc; });
+            if (rc === 0) tb.innerHTML = '<tr class="empty-row"><td colspan="5"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد بيانات</h3></div></td></tr>';
+        }
+        let tc = 0;
+        function addTireRow() {
+            tc++;
+            const t = document.querySelector('#tiresTable tbody');
+            const empty = t.querySelector('.empty-row');
+            if (empty) empty.remove();
+            const r = document.createElement('tr');
+            r.innerHTML = `<td>${tc}</td><td><input type="date" class="ti-date" value="${new Date().toISOString().split('T')[0]}"></td><td><input type="number" class="ti-count"></td><td><input type="number" class="ti-front"></td><td><input type="number" class="ti-back"></td><td><input type="number" class="ti-prev" oninput="calcTireDist(this)"></td><td><input type="number" class="ti-curr" oninput="calcTireDist(this)"></td><td><input type="number" class="ti-dist" readonly></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateTireIds()">✕</button></td>`;
+            t.appendChild(r);
+        }
+        function calcTireDist(el) { const tr = el.closest('tr'); const prev = parseInt(tr.querySelector('.ti-prev').value) || 0; const curr = parseInt(tr.querySelector('.ti-curr').value) || 0; tr.querySelector('.ti-dist').value = curr - prev; }
+        function updateTireIds() {
+            const tb = document.querySelector('#tiresTable tbody');
+            tc = 0;
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r => { tc++; r.cells[0].innerText = tc; });
+            if (tc === 0) tb.innerHTML = '<tr class="empty-row"><td colspan="9"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد بيانات</h3></div></td></tr>';
+        }
+        let bc = 0;
+        function addBatteryRow() {
+            bc++;
+            const t = document.querySelector('#batteriesTable tbody');
+            const empty = t.querySelector('.empty-row');
+            if (empty) empty.remove();
+            const r = document.createElement('tr');
+            r.innerHTML = `<td>${bc}</td><td><input class="b-desc"></td><td><input type="number" class="b-count" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input class="b-size"></td><td><input class="b-amp"></td><td><input type="number" class="b-price" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="date" class="b-date" value="${new Date().toISOString().split('T')[0]}"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateBatteryIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
+            t.appendChild(r);
+        }
+        function updateBatteryIds() {
+            const tb = document.querySelector('#batteriesTable tbody');
+            bc = 0;
+            const rows = tb.querySelectorAll('tr:not(.empty-row)');
+            rows.forEach(r => { bc++; r.cells[0].innerText = bc; });
+            if (bc === 0) tb.innerHTML = '<tr class="empty-row"><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📋</div><h3>لا يوجد بيانات</h3></div></td></tr>';
+        }
+
+        function collectPOData() {
+            const parts = [];
+            document.querySelectorAll('#partsTable tbody tr:not(.empty-row)').forEach(tr => {
+                parts.push({ desc: tr.querySelector('.p-desc').value, qty: parseFloat(tr.querySelector('.p-qty').value) || 0, price: parseFloat(tr.querySelector('.p-price').value) || 0, val: parseFloat(tr.querySelector('.p-val').value) || 0, notes: tr.querySelector('.p-notes').value });
+            });
+            const repairs = [];
+            document.querySelectorAll('#repairsTable tbody tr:not(.empty-row)').forEach(tr => {
+                repairs.push({ desc: tr.querySelector('.r-desc').value, val: parseFloat(tr.querySelector('.r-val').value) || 0, notes: tr.querySelector('.r-notes').value });
+            });
+            const tires = [];
+            document.querySelectorAll('#tiresTable tbody tr:not(.empty-row)').forEach(tr => {
+                const prev = parseInt(tr.querySelector('.ti-prev').value) || 0, curr = parseInt(tr.querySelector('.ti-curr').value) || 0;
+                tires.push({ date: tr.querySelector('.ti-date').value, count: parseInt(tr.querySelector('.ti-count').value) || 0, front: parseInt(tr.querySelector('.ti-front').value) || 0, back: parseInt(tr.querySelector('.ti-back').value) || 0, prev, curr, dist: curr - prev });
+            });
+            const batteries = [];
+            document.querySelectorAll('#batteriesTable tbody tr:not(.empty-row)').forEach(tr => {
+                batteries.push({ desc: tr.querySelector('.b-desc').value, count: parseInt(tr.querySelector('.b-count').value) || 0, size: tr.querySelector('.b-size').value, amp: tr.querySelector('.b-amp').value, price: parseFloat(tr.querySelector('.b-price').value) || 0, date: tr.querySelector('.b-date').value });
+            });
+
+            // Summary totals
+            const summary = {
+                parts_total: parseFloat(document.getElementById('sumParts').value) || 0,
+                repairs_total: parseFloat(document.getElementById('sumRepairs').value) || 0,
+                tires_total: parseFloat(document.getElementById('sumTires').value) || 0,
+                batteries_total: parseFloat(document.getElementById('sumBatteries').value) || 0,
+                subtotal: parseFloat(document.getElementById('sumSubtotal').value) || 0,
+                vat: parseFloat(document.getElementById('sumVat').value) || 0,
+                grand_total: parseFloat(document.getElementById('sumGrandTotal').value) || 0
+            };
+
+            return {
+                serial: document.getElementById('poSerial').value,
+                driver: document.getElementById('poDriver').value,
+                branch: document.getElementById('poBranch').value,
+                job: document.getElementById('poJob').value,
+                car: document.getElementById('poCar').value,
+                plate: document.getElementById('poPlate').value,
+                model: document.getElementById('poModel').value,
+                odometer: document.getElementById('odometer').value,
+                phone: document.getElementById('poPhone').value,
+                empid: document.getElementById('poEmpid').value,
+                date: document.getElementById('poDate').value,
+                notes: document.getElementById('poNotes').value,
+                summary,
+                parts, repairs, tires, batteries
+            };
+        }
+
+        async function downloadPO(btn) {
+            btn = (btn && btn.tagName) ? btn : null;
+            const originalText = btn ? btn.innerText : '';
+            if (btn) { btn.disabled = true; btn.innerText = 'جاري التحميل... ⏳'; }
+            try {
+                const res = await fetch('/api/generate_po', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(collectPOData()) });
+                const data = await res.json();
+                if (data.success) {
+                    const bin = atob(data.file_b64);
+                    const bytes = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                    saveAs(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), 'طلب_شراء_' + (document.getElementById('poSerial').value) + '_' + (document.getElementById('poDriver').value || 'سائق') + '.xlsx');
+                    showToast('تم استخراج الطلب بنجاح ✅', 'success');
+
+                    // Increment Serial after successful download
+                    let currentSerial = parseInt(localStorage.getItem('poSerialCounter')) || 102;
+                    localStorage.setItem('poSerialCounter', currentSerial + 1);
+                    document.getElementById('poSerial').value = currentSerial + 1;
+                    if (typeof WS !== 'undefined' && WS) wsSavePO(); // persist new serial server-side (WS only)
+                } else showToast('خطأ: ' + (data.error || 'تعذّر إنشاء الملف'), 'error');
+            } catch (e) { showToast('خطأ: ' + e, 'error'); }
+            if (btn) { btn.disabled = false; btn.innerText = originalText || '📥 استخراج الطلب (Excel)'; }
+        }
+
+        // ── Share / Export: build Excel Blob from server-generated file_b64, then open bzShare menu ──
+        function poFilename() {
+            const serial = document.getElementById('poSerial').value || '';
+            const drv = document.getElementById('poDriver').value || 'سائق';
+            return 'طلب_شراء_' + serial + '_' + drv + '.xlsx';
+        }
+        async function poExcelBlob() {
+            const res = await fetch('/api/generate_po', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(collectPOData()) });
+            const data = await res.json();
+            if (!data.success) { showToast('خطأ: ' + (data.error || 'تعذّر إنشاء الملف'), 'error'); return null; }
+            const bin = atob(data.file_b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        }
+        async function sharePO(btn) {
+            const originalText = btn ? btn.innerText : '';
+            if (btn) { btn.disabled = true; btn.innerText = bzTL('جاري التجهيز...') + ' ⏳'; }
+            try {
+                const blob = await poExcelBlob();
+                if (!blob) return;
+                bzShare(async () => blob, {
+                    filename: poFilename(),
+                    subject: bzTL('طلب شراء وإصلاح سيارة') + ' — BIN ZOMAH INTL.',
+                    waMessage: bzTL('مرفق طلب شراء وإصلاح سيارة من شركة بن زومة'),
+                    pdfElement: 'poFormArea',
+                    pdfOrientation: 'portrait'
+                });
+            } catch (e) { showToast('خطأ: ' + e, 'error'); }
+            if (btn) { btn.disabled = false; btn.innerText = originalText || '📤 مشاركة / تصدير'; }
+        }
+
+        async function sendPOEmail() {
+            const email = document.getElementById('targetEmail').value; if (!email) return showToast('يرجى إدخال الإيميل', 'error');
+            const btn = document.getElementById('btnSendEmail'); btn.innerText = 'جاري الإرسال... ⏳';
+            try {
+                const poRes = await fetch('/api/generate_po', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(collectPOData()) });
+                const poData = await poRes.json();
+                if (poData.success) {
+                    const filename = 'طلب_شراء_' + (document.getElementById('poSerial').value) + '_' + (document.getElementById('poDriver').value || 'سائق') + '.xlsx';
+                    const res = await fetch('/api/send_email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, filename, file_b64: poData.file_b64, subject: document.getElementById('emailSubject').value, cc: getCcEmails() }) });
+                    const data = await res.json();
+                    if (data.success) { 
+                        showToast('تم إرسال طلب الشراء بنجاح! ✅', 'success'); 
+                        closeCustomModal('emailModal'); 
+                        
+                        // Increment Serial after successful email
+                        let currentSerial = parseInt(localStorage.getItem('poSerialCounter')) || 102;
+                        localStorage.setItem('poSerialCounter', currentSerial + 1);
+                        document.getElementById('poSerial').value = currentSerial + 1;
+                        if (typeof WS !== 'undefined' && WS) wsSavePO(); // persist new serial server-side (WS only)
+                    }
+                    else showToast('خطأ: ' + data.error, 'error');
+                } else showToast('خطأ: ' + poData.error, 'error');
+            } catch (e) { showToast('خطأ: ' + e, 'error'); }
+            btn.innerText = 'إرسال 🚀';
+        }
+
+
+        function addCcRow() {
+            const container = document.getElementById('ccContainer');
+            const row = document.createElement('div');
+            row.className = 'cc-row';
+            row.style.cssText = 'display:flex;gap:5px;align-items:center';
+            row.innerHTML = '<input type="email" class="cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
+            container.appendChild(row);
+        }
+        function getCcEmails() {
+            return Array.from(document.querySelectorAll('.cc-email')).map(i => i.value.trim()).filter(v => v);
+        }
+
+        // ── Workstation sandbox (/importantworkstation) light PO-draft persistence ──
+        // MAIN site ("/") is untouched: WS is false there, so every block below is skipped.
+        // Local computation is robust against script-timing (vs. relying only on window.BZ_WS).
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+        // Restore a previously-saved PO draft object into the live form (WS only).
+        function wsRestorePO(d) {
+            if (!d || typeof d !== 'object') return;
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
+            setVal('poSerial', d.serial); setVal('poDriver', d.driver); setVal('poBranch', d.branch);
+            setVal('poJob', d.job); setVal('poCar', d.car); setVal('poPlate', d.plate);
+            setVal('poModel', d.model); setVal('odometer', d.odometer); setVal('poPhone', d.phone);
+            setVal('poEmpid', d.empid); setVal('poDate', d.date); setVal('poNotes', d.notes);
+            if (d.summary) {
+                setVal('sumParts', d.summary.parts_total || ''); setVal('sumRepairs', d.summary.repairs_total || '');
+                setVal('sumTires', d.summary.tires_total || ''); setVal('sumBatteries', d.summary.batteries_total || '');
+            }
+            // Rebuild dynamic table rows from saved arrays (re-uses the existing add* builders).
+            (d.parts || []).forEach(p => {
+                addPartRow(); const tr = document.querySelector('#partsTable tbody tr:last-child');
+                tr.querySelector('.p-desc').value = p.desc || ''; tr.querySelector('.p-qty').value = p.qty || '';
+                tr.querySelector('.p-price').value = p.price || ''; tr.querySelector('.p-val').value = p.val || '';
+                tr.querySelector('.p-notes').value = p.notes || '';
+            });
+            (d.repairs || []).forEach(r => {
+                addRepairRow(); const tr = document.querySelector('#repairsTable tbody tr:last-child');
+                tr.querySelector('.r-desc').value = r.desc || ''; tr.querySelector('.r-val').value = r.val || '';
+                tr.querySelector('.r-notes').value = r.notes || '';
+            });
+            (d.tires || []).forEach(t => {
+                addTireRow(); const tr = document.querySelector('#tiresTable tbody tr:last-child');
+                tr.querySelector('.ti-date').value = t.date || ''; tr.querySelector('.ti-count').value = t.count || '';
+                tr.querySelector('.ti-front').value = t.front || ''; tr.querySelector('.ti-back').value = t.back || '';
+                tr.querySelector('.ti-prev').value = t.prev || ''; tr.querySelector('.ti-curr').value = t.curr || '';
+                tr.querySelector('.ti-dist').value = t.dist || '';
+            });
+            (d.batteries || []).forEach(b => {
+                addBatteryRow(); const tr = document.querySelector('#batteriesTable tbody tr:last-child');
+                tr.querySelector('.b-desc').value = b.desc || ''; tr.querySelector('.b-count').value = b.count || '';
+                tr.querySelector('.b-size').value = b.size || ''; tr.querySelector('.b-amp').value = b.amp || '';
+                tr.querySelector('.b-price').value = b.price || ''; tr.querySelector('.b-date').value = b.date || '';
+            });
+            recalcSummary();
+        }
+
+        // Debounced autosave of the whole draft (+ serial counter) to the WS server store.
+        let _wsPoSaveTimer = null;
+        function wsSavePO() {
+            if (!WS) return;
+            clearTimeout(_wsPoSaveTimer);
+            _wsPoSaveTimer = setTimeout(() => {
+                const payload = collectPOData();
+                // Persist the running serial counter alongside the draft so reload restores it.
+                payload.serialCounter = parseInt(localStorage.getItem('poSerialCounter')) || 102;
+                // Literal '/api/...' so app_ux.js routes it to /importantworkstation/api/... in WS.
+                fetch('/api/purchase_data', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            }, 700);
+        }
+
+        window.onload = async () => {
+            await fetchDrivers();
+            document.getElementById('poDate').valueAsDate = new Date();
+
+            if (WS) {
+                // WS: load this sandbox's own persisted draft (id=2). Empty start when none.
+                let saved = null;
+                try {
+                    const res = await fetch('/api/purchase_data');
+                    const j = await res.json();
+                    if (j && j.success && j.data) saved = j.data;
+                } catch (e) { saved = null; }
+
+                // Serial counter: prefer the server-persisted value, else localStorage, else 102.
+                let serialNum = (saved && saved.serialCounter) ||
+                                parseInt(localStorage.getItem('poSerialCounter')) || 102;
+                localStorage.setItem('poSerialCounter', serialNum);
+                document.getElementById('poSerial').value = serialNum;
+
+                if (saved) {
+                    wsRestorePO(saved);
+                } else {
+                    // No saved draft → start blank, just like a fresh PO form.
+                    addPartRow(); addRepairRow(); addTireRow(); addBatteryRow();
+                }
+
+                // Autosave the draft on any input within the form area (debounced).
+                const formArea = document.getElementById('poFormArea');
+                if (formArea) formArea.addEventListener('input', wsSavePO);
+
+                // Wire autofill exactly like the main path, then finish (skip original block below).
+                if (window.FleetData && typeof FleetData.attachAutofill === 'function') {
+                    FleetData.attachAutofill({
+                        name: 'poDriver',
+                        fields: { car: 'poCar', plate: 'poPlate', empid: 'poEmpid', phone: 'poPhone' },
+                        onFill: (rec) => {
+                            if (rec && rec.car) {
+                                const m = String(rec.car).match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+                                if (m && !document.getElementById('poModel').value) document.getElementById('poModel').value = m[1];
+                            }
+                        }
+                    });
+                }
+                return;
+            }
+
+            // ── Original main-site behavior (WS false) — byte-for-byte unchanged ──
+            let serialNum = parseInt(localStorage.getItem('poSerialCounter')) || 102;
+            document.getElementById('poSerial').value = serialNum;
+            addPartRow(); addRepairRow(); addTireRow(); addBatteryRow();
+
+            // Wire the shared autofill engine to the driver-name input (datalist driversList).
+            // Fills car type / plate / iqama / empid / phone; then extracts model and refreshes serial.
+            if (window.FleetData && typeof FleetData.attachAutofill === 'function') {
+                FleetData.attachAutofill({
+                    name: 'poDriver',
+                    fields: { car: 'poCar', plate: 'poPlate', empid: 'poEmpid', phone: 'poPhone' },
+                    onFill: (rec) => {
+                        if (rec && rec.car) {
+                            const m = String(rec.car).match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+                            if (m && !document.getElementById('poModel').value) document.getElementById('poModel').value = m[1];
+                        }
+                    }
+                });
+            }
+        };
+    </script>
+
+
+
+    <div class="modal-backdrop" id="emailModal">
+        <div class="modal-content-custom">
+            <div class="modal-header-custom">
+                <span>📧 إرسال عبر الإيميل</span>
+                <button class="close-btn" style="color:white;" onclick="closeCustomModal('emailModal')">✕</button>
+            </div>
+            <div class="modal-body-custom">
+                <div
+                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+                    <label
+                        style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
+                    <input type="email" id="targetEmail" required placeholder="example@gmail.com"
+                        style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);">
+                </div>
+                <div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة
+                            إلى:</label>
+                        <div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
+                            <div class="cc-row" style="display:flex;gap:5px;align-items:center">
+                                <input type="email" class="cc-email" placeholder="نسخة (اختياري)"
+                                    style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);">
+                                <button type="button" onclick="addCcRow()"
+                                    style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
+                    <label
+                        style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
+                    <input type="text" id="emailSubject" placeholder="موضوع الرسالة"
+                        style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);">
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+                    <button type="button" onclick="downloadPO(this)"
+                        class="btn-outline">حفظ في سطح المكتب 💾</button>
+                    <button onclick="closeCustomModal('emailModal')" class="btn-outline"
+                        style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+                    <button id="btnSendEmail" onclick="sendPOEmail()" class="btn-primary">إرسال 🚀</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compose Email FAB -->
+    <button id="composeFab" onclick="openCustomModal('composeModal')" class="fab-btn" title="إنشاء رسالة">✉️</button>
+
+    <div class="modal-backdrop" id="composeModal">
+        <div class="modal-content-custom">
+            <div class="modal-header-custom">
+                <span>✉️ إنشاء رسالة جديدة</span>
+                <button class="close-btn" style="color:white;" onclick="closeCustomModal('composeModal')">✕</button>
+            </div>
+            <form id="composeForm" class="modal-body-custom" style="display:flex;flex-direction:column;gap:12px">
+                <div
+                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+                    <label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
+                    <input type="email" name="email" required placeholder="example@gmail.com"
+                        style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);">
+                </div>
+                <div
+                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+                    <label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
+                    <input type="text" name="subject" placeholder="موضوع الرسالة"
+                        style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);">
+                </div>
+                <textarea name="body" rows="5" placeholder="اكتب رسالتك هنا..."
+                    style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:inherit;font-size:1rem;resize:vertical;outline:none"></textarea>
+                <div style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer"
+                    onclick="document.getElementById('composeFile').click()">
+                    <span style="font-size:1.3rem">📎</span>
+                    <span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو
+                        أي ملف آخر</span>
+                    <input type="file" id="composeFile" name="attachment" style="display:none"
+                        onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'">
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
+                    <button type="button" onclick="closeCustomModal('composeModal')" class="btn-outline"
+                        style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+                    <button type="submit" id="composeSendBtn" class="btn-primary">إرسال 🚀</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('composeForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('composeSendBtn');
+            btn.innerText = 'جاري الإرسال... ⏳';
+            btn.disabled = true;
+            try {
+                const formData = new FormData(this);
+                const res = await fetch('/api/compose_email', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('تم إرسال الرسالة بنجاح! ✅', 'success');
+                    closeCustomModal('composeModal');
+                    this.reset();
+                    document.getElementById('composeFileName').innerText = 'اضغط لإرفاق ملف';
+                } else {
+                    showToast('خطأ: ' + data.error, 'error');
+                }
+            } catch (err) { showToast('خطأ في الاتصال: ' + err, 'error'); }
+            btn.innerText = 'إرسال 🚀';
+            btn.disabled = false;
+        });
+    </script>
+</body>
+
+</html>
+

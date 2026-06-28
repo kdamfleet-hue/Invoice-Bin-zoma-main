@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الكاميرات | شركة بن زومة</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+  <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+  <style>
+    .cam-toolbar { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin:1rem 0; }
+    .cam-toolbar .url-field { flex:1; min-width:240px; }
+    .cam-frame-wrap {
+      position:relative; width:100%; height:76vh; min-height:480px;
+      border:1px solid var(--border); border-radius:14px; overflow:hidden;
+      background:var(--surface); box-shadow:var(--shadow-sm);
+    }
+    .cam-frame-wrap iframe { width:100%; height:100%; border:0; display:block; background:#0b0f19; }
+    .cam-fallback {
+      position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:1rem; text-align:center; padding:2rem; background:var(--surface); color:var(--text-secondary);
+    }
+    .cam-fallback .ico { font-size:3rem; opacity:.7; }
+    .cam-note {
+      background:rgba(201,162,39,.10); border:1px solid var(--brand-gold); border-radius:12px;
+      padding:.8rem 1rem; font-size:.86rem; color:var(--text-secondary); margin-bottom:1rem; line-height:1.7;
+    }
+    .cam-note b { color:var(--text-primary); }
+  </style>
+</head>
+<body data-cameras-url="{{ cameras_url or '' }}">
+
+  <header class="bz-topbar">
+    <div class="bz-brand">
+      <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+      <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+    </div>
+    <nav class="bz-nav">
+      <a href="/">🏠 الرئيسية</a>
+      <a href="/purchase">🛒 طلب شراء</a>
+      <a href="/schedule">📋 الجدول الأسبوعي</a>
+      <a href="/oils">🛢️ الزيوت والفلاتر</a>
+      <a href="/washing">🚿 الغسيل</a>
+      <a href="/workshop">🔧 الورشة</a>
+      <a href="/employees">👥 الموظفين</a>
+      <a href="/search">🔍 بحث</a>
+      <a href="/records">📁 التوثيق</a>
+      <a href="/gps_sync">📡 مزامنة GPS</a>
+      <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras" class="active">📹 الكاميرات</a>
+    </nav>
+    <div class="bz-actions">
+      <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+      <a href="/logout" class="bz-logout">خروج</a>
+    </div>
+  </header>
+
+  <div class="bz-shell">
+    <h2 class="bz-section-title">📹 الكاميرات المباشرة — Hik-Connect</h2>
+
+    <div class="cam-note">
+      تُعرض كاميرات <b>Hik-Connect</b> داخل النظام عبر إطار مضمّن. إذا ظهرت المنطقة فارغة، فهذا يعني أن
+      Hik-Connect يمنع التضمين لأسباب أمنية — استخدم زر <b>«فتح في نافذة جديدة»</b>. يمكنك لصق رابط البوابة أو
+      رابط المشاركة الخاص بك في الحقل أدناه (يُحفظ على متصفحك)، أو ضبطه على الخادم عبر المتغيّر <b>CAMERAS_URL</b>.
+    </div>
+
+    <div class="cam-toolbar">
+      <div class="url-field"><input type="url" id="camUrl" placeholder="https://www.hik-connect.com  (الصق رابط Hik-Connect هنا)"></div>
+      <button class="btn-primary" onclick="loadCameras()">▶️ عرض</button>
+      <button class="btn-submit-gold" onclick="openCamerasTab()">↗️ فتح في نافذة جديدة</button>
+      <button class="btn-outline" onclick="reloadFrame()">↻ تحديث</button>
+    </div>
+
+    <div class="cam-frame-wrap">
+      <iframe id="camFrame" allow="fullscreen; camera; microphone; autoplay; encrypted-media"
+              allowfullscreen referrerpolicy="no-referrer-when-downgrade"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-presentation"></iframe>
+      <div class="cam-fallback" id="camFallback">
+        <div class="ico">📹</div>
+        <h3 style="margin:0;color:var(--text-primary);">جاهز لعرض الكاميرات</h3>
+        <p style="margin:0;max-width:520px;">الصق رابط Hik-Connect ثم اضغط «عرض». إذا منع الموقع التضمين، اضغط «فتح في نافذة جديدة» لعرض الكاميرات في صفحة مستقلة.</p>
+        <button class="btn-primary" onclick="openCamerasTab()">↗️ فتح Hik-Connect في نافذة جديدة</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LS_CAM = 'bz_cameras_url';
+    const DEFAULT_URL = 'https://www.hik-connect.com';
+
+    function currentUrl() {
+      const server = (document.body.dataset.camerasUrl || '').trim();
+      return (localStorage.getItem(LS_CAM) || server || DEFAULT_URL);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const url = currentUrl();
+      document.getElementById('camUrl').value = url;
+      // Only auto-load if a real URL is configured (server or saved); otherwise wait for user.
+      if (localStorage.getItem(LS_CAM) || (document.body.dataset.camerasUrl || '').trim()) {
+        loadCameras();
+      }
+    });
+
+    function normalize(u) {
+      u = (u || '').trim();
+      if (!u) return '';
+      if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+      return u;
+    }
+
+    function loadCameras() {
+      const u = normalize(document.getElementById('camUrl').value);
+      if (!u) { if (window.showToast) showToast('أدخل رابط Hik-Connect أولاً', 'error'); return; }
+      localStorage.setItem(LS_CAM, u);
+      const frame = document.getElementById('camFrame');
+      const fb = document.getElementById('camFallback');
+      fb.style.display = 'none';            // hide the placeholder; if blocked, the frame area shows the browser's block page
+      frame.src = u;
+      // If the frame fails to render (X-Frame-Options/CSP), most browsers leave it blank with no JS-visible error.
+      // Re-show a hint after a short delay so the user can fall back to a new tab.
+      clearTimeout(window._camHint);
+      window._camHint = setTimeout(() => {
+        if (!document.getElementById('camHintShown')) {
+          const note = document.createElement('div');
+          note.id = 'camHintShown';
+          if (window.showToast) showToast('إذا بقيت المنطقة فارغة، استخدم «فتح في نافذة جديدة»', 'info');
+        }
+      }, 3500);
+    }
+
+    function reloadFrame() {
+      const frame = document.getElementById('camFrame');
+      if (frame.src) frame.src = frame.src;
+      else loadCameras();
+    }
+
+    function openCamerasTab() {
+      const u = normalize(document.getElementById('camUrl').value) || DEFAULT_URL;
+      localStorage.setItem(LS_CAM, u);
+      window.open(u, '_blank', 'noopener');
+    }
+  </script>
+</body>
+</html>

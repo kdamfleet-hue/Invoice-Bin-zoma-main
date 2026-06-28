@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحضير جدول الغسيل | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+    <style>
+        /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
+        /* Let bz-fit size each column to its content; allow horizontal scroll on
+           very narrow screens instead of clipping header/cell text. */
+        .wash-table-wrap { overflow-x: auto; }
+        #washTable { border-collapse: collapse; width: 100%; table-layout: auto; }
+        #washTable thead { position: sticky; top: 0; z-index: 5; }
+        #washTable thead th {
+            background: var(--brand-navy, #0C2340);
+            color: #fff; padding: 12px 8px; font-size: 0.8rem; font-weight: 700;
+            text-align: center; white-space: normal; word-break: keep-all;
+            overflow-wrap: normal; hyphens: none; line-height: 1.3;
+            border-bottom: 2px solid var(--accent, #c9a227);
+        }
+        #washTable thead th.col-id { text-align: center; }
+        #washTable thead th.col-plate { text-align: right; }
+        #washTable thead th.col-type { text-align: right; }
+        #washTable thead th.col-driver { text-align: right; }
+        #washTable thead th.col-month { text-align: center; }
+        /* keep-all + overflow-wrap:normal keeps single Arabic words (e.g. المجموع) whole;
+           multi-word headers still wrap at their spaces, column grows instead of breaking. */
+        #washTable thead th { word-break: keep-all; overflow-wrap: normal; }
+        #washTable thead th.col-total { background: var(--accent, #c9a227); color: #0C2340; }
+        /* visible (not hidden) so no header/cell text is ever clipped on screen. */
+        #washTable td, #washTable th { overflow: visible; }
+        /* Current-month emphasis: a gold underline + bold so it reads even in B&W on screen */
+        #washTable thead th.col-month.current-month {
+            background: var(--accent, #c9a227); color: #0C2340; font-weight: 900;
+            box-shadow: inset 0 -3px 0 #0C2340;
+        }
+        #washTable thead th.col-month.current-month::after { content: " ⬇"; font-size: 0.7rem; }
+        #washTable tbody td.cell-wash.current-month { box-shadow: inset 2px 0 0 var(--accent, #c9a227), inset -2px 0 0 var(--accent, #c9a227); }
+
+        #washTable tbody td {
+            padding: 8px 10px; font-size: 0.85rem; text-align: center;
+            border: 1px solid var(--border); transition: background 0.15s ease;
+        }
+        #washTable tbody td.cell-plate { text-align: right; font-weight: 700; font-family: monospace; font-size: 0.9rem; }
+        #washTable tbody td.cell-type { text-align: right; font-size: 0.8rem; color: var(--text-secondary); }
+        #washTable tbody td.cell-driver { text-align: right; font-size: 0.8rem; max-width: 200px; }
+        .driver-edit-input { width: 100%; border: none; background: transparent; color: var(--text-primary); font-family: inherit; font-size: 0.85rem; font-weight: bold; text-align: right; outline: none; padding: 4px; transition: var(--trans); border-radius: 4px; }
+        .driver-edit-input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
+        #washTable tbody td.cell-total { font-weight: 800; font-size: 1rem; background: var(--surface-hover); }
+        #washTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
+
+        /* Wash status cells — meaning carried by symbol (✓/✗) AND text, never color alone */
+        .cell-wash { cursor: pointer; font-size: 1.1rem; font-weight: 700; min-width: 44px; user-select: none; }
+        .cell-wash.washed { background: #1f9d57 !important; color: #fff; }
+        .cell-wash.not-washed { color: var(--text-muted); }
+        .cell-wash.not-washed .x-mark { opacity: 0.55; }
+        .cell-wash:hover { opacity: 0.85; }
+
+        /* Monthly-invoice summary banner above the table */
+        .month-summary {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+            gap: 1.5rem; margin: 0 auto 1.25rem; padding: 0.85rem 1.25rem; max-width: 760px;
+            border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.08));
+        }
+        .month-summary .ms-title { font-weight: 800; color: var(--text-primary); }
+        .month-summary .ms-pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.95rem; }
+        .month-summary .ms-pill .badge { min-width: 28px; text-align: center; padding: 2px 10px; border-radius: 999px; font-weight: 800; }
+        .month-summary .ms-pill.received .badge { background: #1f9d57; color: #fff; }
+        .month-summary .ms-pill.pending  .badge { background: var(--surface-hover); color: var(--text-primary); border: 1.5px solid var(--border-strong); }
+
+        /* Legend */
+        .legend { display: flex; gap: 2rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-secondary); }
+        .legend-dot { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
+        .legend-dot.green { background: #1f9d57; color: #fff; }
+        .legend-dot.gray { background: var(--surface-hover); border: 1px solid var(--border-strong); color: var(--text-muted); }
+
+        /* Search */
+        .search-bar { width: 100%; max-width: 500px; margin: 0 auto 1.5rem; position: relative; }
+        .search-bar input { width: 100%; padding: 12px 20px 12px 44px; border-radius: 50px; font-size: 1rem; }
+        .search-bar::before { content: ''; position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; }
+
+        @media (max-width: 768px) {
+            .bz-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing" class="active">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <datalist id="driversList"></datalist>
+
+    <div class="bz-shell">
+
+    <h2 class="bz-section-title">🚿 تحضير جدول الغسيل — الشهري</h2>
+    <p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">جدول غسيل المركبات الشهري — فرع الدمام 2026</p>
+
+    <!-- Stats -->
+    <div class="bz-stats">
+        <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
+        <div class="bz-stat"><div class="num" id="statWashes">0</div><div class="label">إجمالي الغسلات</div></div>
+        <div class="bz-stat"><div class="num" id="statCurrent">0</div><div class="label">غسلات الشهر الحالي</div></div>
+        <div class="bz-stat"><div class="num" id="statPending">0</div><div class="label">لم تُغسل هذا الشهر</div></div>
+    </div>
+
+    <!-- Monthly-invoice summary (one wash invoice per vehicle per month) -->
+    <div class="month-summary" id="monthSummary" aria-live="polite">
+        <span class="ms-title">فاتورة الشهر الحالي (<span id="msMonthName">—</span>):</span>
+        <span class="ms-pill received">استلم فاتورة <span class="badge" id="msReceived">0</span></span>
+        <span class="ms-pill pending">لم يستلم بعد <span class="badge" id="msPending">0</span></span>
+    </div>
+
+    <!-- Search -->
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." oninput="filterTable()">
+    </div>
+
+    <!-- Table -->
+    <div class="card" id="washPrintArea">
+    <div class="table-wrapper wash-table-wrap">
+        <table id="washTable" class="bz-fit">
+            <colgroup>
+                <col style="width:3%"><col style="width:11%"><col style="width:15%"><col style="width:16%">
+                <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
+                <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
+                <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
+                <col style="width:7%">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th class="col-id">#</th>
+                    <th class="col-plate"><span class="nb">رقم</span> <span class="nb">اللوحة</span></th>
+                    <th class="col-type"><span class="nb">نوع</span> <span class="nb">السيارة</span></th>
+                    <th class="col-driver"><span class="nb">اسم</span> <span class="nb">السائق</span></th>
+                    <th class="col-month" id="mhead-0">1</th><th class="col-month" id="mhead-1">2</th>
+                    <th class="col-month" id="mhead-2">3</th><th class="col-month" id="mhead-3">4</th>
+                    <th class="col-month" id="mhead-4">5</th><th class="col-month" id="mhead-5">6</th>
+                    <th class="col-month" id="mhead-6">7</th><th class="col-month" id="mhead-7">8</th>
+                    <th class="col-month" id="mhead-8">9</th><th class="col-month" id="mhead-9">10</th>
+                    <th class="col-month" id="mhead-10">11</th><th class="col-month" id="mhead-11">12</th>
+                    <th class="col-total"><span class="nb">المجموع</span></th>
+                </tr>
+            </thead>
+            <tbody id="washBody"></tbody>
+        </table>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item"><div class="legend-dot green">✓</div><span>استلم فاتورة الغسيل لهذا الشهر</span></div>
+        <div class="legend-item"><div class="legend-dot gray">✗</div><span>لم يستلم فاتورة هذا الشهر</span></div>
+        <div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">العمود المظلل بالذهبي ⬇ هو الشهر الحالي — انقر على أي خلية لتغيير الحالة (فاتورة واحدة لكل مركبة شهرياً)</div>
+    </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+        <button class="btn-outline" onclick="reauditPlates()">↻ إعادة تدقيق اللوحات والأنواع</button>
+        <button class="btn-submit-gold" id="washExportBtn" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+        <button class="btn-submit-orange" onclick="shareWashing()">📤 مشاركة / تصدير</button>
+        <button class="btn-primary" onclick="saveState()">💾 حفظ التغييرات</button>
+    </div>
+
+    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي) — فرع الدمام</footer>
+
+    </div><!-- /bz-shell -->
+
+<script>
+    const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    const CURRENT_MONTH = new Date().getMonth(); // 0-based index of the active invoice month
+    let vehicles = [];
+
+    // Mark the current-month column header so the dispatch officer sees it at a glance.
+    function markCurrentMonthHeader() {
+        for (let i = 0; i < 12; i++) {
+            const th = document.getElementById('mhead-' + i);
+            if (th) th.classList.toggle('current-month', i === CURRENT_MONTH);
+        }
+        const msName = document.getElementById('msMonthName');
+        if (msName) msName.textContent = MONTH_NAMES[CURRENT_MONTH];
+    }
+
+    function init() {
+        // Detect the isolated workstation sandbox locally (robust against script-timing).
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+        // Populate the driver datalist + load fleet records for plate-based autofill
+        if (window.FleetData) {
+            FleetData.fillDatalist('driversList').catch(err => console.error('FleetData datalist', err));
+        }
+        // Fetch from server first, fallback to local or default
+        fetch('/api/washing_data')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    vehicles = data.vehicles;
+                } else if (WS) {
+                    // Workstation: empty server => empty grid (no localStorage / no WASHING_VEHICLES seed).
+                    vehicles = [];
+                } else {
+                    const saved = localStorage.getItem('washingSchedule2026');
+                    if (saved) {
+                        try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                    } else {
+                        vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                    }
+                }
+                renderTable();
+                updateStats();
+            })
+            .catch(err => {
+                console.error('Failed to load from server', err);
+                if (WS) {
+                    // Workstation: never seed from localStorage/defaults on error — keep it empty.
+                    vehicles = [];
+                } else {
+                    const saved = localStorage.getItem('washingSchedule2026');
+                    if (saved) {
+                        try { vehicles = JSON.parse(saved); } catch(e) { vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES)); }
+                    } else {
+                        vehicles = JSON.parse(JSON.stringify(WASHING_VEHICLES));
+                    }
+                }
+                renderTable();
+                updateStats();
+            });
+    }
+
+    function getTotal(v) { return v.m.reduce((a, b) => a + b, 0); }
+
+    function renderTable(filter) {
+        const tbody = document.getElementById('washBody');
+        tbody.innerHTML = '';
+        const q = (filter || '').toLowerCase();
+
+        let allHtml = '';
+        vehicles.forEach((v, idx) => {
+            if (q && !v.plate.toLowerCase().includes(q) && !v.driver.toLowerCase().includes(q) && !v.type.toLowerCase().includes(q)) return;
+
+            const total = getTotal(v);
+            const driver = v.driver || '';
+            let html = `<tr>
+                <td>${escapeHtml(v.id)}</td>
+                <td class="cell-plate">${escapeHtml(v.plate)}</td>
+                <td class="cell-type">${escapeHtml(v.type || '-')}</td>
+                <td class="cell-driver"><input type="text" class="driver-edit-input" list="driversList" value="${escapeHtml(driver)}" onchange="autofillWashingDriver(this, ${idx})" title="${escapeHtml(driver)}"></td>`;
+
+            for (let mi = 0; mi < 12; mi++) {
+                const w = v.m[mi];
+                const cur = mi === CURRENT_MONTH ? ' current-month' : '';
+                const mark = w ? '<span class="ok-mark" title="استلم">✓</span>'
+                               : '<span class="x-mark" title="لم يستلم">✗</span>';
+                html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}${cur}" onclick="toggle(${idx},${mi})" title="${escapeHtml(MONTH_NAMES[mi])}: ${w ? 'استلم' : 'لم يستلم'}">${mark}</td>`;
+            }
+            html += `<td class="cell-total">${total}</td></tr>`;
+            allHtml += html;
+        });
+        tbody.innerHTML = allHtml;
+    }
+
+    function updateDriver(idx, val) {
+        vehicles[idx].driver = val;
+        saveState(false); // background save
+    }
+
+    function autofillWashingDriver(elem, idx) {
+        const val = elem.value.trim();
+        updateDriver(idx, val);
+
+        // Match by PLATE (Arabic plates) via the shared FleetData engine.
+        // Latin/Arabic name mismatches used to break name-based matching — plate matching is reliable.
+        const rec = window.FleetData ? FleetData.byPlate(vehicles[idx].plate) : null;
+        if (rec) {
+            let changed = false;
+            // Fill the vehicle type if missing/placeholder
+            if (rec.car && rec.car !== 'None' && (!vehicles[idx].type || vehicles[idx].type !== rec.car)) {
+                vehicles[idx].type = rec.car;
+                changed = true;
+            }
+            // If the driver cell is empty, adopt the fleet driver name for that plate
+            if (!val && rec.name && rec.name !== 'None') {
+                vehicles[idx].driver = rec.name;
+                changed = true;
+            }
+            if (changed) {
+                renderTable(document.getElementById('searchInput').value);
+                saveState(false);
+            }
+        }
+    }
+
+    // Debounced server autosave used only in the workstation sandbox (~700ms, like other tabs).
+    let _wsSaveTimer = null;
+    function wsAutosave() {
+        if (_wsSaveTimer) clearTimeout(_wsSaveTimer);
+        _wsSaveTimer = setTimeout(() => saveState(false), 700); // background POST /api/washing_data
+    }
+
+    function toggle(vi, mi) {
+        const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+        vehicles[vi].m[mi] = vehicles[vi].m[mi] ? 0 : 1;
+        renderTable(document.getElementById('searchInput').value);
+        updateStats();
+        // Workstation: persist cell toggles to the server (debounced). Main "/" unchanged.
+        if (WS) wsAutosave();
+    }
+
+    function filterTable() {
+        renderTable(document.getElementById('searchInput').value);
+    }
+
+    function updateStats() {
+        const cm = CURRENT_MONTH; // 0-based current invoice month
+        const totalV = vehicles.length;
+        const totalW = vehicles.reduce((s, v) => s + getTotal(v), 0);
+        // Monthly-invoice logic: a vehicle "received" if its current-month cell == 1 (one invoice / month).
+        const currentM = vehicles.filter(v => v.m[cm] === 1).length;
+        const pending = totalV - currentM;
+
+        document.getElementById('statTotal').textContent = totalV;
+        document.getElementById('statWashes').textContent = totalW;
+        document.getElementById('statCurrent').textContent = currentM;
+        document.getElementById('statPending').textContent = pending;
+
+        // Summary banner above the table
+        const msR = document.getElementById('msReceived');
+        const msP = document.getElementById('msPending');
+        if (msR) msR.textContent = currentM;
+        if (msP) msP.textContent = pending;
+    }
+
+    function saveState(showMsg = true) {
+        localStorage.setItem('washingSchedule2026', JSON.stringify(vehicles)); // Keep local backup
+        fetch('/api/washing_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vehicles: vehicles })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && showMsg) {
+                showToast('تم حفظ التغييرات بنجاح في الموقع! ✅', 'success');
+            } else if (!data.success && showMsg) {
+                showToast('تم الحفظ محلياً فقط. فشل الحفظ في السيرفر', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            if (showMsg) showToast('حدث خطأ في الاتصال، تم الحفظ محلياً فقط', 'error');
+        });
+    }
+
+    const WASH_FILENAME = 'جدول_غسيل_السيارات_الدمام.xlsx';
+
+    // Build the styled washing workbook and return it as an Excel Blob (for download/email/whatsapp).
+    async function buildWashingBlob() {
+        if (typeof ExcelJS === 'undefined') throw new Error('مكتبة التصدير غير محمّلة بعد');
+
+        // B&W-print-safe borders (Section 6): thin grid everywhere, medium dark
+        // border to emphasize the current-month column (emphasis = border, not color).
+        const THIN  = { style: 'thin',   color: { argb: 'FFBFBFBF' } };
+        const MED   = { style: 'medium', color: { argb: 'FF000000' } };
+        const ALL_BORDERS = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+        // Current month is the same index used on screen (one invoice / vehicle / month).
+        const curCol = 5 + CURRENT_MONTH; // E(5)=Jan … P(16)=Dec
+
+        // Apply the current-month emphasis to a single cell: keep its borders but make
+        // the side borders medium-black + bold text so it stands out in pure grayscale.
+        function emphasizeCurrentMonth(cell) {
+            const b = Object.assign({}, cell.border || ALL_BORDERS);
+            b.left = MED; b.right = MED;
+            cell.border = b;
+            cell.font = Object.assign({}, cell.font, { bold: true });
+        }
+
+        const response = await fetch('/static/washing_template.xlsx');
+        if(!response.ok) throw new Error("لم يتم العثور على قالب الإكسل الأساسي.");
+        const buffer = await response.arrayBuffer();
+
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buffer);
+        // The washing data lives in the "جدول الغسيل" sheet (with the COUNTIF totals row),
+        // not the first sheet. Select it by name; fall back to the last sheet.
+        const ws = wb.getWorksheet('جدول الغسيل') || wb.worksheets[wb.worksheets.length - 1];
+
+        // Corporate standard: RTL + freeze the header rows (data starts at row 5).
+        ws.views = [{ rightToLeft: true, state: 'frozen', ySplit: 4 }];
+
+        // B&W print setup (Section 6): fit to width, centered, show gridlines on print.
+        ws.pageSetup = Object.assign({}, ws.pageSetup, {
+            fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+            horizontalCentered: true, orientation: 'landscape',
+            margins: { left:0.3, right:0.3, top:0.5, bottom:0.5, header:0.2, footer:0.2 }
+        });
+        ws.properties = Object.assign({}, ws.properties);
+        if (ws.pageSetup) ws.pageSetup.showGridLines = true;
+
+        // Column headers (row 4): translate to EN when the EN toggle is active (bzTL).
+        const HEADERS = ['#','رقم اللوحة','نوع السيارة','اسم السائق',
+            ...MONTH_NAMES, 'المجموع'];
+        HEADERS.forEach((h, i) => {
+            const hCell = ws.getRow(4).getCell(i + 1);
+            if (hCell.value != null && hCell.value !== '') hCell.value = bzTL(h);
+        });
+
+        // Vehicles data starts at row 5 in template.
+        const startRow = 5;
+
+        // The template has 28 data rows by default (row 5 to 32).
+        // Row 34 is the Total footer (kept with its COUNTIF formulas), row 36 the bottom footer.
+        // Inserting at row 33 shifts the totals row & its COUNTIF/SUM ranges down automatically.
+        if(vehicles.length > 28) {
+            const extra = vehicles.length - 28;
+            ws.spliceRows(33, 0, ...Array.from({length: extra}).map(() => []));
+        }
+
+        // Mark the current-month column header (row 4) for B&W clarity.
+        emphasizeCurrentMonth(ws.getRow(4).getCell(curCol));
+
+        vehicles.forEach((v, idx) => {
+            const r = startRow + idx;
+            const row = ws.getRow(r);
+            row.height = Math.max(row.height || 0, 22);
+            row.getCell(1).value = v.id || (idx + 1);
+            row.getCell(2).value = v.plate || '';
+            row.getCell(3).value = v.type || '';
+            row.getCell(4).value = v.driver || '';
+
+            let total = 0;
+            for(let m = 0; m < 12; m++) {
+                const isWashed = v.m && v.m[m] === 1;
+                if(isWashed) total++;
+                // Meaning carried by TEXT/SYMBOL, never color alone (Section 6) — mirrors the
+                // on-screen ✓/✗ convention. "استلم" is matched exactly by the template's COUNTIF.
+                row.getCell(5 + m).value = isWashed ? 'استلم' : '✗';
+            }
+            row.getCell(17).value = total;
+
+            // Copy styling from the template's first data row for any newly inserted rows.
+            if(r > 5) {
+                for(let c = 1; c <= 17; c++) {
+                    const styleCell = ws.getCell(5, c);
+                    const targetCell = row.getCell(c);
+                    targetCell.font = Object.assign({}, styleCell.font);
+                    targetCell.alignment = Object.assign({}, styleCell.alignment);
+                    targetCell.border = Object.assign({}, styleCell.border);
+                    targetCell.fill = Object.assign({}, styleCell.fill);
+                }
+            }
+
+            // Enforce the corporate B&W look on every data cell:
+            // white bg, black text, thin border every side, optional ultra-light zebra.
+            const zebra = (idx % 2 === 1);
+            for(let c = 1; c <= 17; c++) {
+                const cell = row.getCell(c);
+                cell.border = ALL_BORDERS;
+                cell.font = Object.assign({}, cell.font, { color: { argb: 'FF000000' } });
+                cell.alignment = { vertical: 'middle', horizontal: 'center', readingOrder: 'rtl' };
+                // Force white/zebra fill so no inherited color fill survives into B&W print.
+                cell.fill = { type: 'pattern', pattern: 'solid',
+                              fgColor: { argb: zebra ? 'FFF2F2F2' : 'FFFFFFFF' } };
+            }
+            row.getCell(17).font = Object.assign({}, row.getCell(17).font, { bold: true });
+            // Current-month cell emphasis (bold + medium black side borders).
+            emphasizeCurrentMonth(row.getCell(curCol));
+        });
+
+        // Total row keeps its COUNTIF/SUM formulas; emphasize its current-month cell too.
+        const totalRow = 34 + Math.max(0, vehicles.length - 28);
+        emphasizeCurrentMonth(ws.getRow(totalRow).getCell(curCol));
+
+        // Footer line with the prepared-by note and the export date (below the bottom footer).
+        const today = new Date().toISOString().slice(0, 10);
+        const footerRow = ws.getRow(totalRow + 4);
+        footerRow.getCell(1).value = bzTL('أُعدّ بواسطة قسم الحركة — فرع الدمام') + ' — ' + today
+            + '  |  ' + bzTL('الشهر الحالي') + ': ' + bzTL(MONTH_NAMES[CURRENT_MONTH]);
+        footerRow.getCell(1).font = { name: 'Tajawal', size: 11, italic: true, color: { argb: 'FF555555' } };
+        footerRow.getCell(1).alignment = { horizontal: 'right', readingOrder: 'rtl' };
+
+        const outBuffer = await wb.xlsx.writeBuffer();
+        return new Blob([outBuffer]);
+    }
+
+    async function exportXlsx() {
+        if(typeof ExcelJS === 'undefined') {
+            showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+            return;
+        }
+        const btn = document.getElementById('washExportBtn');
+        const oldText = btn ? btn.innerHTML : '';
+        if (btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
+        try {
+            const blob = await buildWashingBlob();
+            bzDownload(blob, WASH_FILENAME);
+            showToast('تم تصدير ملف الإكسل بنجاح ✅', 'success');
+        } catch (e) {
+            console.error(e);
+            showToast('حدث خطأ أثناء التصدير: ' + e.message, 'error');
+        } finally {
+            if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+        }
+    }
+
+    // 📤 مشاركة / تصدير — Excel + PDF عبر إيميل/واتساب عبر bzShare
+    function shareWashing() {
+        bzShare(buildWashingBlob, {
+            filename: WASH_FILENAME,
+            subject: 'جدول غسيل السيارات — شركة بن زومة (فرع الدمام)',
+            waMessage: 'جدول غسيل السيارات — شركة بن زومة (فرع الدمام)',
+            pdfElement: 'washPrintArea',
+            pdfOrientation: 'landscape'
+        });
+    }
+
+    // ↻ إعادة تدقيق اللوحات والأنواع — يطابق اسم السائق عبر FleetData.byName،
+    // وإن فشل يجرّب byPlate باللوحة الحالية، ثم يصحّح اللوحة ونوع المركبة.
+    async function reauditPlates() {
+        if (!window.FleetData) { showToast('بيانات الأسطول غير متاحة', 'error'); return; }
+        await FleetData.load();
+        let corrections = 0;
+        vehicles.forEach(v => {
+            // Prefer matching by the (re-audited) driver name; fall back to the current plate.
+            let rec = FleetData.byName(v.driver);
+            if (!rec) rec = FleetData.byPlate(v.plate);
+            if (!rec) return;
+            if (rec.plate && rec.plate !== 'None' && normalizePlate(rec.plate) !== normalizePlate(v.plate)) {
+                v.plate = rec.plate; corrections++;
+            }
+            if (rec.car && rec.car !== 'None' && rec.car !== v.type) {
+                v.type = rec.car; corrections++;
+            }
+        });
+        renderTable(document.getElementById('searchInput').value);
+        updateStats();
+        if (corrections > 0) {
+            saveState(false);
+            showToast('تم تصحيح ' + corrections + ' حقل (لوحات/أنواع) وحفظها ✅', 'success');
+        } else {
+            showToast('لا توجد تصحيحات — البيانات مطابقة ✓', 'info');
+        }
+    }
+
+    window.addEventListener('load', () => { markCurrentMonthHeader(); init(); });
+</script>
+</body>
+</html>
+

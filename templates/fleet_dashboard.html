@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الأسطول - لوحة القيادة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Tajawal', 'sans-serif'] },
+                    colors: {
+                        primary: '#1e293b', // لون الشريط الجانبي (كحلي غامق)
+                        secondary: '#3b82f6', // لون الأزرار والتحديد (أزرق)
+                        accent: '#10b981', // لون النجاح (أخضر)
+                        danger: '#ef4444', // لون الخطر (أحمر)
+                        bgLight: '#f8fafc'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f0f2f5; }
+        .glass-card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); padding: 1.5rem; }
+    </style>
+
+    <!-- Corporate Elegance (charcoal + muted gold) re-skin: presentational only -->
+    <style>
+        /* canvas / page */
+        body { background-color: #1A1A1A !important; color: #F4F4F4; }
+
+        /* cards / surfaces */
+        .glass-card {
+            background: #2D2D2D !important;
+            border: 1px solid #3a3a3a;
+            box-shadow: 0 12px 22px -6px rgba(0,0,0,.5) !important;
+        }
+
+        /* navy chrome stays navy; deepen to match charcoal family */
+        .bg-primary { background-color: #1e293b !important; }
+
+        /* blue secondary accent -> gold (active nav, links) */
+        .bg-secondary { background-color: #C5A059 !important; color: #1A1A1A !important; }
+        .text-secondary { color: #C5A059 !important; }
+        .border-secondary { border-color: #C5A059 !important; }
+
+        /* primary text */
+        .text-gray-800 { color: #F4F4F4 !important; }
+        .text-gray-900 { color: #F4F4F4 !important; }
+
+        /* secondary / muted text */
+        .text-gray-700 { color: #B0B0B0 !important; }
+        .text-gray-500 { color: #B0B0B0 !important; }
+        .text-gray-300 { color: #B0B0B0 !important; }
+
+        /* table head */
+        .bg-gray-100 { background-color: #363636 !important; }
+        thead.bg-gray-100 .text-gray-700,
+        thead.bg-gray-100 { color: #B0B0B0 !important; }
+
+        /* table rows: white -> transparent on charcoal, hover subtle */
+        tbody tr.bg-white { background-color: transparent !important; }
+        tbody tr.border-b { border-color: #3a3a3a !important; }
+        .hover\:bg-gray-50:hover { background-color: rgba(255,255,255,.04) !important; }
+
+        /* borders inside navy chrome */
+        .border-gray-700 { border-color: #3a3a3a !important; }
+
+        /* avatar chip on header */
+        .bg-gray-600 { background-color: #3a3a3a !important; }
+
+        /* stat-icon chips: light pastel -> dark translucent tints with light text */
+        .bg-blue-100   { background-color: rgba(197,160,89,.16) !important; }   /* total -> gold tint */
+        .bg-green-100  { background-color: rgba(16,185,129,.16) !important; }
+        .bg-purple-100 { background-color: rgba(167,139,250,.16) !important; }
+        .bg-orange-100 { background-color: rgba(245,158,11,.16) !important; }
+
+        /* alert tiles: soft pastels -> dark translucent */
+        .bg-red-50    { background-color: rgba(239,68,68,.14) !important; }
+        .bg-orange-50 { background-color: rgba(245,158,11,.14) !important; }
+
+        /* status pill borders/text shifted to lighter on-dark variants */
+        .border-orange-400 { border-color: rgba(245,158,11,.5) !important; }
+        .border-green-400  { border-color: rgba(16,185,129,.5) !important; }
+        .text-orange-800 { color: #f0b667 !important; }
+        .text-green-800  { color: #5fd6a6 !important; }
+
+        /* purple stat accent -> keep distinct but lighter on dark */
+        .text-purple-500   { color: #a78bfa !important; }
+        .border-purple-500 { border-color: #a78bfa !important; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+    <aside class="w-64 bg-primary text-white flex flex-col justify-between hidden md:flex">
+        <div>
+            <div class="p-6 flex items-center justify-center border-b border-gray-700">
+                <h1 class="text-xl font-bold tracking-wider">نظام إدارة الأسطول</h1>
+            </div>
+            <nav class="mt-6 px-4 space-y-2">
+                <a href="#" class="flex items-center gap-3 bg-secondary px-4 py-3 rounded-lg font-medium shadow-lg">
+                    <i class="fa-solid fa-house"></i> الرئيسية
+                </a>
+                <a href="#" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-car"></i> المركبات
+                </a>
+                <a href="#" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-users"></i> الموظفون
+                </a>
+                <a href="#" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-map-location-dot"></i> التتبع GPS
+                </a>
+                <a href="#" class="flex items-center gap-3 hover:bg-gray-800 px-4 py-3 rounded-lg transition-colors text-gray-300">
+                    <i class="fa-solid fa-screwdriver-wrench"></i> الصيانة
+                </a>
+            </nav>
+        </div>
+        <div class="p-4 text-center text-xs text-gray-500 border-t border-gray-700">
+            جميع الحقوق محفوظة &copy; 2026
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto">
+        <header class="bg-primary text-white shadow-md py-4 px-6 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <button class="md:hidden text-gray-300 hover:text-white"><i class="fa-solid fa-bars text-xl"></i></button>
+                <div>
+                    <h2 class="text-lg font-bold">الرئيسية / فرع الدمام</h2>
+                    <p class="text-xs text-gray-300">الأحد 21 يونيو 2026 | 10:30 AM</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="relative">
+                    <i class="fa-regular fa-bell text-xl cursor-pointer"></i>
+                    <span class="absolute -top-2 -right-2 bg-danger text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">5</span>
+                </div>
+                <div class="flex items-center gap-2 cursor-pointer">
+                    <div class="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="hidden md:block">
+                        <p class="text-sm font-bold">مدير النظام</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="p-6 space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="glass-card flex justify-between items-center border-t-4 border-secondary">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">إجمالي المركبات</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2">1,248</h3>
+                        <p class="text-accent text-xs mt-2"><i class="fa-solid fa-arrow-up"></i> +18 هذا الشهر</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-secondary text-xl">
+                        <i class="fa-solid fa-car-side"></i>
+                    </div>
+                </div>
+                
+                <div class="glass-card flex justify-between items-center border-t-4 border-accent">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">المركبات النشطة</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2">1,182</h3>
+                        <p class="text-accent text-xs mt-2"><i class="fa-solid fa-arrow-up"></i> +15 هذا الشهر</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-accent text-xl">
+                        <i class="fa-solid fa-car-on"></i>
+                    </div>
+                </div>
+
+                <div class="glass-card flex justify-between items-center border-t-4 border-purple-500">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">الموظفون</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2">115</h3>
+                        <p class="text-accent text-xs mt-2"><i class="fa-solid fa-arrow-up"></i> +6 هذا الشهر</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-500 text-xl">
+                        <i class="fa-solid fa-users-gear"></i>
+                    </div>
+                </div>
+
+                <div class="glass-card flex justify-between items-center border-t-4 border-orange-500">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">المخالفات المفتوحة</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2">27</h3>
+                        <p class="text-orange-500 text-xs mt-2"><i class="fa-solid fa-minus"></i> -5 هذا الشهر</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 text-xl">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+
+                <div class="glass-card flex justify-between items-center border-t-4 border-accent">
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">نسبة الالتزام</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2">96.4%</h3>
+                        <p class="text-accent text-xs mt-2"><i class="fa-solid fa-arrow-up"></i> +2.4% عن السابق</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-accent text-xl">
+                        <i class="fa-solid fa-shield-check"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="glass-card lg:col-span-2">
+                    <h3 class="font-bold text-gray-800 mb-4">إحصائيات أسطول المركبات</h3>
+                    <canvas id="fleetChart" height="100"></canvas>
+                </div>
+                
+                <div class="glass-card overflow-y-auto" style="max-height: 350px;">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-gray-800">مركز التنبيهات</h3>
+                        <a href="#" class="text-secondary text-sm">عرض الكل</a>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="p-3 bg-red-50 border-r-4 border-danger rounded flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-bold text-gray-800">استمارة منتهية</p>
+                                <p class="text-xs text-gray-500">المركبة: أ ص 7814</p>
+                            </div>
+                            <span class="text-xs bg-danger text-white px-2 py-1 rounded">منتهي</span>
+                        </div>
+                        <div class="p-3 bg-orange-50 border-r-4 border-orange-500 rounded flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-bold text-gray-800">تأمين ينتهي خلال 15 يوم</p>
+                                <p class="text-xs text-gray-500">المركبة: ب ح 4552</p>
+                            </div>
+                            <span class="text-xs bg-orange-500 text-white px-2 py-1 rounded">15 يوم</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <h3 class="font-bold text-gray-800 mb-4">آخر المعاملات المحدثة</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th scope="col" class="px-6 py-3">رقم المرجع</th>
+                                <th scope="col" class="px-6 py-3">النوع</th>
+                                <th scope="col" class="px-6 py-3">الموظف</th>
+                                <th scope="col" class="px-6 py-3">المركبة</th>
+                                <th scope="col" class="px-6 py-3">التاريخ</th>
+                                <th scope="col" class="px-6 py-3">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="bg-white border-b hover:bg-gray-50">
+                                <td class="px-6 py-4 font-medium text-gray-900">REF-2026-1258</td>
+                                <td class="px-6 py-4">مخالفة مرورية</td>
+                                <td class="px-6 py-4">أحمد الدوسري</td>
+                                <td class="px-6 py-4">أ ص 7814</td>
+                                <td class="px-6 py-4">21-06-2026 09:15</td>
+                                <td class="px-6 py-4"><span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded border border-orange-400">مفتوح</span></td>
+                            </tr>
+                            <tr class="bg-white border-b hover:bg-gray-50">
+                                <td class="px-6 py-4 font-medium text-gray-900">REF-2026-1257</td>
+                                <td class="px-6 py-4">استلام مركبة</td>
+                                <td class="px-6 py-4">خالد العتيبي</td>
+                                <td class="px-6 py-4">ب ح 4532</td>
+                                <td class="px-6 py-4">21-06-2026 08:40</td>
+                                <td class="px-6 py-4"><span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-400">مغلق</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const ctx = document.getElementById('fleetChart').getContext('2d');
+        const fleetChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['1 يونيو', '5 يونيو', '10 يونيو', '15 يونيو', '20 يونيو', '21 يونيو'],
+                datasets: [{
+                    label: 'المركبات النشطة',
+                    data: [1150, 1165, 1160, 1175, 1180, 1182],
+                    borderColor: '#C5A059',
+                    backgroundColor: 'rgba(197,160,89,.26)',
+                    pointBackgroundColor: '#C5A059',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom', labels: { color: '#B0B0B0' } } },
+                scales: {
+                    x: { ticks: { color: '#B0B0B0' }, grid: { color: '#3a3a3a' } },
+                    y: { ticks: { color: '#B0B0B0' }, grid: { color: '#3a3a3a' } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
