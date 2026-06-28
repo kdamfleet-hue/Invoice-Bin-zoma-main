@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>منشئ الفواتير الاحترافي | شركة بن زومة</title>
+<<<<<<< HEAD
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js">
 </script>
@@ -11,6 +12,16 @@
 </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+=======
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
     <style>
         body {
             padding-top: 180px;
@@ -156,14 +167,6 @@
 
         .header-subtitle { text-align: center; margin-bottom: 1.5rem; color: var(--text-secondary); }
 
-        .nav-buttons {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
         .grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -174,6 +177,7 @@
             z-index: 2;
         }
         @media (max-width: 480px) {
+<<<<<<< HEAD
             .grid-container {
                 grid-template-columns: 1fr;
             }
@@ -186,6 +190,12 @@
         
         .financial-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
         @media (max-width: 600px) { .financial-grid { grid-template-columns: 1fr; } }
+=======
+            .grid-container { grid-template-columns: 1fr; }
+        }
+
+        .card label { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem; display: block; color: var(--text-primary); }
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 
         .span-2 { grid-column: span 2; }
         @media (max-width: 768px) { .span-2 { grid-column: span 1; } }
@@ -198,14 +208,7 @@
         
         .drivers-table-wrapper { width: 100%; overflow-y: auto; max-height: 70vh !important; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem; }
         
-        /* Floating Action Button */
-        .fab-btn {
-            position: fixed; bottom: 25px; left: 25px; width: 60px; height: 60px;
-            border-radius: 50%; background: var(--accent-gradient); color: #fff; border: none;
-            font-size: 1.8rem; cursor: pointer; box-shadow: var(--shadow-lg);
-            z-index: 999; display: flex; align-items: center; justify-content: center; transition: var(--trans-spring);
-        }
-        .fab-btn:hover { transform: scale(1.1) rotate(10deg); }
+        /* (floating macOS dock CSS moved to base_styles.css — now global on every tab) */
 
         @media (max-width: 768px) {
             body { padding: 1rem; padding-top: 4rem; }
@@ -213,9 +216,39 @@
         }
     </style>
 
-</head>
-<body>
+    <!-- ============================================================
+         "Corporate Elegance" luxury skin — charcoal + muted gold.
+         SCOPED to the invoice homepage (body.bz-lux); rethemes via
+         design tokens so all cards/inputs/tables/modals follow along.
+         Brand topbar/sidebar stay navy+gold. NO data/content change.
+         ============================================================ -->
+    <style>
+      /* Homepage-only luxury touches — the charcoal+gold palette, the <html> canvas, and the
+         Cairo typography are now GLOBAL (static/base_styles.css), so they are not redeclared here. */
+      body.bz-lux .header-title { font-weight: 300; letter-spacing: .5px; font-size: clamp(1.9rem, 5vw, 2.7rem); color: var(--text-primary); }
+      body.bz-lux .header-title::after { content: ''; display: block; width: 64px; height: 3px; margin: .75rem auto 0; background: linear-gradient(90deg, transparent, var(--accent), transparent); border-radius: 3px; }
+      body.bz-lux .header-subtitle { color: var(--text-secondary); font-weight: 400; letter-spacing: .2px; }
+      body.bz-lux .card label { font-weight: 600; letter-spacing: .2px; }
+      /* (cards, inputs, and gold buttons are themed globally in base_styles.css) */
+      body.bz-lux .drivers-table tr:hover td { background: rgba(197,160,89,.06); }
+      /* logo plate + deeper team shadows on charcoal; gold team-nav hover */
+      body.bz-lux .logo img { box-shadow: 0 16px 40px rgba(0,0,0,.55); }
+      body.bz-lux .team-section > h2 { color: var(--text-primary); font-weight: 700; }
+      body.bz-lux .team-card { box-shadow: 0 14px 34px rgba(0,0,0,.5); }
+      body.bz-lux .team-nav { background: var(--surface); color: var(--text-primary); border-color: var(--border); }
+      body.bz-lux .team-nav:hover { background: var(--accent); color: #1a1a1a; }
+      /* "من نحن" / "تواصل معنا" / footer — these have inline white backgrounds + navy text
+         (and JS hover that resets to a light tint), so they need !important to follow the skin */
+      body.bz-lux #about, body.bz-lux #contact { background: var(--surface) !important; border-color: var(--border) !important; box-shadow: 0 14px 34px rgba(0,0,0,.5) !important; }
+      body.bz-lux #about *, body.bz-lux #contact * { color: var(--text-secondary) !important; }
+      body.bz-lux #about h2, body.bz-lux #contact h2, body.bz-lux #about strong, body.bz-lux #contact a div:last-child { color: var(--text-primary) !important; }
+      body.bz-lux #about a { color: var(--accent) !important; }
+      body.bz-lux #contact a { background: var(--surface-hover) !important; border: 1px solid var(--border) !important; }
+      body.bz-lux #contact a:hover { background: #3f3f3f !important; }
+      body.bz-lux footer { color: var(--text-secondary) !important; border-top-color: var(--border) !important; }
+    </style>
 
+<<<<<<< HEAD
     <!-- Mobile Toggle -->
     <button class="mobile-toggle" onclick="document.getElementById('dashboardSidebar').classList.toggle('open')">☰</button>
 
@@ -248,6 +281,35 @@
         <a href="#about">من نحن</a>
         <a href="https://bz.sa" target="_blank">موقعنا الرسمي</a>
         <a href="#contact">تواصل معنا</a>
+=======
+</head>
+<body class="bz-lux">
+
+    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3; display: none;">
+        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
+    </video>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/"{% if show_invoice_title is not defined or not show_invoice_title %} class="active"{% endif %}>🏠 الرئيسية</a>
+        <a href="/invoice"{% if show_invoice_title is defined and show_invoice_title %} class="active"{% endif %}>🧾 الفاتورة الذكية</a>
+        <a href="/dashboard" style="background:var(--brand-gold);color:var(--brand-navy);border-color:var(--brand-gold);font-weight:800;">🎯 لوحة الإدارة</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
       </nav>
 
       <div class="logo">
@@ -275,16 +337,30 @@
     </script>
 
     <div class="header-container">
+<<<<<<< HEAD
     {% if google_user %}
     <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: rgba(22, 27, 34, 0.9); padding: 5px 15px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1001; backdrop-filter: blur(5px);">
         <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
         <span style="font-weight: bold; color: #f0f6fc; font-size: 0.9rem;">{{ google_user.name }}</span>
+=======
+
+    <div class="logo" style="text-align: center; margin-bottom: 2rem;">
+        <img src="{{ url_for('static', filename='main_logo_v2.jpg') }}" alt="Bin Zomah Intl Logo" style="height: {% if not (show_invoice_title is not defined or show_invoice_title) %}176px{% else %}132px{% endif %}; background:#ffffff; padding:16px 30px; border-radius:18px; box-shadow:0 16px 44px rgba(229,213,178,0.32), 0 6px 18px rgba(197,160,89,0.22);">
+    </div>
+
+    {% if google_user %}
+    <div class="user-badge" style="position: fixed; top: 1.5rem; left: 1.5rem; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); padding: 5px 15px; border-radius: 50px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1001; backdrop-filter: blur(5px);">
+        <img src="{{ google_user.picture }}" alt="User" style="width: 28px; height: 28px; border-radius: 50%;">
+        <span style="font-weight: bold; color: var(--text-primary); font-size: 0.9rem;">{{ google_user.name }}</span>
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
         <a href="/logout" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem; font-weight: bold; margin-right: 8px; transition: var(--trans);">تسجيل خروج</a>
     </div>
     {% endif %}
 
+    {% if show_invoice_title is not defined or show_invoice_title %}
     <h1 class="header-title">نظام الفواتير الذكي</h1>
         <p class="header-subtitle">اختر السائق وسيتم تعبئة البيانات تلقائياً</p>
+<<<<<<< HEAD
         <div class="nav-buttons">
             <a href="/invoice" class="btn-outline" style="text-decoration:none;">🧾 الفاتورة الذكية</a>
     <button class="btn-outline" onclick="openModal()">⚙️ إدارة السائقين وقاعدة البيانات</button>
@@ -297,6 +373,79 @@
 </div>
     </div>
 
+=======
+    {% endif %}
+
+    </div>
+
+    <div class="grid-container" id="invoiceArea">
+        <!-- 1. اسم السائق -->
+        <div class="card card-purple span-2 glass-surface">
+            <label for="driverName">اسم السائق (اكتب للبحث)</label>
+            <input type="text" id="driverName" list="driversList" placeholder="ابحث عن اسم السائق هنا..." onchange="autofillDriver()">
+            <datalist id="driversList"></datalist>
+        </div>
+
+        <!-- 2. نوع السيارة -->
+        <div class="card card-green glass-surface">
+            <label for="carType">نوع السيارة</label>
+            <input type="text" id="carType" placeholder="مثال: ايسوزو دينا 2024">
+        </div>
+
+        <!-- 3. رقم اللوحة -->
+        <div class="card card-blue glass-surface">
+            <label for="plateNum">رقم اللوحة</label>
+            <input type="text" id="plateNum" placeholder="مثال: ا ب ج 1234">
+        </div>
+
+                <!-- 4. نوع الطلب -->
+        <div class="card card-brown glass-surface">
+            <label for="requestType">نوع الطلب</label>
+            <select id="requestType">
+                <option value="صيانة دورية">صيانة دورية</option>
+                <option value="إصلاح عطل">إصلاح عطل</option>
+                <option value="إصلاح بنشر">إصلاح بنشر</option>
+                <option value="تغيير قطع غيار">تغيير قطع غيار</option>
+                <option value="غيار زيت">غيار زيت</option>
+                <option value="أخرى">أخرى</option>
+            </select>
+        </div>
+
+        <!-- 4.5 رقم الإقامة -->
+        <div class="card card-olive glass-surface">
+            <label for="iqamaNum">رقم الإقامة</label>
+            <input type="text" id="iqamaNum" placeholder="مثال: 2441077944">
+        </div>
+
+        <!-- 4.6 التاريخ -->
+        <div class="card card-gray glass-surface">
+            <label for="invoiceDate">التاريخ</label>
+            <input type="date" id="invoiceDate">
+        </div>
+
+        <!-- 4.7 الفرع (يتبع مبدّل الفرع في أعلى الصفحة) -->
+        <div class="card card-gray glass-surface">
+            <label>الفرع</label>
+            <div id="invoiceBranch" style="font-weight:800;font-size:1.05rem;color:var(--brand-gold,#c9a227);padding-top:8px">فرع {{ active_branch }}</div>
+        </div>
+        
+        <!-- 6. الوصف -->
+        <div class="card card-amber span-2 glass-surface">
+            <label for="desc">الوصف / التفاصيل</label>
+            <textarea id="desc" rows="3" placeholder="أدخل تفاصيل الفاتورة أو القطع المستبدلة..."></textarea>
+        </div>
+
+    </div>
+
+    <div style="display: flex; gap: 1rem; justify-content: center; max-width: 1000px; width: 95%; margin: 0 auto; width: 100%; flex-wrap: wrap; z-index: 2; position: relative;">
+        <button class="btn-submit-gold" style="flex:1; min-width: 250px;" onclick="generateExcel()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            تصدير PDF / Excel
+        </button>
+        <button class="btn-submit-orange" style="flex:1; min-width: 250px;" onclick="openCustomModal('emailModal')">
+            📧 إرسال الفاتورة للإيميل
+        </button>
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
         <button class="btn-submit-green" style="background-color: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; flex:1; min-width: 250px;" onclick="sendWhatsApp()">
             💬 إرسال عبر الواتساب
         </button>
@@ -456,13 +605,22 @@
         async function editDriver(id) {
             const d = driversData.find(x => x.id === id);
             if (!d) return;
-            const newName = prompt('تعديل الاسم:', d.name);
+            const newName = await window.bzPrompt('تعديل الاسم:', d.name);
             if (newName === null) return;
+<<<<<<< HEAD
             const newEmpid = prompt('الرقم الوظيفي:', d.empid || '');
             const newCar = prompt('تعديل نوع السيارة:', d.car || '');
             const newPlate = prompt('تعديل رقم اللوحة:', d.plate || '');
             const newIqama = prompt('تعديل رقم الإقامة:', d.iqama || '');
             const newPhone = prompt('تعديل رقم الجوال:', d.phone || '');
+=======
+            const newEmpid = await window.bzPrompt('الرقم الوظيفي:', d.empid || '');
+            const newCar = await window.bzPrompt('تعديل نوع السيارة:', d.car || '');
+            const newPlate = await window.bzPrompt('تعديل رقم اللوحة:', d.plate || '');
+            const newIqama = await window.bzPrompt('تعديل رقم الإقامة:', d.iqama || '');
+            const newDriverCard = await window.bzPrompt('تعديل تاريخ انتهاء بطاقة السائق:', d.drivercard || '');
+            const newPhone = await window.bzPrompt('تعديل رقم الجوال:', d.phone || '');
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
             if (!newName) {
                 showToast('الاسم مطلوب!', 'error');
                 return;
@@ -483,7 +641,7 @@
         }
 
         async function deleteDriver(id) {
-            if(!confirm('هل أنت متأكد من حذف السائق؟')) return;
+            if(!(await window.bzConfirm('هل أنت متأكد من حذف السائق؟'))) return;
             try {
                 const res = await fetch(`/api/drivers/${id}`, {method: 'DELETE'});
                 if(res.ok) {
@@ -528,12 +686,7 @@
                     iqamaNum: document.getElementById('iqamaNum').value,
                     requestType: document.getElementById('requestType').value,
                     invoiceDate: document.getElementById('invoiceDate').value,
-                    quantity: document.getElementById('quantity').value,
-                    price: document.getElementById('price').value,
-                    desc: document.getElementById('desc').value,
-                    subtotal: document.getElementById('subtotal').value,
-                    tax: document.getElementById('tax').value,
-                    total: document.getElementById('total').value
+                    desc: document.getElementById('desc').value
                 };
                 localStorage.setItem('invoiceFormData', JSON.stringify(data));
             }, 500);
@@ -550,30 +703,22 @@
                     if(data.iqamaNum) document.getElementById('iqamaNum').value = data.iqamaNum;
                     if(data.requestType) document.getElementById('requestType').value = data.requestType;
                     if(data.invoiceDate) document.getElementById('invoiceDate').value = data.invoiceDate;
-                    if(data.quantity) document.getElementById('quantity').value = data.quantity;
-                    if(data.price) document.getElementById('price').value = data.price;
                     if(data.desc) document.getElementById('desc').value = data.desc;
-                    if(data.subtotal) document.getElementById('subtotal').value = data.subtotal;
-                    if(data.tax) document.getElementById('tax').value = data.tax;
-                    if(data.total) document.getElementById('total').value = data.total;
                     return true;
                 } catch(e) { console.error(e); }
             }
             return false;
         }
 
-        function clearInvoiceForm() {
-            if(!confirm('هل أنت متأكد من مسح جميع الحقول؟')) return;
+        async function clearInvoiceForm() {
+            if(!(await window.bzConfirm('هل أنت متأكد من مسح جميع الحقول؟'))) return;
             document.getElementById('driverName').value = '';
             document.getElementById('carType').value = '';
             document.getElementById('plateNum').value = '';
             document.getElementById('iqamaNum').value = '';
             document.getElementById('requestType').value = 'صيانة دورية';
             document.getElementById('invoiceDate').valueAsDate = new Date();
-            document.getElementById('quantity').value = '1';
-            document.getElementById('price').value = '';
             document.getElementById('desc').value = '';
-            calcTotal();
             localStorage.removeItem('invoiceFormData');
             showToast('تم مسح الحقول', 'success');
         }
@@ -584,17 +729,9 @@
             }
         });
 
-        function calcTotal() {
-            const qty = parseFloat(document.getElementById('quantity').value) || 0;
-            const price = parseFloat(document.getElementById('price').value) || 0;
-            const subtotal = qty * price;
-            const tax = subtotal * 0.15;
-            const total = subtotal + tax;
-            
-            document.getElementById('subtotal').value = subtotal.toFixed(2);
-            document.getElementById('tax').value = tax.toFixed(2);
-            document.getElementById('total').value = total.toFixed(2);
-        }
+        // Financial calculations were removed from the invoice form; kept as a
+        // safe no-op so any lingering reference does not throw.
+        function calcTotal() {}
 
         async function createInvoiceBuffer() {
             const driver = document.getElementById('driverName').value || 'غير محدد';
@@ -603,11 +740,14 @@
             const iqamaNum = document.getElementById('iqamaNum').value || 'غير محدد';
             const req = document.getElementById('requestType').value;
             const invoiceDate = document.getElementById('invoiceDate').value;
+<<<<<<< HEAD
             const qty = document.getElementById('quantity').value;
             const price = document.getElementById('price').value || '0';
             const subtotal = document.getElementById('subtotal').value;
             const tax = document.getElementById('tax').value;
             const total = document.getElementById('total').value;
+=======
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
             const desc = document.getElementById('desc').value || 'لا يوجد وصف';
 
             const wb = new ExcelJS.Workbook();
@@ -661,6 +801,7 @@
             ws.mergeCells('B9:B9'); ws.mergeCells('C9:C9'); ws.mergeCells('D9:D9'); ws.mergeCells('E9:F9');
             ws.mergeCells('B10:B10'); ws.mergeCells('C10:C10'); ws.mergeCells('D10:D10'); ws.mergeCells('E10:F10');
 
+<<<<<<< HEAD
             ws.getRow(12).height = 30;
             const headers = ['م', 'الوصف / البيان', 'الكمية', 'السعر الإفرادي', 'المبلغ'];
             const hCols = ['B', 'C', 'D', 'E', 'F'];
@@ -688,6 +829,24 @@
             addTotalRow(14, "المبلغ الإجمالي (قبل الضريبة)", subtotal, false, P, 'FFF9FAFB');
             addTotalRow(15, "ضريبة القيمة المضافة (15%)", tax, false, 'FFC0392B', 'FFFFF9F9');
             addTotalRow(16, "المجموع الكلي (مع الضريبة)", total, true, W, P);
+=======
+            ws.getRow(13).height = 30;
+            // Items table: quantity / unit price / amount columns were removed.
+            // Only the line number (م) and the description/البيان remain.
+            ws.mergeCells('C13:F13');
+            const headers = [['B13', 'م'], ['C13', 'الوصف / البيان']];
+            for(let i=0; i<headers.length; i++) {
+                const c = ws.getCell(headers[i][0]);
+                c.value = bzTL(headers[i][1]); c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: W } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: P } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = { top: thinBorder, bottom: { style: 'medium', color: { argb: G } }, left: thinBorder, right: thinBorder };
+            }
+
+            ws.getRow(14).height = 35;
+            ws.mergeCells('C14:F14');
+            const numCell = ws.getCell('B14');
+            numCell.value = 1; numCell.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } }; numCell.alignment = { horizontal: 'center', vertical: 'middle' }; numCell.border = allBorders; numCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
+            const descCell = ws.getCell('C14');
+            descCell.value = desc; descCell.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } }; descCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; descCell.border = allBorders; descCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: W } };
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 
             ws.getRow(19).height = 25;
             ws.getCell('B19').value = "توقيع السائق"; ws.getCell('F19').value = "اعتماد الإدارة";
@@ -698,7 +857,12 @@
 
             
         ws.addRow([]);
+<<<<<<< HEAD
         const footerRow = ws.addRow(['تم الإعداد بواسطة قسم الحركة (خالد الغامدي)']);
+=======
+        const footerDate = invoiceDate || new Date().toISOString().slice(0, 10);
+        const footerRow = ws.addRow([`${bzTL("أُعدّ بواسطة قسم الحركة — فرع " + (window.BZ_BRANCH || "الدمام"))}    |    ${bzTL("التاريخ")}: ${footerDate}`]);
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
         ws.mergeCells(`A${footerRow.number}:G${footerRow.number}`);
         footerRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
         footerRow.getCell(1).font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF5A6A7A' } };
@@ -716,6 +880,28 @@
             saveAs(blob, filename);
         }
 
+<<<<<<< HEAD
+=======
+        // Returns the invoice Excel as a Blob (for the shared bzShare menu)
+        async function createInvoiceBlob() {
+            const { buffer } = await createInvoiceBuffer();
+            return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        }
+
+        // Unified share/export (Excel + PDF via email / WhatsApp / download)
+        function openInvoiceShare() {
+            const driver = document.getElementById('driverName').value || 'غير محدد';
+            const plate = document.getElementById('plateNum').value || 'غير محدد';
+            bzShare(createInvoiceBlob, {
+                filename: `فاتورة_${driver}_${plate}.xlsx`,
+                subject: bzTL('فاتورة طلب صيانة / خدمة — شركة بن زومة'),
+                pdfElement: 'invoiceArea',
+                pdfOrientation: 'portrait',
+                waMessage: bzTL('مرفق فاتورة طلب الصيانة / الخدمة — إدارة الحركة بفرع ' + (window.BZ_BRANCH || 'الدمام') + '.')
+            });
+        }
+
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
         async function sendExcelEmail() {
             const email = document.getElementById('targetEmail').value;
             if(!email) {
@@ -755,6 +941,7 @@
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم الخدمات -->
 <!-- ═══════════════════════════════════════════ -->
+<<<<<<< HEAD
 <section id="services" style="max-width:1100px; margin:3rem auto; padding:2rem 1.5rem; z-index:2; position:relative;">
     <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:2rem;">🛠️ خدماتنا</h2>
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.2rem;">
@@ -809,6 +996,111 @@
         </a>
     </div>
 </section>
+=======
+<style>
+  .team-section { max-width:1100px; margin:3rem auto 2rem; padding:0 1rem; position:relative; z-index:2; }
+  .team-section > h2 { text-align:center; font-size:2rem; font-weight:800; color:var(--brand-navy,#0C2340); margin-bottom:.4rem; }
+  .team-section .sub { text-align:center; color:var(--text-secondary,#5a6a7a); margin:0 0 1.6rem; font-weight:600; }
+  body.dark-mode .team-section > h2 { color:#fff; }
+  .team-slider { display:flex; align-items:center; gap:.6rem; }
+  .team-track { display:flex; gap:1.2rem; overflow-x:auto; scroll-behavior:smooth; padding:12px 4px 22px; flex:1; scrollbar-width:none; }
+  .team-track::-webkit-scrollbar { height:0; display:none; }
+  .team-card { flex:0 0 230px; background:var(--surface,#fff); border:1px solid var(--border,#eef2f5); border-radius:22px; padding:18px 16px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.08); transition:transform .3s ease, box-shadow .3s ease; }
+  .team-card:hover { transform:translateY(-6px); box-shadow:0 16px 38px rgba(12,35,64,0.18); }
+  .team-card .img-box { width:148px; height:148px; margin:0 auto 14px; border-radius:50%; overflow:hidden; border:4px solid var(--brand-gold,#c9a227); background:var(--surface-hover,#f1f5f9); }
+  .team-card .img-box img { width:100%; height:100%; object-fit:cover; display:block; }
+  .team-card .t-name { color:var(--text-primary,#1a2b49); font-size:1.02rem; font-weight:800; margin:4px 0; line-height:1.4; }
+  .team-card .t-title { color:var(--brand-gold,#c9a227); font-weight:700; font-size:.9rem; margin:2px 0 6px; }
+  .team-card .t-branch { color:var(--text-secondary,#5a6a7a); font-size:.8rem; margin:0; }
+  .team-nav { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0); border-radius:50%; width:44px; height:44px; min-width:44px; font-size:1.15rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,0.1); color:var(--brand-navy,#0C2340); transition:.25s; }
+  .team-nav:hover { background:var(--brand-navy,#0C2340); color:#fff; transform:scale(1.08); }
+  @media (max-width:520px){ .team-card{ flex-basis:200px; } }
+</style>
+{% if show_invoice_title is not defined or not show_invoice_title %}
+<section class="team-section" id="team">
+  <h2>👥 فريق عمل فرع الدمام</h2>
+  <p class="sub">شركة بن زومة الدولية للتجارة والإنماء</p>
+  <div class="team-slider">
+    <button class="team-nav" type="button" onclick="teamMove(-1)" aria-label="السابق">&#10095;</button>
+    <div class="team-track" id="teamTrack"></div>
+    <button class="team-nav" type="button" onclick="teamMove(1)" aria-label="التالي">&#10094;</button>
+  </div>
+</section>
+<script>
+  (function () {
+    var track = document.getElementById('teamTrack');
+    if (!track) return;
+    var slider = track.closest ? track.closest('.team-slider') : null;
+    var idx = 0, cards = [];
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+    fetch('/static/team/team.json').then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+      track.innerHTML = (list || []).map(function (p) {
+        var title = p.title ? '<p class="t-title">' + esc(p.title) + '</p>' : '';
+        return '<div class="team-card">' +
+          '<div class="img-box"><img src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy"></div>' +
+          '<p class="t-name">' + esc(p.name) + '</p>' + title +
+          '<p class="t-branch">' + esc(p.branch || '') + '</p></div>';
+      }).join('');
+      cards = Array.prototype.slice.call(track.querySelectorAll('.team-card'));
+      startAuto();
+    }).catch(function () {});
+
+    window.teamMove = function (dir) {
+      if (!cards.length) return;
+      idx = Math.max(0, Math.min(cards.length - 1, idx + dir));
+      cards[idx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      hold(2600);   // let the manual move finish before auto resumes
+    };
+
+    // ── Auto ping-pong motion: cards drift right ↔ left continuously ─────────
+    var dir = -1, carry = 0, raf = null, hovering = false, holdUntil = 0;
+    var edgeDir = 0, EDGE_SPEED = 7;  // hover an edge → reveal next/prev smoothly in that direction
+    var SPEED = 0.8;  // px per frame (~48px/s) — calm, readable drift
+    var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    function step(ts) {
+      raf = requestAnimationFrame(step);
+      if (reduce || cards.length < 2) return;
+      var max = track.scrollWidth - track.clientWidth;
+      if (max <= 1) return;                        // everything fits — nothing to scroll
+      if (edgeDir !== 0) { track.scrollLeft += edgeDir * EDGE_SPEED; return; }  // edge-hover reveal
+      if (hovering || (ts || 0) < holdUntil) return;   // hovering the middle → pause; otherwise drift
+      carry += dir * SPEED;
+      var d = carry < 0 ? Math.ceil(carry) : Math.floor(carry);  // whole-px step (avoids sub-pixel rounding stalls)
+      if (!d) return;
+      carry -= d;
+      var before = track.scrollLeft;
+      track.scrollLeft = before + d;
+      if (track.scrollLeft === before) { dir = -dir; carry = 0; }  // clamped at an edge → reverse
+    }
+    function startAuto() { if (!raf && !reduce) raf = requestAnimationFrame(step); }
+    function hold(ms) { var now = (window.performance && performance.now) ? performance.now() : 0; holdUntil = now + ms; }
+
+    if (slider) {
+      slider.addEventListener('mouseenter', function () { hovering = true; });
+      slider.addEventListener('mouseleave', function () { hovering = false; edgeDir = 0; });
+      // hovering near the right/left edge reveals the next/previous cards in a smooth flow
+      slider.addEventListener('mousemove', function (e) {
+        var r = slider.getBoundingClientRect();
+        var x = e.clientX - r.left, zone = r.width * 0.24;
+        edgeDir = x < zone ? -1 : (x > r.width - zone ? 1 : 0);
+      });
+    }
+    // the side arrows also reveal continuously while hovered
+    Array.prototype.forEach.call(document.querySelectorAll('.team-slider .team-nav'), function (btn, i) {
+      btn.addEventListener('mouseenter', function () { edgeDir = (i === 0) ? -1 : 1; });
+      btn.addEventListener('mouseleave', function () { edgeDir = 0; });
+    });
+    track.addEventListener('touchstart', function () { hold(3000); }, { passive: true });
+    track.addEventListener('wheel', function () { hold(3000); }, { passive: true });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) hold(400); });
+  })();
+</script>
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم من نحن -->
@@ -855,6 +1147,7 @@
         </a>
     </div>
 </section>
+{% endif %}
 
 <footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
 
@@ -886,7 +1179,7 @@
                     <input type="text" id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:Cairo;background:transparent;color:var(--text-primary);">
                 </div>
                 <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-                    <button type="button" onclick="if(confirm('هل تريد حفظه في سطح المكتب؟')) { generateExcel(); }" class="btn-outline">حفظ في سطح المكتب 💾</button>
+                    <button type="button" onclick="window.bzConfirm('هل تريد حفظه في سطح المكتب؟').then(function(ok){ if(ok){ generateExcel(); } })" class="btn-outline">حفظ في سطح المكتب 💾</button>
                     <button onclick="closeCustomModal('emailModal')" class="btn-outline" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
                     <button id="btnSendEmail" onclick="sendExcelEmail()" class="btn-primary">إرسال 🚀</button>
                 </div>
@@ -894,8 +1187,13 @@
         </div>
     </div>
 
-<!-- Compose Email FAB -->
-<button id="composeFab" onclick="openCustomModal('composeModal')" class="fab-btn" title="إنشاء رسالة">✉️</button>
+<!-- Floating macOS-style dock (bottom-left): WhatsApp + Email -->
+<div class="bz-dock" aria-label="إجراءات سريعة">
+    <a class="bz-dock-btn wa" href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" data-label="واتساب" title="تواصل عبر واتساب" aria-label="واتساب">
+        <svg viewBox="0 0 32 32" width="26" height="26" fill="#fff" aria-hidden="true"><path d="M16.04 4C9.96 4 5.02 8.94 5.02 15.02c0 1.96.51 3.86 1.49 5.54L4.9 27l6.6-1.73a11 11 0 0 0 4.54.98h.01c6.08 0 11.02-4.94 11.02-11.02C27.07 8.94 22.12 4 16.04 4zm0 20.18h-.01a9.14 9.14 0 0 1-4.65-1.27l-.33-.2-3.92 1.03 1.05-3.82-.22-.34a9.12 9.12 0 0 1-1.4-4.87c0-5.05 4.11-9.16 9.17-9.16 2.45 0 4.75.96 6.48 2.69a9.1 9.1 0 0 1 2.68 6.48c0 5.05-4.11 9.16-9.16 9.16zm5.03-6.86c-.28-.14-1.63-.8-1.88-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.59.07-.28-.14-1.16-.43-2.21-1.36-.82-.73-1.37-1.63-1.53-1.91-.16-.28-.02-.43.12-.57.13-.13.28-.32.41-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.44-.46-.61-.46l-.52-.01c-.18 0-.46.07-.7.34-.25.28-.93.91-.93 2.22s.96 2.58 1.09 2.76c.14.18 1.88 2.87 4.56 4.02.64.28 1.13.44 1.52.56.64.2 1.22.17 1.68.1.51-.08 1.63-.67 1.86-1.31.23-.64.23-1.19.16-1.31-.07-.12-.25-.19-.53-.33z"/></svg>
+    </a>
+    <button id="composeFab" class="bz-dock-btn mail" onclick="openCustomModal('composeModal')" data-label="إرسال بالإيميل" title="إرسال عبر الإيميل" aria-label="إرسال عبر الإيميل">✉️</button>
+</div>
 
 <div class="modal-backdrop" id="composeModal">
     <div class="modal-content-custom">
@@ -979,7 +1277,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
             return Array.from(document.querySelectorAll('.cc-email')).map(i => i.value.trim()).filter(v => v);
         }
 
-        function sendWhatsApp() {
+        async function sendWhatsApp() {
             try {
                 const driverMerged = document.getElementById('driverName').value.trim();
                 let phone = '';
@@ -991,7 +1289,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
                     phone = driver.phone.toString().trim();
                     rawName = driver.name;
                 } else {
-                    phone = prompt('لم يتم العثور على رقم جوال مسجل لهذا السائق. يرجى إدخال رقم الجوال (مثال: 0500000000):');
+                    phone = await window.bzPrompt('لم يتم العثور على رقم جوال مسجل لهذا السائق. يرجى إدخال رقم الجوال (مثال: 0500000000):');
                     if(!phone) return;
                 }
                 
@@ -1011,10 +1309,9 @@ document.getElementById('composeForm').addEventListener('submit', async function
                 const req = document.getElementById('requestType').value;
                 const car = document.getElementById('carType').value || 'غير محدد';
                 const plate = document.getElementById('plateNum').value || 'غير محدد';
-                const total = document.getElementById('total').value || '0';
                 const date = document.getElementById('invoiceDate').value;
-                
-                const msg = `مرحباً بك عزيزي السائق (${rawName})،\n\nنود إعلامك بأنه تم إصدار فاتورة / طلب لمركبتك:\n🚗 نوع السيارة: ${car}\n🔢 رقم اللوحة: ${plate}\n🛠️ نوع الطلب: ${req}\n💰 الإجمالي: ${total} ريال\n📅 التاريخ: ${date}\n\nشكراً لتعاونكم - إدارة الحركة بفرع الدمام.`;
+
+                const msg = `مرحباً بك عزيزي السائق (${rawName})،\n\nنود إعلامك بأنه تم إصدار فاتورة / طلب لمركبتك:\n🚗 نوع السيارة: ${car}\n🔢 رقم اللوحة: ${plate}\n🛠️ نوع الطلب: ${req}\n📅 التاريخ: ${date}\n\nشكراً لتعاونكم - إدارة الحركة بفرع ${window.BZ_BRANCH || 'الدمام'}.`;
                 
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
                 // Force open
@@ -1040,6 +1337,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
         }
 </script>
 
+<<<<<<< HEAD
 <!-- GPS Session Monitor -->
 <script>
 (function () {
@@ -1060,6 +1358,10 @@ document.getElementById('composeForm').addEventListener('submit', async function
     };
 })();
 </script>
+=======
+    </div><!-- /.bz-shell -->
+
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 </body>
 </html>
 

@@ -4,6 +4,54 @@
  * Page Transitions, Idle Session Timeout, and Bilingual Translation.
  */
 
+<<<<<<< HEAD
+=======
+// Global flag: are we inside the open /importantworkstation sandbox? Every tab uses this
+// to start EMPTY and persist to the server (id=2) instead of showing the main site's data.
+// Purely path-based, so the main site (/) is never affected — even in the same browser.
+window.BZ_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+// Active branch id (injected per-page before this script runs; الدمام = 1 by default).
+// Non-الدمام branches are "isolated" like the workstation: they start EMPTY and must never
+// inherit الدمام's locally-cached data or its bundled seed files.
+window.BZ_BRANCH_ID = window.BZ_BRANCH_ID || 1;
+window.BZ_ISOLATED = window.BZ_WS || (window.BZ_BRANCH_ID !== 1);
+
+// Isolate this mode's browser storage so cached edits can NEVER bleed across branches or
+// into الدمام. Runs first, before any tab code touches localStorage. الدمام (id=1) keeps
+// NO prefix → byte-for-byte unchanged; workstation = 'ws:'; other branches = 'b<id>:'.
+(function () {
+    try {
+        var ns = window.BZ_WS ? 'ws:' : (window.BZ_BRANCH_ID !== 1 ? ('b' + window.BZ_BRANCH_ID + ':') : '');
+        if (!ns) return;
+        var ls = window.localStorage;
+        var g = ls.getItem.bind(ls), s = ls.setItem.bind(ls), r = ls.removeItem.bind(ls);
+        ls.getItem = function (k) { return g(ns + k); };
+        ls.setItem = function (k, v) { return s(ns + k, v); };
+        ls.removeItem = function (k) { return r(ns + k); };
+    } catch (e) { /* ignore */ }
+})();
+
+// A fresh non-الدمام branch must NOT inherit الدمام's static seed files (employees/schedule/
+// fleet defaults), so make those specific fetches resolve empty. الدمام and the workstation
+// keep their existing behavior untouched.
+(function () {
+    try {
+        if (window.BZ_BRANCH_ID === 1 || window.BZ_WS) return;   // only the other branches
+        var SEED = /\/static\/(employees_default|schedule_data|fleet_data)\.json(\?|$)/;
+        var of = window.fetch ? window.fetch.bind(window) : null;
+        if (!of) return;
+        window.fetch = function (input, init) {
+            var url = (typeof input === 'string') ? input : (input && input.url) || '';
+            if (SEED.test(url)) {
+                return Promise.resolve(new Response('null', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+            }
+            return of(input, init);
+        };
+    } catch (e) { /* ignore */ }
+})();
+
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 const translations = {
     "en": {
         // Titles and headers
@@ -221,6 +269,17 @@ const translations = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+<<<<<<< HEAD
+=======
+    injectGlobalNavLinks();
+    applyWorkstationRestrictions();
+    buildEnterpriseShell();
+    injectBranchSwitcher();
+    injectContactDock();
+    injectHeroLogo();
+    injectClock();
+    injectTabHistory();
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
     initThemeToggle();
     injectTopographicBackground();
     injectUXContainers();
@@ -228,8 +287,712 @@ document.addEventListener('DOMContentLoaded', () => {
     wrapFetchForProgress();
     initIdleTimeout();
     initLanguageTranslation();
+    registerPWA();
+    injectLucide();
 });
 
+<<<<<<< HEAD
+=======
+// --- Branch switcher: swap the active branch site-wide (multi-branch data isolation) ---
+// Skips workstation pages (the workstation is its own isolated mode). Updates the header
+// subtitle on every tab, exposes window.BZ_BRANCH, and reloads after switching so all data refreshes.
+function injectBranchSwitcher() {
+    try {
+        if (typeof WS_PREFIX === 'string' && location.pathname.indexOf(WS_PREFIX) === 0) return;
+        var actions = document.querySelector('.bz-topbar .bz-actions');
+        if (!actions || document.getElementById('bzBranchWrap')) return;
+        fetch('/api/branch', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (j) {
+                if (!j || !j.branches) return;
+                window.BZ_BRANCH = j.name || 'الدمام';
+                var sub = document.querySelector('.bz-brand-text span');
+                if (sub) sub.textContent = 'نظام إدارة الأسطول — فرع ' + window.BZ_BRANCH;
+                window.bzApplyBranchLabel();                          // sync all chrome to the branch
+                setTimeout(window.bzApplyBranchLabel, 500);           // catch late JS-rendered titles
+                setTimeout(window.bzApplyBranchLabel, 1500);
+                if (j.is_admin) {                               // HQ: admin links + live notifications (bell dropdown + corner toasts)
+                    injectAdminLinks();
+                    setupNotifications();
+                }
+                if (document.getElementById('bzBranchWrap')) return;
+                var wrap = document.createElement('label');
+                wrap.className = 'bz-branch-wrap';
+                wrap.id = 'bzBranchWrap';
+                if (j.can_switch) {
+                    wrap.title = 'الفرع النشط — تبديله يبدّل كل بيانات الموقع';
+                    var sel = document.createElement('select');
+                    sel.id = 'bzBranchSel';
+                    sel.className = 'bz-branch-select';
+                    var opts = j.branches.map(function (b) {
+                        return '<option value="' + b.id + '"' + (b.id === j.id ? ' selected' : '') + '>🏢 فرع ' + b.name + '</option>';
+                    }).join('');
+                    if (j.is_admin) opts = '<option value="__all__">🏢 جميع الفروع</option>' + opts;   // HQ shortcut
+                    sel.innerHTML = opts;
+                    sel.addEventListener('change', function () {
+                        if (sel.value === '__all__') { location.href = '/branches'; return; }   // open the all-branches page
+                        var id = parseInt(sel.value, 10);
+                        var name = sel.options[sel.selectedIndex].text.replace('🏢 فرع ', '');
+                        window.bzConfirm('تبديل الفرع إلى «' + name + '»؟\nستظهر بيانات هذا الفرع في كل التبويبات.').then(function (ok) {
+                            if (!ok) { sel.value = String(j.id); return; }
+                            sel.disabled = true;
+                            fetch('/api/branch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
+                                .then(function (r) { return r.json(); })
+                                .then(function (res) {
+                                    if (res && res.success) { location.reload(); }
+                                    else { sel.disabled = false; sel.value = String(j.id); if (window.showToast) showToast('تعذّر تبديل الفرع', 'error'); }
+                                })
+                                .catch(function () { sel.disabled = false; sel.value = String(j.id); });
+                        });
+                    });
+                    wrap.appendChild(sel);
+                } else {
+                    // branch-locked account: static badge, no switching
+                    wrap.title = 'فرعك (مقفل على حسابك)';
+                    var badge = document.createElement('span');
+                    badge.className = 'bz-branch-badge';
+                    badge.textContent = '🏢 فرع ' + window.BZ_BRANCH;
+                    wrap.appendChild(badge);
+                }
+                actions.insertBefore(wrap, actions.firstChild);
+            })
+            .catch(function () {});
+    } catch (e) { /* non-critical */ }
+}
+
+function injectAdminLinks() {
+    try {
+        var items = [
+            { href: '/overview', text: 'مركز الفروع', icon: 'building-2', emoji: '🏢' },
+            { href: '/branches', text: 'جميع الفروع', icon: 'chart-column', emoji: '📊' },
+            { href: '/absher_import', text: 'مزامنة أبشر', icon: 'refresh-cw', emoji: '🔄' }
+        ];
+        var side = document.querySelector('.bz-sidebar nav');     // الشريط الجانبي هو القائمة الظاهرة فعلياً
+        var top = document.querySelector('.bz-topbar .bz-nav');
+        items.forEach(function (L) {
+            if (side && !side.querySelector('a[href="' + L.href + '"]')) {
+                var a = document.createElement('a');
+                a.href = L.href;
+                a.innerHTML = '<span class="si"><i data-lucide="' + L.icon + '">' + L.emoji + '</i></span><span class="slab">' + L.text + '</span>';
+                if (location.pathname === L.href) a.className = 'active';
+                side.insertBefore(a, side.firstChild);
+            }
+            if (top && !top.querySelector('a[href="' + L.href + '"]')) {  // للصفحات بلا shell (احتياطي)
+                var b = document.createElement('a');
+                b.href = L.href;
+                b.textContent = L.emoji + ' ' + L.text;
+                if (location.pathname === L.href) b.className = 'active';
+                top.insertBefore(b, top.firstChild);
+            }
+        });
+        if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+    } catch (e) { /* non-critical */ }
+}
+
+// --- Per-tab dated version history: list previous snapshots + restore any with one click ---
+function injectTabHistory() {
+    try {
+        var tab = window.BZ_SNAP_TAB;
+        if (!tab) return;                                    // only on data tabs that are snapshotted
+        var shell = document.querySelector('.bz-shell');
+        if (!shell || document.getElementById('bzHistWrap')) return;
+
+        var wrap = document.createElement('div');
+        wrap.id = 'bzHistWrap'; wrap.className = 'bz-hist-wrap';
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'bz-hist-btn';
+        btn.innerHTML = '🕓 السجل الزمني — النسخ المؤرّخة';
+        var panel = document.createElement('div');
+        panel.className = 'bz-hist-panel'; panel.style.display = 'none';
+        wrap.appendChild(btn); wrap.appendChild(panel);
+
+        var title = shell.querySelector('.bz-section-title');
+        if (title && title.nextSibling) shell.insertBefore(wrap, title.nextSibling);
+        else shell.insertBefore(wrap, shell.firstChild);
+
+        var loaded = false;
+        btn.addEventListener('click', function () {
+            var show = panel.style.display === 'none';
+            panel.style.display = show ? 'block' : 'none';
+            if (show && !loaded) { loaded = true; loadHist(); }
+        });
+
+        function loadHist() {
+            panel.innerHTML = '<div class="bz-hist-empty">جارٍ التحميل…</div>';
+            fetch('/api/tab_history?tab=' + encodeURIComponent(tab), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    var snaps = (j && j.snapshots) || [];
+                    if (!snaps.length) { panel.innerHTML = '<div class="bz-hist-empty">لا توجد نسخ محفوظة بعد — تُحفظ نسخة تلقائياً عند كل تعديل.</div>'; return; }
+                    panel.innerHTML = '<div class="bz-hist-hd">انقر تاريخاً للرجوع إليه (آخر ' + snaps.length + ' نسخة):</div>' +
+                        snaps.map(function (s, i) {
+                            return '<button class="bz-hist-item" data-id="' + s.id + '"><span class="t">' + s.ts + '</span>' +
+                                (i === 0 ? '<span class="cur">الأحدث</span>' : '<span class="go">↩ رجوع</span>') + '</button>';
+                        }).join('');
+                    Array.prototype.forEach.call(panel.querySelectorAll('.bz-hist-item'), function (b) {
+                        b.addEventListener('click', function () { restoreHist(b.getAttribute('data-id'), b.querySelector('.t').textContent); });
+                    });
+                })
+                .catch(function () { panel.innerHTML = '<div class="bz-hist-empty">تعذّر تحميل السجل.</div>'; });
+        }
+
+        function restoreHist(id, ts) {
+            window.bzConfirm('الرجوع إلى نسخة ' + ts + '؟\nستحلّ محل البيانات الحالية لهذا التبويب — والحالة الحالية تبقى محفوظة في السجل.').then(function (ok) {
+            if (!ok) return;
+            fetch('/api/tab_history/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: parseInt(id, 10), tab: tab }) })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res && res.success) {
+                        if (window.showToast) showToast('تمت الاستعادة ✓ — يُعاد التحميل', 'success');
+                        setTimeout(function () { location.reload(); }, 600);
+                    } else if (window.showToast) showToast('تعذّرت الاستعادة', 'error');
+                })
+                .catch(function () { if (window.showToast) showToast('تعذّر الاتصال', 'error'); });
+            });
+        }
+    } catch (e) { /* non-critical */ }
+}
+
+// --- Lucide icons: replace UI emoji with Lucide line-icons across the whole app ---
+// Centralized + DOM-based: only converts emoji rendered in the page (UI), never the emoji
+// inside WhatsApp/email/Excel message strings (those are built in JS, not in the DOM).
+// Colored status dots (🔴🟢🔵🟠🟡) are intentionally left as-is (they carry color meaning).
+var EMOJI_TO_LUCIDE = {
+    '🏠': 'house', '🚗': 'car', '🚙': 'car', '🚘': 'car', '🚚': 'truck', '🚛': 'truck',
+    '🛒': 'shopping-cart', '📋': 'clipboard-list', '🛢️': 'fuel', '🛢': 'fuel', '🚿': 'droplets',
+    '🔧': 'wrench', '🛠️': 'wrench', '🛠': 'wrench', '👥': 'users', '👤': 'user', '🔍': 'search',
+    '📁': 'folder', '📂': 'folder-open', '📡': 'satellite-dish', '🛰️': 'satellite', '🛰': 'satellite',
+    '📹': 'video', '📷': 'camera', '⚙️': 'settings', '⚙': 'settings', '🏢': 'building-2',
+    '📊': 'chart-column', '📈': 'trending-up', '📉': 'trending-down', '🕓': 'history', '🕒': 'clock',
+    '🕙': 'clock', '⏰': 'alarm-clock', '🔔': 'bell', '📄': 'file-text', '📝': 'file-pen',
+    '✅': 'circle-check', '✔️': 'check', '✔': 'check', '🖨️': 'printer', '🖨': 'printer', '➕': 'plus',
+    '🗑️': 'trash-2', '🗑': 'trash-2', '📧': 'mail', '✉️': 'mail', '📨': 'mail', '📩': 'mail',
+    '📲': 'smartphone', '📱': 'smartphone', '🔢': 'hash', '📅': 'calendar', '🗓️': 'calendar',
+    '🌴': 'tree-palm', '🏖️': 'umbrella', '🏖': 'umbrella', '⚠️': 'triangle-alert', '⚠': 'triangle-alert',
+    '🚨': 'siren', '🔒': 'lock', '🔓': 'lock-open', '🔑': 'key', '👁️': 'eye', '👁': 'eye',
+    '📍': 'map-pin', '🌙': 'moon', '☀️': 'sun', '↩': 'undo-2', '↪': 'redo-2', '↻': 'refresh-cw',
+    '🔄': 'refresh-cw', '🚀': 'rocket', '💾': 'save', '🏷️': 'tag', '💬': 'message-circle',
+    '📞': 'phone', '🧾': 'receipt', '📥': 'download', '📤': 'upload', '🖼️': 'image', '👷': 'hard-hat',
+    '☰': 'menu', '✕': 'x', '✖': 'x', '×': 'x'
+};
+var _emTest = null, _emSplit = null;
+function _emBuild() {
+    var keys = Object.keys(EMOJI_TO_LUCIDE).sort(function (a, b) { return b.length - a.length; })
+        .map(function (e) { return e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
+    var src = '(' + keys.join('|') + ')';
+    _emTest = new RegExp(src);
+    _emSplit = new RegExp(src, 'g');
+}
+function bzReplaceEmojis(root) {
+    if (!_emTest) _emBuild();
+    root = root || document.body; if (!root) return;
+    var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, TITLE: 1, OPTION: 1, SELECT: 1, NOSCRIPT: 1, CODE: 1, PRE: 1, INPUT: 1 };
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: function (n) {
+            if (!n.nodeValue || !_emTest.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
+            var p = n.parentNode;
+            if (!p || !p.nodeName || SKIP[p.nodeName]) return NodeFilter.FILTER_REJECT;
+            if (p.closest && p.closest('[data-lucide],.bz-licon')) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+    var nodes = [], n; while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(function (node) {
+        var val = node.nodeValue, frag = document.createDocumentFragment(), last = 0, m;
+        _emSplit.lastIndex = 0;
+        while ((m = _emSplit.exec(val))) {
+            if (m.index > last) frag.appendChild(document.createTextNode(val.slice(last, m.index)));
+            var ic = document.createElement('i');
+            ic.setAttribute('data-lucide', EMOJI_TO_LUCIDE[m[1]]);
+            ic.className = 'bz-licon';
+            ic.textContent = m[1];                 // graceful fallback if the icon name is unknown
+            frag.appendChild(ic);
+            last = m.index + m[1].length;
+        }
+        if (last < val.length) frag.appendChild(document.createTextNode(val.slice(last)));
+        if (node.parentNode) node.parentNode.replaceChild(frag, node);
+    });
+    if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+}
+var _emObs = null, _emT = null;
+function _startEmojiObserver() {
+    if (_emObs || !window.MutationObserver || !document.body) return;
+    _emObs = new MutationObserver(function (muts) {
+        // ignore the once-a-second clock tick (it has no emoji) to avoid needless re-walks
+        var relevant = muts.some(function (mu) { var t = mu.target; return !(t && t.closest && t.closest('.bz-clockline')); });
+        if (!relevant) return;
+        clearTimeout(_emT);
+        _emT = setTimeout(function () {
+            if (!_emObs) return;
+            _emObs.disconnect();
+            try { bzReplaceEmojis(document.body); } catch (e) { }
+            try { window.bzApplyBranchLabel(); } catch (e) { }
+            _emObs.observe(document.body, { childList: true, subtree: true });
+        }, 300);
+    });
+    _emObs.observe(document.body, { childList: true, subtree: true });
+}
+// Make every "فرع الدمام" in the visible chrome follow the active branch (titles, subtitles,
+// footers…). Skips data tables, the team section, and form controls so real data is untouched.
+window.bzApplyBranchLabel = function () {
+    try {
+        var b = window.BZ_BRANCH;
+        if (!b || b === 'الدمام') return;            // الدمام = النص الأصلي بلا تغيير
+        var FIND = 'فرع الدمام', REP = 'فرع ' + b;
+        var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, INPUT: 1, OPTION: 1, SELECT: 1, TITLE: 1, CODE: 1, PRE: 1 };
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+            acceptNode: function (n) {
+                if (!n.nodeValue || n.nodeValue.indexOf(FIND) === -1) return NodeFilter.FILTER_REJECT;
+                var p = n.parentNode;
+                if (!p || !p.nodeName || SKIP[p.nodeName]) return NodeFilter.FILTER_REJECT;
+                if (p.closest && p.closest('table, #team, .team-section, [contenteditable="true"]')) return NodeFilter.FILTER_REJECT;
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+        var nodes = [], n;
+        while ((n = walker.nextNode())) nodes.push(n);
+        nodes.forEach(function (node) { node.nodeValue = node.nodeValue.split(FIND).join(REP); });
+    } catch (e) { /* non-critical */ }
+};
+
+function injectLucide() {
+    try {
+        if (document.getElementById('bzLucideLib')) { bzReplaceEmojis(document.body); _startEmojiObserver(); return; }
+        var s = document.createElement('script');
+        s.id = 'bzLucideLib';
+        s.src = 'https://unpkg.com/lucide@latest';
+        s.onload = function () { bzReplaceEmojis(document.body); try { window.bzApplyBranchLabel(); } catch (e) { } _startEmojiObserver(); };
+        s.onerror = function () { /* offline: emoji simply remain */ };
+        document.head.appendChild(s);
+    } catch (e) { /* non-critical */ }
+}
+
+// ── Custom popup dialogs (بديل نوافذ المتصفح alert/confirm/prompt) ──────────────
+function _bzEscHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+function _bzDialog(opts) {
+    return new Promise(function (resolve) {
+        var back = document.createElement('div');
+        back.className = 'bz-dialog-back';
+        var msgHtml = _bzEscHtml(opts.msg).replace(/\n/g, '<br>');
+        var h = '<div class="bz-dialog"><div class="bz-dialog-msg">' + msgHtml + '</div>';
+        if (opts.prompt) h += '<input class="bz-dialog-input" type="' + (opts.password ? 'password' : 'text') + '" value="' + _bzEscHtml(opts.def || '') + '">';
+        h += '<div class="bz-dialog-acts">';
+        if (opts.cancel) h += '<button class="bz-dlg-btn cancel" type="button">' + _bzEscHtml(opts.cancelText || 'إلغاء') + '</button>';
+        h += '<button class="bz-dlg-btn ok" type="button">' + _bzEscHtml(opts.okText || 'موافق') + '</button></div></div>';
+        back.innerHTML = h;
+        document.body.appendChild(back);
+        requestAnimationFrame(function () { back.classList.add('show'); });
+        var box = back.querySelector('.bz-dialog');
+        var inp = back.querySelector('.bz-dialog-input');
+        if (inp) setTimeout(function () { inp.focus(); inp.select && inp.select(); }, 60);
+        function done(val) { back.classList.remove('show'); setTimeout(function () { if (back.parentNode) back.remove(); }, 200); document.removeEventListener('keydown', onKey); resolve(val); }
+        back.querySelector('.bz-dlg-btn.ok').addEventListener('click', function () { done(opts.prompt ? (inp ? inp.value : '') : true); });
+        var cx = back.querySelector('.bz-dlg-btn.cancel'); if (cx) cx.addEventListener('click', function () { done(opts.prompt ? null : false); });
+        back.addEventListener('click', function (e) { if (e.target === back && opts.cancel) done(opts.prompt ? null : false); });
+        function onKey(e) {
+            if (e.key === 'Escape' && opts.cancel) done(opts.prompt ? null : false);
+            else if (e.key === 'Enter') done(opts.prompt ? (inp ? inp.value : '') : true);
+        }
+        document.addEventListener('keydown', onKey);
+        if (box && window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+    });
+}
+window.bzAlert = function (msg, opts) { opts = opts || {}; return _bzDialog({ msg: msg, cancel: false, okText: opts.okText }); };
+window.bzConfirm = function (msg, opts) { opts = opts || {}; return _bzDialog({ msg: msg, cancel: true, okText: opts.okText || 'تأكيد', cancelText: opts.cancelText }); };
+window.bzPrompt = function (msg, def, opts) { opts = opts || {}; return _bzDialog({ msg: msg, prompt: true, def: def, cancel: true, password: opts.password }); };
+// استبدال alert الأصلي بنافذة منبثقة مخصّصة (لا حاجة لقيمة إرجاع)
+try { window.alert = function (m) { window.bzAlert(m); }; } catch (e) { }
+
+// ── إشعارات حيّة للمدير: نوافذ منبثقة في الزاوية + قائمة منسدلة على الجرس ──────────
+function setupNotifications() {
+    if (window._bzNotiSetup) return; window._bzNotiSetup = true;
+    var TKEY = 'bz_noti_toasted', OKEY = 'bz_noti_lastopen';
+    function getToasted() { try { return JSON.parse(localStorage.getItem(TKEY) || '[]'); } catch (e) { return []; } }
+    function setToasted(a) { try { localStorage.setItem(TKEY, JSON.stringify(a.slice(-800))); } catch (e) { } }
+    function lastOpen() { return localStorage.getItem(OKEY) || ''; }
+    function setLastOpen(v) { try { localStorage.setItem(OKEY, v); } catch (e) { } }
+    function nowStr() { var d = new Date(); function p(n) { return (n < 10 ? '0' : '') + n; } return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()); }
+    function esc(s) { return _bzEscHtml(s); }
+
+    var toasts = document.createElement('div'); toasts.className = 'bz-toasts'; document.body.appendChild(toasts);
+    var menu = document.createElement('div'); menu.className = 'bz-noti-menu';
+    menu.innerHTML = '<div class="bz-noti-hd"><span>🔔 الإشعارات</span><button class="bz-noti-clear" type="button">تعليم الكل كمقروء</button></div><div class="bz-noti-list"></div>';
+    document.body.appendChild(menu);
+    var listEl = menu.querySelector('.bz-noti-list');
+    var bell = document.getElementById('bzBell');
+    var lastItems = [];
+
+    function badge(n) {
+        if (!bell) return;
+        bell.innerHTML = '🔔' + (n > 0 ? '<span class="badge-dot">' + (n > 99 ? '99+' : n) + '</span>' : '');
+        if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+    }
+    function renderMenu(items) {
+        if (!items.length) { listEl.innerHTML = '<div class="bz-noti-empty">لا توجد إشعارات</div>'; return; }
+        var lo = lastOpen();
+        listEl.innerHTML = items.slice(0, 50).map(function (it) {
+            return '<div class="bz-noti-item' + (it.ts > lo ? ' unread' : '') + '"><span class="ic">' + (it.icon || '🔔') +
+                '</span><div class="tx"><div class="tt">' + esc(it.title) + '</div><div class="mt">🏢 فرع ' + esc(it.branch) +
+                (it.user ? ' · 👤 ' + esc(it.user) : '') + ' · ' + esc(it.ts) + '</div></div></div>';
+        }).join('');
+        if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+    }
+    function toast(it) {
+        var el = document.createElement('div'); el.className = 'bz-toast ' + (it.kind || '');
+        el.innerHTML = '<span class="ic">' + (it.icon || '🔔') + '</span><div class="tx"><div class="tt">' + esc(it.title) +
+            '</div><div class="mt">🏢 فرع ' + esc(it.branch) + (it.user ? ' · 👤 ' + esc(it.user) : '') + '</div></div>';
+        toasts.appendChild(el);
+        if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+        setTimeout(function () { el.classList.add('out'); setTimeout(function () { if (el.parentNode) el.remove(); }, 420); }, 7000);
+    }
+    function toggle() {
+        var open = menu.classList.toggle('open');
+        if (open) { setLastOpen(nowStr()); badge(0); renderMenu(lastItems); }
+    }
+    if (bell) { bell.removeAttribute('href'); bell.style.cursor = 'pointer'; bell.title = 'الإشعارات'; bell.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); toggle(); }); }
+    menu.querySelector('.bz-noti-clear').addEventListener('click', function () { setLastOpen(nowStr()); badge(0); renderMenu(lastItems); });
+    document.addEventListener('click', function (e) { if (menu.classList.contains('open') && !menu.contains(e.target) && !(bell && bell.contains(e.target))) menu.classList.remove('open'); });
+
+    function load(first) {
+        fetch('/api/notifications', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (j) {
+                if (!j || !j.success) return;
+                lastItems = j.items || [];
+                var toasted = getToasted(), tset = {}; toasted.forEach(function (k) { tset[k] = 1; });
+                if (first) {
+                    lastItems.forEach(function (it) { if (!tset[it.key]) { tset[it.key] = 1; toasted.push(it.key); } });   // baseline — no burst
+                } else {
+                    lastItems.slice().reverse().forEach(function (it) { if (!tset[it.key]) { tset[it.key] = 1; toasted.push(it.key); toast(it); } });
+                }
+                setToasted(toasted);
+                var lo = lastOpen();
+                badge(lastItems.filter(function (it) { return it.ts > lo; }).length);
+                if (menu.classList.contains('open')) renderMenu(lastItems);
+            }).catch(function () { });
+    }
+    load(true);
+    setInterval(function () { load(false); }, 20000);
+}
+
+// --- PWA: manifest + theme color + service worker (تثبيت كتطبيق + عمل دون اتصال) ---
+function registerPWA() {
+    try {
+        if (!document.querySelector('link[rel="manifest"]')) {
+            var l = document.createElement('link');
+            l.rel = 'manifest'; l.href = '/static/manifest.json';
+            document.head.appendChild(l);
+        }
+        if (!document.querySelector('meta[name="theme-color"]')) {
+            var m = document.createElement('meta');
+            m.name = 'theme-color'; m.content = '#0C2340';
+            document.head.appendChild(m);
+        }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+            });
+        }
+    } catch (e) {}
+}
+
+// --- Workstation namespace (/importantworkstation/*) ---
+// A separate, open mirror of the site under a URL prefix. Detected purely by the path,
+// so the MAIN site is never affected. Internal links and /api calls are kept under the
+// prefix; the Employees/GPS-Sync/Cameras tabs show a 🔒 until unlocked.
+const WS_PREFIX = '/importantworkstation';
+function inWorkstation() { return window.location.pathname.indexOf(WS_PREFIX) === 0; }
+function getCookie(name) {
+    const m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
+    return m ? decodeURIComponent(m[1]) : '';
+}
+// Inject the "الحوادث والمخالفات" tab into every top-bar nav from one place, so the link
+// stays consistent site-wide without editing each template. Runs BEFORE the workstation
+// rewrite so its href is prefixed automatically inside /importantworkstation. Additive only —
+// the main site is unaffected apart from gaining this link.
+function injectGlobalNavLinks() {
+    const nav = document.querySelector('.bz-topbar .bz-nav');
+    if (!nav) return;
+    function addLink(href, text, afterSel) {
+        if (nav.querySelector('a[href$="' + href + '"]')) return; // already present
+        const a = document.createElement('a');
+        a.setAttribute('href', href);
+        a.textContent = text;
+        const after = afterSel ? nav.querySelector(afterSel) : null;
+        if (after && after.nextSibling) nav.insertBefore(a, after.nextSibling);
+        else nav.appendChild(a);
+    }
+    addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
+    addLink('/handover', '🚗 تسليم واستلام مركبة', 'a[href$="/"]');
+    addLink('/settings', '⚙️ الإعدادات', 'a[href$="/cameras"]');
+    // (no separate "الفاتورة" link — the homepage "الرئيسية" IS the invoice; /invoice aliases to it)
+}
+
+// Floating contact dock (WhatsApp + Email), bottom-left, on EVERY tab.
+// Skips if the page already provides its own dock (e.g. the homepage).
+function injectContactDock() {
+    try {
+        if (document.querySelector('.bz-dock')) return;
+        const dock = document.createElement('div');
+        dock.className = 'bz-dock';
+        dock.setAttribute('aria-label', 'إجراءات سريعة');
+        dock.innerHTML =
+            '<a class="bz-dock-btn wa" href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" data-label="واتساب" title="تواصل عبر واتساب" aria-label="واتساب">💬</a>' +
+            '<a class="bz-dock-btn mail" href="mailto:damfleet@bz.sa" data-label="إرسال بالإيميل" title="إرسال عبر الإيميل" aria-label="إرسال عبر الإيميل">📧</a>';
+        document.body.appendChild(dock);
+    } catch (e) { /* non-critical */ }
+}
+
+// Big company logo at the top of EVERY content tab (skips pages that already show one).
+function injectHeroLogo() {
+    try {
+        const shell = document.querySelector('.bz-shell');
+        if (!shell) return;
+        if (document.querySelector('.bz-hero-logo, .logo, .ho-head, .site-logo')) return;
+        const div = document.createElement('div');
+        div.className = 'bz-hero-logo';
+        div.innerHTML = '<img src="/static/main_logo_v2.jpg" alt="شركة بن زومة">';
+        shell.insertBefore(div, shell.firstChild);
+    } catch (e) { /* non-critical */ }
+}
+
+// Live date/time line at the very top of every content tab (same format site-wide).
+function injectClock() {
+    try {
+        const shell = document.querySelector('.bz-shell');
+        if (!shell || document.querySelector('.bz-clockline')) return;
+        const line = document.createElement('div');
+        line.className = 'bz-clockline';
+        shell.insertBefore(line, shell.firstChild);
+        function weekNo(d) { var t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7)); var w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7); }
+        function tick() {
+            const n = new Date();
+            line.innerHTML = 'التاريخ: <b>' + n.toLocaleDateString('ar-EG', { dateStyle: 'medium' }) +
+                '</b> · الوقت: <b>' + n.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+                '</b> · الأسبوع <b>' + weekNo(n) + '</b>';
+        }
+        tick(); setInterval(tick, 1000);
+    } catch (e) { /* non-critical */ }
+}
+
+// ===== Enterprise unified shell (deep-dark + right sidebar + rich topbar) =====
+// Built from one place so every tab gets the same chrome. The sidebar is CLONED from
+// the page's existing horizontal nav (so links + active state + workstation prefix/lock
+// all stay correct). Defensive: only runs on pages that have a .bz-topbar (skips the
+// dashboard — it has its own shell — plus login/lock pages). Adds NO fabricated data.
+function buildEnterpriseShell() {
+    try {
+        const topbar = document.querySelector('.bz-topbar');
+        if (!topbar) return;                               // dashboard / login / tab_lock → skip
+        if (document.querySelector('.bz-sidebar')) return; // already built (defensive)
+
+        document.body.classList.add('bz-enterprise');
+
+        // ---- sidebar (cloned from the horizontal nav) ----
+        let navHtml = '';
+        topbar.querySelectorAll('.bz-nav a').forEach(a => {
+            const txt = (a.textContent || '').trim();
+            const sp = txt.indexOf(' ');
+            const icon = sp > 0 ? txt.slice(0, sp) : '•';
+            const label = sp > 0 ? txt.slice(sp + 1).trim() : txt;
+            const cls = a.classList.contains('active') ? ' class="active"' : '';
+            navHtml += `<a href="${a.getAttribute('href')}"${cls}><span class="si">${icon}</span><span class="slab">${escapeHtml(label)}</span></a>`;
+        });
+        const aside = document.createElement('aside');
+        aside.className = 'bz-sidebar';
+        aside.innerHTML =
+            '<div class="side-brand"><img src="/static/nav_logo.png" alt="BIN ZOMAH"><div class="brand-text"><b>BIN ZOMAH INTL.</b><span>نظام إدارة الأسطول والتوثيق</span></div></div>' +
+            '<nav>' + navHtml + '</nav>';
+        document.body.appendChild(aside);
+
+        // ---- mobile drawer: dim backdrop + a clear close button + easy dismiss ----
+        let backdrop = document.querySelector('.bz-side-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.className = 'bz-side-backdrop';
+            document.body.appendChild(backdrop);
+        }
+        const isMobileNav = () => window.matchMedia('(max-width: 1024px)').matches;
+        function bzSetDrawer(open) {
+            aside.classList.toggle('open', open);
+            backdrop.classList.toggle('show', open);
+            document.body.classList.toggle('bz-drawer-open', open);
+        }
+        window.bzCloseDrawer = function () { bzSetDrawer(false); };
+        backdrop.addEventListener('click', () => bzSetDrawer(false));
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') bzSetDrawer(false); });
+        aside.querySelectorAll('nav a').forEach(a => a.addEventListener('click', () => { if (isMobileNav()) bzSetDrawer(false); }));
+        const sideClose = document.createElement('button');
+        sideClose.type = 'button'; sideClose.className = 'bz-side-close'; sideClose.title = 'إغلاق';
+        sideClose.setAttribute('aria-label', 'إغلاق القائمة'); sideClose.textContent = '✕';
+        sideClose.addEventListener('click', () => bzSetDrawer(false));
+        const sBrand = aside.querySelector('.side-brand'); if (sBrand) sBrand.appendChild(sideClose);
+
+        // ---- enrich the topbar ----
+        const actions = topbar.querySelector('.bz-actions');
+        const brand = topbar.querySelector('.bz-brand');
+
+        if (brand && !document.getElementById('bzBurger')) {
+            const burger = document.createElement('button');
+            burger.id = 'bzBurger'; burger.type = 'button'; burger.className = 'bz-icon-btn bz-side-burger';
+            burger.title = 'القائمة'; burger.setAttribute('aria-label', 'القائمة'); burger.textContent = '☰';
+            burger.addEventListener('click', () => {
+                if (isMobileNav()) bzSetDrawer(!aside.classList.contains('open'));   // mobile: slide-in drawer + backdrop
+                else document.body.classList.toggle('side-hidden');                  // desktop: hide/show the sidebar
+            });
+            brand.parentNode.insertBefore(burger, brand);
+        }
+
+        if (!document.getElementById('bzTopSearch')) {
+            const sw = document.createElement('div');
+            sw.className = 'bz-top-search';
+            sw.innerHTML = '<span class="si">🔍</span><input id="bzTopSearch" type="text" placeholder="بحث سريع في هذه الصفحة…">';
+            topbar.insertBefore(sw, actions || null);
+            document.getElementById('bzTopSearch').addEventListener('input', function () { bzQuickFilter(this.value); });
+        }
+
+        if (actions) {
+            if (!document.getElementById('bzBell')) {
+                const bell = document.createElement('a');
+                bell.id = 'bzBell'; bell.className = 'bz-top-ico'; bell.href = '/dashboard#alerts';
+                bell.title = 'تنبيهات الوثائق'; bell.textContent = '🔔';
+                actions.insertBefore(bell, actions.firstChild);
+            }
+            if (!document.getElementById('bzUser')) {
+                const user = document.createElement('div');
+                user.id = 'bzUser'; user.className = 'bz-top-user';
+                user.innerHTML = '<div class="u-meta"><b id="bzUserName">—</b><span>إدارة الأسطول</span></div><div class="u-av" id="bzUserAv">BZ</div>';
+                actions.appendChild(user);
+            }
+        }
+
+        // fill the user chip + alerts badge from REAL data only (best-effort; no fabrication)
+        fetch('/api/whoami', { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : null)
+            .then(j => {
+                if (!j) return;
+                const nm = document.getElementById('bzUserName'); if (nm && j.name) nm.textContent = j.name;
+                const av = document.getElementById('bzUserAv'); if (av && j.name) av.textContent = ((j.name.trim()[0]) || 'B');
+            }).catch(() => {});
+        fetch('/api/expiry_alerts_preview', { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : null)
+            .then(j => {
+                const bell = document.getElementById('bzBell');
+                if (j && bell && j.total > 0) bell.innerHTML = '🔔<span class="badge-dot">' + (j.total > 99 ? '99+' : j.total) + '</span>';
+            }).catch(() => {});
+    } catch (e) { console.error('enterprise shell error', e); }
+}
+
+// Top-bar quick search: forward into the page's own search box when present (keeps its
+// filtering/counters correct); otherwise generically hide non-matching rows of the
+// largest table (checks both text cells and input/select values).
+function bzQuickFilter(q) {
+    const known = ['empSearch', 'searchInput', 'assetSearch', 'seInput'];
+    for (const id of known) {
+        const el = document.getElementById(id);
+        if (el) { el.value = q; el.dispatchEvent(new Event('input', { bubbles: true })); return; }
+    }
+    const term = (q || '').trim().toLowerCase();
+    let best = null, bestN = -1;
+    document.querySelectorAll('table').forEach(t => {
+        const n = t.querySelectorAll('tbody tr').length;
+        if (n > bestN) { bestN = n; best = t; }
+    });
+    if (!best) return;
+    best.querySelectorAll('tbody tr').forEach(tr => {
+        if (!term) { tr.style.display = ''; return; }
+        let hit = (tr.textContent || '').toLowerCase().indexOf(term) !== -1;
+        if (!hit) {
+            const f = tr.querySelectorAll('input,textarea,select');
+            for (let i = 0; i < f.length; i++) { if ((f[i].value || '').toLowerCase().indexOf(term) !== -1) { hit = true; break; } }
+        }
+        tr.style.display = hit ? '' : 'none';
+    });
+}
+
+function applyWorkstationRestrictions() {
+    if (!inWorkstation()) return; // MAIN SITE: do nothing at all
+    // 1) keep every internal nav link inside the workstation prefix
+    document.querySelectorAll('a[href^="/"]').forEach(a => {
+        const h = a.getAttribute('href');
+        if (!h || h.indexOf(WS_PREFIX) === 0) return;
+        if (h === '/logout' || h.indexOf('/static') === 0 || h.indexOf('/api') === 0 || h.indexOf('//') === 0) return;
+        a.setAttribute('href', WS_PREFIX + (h === '/' ? '' : h));
+    });
+    // 3) inject a workstation-only "clear all data" button so the user can wipe the
+    //    sandbox to a truly empty start (removes any leftover id=2 data from earlier use).
+    const actions = document.querySelector('.bz-topbar .bz-actions');
+    if (actions && !document.getElementById('wsResetBtn')) {
+        const btn = document.createElement('button');
+        btn.id = 'wsResetBtn';
+        btn.type = 'button';
+        btn.className = 'bz-icon-btn';
+        btn.title = 'تفريغ كل بيانات محطة العمل (بداية فارغة) — لا يؤثر على الموقع الأساسي';
+        btn.textContent = '🗑️';
+        btn.style.cssText = 'background:rgba(220,38,38,.18);border-color:rgba(220,38,38,.45);';
+        btn.addEventListener('click', window.bzResetWorkstation);
+        actions.insertBefore(btn, actions.firstChild);
+        // "fill example data" button next to it
+        const seedBtn = document.createElement('button');
+        seedBtn.id = 'wsSeedBtn';
+        seedBtn.type = 'button';
+        seedBtn.className = 'bz-icon-btn';
+        seedBtn.title = 'تعبئة كل التبويبات ببيانات أمثلة — لا يؤثر على الموقع الأساسي';
+        seedBtn.textContent = '🧪';
+        seedBtn.style.cssText = 'background:rgba(201,162,39,.20);border-color:rgba(201,162,39,.5);';
+        seedBtn.addEventListener('click', window.bzSeedWorkstation);
+        actions.insertBefore(seedBtn, actions.firstChild);
+    }
+    // 2) lock the sensitive tabs until unlocked
+    if (getCookie('ws_unlocked') === '1') return;
+    [WS_PREFIX + '/employees', WS_PREFIX + '/gps_sync', WS_PREFIX + '/cameras', WS_PREFIX + '/tracking'].forEach(p => {
+        document.querySelectorAll('a[href="' + p + '"]').forEach(a => {
+            if (a.textContent.indexOf('🔒') === -1) {
+                a.textContent = '🔒 ' + a.textContent.trim();
+                a.title = 'مقفل — يتطلب كلمة مرور';
+            }
+        });
+    });
+}
+
+// Wipe every workstation (id=2) store + this browser's ws: cache, then reload empty.
+// Workstation-only; the main site never sees this button or endpoint.
+window.bzResetWorkstation = async function () {
+    if (!inWorkstation()) return;
+    if (!(await window.bzConfirm('تفريغ كل بيانات محطة العمل؟\n\nسيُحذف كل ما أُدخل في هذا الرابط (الموظفون، الجدول، الغسيل، السائقون، الزيوت، الورشة، طلب الشراء، السجلات) ويبدأ فارغاً.\n\nالموقع الأساسي لن يتأثر إطلاقاً.'))) return;
+    try {
+        // '/api/ws_reset' is rewritten to /importantworkstation/api/ws_reset by the fetch wrapper.
+        await fetch('/api/ws_reset', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    } catch (e) { /* best-effort */ }
+    // Also drop this browser's ws:-prefixed cached copies (bypass the patched instance methods).
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.indexOf('ws:') === 0) Storage.prototype.removeItem.call(localStorage, k);
+        }
+    } catch (e) { /* ignore */ }
+    window.location.reload();
+};
+
+// Fill every workstation tab with realistic FAKE example data (demo), then reload.
+// Workstation-only; the main site never sees this button or endpoint.
+window.bzSeedWorkstation = async function () {
+    if (!inWorkstation()) return;
+    if (!(await window.bzConfirm('تعبئة كل تبويبات محطة العمل ببيانات أمثلة؟'))) return;
+    try {
+        await fetch('/api/ws_seed', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    } catch (e) { /* best-effort */ }
+    // Drop local ws: caches so the freshly-seeded server data shows on reload.
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.indexOf('ws:') === 0) Storage.prototype.removeItem.call(localStorage, k);
+        }
+    } catch (e) { /* ignore */ }
+    window.location.reload();
+};
+
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 // --- Theme Management ---
 function initThemeToggle() {
     const savedTheme = localStorage.getItem('darkMode');

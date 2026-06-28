@@ -8,8 +8,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<<<<<<< HEAD
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+=======
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
     <style>
         .header-container {
             display: flex;
@@ -208,9 +214,9 @@
     <div class="header-container">
         {% if b64_en %}<img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">{% endif %}
                 {% if google_user %}
-        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
+        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:var(--surface);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
             <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
-            <span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
+            <span style="font-weight:bold;color:var(--text-primary);font-size:0.9rem">{{ google_user.name }}</span>
             <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
         </div>
         {% endif %}
@@ -349,9 +355,47 @@
             </tbody>
         </table>
 
+<<<<<<< HEAD
         <!-- General Notes -->
         <div class="section-title">📝 ملاحظات عامة</div>
         <textarea id="poNotes" rows="3" placeholder="أدخل أي ملاحظات إضافية هنا..." style="width:100%;padding:12px;border:1px solid var(--border-strong);border-radius:8px;font-family:'Cairo';font-size:0.95rem;font-weight:600;outline:none;transition:var(--trans);background:var(--surface);color:var(--text-primary);box-sizing:border-box;resize:vertical;"></textarea>
+=======
+                <!-- User Notes -->
+        <table class="excel-table" style="margin-top: 15px;">
+            <tr>
+                <th class="excel-label" style="width:15%">ملاحظات:</th>
+                <td style="padding:0;"><textarea id="poNotes" rows="2" placeholder="حقل الملاحظات..." style="width:100%; height:100%; padding:8px; border:none; resize:none; font-family:inherit; font-weight:bold; outline:none; font-size:1rem; background:transparent; color:var(--text-primary);"></textarea></td>
+            </tr>
+        </table>
+
+        <!-- Signatures Row -->
+        <div style="border-top: 2px solid #b8860b; border-bottom: 2px solid #b8860b; padding: 40px 0 10px 0; display: flex; justify-content: space-between; font-weight: bold; margin-top: 30px; font-size: 0.95rem;">
+            <div style="width:14%; text-align:center; color:var(--text-primary);">السائق</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">الميكانيكي</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">قسم الحركة</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">مسئول الشراء</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">الحسابات</div>
+            <div style="width:14%; text-align:center; color:var(--text-primary);">مدير الفرع</div>
+            <div style="width:16%; text-align:center; color:var(--text-primary);">اعتماد الإدارة</div>
+        </div>
+
+        <!-- Notes Section -->
+        <div style="text-align: center; font-weight: bold; margin-top: 40px; margin-bottom: 5px; color:var(--text-primary);">
+            تم إعداد هذا الجدول بواسطة قسم الحركة
+        </div>
+        
+        <table class="excel-table" style="margin-top: 0; margin-bottom: 30px;">
+            <thead>
+                <tr><th class="excel-header" style="background-color: var(--accent) !important; text-align: center; padding:4px !important;">ملاحظات هامة</th></tr>
+            </thead>
+            <tbody>
+                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">1- يعبأ الطلب من قبل مسئول الورشة بعد توقيعه وتوقيع السائق والميكانيكي</td></tr>
+                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">2- يوقع بعد ذلك من المحاسبة ويتم ارساله للإدارة عن طريق محاسب الفرع ليتم اعتماده من الإدارة</td></tr>
+                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">3- عند وجود ملاحظة لأي من الأطراف يمكن تدوينها في حقل الملاحظات أعلاه</td></tr>
+                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">4- ترفق صورة للإدارة المالية وصورة لقسم الحركة بالإدارة، ويتم حفظ صورة من الطلب لدى الورشة</td></tr>
+            </tbody>
+        </table>
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 
         <div style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
             <button class="btn-primary" onclick="downloadPO()">📥 استخراج الطلب (Excel)</button>
@@ -757,6 +801,7 @@
             btn.disabled = false;
         });
     </script>
+<<<<<<< HEAD
 
 <!-- GPS Session Monitor -->
 <script>
@@ -778,6 +823,8 @@
     };
 })();
 </script>
+=======
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 </body>
 
 </html>

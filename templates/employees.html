@@ -2,10 +2,18 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+<<<<<<< HEAD
     <title>بيانات موظفين الفرع</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=2) }}">
     <script src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
+=======
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بيانات موظفين الفرع — BIN ZOMAH INTL.</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 
     <style>
 
@@ -218,6 +226,7 @@
             if (save) saveToLocalStorage();
         }
 
+<<<<<<< HEAD
         function deleteRow(btn) {
             if (!confirm('هل أنت متأكد من حذف هذا الصف؟')) return;
             const tr = btn.closest('tr');
@@ -226,6 +235,19 @@
             // Re-index
             const rows = document.querySelectorAll('#employeesBody tr');
             rows.forEach((row, i) => {
+=======
+        async function deleteRow(btn) {
+            if (!(await window.bzConfirm('هل أنت متأكد من حذف هذا الصف؟'))) return;
+            btn.closest('tr').remove();
+            reindex();
+            persistLocal();
+            autoSaveServer(); // WS-only server autosave
+            updateCount();
+        }
+
+        function reindex() {
+            document.querySelectorAll('#employeesBody tr').forEach((row, i) => {
+>>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
                 row.cells[0].textContent = i + 1;
             });
             saveToLocalStorage();

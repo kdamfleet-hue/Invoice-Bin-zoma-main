@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مركز الفروع | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        .ov-wrap { max-width: 1100px; margin: 0 auto; }
+        .ov-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.6rem; }
+        .ov-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.1rem 1.2rem; }
+        .ov-card h4 { margin: 0 0 10px; font-size: 1.05rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+        .ov-card .uname { font-family: monospace; direction: ltr; unicode-bidi: plaintext; color: var(--brand-gold); font-size: .82rem; }
+        .ov-card .row { display: flex; justify-content: space-between; font-size: .84rem; color: var(--text-secondary); margin-top: 7px; }
+        .ov-card .row b { color: var(--text-primary); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: plaintext; }
+        .ov-card .badge-today { background: rgba(197,160,89,.15); color: var(--brand-gold); border-radius: 8px; padding: 1px 9px; font-weight: 800; }
+        .ov-feed { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); overflow: hidden; }
+        .ov-feed h3 { margin: 0; padding: 16px 18px; font-size: 1.1rem; font-weight: 800; color: var(--text-primary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ov-scroll { max-height: 62vh; overflow: auto; }
+        .ov-tbl { width: 100%; border-collapse: collapse; }
+        .ov-tbl th, .ov-tbl td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--border); font-size: .85rem; }
+        .ov-tbl th { background: var(--surface-hover); color: var(--text-secondary); font-weight: 800; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+        .ov-tbl td { color: var(--text-primary); }
+        .ov-tbl .b-tag { font-weight: 800; color: var(--brand-gold); white-space: nowrap; }
+        .ov-tbl .u-tag { font-family: monospace; direction: ltr; unicode-bidi: plaintext; color: var(--text-secondary); }
+        .ov-tbl .ts { white-space: nowrap; color: var(--text-muted); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: plaintext; }
+        .ov-empty { text-align: center; color: var(--text-muted); padding: 2rem; font-weight: 700; }
+        .ov-alertbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-md); padding: 12px 16px; margin-bottom: 1.3rem; font-weight: 800; }
+        .ov-alertbar .ttl { color: var(--text-primary); }
+        .pill { border-radius: 999px; padding: 3px 12px; font-size: .82rem; font-weight: 800; white-space: nowrap; }
+        .pill.exp { background: rgba(220,38,38,.14); color: #f87171; border: 1px solid rgba(220,38,38,.35); }
+        .pill.d30 { background: rgba(245,158,11,.16); color: #f59e0b; border: 1px solid rgba(245,158,11,.35); }
+        .pill.d90 { background: rgba(234,179,8,.12); color: #d4a517; border: 1px solid rgba(234,179,8,.3); }
+        .pill.ok { background: rgba(16,185,129,.12); color: #10b981; border: 1px solid rgba(16,185,129,.3); }
+        .ov-card .alerts { margin-top: 9px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .ov-card .alerts .pill { font-size: .74rem; padding: 2px 9px; }
+    </style>
+</head>
+<body>
+
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/handover">🚗 تسليم واستلام مركبة</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/search">🔍 بحث</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+        <a href="/cameras">📹 الكاميرات</a>
+        <a href="/settings">⚙️ الإعدادات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">🏢 مركز الفروع — نظرة شاملة</h2>
+      <div class="ov-wrap">
+        <div class="ov-alertbar" id="ovAlerts" style="display:none"></div>
+        <div class="ov-cards" id="ovCards"></div>
+        <div class="ov-feed">
+          <h3>📋 سجل النشاط عبر كل الفروع <span id="ovUpdated" style="font-size:.7rem;font-weight:700;color:var(--text-muted)"></span></h3>
+          <div class="ov-scroll">
+            <table class="ov-tbl">
+              <thead><tr><th>الوقت</th><th>الفرع</th><th>المستخدم</th><th>الإجراء</th><th>العنصر</th></tr></thead>
+              <tbody id="ovFeed"><tr><td colspan="5" class="ov-empty">جارٍ التحميل…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+  function load() {
+    fetch('/api/overview', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.success) { $('ovFeed').innerHTML = '<tr><td colspan="5" class="ov-empty">غير متاح.</td></tr>'; return; }
+        // aggregated alerts banner (HQ sees every branch's document alerts)
+        var at = j.alert_totals || { expired: 0, d30: 0, d90: 0 }, grand = j.alerts_grand || 0, bar = $('ovAlerts');
+        if (grand > 0) {
+          bar.style.display = 'flex';
+          bar.innerHTML = '<span class="ttl">🔔 تنبيهات وثائق كل الفروع:</span>' +
+            '<span class="pill exp">منتهية: ' + (at.expired || 0) + '</span>' +
+            '<span class="pill d30">≤ 30 يوم: ' + (at.d30 || 0) + '</span>' +
+            '<span class="pill d90">≤ 90 يوم: ' + (at.d90 || 0) + '</span>' +
+            '<span class="ttl" style="margin-inline-start:auto">الإجمالي: ' + grand + '</span>';
+        } else { bar.style.display = 'none'; }
+        $('ovCards').innerHTML = (j.branches || []).map(function (b) {
+          var a = b.alerts || { expired: 0, d30: 0, d90: 0 };
+          var alertsHtml = (b.alerts_total > 0)
+            ? '<div class="alerts">' +
+                (a.expired ? '<span class="pill exp">منتهية ' + a.expired + '</span>' : '') +
+                (a.d30 ? '<span class="pill d30">≤30: ' + a.d30 + '</span>' : '') +
+                (a.d90 ? '<span class="pill d90">≤90: ' + a.d90 + '</span>' : '') +
+              '</div>'
+            : '<div class="alerts"><span class="pill ok">لا تنبيهات ✓</span></div>';
+          return '<div class="ov-card"><h4>🏢 فرع ' + esc(b.name) + '</h4>' +
+            '<div class="row"><span>المستخدم</span><span class="uname">' + (b.username ? esc(b.username) : '— لا حساب') + '</span></div>' +
+            '<div class="row"><span>آخر نشاط</span><b>' + (b.last_ts ? esc(b.last_ts) : '—') + '</b></div>' +
+            '<div class="row"><span>تغييرات اليوم</span><span class="badge-today">' + (b.today || 0) + '</span></div>' +
+            '<div class="row"><span>إجمالي السجل</span><b>' + (b.total || 0) + '</b></div>' +
+            alertsHtml + '</div>';
+        }).join('');
+        var feed = j.feed || [];
+        if (!feed.length) {
+          $('ovFeed').innerHTML = '<tr><td colspan="5" class="ov-empty">لا يوجد نشاط بعد.</td></tr>';
+        } else {
+          $('ovFeed').innerHTML = feed.map(function (e) {
+            var tgt = esc(e.target || '') +
+              (e.detail ? ' <span style="color:var(--text-muted)">— ' + esc(e.detail) + '</span>' : '') +
+              (e.hits > 1 ? ' <span style="color:var(--text-muted)">(&times;' + e.hits + ')</span>' : '');
+            return '<tr><td class="ts">' + esc(e.ts || '') + '</td><td class="b-tag">' + esc(e.branch || '') +
+              '</td><td class="u-tag">' + esc(e.user || '') + '</td><td>' + esc(e.action || '') + '</td><td>' + tgt + '</td></tr>';
+          }).join('');
+        }
+        var n = new Date();
+        $('ovUpdated').textContent = 'آخر تحديث: ' + n.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      })
+      .catch(function () { $('ovFeed').innerHTML = '<tr><td colspan="5" class="ov-empty">تعذّر الاتصال بالخادم.</td></tr>'; });
+  }
+
+  load();
+  setInterval(load, 20000);   // live-ish refresh
+  // (الإشعارات المنبثقة + قائمة الجرس أصبحت عامة في app_ux.js لكل الصفحات)
+})();
+</script>
+
+</body>
+</html>

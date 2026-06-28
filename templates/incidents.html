@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الحوادث والمخالفات | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css') }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
@@ -22,7 +23,7 @@
         .inc-toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: center; margin: 0 auto 1.25rem; max-width: 1000px; }
         .inc-toolbar .inc-search { position: relative; flex: 1 1 280px; min-width: 220px; }
         .inc-toolbar .inc-search input { width: 100%; padding: 11px 18px 11px 42px; border-radius: 50px; font-size: 0.95rem; }
-        .inc-toolbar .inc-search::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 1rem; }
+        .inc-toolbar .inc-search::before { content: ''; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 1rem; }
         .inc-toolbar select { min-width: 150px; }
 
         #incTable { width: 100%; border-collapse: collapse; table-layout: auto; }
@@ -71,9 +72,9 @@
         .att-row .att-name { flex: 1; text-align: right; font-size: .88rem; word-break: break-all; }
         .att-row .att-size { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
         .att-row button { border: none; border-radius: 7px; padding: 5px 9px; cursor: pointer; font-size: .8rem; font-weight: 700; }
-        .att-view { background: rgba(59,130,246,.14); color: #1d4ed8; }
-        .att-dl { background: rgba(16,185,129,.14); color: #047857; }
-        .att-rm { background: rgba(239,68,68,.14); color: #b91c1c; }
+        .att-view { background: rgba(59,130,246,.14); color: #93c5fd; }
+        .att-dl { background: rgba(16,185,129,.14); color: #6ee7b7; }
+        .att-rm { background: rgba(239,68,68,.14); color: #fca5a5; }
 
         @media (max-width: 768px) { .bz-stats { grid-template-columns: repeat(2, 1fr); } .inc-toolbar select { flex: 1 1 45%; min-width: 0; } }
     </style>
@@ -411,11 +412,11 @@
         showToast('تم تسجيل واقعة جديدة', 'success');
     }
 
-    function deleteIncident(idx) {
+    async function deleteIncident(idx) {
         const r = incidents[idx];
         if (!r) return;
         const label = r.ref || r.name || r.type || ('واقعة #' + (idx + 1));
-        if (!confirm('هل تريد حذف هذه الواقعة؟\n\n' + label + '\n(سيتم حذف مرفقاتها أيضاً)')) return;
+        if (!(await window.bzConfirm('هل تريد حذف هذه الواقعة؟\n\n' + label + '\n(سيتم حذف مرفقاتها أيضاً)'))) return;
         incidents.splice(idx, 1);
         renderTable();
         scheduleSave();
@@ -512,9 +513,9 @@
         } catch (e) { showToast('تعذّر تنزيل المرفق', 'error'); }
     }
 
-    function removeAtt(i) {
+    async function removeAtt(i) {
         const r = incidents[attIdx]; if (!r || !r.attachments[i]) return;
-        if (!confirm('حذف هذا المرفق؟\n' + (r.attachments[i].name || ''))) return;
+        if (!(await window.bzConfirm('حذف هذا المرفق؟\n' + (r.attachments[i].name || '')))) return;
         r.attachments.splice(i, 1);
         renderAttList(); renderTable(); scheduleSave();
     }
