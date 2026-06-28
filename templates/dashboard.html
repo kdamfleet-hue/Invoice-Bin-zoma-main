@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة الإدارة التنفيذية — BIN ZOMAH INTL.</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=19) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=19) }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
     <!-- washing fallback seed (provides window.WASHING_VEHICLES if the API is empty) -->
     <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
@@ -886,10 +886,10 @@
   }
   window.dlSnap = function (idx) { var e = loadHist()[idx]; if (e && e.data) download('bin-zomah-backup-' + new Date(e.ts).toISOString().slice(0, 10) + '.json', e.data); };
   window.downloadCurrentBackup = function () { download('bin-zomah-backup-' + new Date().toISOString().slice(0, 10) + '.json', snapData()); };
-  window.restoreSnap = function (idx) {
+  window.restoreSnap = async function (idx) {
     var e = loadHist()[idx]; if (!e || !e.data) return;
     var when = new Date(e.ts).toLocaleString('ar-EG');
-    if (!confirm('استعادة بيانات النسخة بتاريخ ' + when + '؟\n\nسيُستبدل المحتوى الحالي للجدول الأسبوعي والغسيل والتوثيق والموظفين ببيانات هذه النسخة.\nننصح بتنزيل نسخة احتياطية من الوضع الحالي أولاً.\n\nاضغط موافق للمتابعة.')) return;
+    if (!(await window.bzConfirm('استعادة بيانات النسخة بتاريخ ' + when + '؟\n\nسيُستبدل المحتوى الحالي للجدول الأسبوعي والغسيل والتوثيق والموظفين ببيانات هذه النسخة.\nننصح بتنزيل نسخة احتياطية من الوضع الحالي أولاً.\n\nاضغط موافق للمتابعة.'))) return;
     var jobs = [];
     if (e.data.schedule) jobs.push(fetch('/api/schedule_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e.data.schedule) }));
     if (e.data.washing) jobs.push(fetch('/api/washing_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicles: e.data.washing }) }));
@@ -914,7 +914,7 @@
     });
   }
   var AL_FILTER_LABELS = { attention: 'تحتاج إجراء', expired: 'منتهية', d30: '≤ 30 يوم', d90: '≤ 90 يوم', valid: 'سارية', all: 'الكل', unknown: 'غير محدد' };
-  window.sendExpiryMail = function () {
+  window.sendExpiryMail = async function () {
     var to = (($('alMailTo') && $('alMailTo').value) || '').trim();
     var btn = $('alMailBtn'), hint = $('alMailHint');
     function mapRow(a) { return { name: a.name, plate: a.plate, doc: a.doc, date: a.date, label: a.st.label, key: a.st.key, days: a.st.days }; }
@@ -928,7 +928,7 @@
       scopeLabel = AL_FILTER_LABELS[alFilter] || '';
     }
     if (!rows.length) { if (hint) hint.innerHTML = '<span style="color:var(--warn-fg)">حدّد صفوفاً أو اختر فرزاً فيه وثائق أولاً.</span>'; return; }
-    var lockCode = window.prompt('🔒 أدخل رمز الإرسال للمتابعة:');
+    var lockCode = await window.bzPrompt('🔒 أدخل رمز الإرسال للمتابعة:', '', { password: true });
     if (lockCode === null) return;   // أُلغيت العملية
     if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
     fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to, rows: rows, filter: scopeLabel, lock: lockCode }) })

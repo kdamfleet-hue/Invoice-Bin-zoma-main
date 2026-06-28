@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الحوادث والمخالفات | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=19) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=19) }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -406,11 +406,11 @@
         showToast('تم تسجيل واقعة جديدة', 'success');
     }
 
-    function deleteIncident(idx) {
+    async function deleteIncident(idx) {
         const r = incidents[idx];
         if (!r) return;
         const label = r.ref || r.name || r.type || ('واقعة #' + (idx + 1));
-        if (!confirm('هل تريد حذف هذه الواقعة؟\n\n' + label + '\n(سيتم حذف مرفقاتها أيضاً)')) return;
+        if (!(await window.bzConfirm('هل تريد حذف هذه الواقعة؟\n\n' + label + '\n(سيتم حذف مرفقاتها أيضاً)'))) return;
         incidents.splice(idx, 1);
         renderTable();
         scheduleSave();
@@ -507,9 +507,9 @@
         } catch (e) { showToast('تعذّر تنزيل المرفق', 'error'); }
     }
 
-    function removeAtt(i) {
+    async function removeAtt(i) {
         const r = incidents[attIdx]; if (!r || !r.attachments[i]) return;
-        if (!confirm('حذف هذا المرفق؟\n' + (r.attachments[i].name || ''))) return;
+        if (!(await window.bzConfirm('حذف هذا المرفق؟\n' + (r.attachments[i].name || '')))) return;
         r.attachments.splice(i, 1);
         renderAttList(); renderTable(); scheduleSave();
     }

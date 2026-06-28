@@ -358,10 +358,9 @@ function injectBranchSwitcher() {
                 window.bzApplyBranchLabel();                          // sync all chrome to the branch
                 setTimeout(window.bzApplyBranchLabel, 500);           // catch late JS-rendered titles
                 setTimeout(window.bzApplyBranchLabel, 1500);
-                if (j.is_admin) {                               // HQ links + aggregated alerts bell
+                if (j.is_admin) {                               // HQ: admin links + live notifications (bell dropdown + corner toasts)
                     injectAdminLinks();
-                    var _bell = document.getElementById('bzBell');
-                    if (_bell) { _bell.href = '/overview'; _bell.title = 'تنبيهات وثائق كل الفروع'; }
+                    setupNotifications();
                 }
                 if (document.getElementById('bzBranchWrap')) return;
                 var wrap = document.createElement('label');
@@ -381,17 +380,17 @@ function injectBranchSwitcher() {
                         if (sel.value === '__all__') { location.href = '/branches'; return; }   // open the all-branches page
                         var id = parseInt(sel.value, 10);
                         var name = sel.options[sel.selectedIndex].text.replace('🏢 فرع ', '');
-                        if (!confirm('تبديل الفرع إلى «' + name + '»؟\nستظهر بيانات هذا الفرع في كل التبويبات.')) {
-                            sel.value = String(j.id); return;
-                        }
-                        sel.disabled = true;
-                        fetch('/api/branch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
-                            .then(function (r) { return r.json(); })
-                            .then(function (res) {
-                                if (res && res.success) { location.reload(); }
-                                else { sel.disabled = false; sel.value = String(j.id); if (window.showToast) showToast('تعذّر تبديل الفرع', 'error'); }
-                            })
-                            .catch(function () { sel.disabled = false; sel.value = String(j.id); });
+                        window.bzConfirm('تبديل الفرع إلى «' + name + '»؟\nستظهر بيانات هذا الفرع في كل التبويبات.').then(function (ok) {
+                            if (!ok) { sel.value = String(j.id); return; }
+                            sel.disabled = true;
+                            fetch('/api/branch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
+                                .then(function (r) { return r.json(); })
+                                .then(function (res) {
+                                    if (res && res.success) { location.reload(); }
+                                    else { sel.disabled = false; sel.value = String(j.id); if (window.showToast) showToast('تعذّر تبديل الفرع', 'error'); }
+                                })
+                                .catch(function () { sel.disabled = false; sel.value = String(j.id); });
+                        });
                     });
                     wrap.appendChild(sel);
                 } else {
@@ -410,18 +409,30 @@ function injectBranchSwitcher() {
 
 function injectAdminLinks() {
     try {
-        var nav = document.querySelector('.bz-topbar .bz-nav');
-        if (!nav) return;
-        [{ href: '/overview', text: '🏢 مركز الفروع' },
-         { href: '/branches', text: '📊 جميع الفروع' },
-         { href: '/absher_import', text: '🔄 مزامنة أبشر' }].forEach(function (L) {
-            if (nav.querySelector('a[href="' + L.href + '"]')) return;
-            var a = document.createElement('a');
-            a.href = L.href;
-            a.textContent = L.text;
-            if (location.pathname === L.href) a.className = 'active';
-            nav.insertBefore(a, nav.firstChild);
+        var items = [
+            { href: '/overview', text: 'مركز الفروع', icon: 'building-2', emoji: '🏢' },
+            { href: '/branches', text: 'جميع الفروع', icon: 'chart-column', emoji: '📊' },
+            { href: '/absher_import', text: 'مزامنة أبشر', icon: 'refresh-cw', emoji: '🔄' }
+        ];
+        var side = document.querySelector('.bz-sidebar nav');     // الشريط الجانبي هو القائمة الظاهرة فعلياً
+        var top = document.querySelector('.bz-topbar .bz-nav');
+        items.forEach(function (L) {
+            if (side && !side.querySelector('a[href="' + L.href + '"]')) {
+                var a = document.createElement('a');
+                a.href = L.href;
+                a.innerHTML = '<span class="si"><i data-lucide="' + L.icon + '">' + L.emoji + '</i></span><span class="slab">' + L.text + '</span>';
+                if (location.pathname === L.href) a.className = 'active';
+                side.insertBefore(a, side.firstChild);
+            }
+            if (top && !top.querySelector('a[href="' + L.href + '"]')) {  // للصفحات بلا shell (احتياطي)
+                var b = document.createElement('a');
+                b.href = L.href;
+                b.textContent = L.emoji + ' ' + L.text;
+                if (location.pathname === L.href) b.className = 'active';
+                top.insertBefore(b, top.firstChild);
+            }
         });
+        if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
     } catch (e) { /* non-critical */ }
 }
 
@@ -473,7 +484,8 @@ function injectTabHistory() {
         }
 
         function restoreHist(id, ts) {
-            if (!confirm('الرجوع إلى نسخة ' + ts + '؟\nستحلّ محل البيانات الحالية لهذا التبويب — والحالة الحالية تبقى محفوظة في السجل.')) return;
+            window.bzConfirm('الرجوع إلى نسخة ' + ts + '؟\nستحلّ محل البيانات الحالية لهذا التبويب — والحالة الحالية تبقى محفوظة في السجل.').then(function (ok) {
+            if (!ok) return;
             fetch('/api/tab_history/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: parseInt(id, 10), tab: tab }) })
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
@@ -483,6 +495,7 @@ function injectTabHistory() {
                     } else if (window.showToast) showToast('تعذّرت الاستعادة', 'error');
                 })
                 .catch(function () { if (window.showToast) showToast('تعذّر الاتصال', 'error'); });
+            });
         }
     } catch (e) { /* non-critical */ }
 }
@@ -599,6 +612,114 @@ function injectLucide() {
         s.onerror = function () { /* offline: emoji simply remain */ };
         document.head.appendChild(s);
     } catch (e) { /* non-critical */ }
+}
+
+// ── Custom popup dialogs (بديل نوافذ المتصفح alert/confirm/prompt) ──────────────
+function _bzEscHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+function _bzDialog(opts) {
+    return new Promise(function (resolve) {
+        var back = document.createElement('div');
+        back.className = 'bz-dialog-back';
+        var msgHtml = _bzEscHtml(opts.msg).replace(/\n/g, '<br>');
+        var h = '<div class="bz-dialog"><div class="bz-dialog-msg">' + msgHtml + '</div>';
+        if (opts.prompt) h += '<input class="bz-dialog-input" type="' + (opts.password ? 'password' : 'text') + '" value="' + _bzEscHtml(opts.def || '') + '">';
+        h += '<div class="bz-dialog-acts">';
+        if (opts.cancel) h += '<button class="bz-dlg-btn cancel" type="button">' + _bzEscHtml(opts.cancelText || 'إلغاء') + '</button>';
+        h += '<button class="bz-dlg-btn ok" type="button">' + _bzEscHtml(opts.okText || 'موافق') + '</button></div></div>';
+        back.innerHTML = h;
+        document.body.appendChild(back);
+        requestAnimationFrame(function () { back.classList.add('show'); });
+        var box = back.querySelector('.bz-dialog');
+        var inp = back.querySelector('.bz-dialog-input');
+        if (inp) setTimeout(function () { inp.focus(); inp.select && inp.select(); }, 60);
+        function done(val) { back.classList.remove('show'); setTimeout(function () { if (back.parentNode) back.remove(); }, 200); document.removeEventListener('keydown', onKey); resolve(val); }
+        back.querySelector('.bz-dlg-btn.ok').addEventListener('click', function () { done(opts.prompt ? (inp ? inp.value : '') : true); });
+        var cx = back.querySelector('.bz-dlg-btn.cancel'); if (cx) cx.addEventListener('click', function () { done(opts.prompt ? null : false); });
+        back.addEventListener('click', function (e) { if (e.target === back && opts.cancel) done(opts.prompt ? null : false); });
+        function onKey(e) {
+            if (e.key === 'Escape' && opts.cancel) done(opts.prompt ? null : false);
+            else if (e.key === 'Enter') done(opts.prompt ? (inp ? inp.value : '') : true);
+        }
+        document.addEventListener('keydown', onKey);
+        if (box && window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+    });
+}
+window.bzAlert = function (msg, opts) { opts = opts || {}; return _bzDialog({ msg: msg, cancel: false, okText: opts.okText }); };
+window.bzConfirm = function (msg, opts) { opts = opts || {}; return _bzDialog({ msg: msg, cancel: true, okText: opts.okText || 'تأكيد', cancelText: opts.cancelText }); };
+window.bzPrompt = function (msg, def, opts) { opts = opts || {}; return _bzDialog({ msg: msg, prompt: true, def: def, cancel: true, password: opts.password }); };
+// استبدال alert الأصلي بنافذة منبثقة مخصّصة (لا حاجة لقيمة إرجاع)
+try { window.alert = function (m) { window.bzAlert(m); }; } catch (e) { }
+
+// ── إشعارات حيّة للمدير: نوافذ منبثقة في الزاوية + قائمة منسدلة على الجرس ──────────
+function setupNotifications() {
+    if (window._bzNotiSetup) return; window._bzNotiSetup = true;
+    var TKEY = 'bz_noti_toasted', OKEY = 'bz_noti_lastopen';
+    function getToasted() { try { return JSON.parse(localStorage.getItem(TKEY) || '[]'); } catch (e) { return []; } }
+    function setToasted(a) { try { localStorage.setItem(TKEY, JSON.stringify(a.slice(-800))); } catch (e) { } }
+    function lastOpen() { return localStorage.getItem(OKEY) || ''; }
+    function setLastOpen(v) { try { localStorage.setItem(OKEY, v); } catch (e) { } }
+    function nowStr() { var d = new Date(); function p(n) { return (n < 10 ? '0' : '') + n; } return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()); }
+    function esc(s) { return _bzEscHtml(s); }
+
+    var toasts = document.createElement('div'); toasts.className = 'bz-toasts'; document.body.appendChild(toasts);
+    var menu = document.createElement('div'); menu.className = 'bz-noti-menu';
+    menu.innerHTML = '<div class="bz-noti-hd"><span>🔔 الإشعارات</span><button class="bz-noti-clear" type="button">تعليم الكل كمقروء</button></div><div class="bz-noti-list"></div>';
+    document.body.appendChild(menu);
+    var listEl = menu.querySelector('.bz-noti-list');
+    var bell = document.getElementById('bzBell');
+    var lastItems = [];
+
+    function badge(n) {
+        if (!bell) return;
+        bell.innerHTML = '🔔' + (n > 0 ? '<span class="badge-dot">' + (n > 99 ? '99+' : n) + '</span>' : '');
+        if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+    }
+    function renderMenu(items) {
+        if (!items.length) { listEl.innerHTML = '<div class="bz-noti-empty">لا توجد إشعارات</div>'; return; }
+        var lo = lastOpen();
+        listEl.innerHTML = items.slice(0, 50).map(function (it) {
+            return '<div class="bz-noti-item' + (it.ts > lo ? ' unread' : '') + '"><span class="ic">' + (it.icon || '🔔') +
+                '</span><div class="tx"><div class="tt">' + esc(it.title) + '</div><div class="mt">🏢 فرع ' + esc(it.branch) +
+                (it.user ? ' · 👤 ' + esc(it.user) : '') + ' · ' + esc(it.ts) + '</div></div></div>';
+        }).join('');
+        if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+    }
+    function toast(it) {
+        var el = document.createElement('div'); el.className = 'bz-toast ' + (it.kind || '');
+        el.innerHTML = '<span class="ic">' + (it.icon || '🔔') + '</span><div class="tx"><div class="tt">' + esc(it.title) +
+            '</div><div class="mt">🏢 فرع ' + esc(it.branch) + (it.user ? ' · 👤 ' + esc(it.user) : '') + '</div></div>';
+        toasts.appendChild(el);
+        if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+        setTimeout(function () { el.classList.add('out'); setTimeout(function () { if (el.parentNode) el.remove(); }, 420); }, 7000);
+    }
+    function toggle() {
+        var open = menu.classList.toggle('open');
+        if (open) { setLastOpen(nowStr()); badge(0); renderMenu(lastItems); }
+    }
+    if (bell) { bell.removeAttribute('href'); bell.style.cursor = 'pointer'; bell.title = 'الإشعارات'; bell.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); toggle(); }); }
+    menu.querySelector('.bz-noti-clear').addEventListener('click', function () { setLastOpen(nowStr()); badge(0); renderMenu(lastItems); });
+    document.addEventListener('click', function (e) { if (menu.classList.contains('open') && !menu.contains(e.target) && !(bell && bell.contains(e.target))) menu.classList.remove('open'); });
+
+    function load(first) {
+        fetch('/api/notifications', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (j) {
+                if (!j || !j.success) return;
+                lastItems = j.items || [];
+                var toasted = getToasted(), tset = {}; toasted.forEach(function (k) { tset[k] = 1; });
+                if (first) {
+                    lastItems.forEach(function (it) { if (!tset[it.key]) { tset[it.key] = 1; toasted.push(it.key); } });   // baseline — no burst
+                } else {
+                    lastItems.slice().reverse().forEach(function (it) { if (!tset[it.key]) { tset[it.key] = 1; toasted.push(it.key); toast(it); } });
+                }
+                setToasted(toasted);
+                var lo = lastOpen();
+                badge(lastItems.filter(function (it) { return it.ts > lo; }).length);
+                if (menu.classList.contains('open')) renderMenu(lastItems);
+            }).catch(function () { });
+    }
+    load(true);
+    setInterval(function () { load(false); }, 20000);
 }
 
 // --- PWA: manifest + theme color + service worker (تثبيت كتطبيق + عمل دون اتصال) ---
@@ -885,7 +1006,7 @@ function applyWorkstationRestrictions() {
 // Workstation-only; the main site never sees this button or endpoint.
 window.bzResetWorkstation = async function () {
     if (!inWorkstation()) return;
-    if (!window.confirm('تفريغ كل بيانات محطة العمل؟\n\nسيُحذف كل ما أُدخل في هذا الرابط (الموظفون، الجدول، الغسيل، السائقون، الزيوت، الورشة، طلب الشراء، السجلات) ويبدأ فارغاً.\n\nالموقع الأساسي لن يتأثر إطلاقاً.')) return;
+    if (!(await window.bzConfirm('تفريغ كل بيانات محطة العمل؟\n\nسيُحذف كل ما أُدخل في هذا الرابط (الموظفون، الجدول، الغسيل، السائقون، الزيوت، الورشة، طلب الشراء، السجلات) ويبدأ فارغاً.\n\nالموقع الأساسي لن يتأثر إطلاقاً.'))) return;
     try {
         // '/api/ws_reset' is rewritten to /importantworkstation/api/ws_reset by the fetch wrapper.
         await fetch('/api/ws_reset', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
@@ -904,7 +1025,7 @@ window.bzResetWorkstation = async function () {
 // Workstation-only; the main site never sees this button or endpoint.
 window.bzSeedWorkstation = async function () {
     if (!inWorkstation()) return;
-    if (!window.confirm('تعبئة كل تبويبات محطة العمل ببيانات أمثلة؟')) return;
+    if (!(await window.bzConfirm('تعبئة كل تبويبات محطة العمل ببيانات أمثلة؟'))) return;
     try {
         await fetch('/api/ws_seed', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     } catch (e) { /* best-effort */ }

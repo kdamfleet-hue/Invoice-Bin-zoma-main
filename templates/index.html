@@ -6,11 +6,11 @@
     <title>منشئ الفواتير الاحترافي | شركة بن زومة</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=19) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=19) }}"></script>
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
     <style>
         /* Page-specific layout only (tokens from base_styles.css) */
@@ -394,14 +394,14 @@
         async function editDriver(id) {
             const d = driversData.find(x => x.id === id);
             if (!d) return;
-            const newName = prompt('تعديل الاسم:', d.name);
+            const newName = await window.bzPrompt('تعديل الاسم:', d.name);
             if (newName === null) return;
-            const newEmpid = prompt('الرقم الوظيفي:', d.empid || '');
-            const newCar = prompt('تعديل نوع السيارة:', d.car || '');
-            const newPlate = prompt('تعديل رقم اللوحة:', d.plate || '');
-            const newIqama = prompt('تعديل رقم الإقامة:', d.iqama || '');
-            const newDriverCard = prompt('تعديل تاريخ انتهاء بطاقة السائق:', d.drivercard || '');
-            const newPhone = prompt('تعديل رقم الجوال:', d.phone || '');
+            const newEmpid = await window.bzPrompt('الرقم الوظيفي:', d.empid || '');
+            const newCar = await window.bzPrompt('تعديل نوع السيارة:', d.car || '');
+            const newPlate = await window.bzPrompt('تعديل رقم اللوحة:', d.plate || '');
+            const newIqama = await window.bzPrompt('تعديل رقم الإقامة:', d.iqama || '');
+            const newDriverCard = await window.bzPrompt('تعديل تاريخ انتهاء بطاقة السائق:', d.drivercard || '');
+            const newPhone = await window.bzPrompt('تعديل رقم الجوال:', d.phone || '');
             if (!newName) {
                 showToast('الاسم مطلوب!', 'error');
                 return;
@@ -422,7 +422,7 @@
         }
 
         async function deleteDriver(id) {
-            if(!confirm('هل أنت متأكد من حذف السائق؟')) return;
+            if(!(await window.bzConfirm('هل أنت متأكد من حذف السائق؟'))) return;
             try {
                 const res = await fetch(`/api/drivers/${id}`, {method: 'DELETE'});
                 if(res.ok) {
@@ -508,8 +508,8 @@
             return false;
         }
 
-        function clearInvoiceForm() {
-            if(!confirm('هل أنت متأكد من مسح جميع الحقول؟')) return;
+        async function clearInvoiceForm() {
+            if(!(await window.bzConfirm('هل أنت متأكد من مسح جميع الحقول؟'))) return;
             document.getElementById('driverName').value = '';
             document.getElementById('carType').value = '';
             document.getElementById('plateNum').value = '';
@@ -901,7 +901,7 @@
                     <input type="text" id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);">
                 </div>
                 <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-                    <button type="button" onclick="if(confirm('هل تريد حفظه في سطح المكتب؟')) { generateExcel(); }" class="btn-outline">حفظ في سطح المكتب 💾</button>
+                    <button type="button" onclick="window.bzConfirm('هل تريد حفظه في سطح المكتب؟').then(function(ok){ if(ok){ generateExcel(); } })" class="btn-outline">حفظ في سطح المكتب 💾</button>
                     <button onclick="closeCustomModal('emailModal')" class="btn-outline" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
                     <button id="btnSendEmail" onclick="sendExcelEmail()" class="btn-primary">إرسال 🚀</button>
                 </div>
@@ -999,7 +999,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
             return Array.from(document.querySelectorAll('.cc-email')).map(i => i.value.trim()).filter(v => v);
         }
 
-        function sendWhatsApp() {
+        async function sendWhatsApp() {
             try {
                 const driverMerged = document.getElementById('driverName').value.trim();
                 let phone = '';
@@ -1011,7 +1011,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
                     phone = driver.phone.toString().trim();
                     rawName = driver.name;
                 } else {
-                    phone = prompt('لم يتم العثور على رقم جوال مسجل لهذا السائق. يرجى إدخال رقم الجوال (مثال: 0500000000):');
+                    phone = await window.bzPrompt('لم يتم العثور على رقم جوال مسجل لهذا السائق. يرجى إدخال رقم الجوال (مثال: 0500000000):');
                     if(!phone) return;
                 }
                 

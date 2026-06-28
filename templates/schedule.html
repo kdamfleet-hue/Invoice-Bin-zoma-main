@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>الجدول الأسبوعي | شركة بن زومة</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=19) }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-  <script defer src="{{ url_for('static', filename='app_ux.js', v=19) }}"></script>
+  <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -597,8 +597,8 @@
       renderBody('body' + cap(section), state[section], section);
       updateSummary(); scheduleSave();
     }
-    function deleteRow(section, idx) {
-      if (!confirm('حذف هذا الصف؟')) return;
+    async function deleteRow(section, idx) {
+      if (!(await window.bzConfirm('حذف هذا الصف؟'))) return;
       state[section].splice(idx, 1);
       renderBody('body' + cap(section), state[section], section);
       updateSummary(); scheduleSave();

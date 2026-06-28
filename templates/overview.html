@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مركز الفروع | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=19) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=19) }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
     <style>
         .ov-wrap { max-width: 1100px; margin: 0 auto; }
@@ -36,24 +36,10 @@
         .pill.ok { background: rgba(16,185,129,.12); color: #10b981; border: 1px solid rgba(16,185,129,.3); }
         .ov-card .alerts { margin-top: 9px; display: flex; gap: 6px; flex-wrap: wrap; }
         .ov-card .alerts .pill { font-size: .74rem; padding: 2px 9px; }
-        /* HQ notification toasts — animated, fixed top-LEFT */
-        .bz-toasts { position: fixed; top: 14px; left: 14px; z-index: 4000; display: flex; flex-direction: column; gap: 10px; max-width: 350px; }
-        .bz-toast { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--brand-gold, #c5a059); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.28); padding: 11px 14px; display: flex; gap: 10px; align-items: flex-start; animation: bzToastIn .45s cubic-bezier(.2,.9,.3,1.2); }
-        .bz-toast.out { animation: bzToastOut .4s forwards; }
-        .bz-toast .ic { font-size: 1.3rem; line-height: 1.1; }
-        .bz-toast .tt { font-weight: 800; color: var(--text-primary); font-size: .85rem; }
-        .bz-toast .mt { font-size: .75rem; color: var(--text-secondary); margin-top: 3px; }
-        .bz-toast.docs { border-left-color: #ef4444; }
-        .bz-toast.schedule { border-left-color: #3b82f6; }
-        .bz-toast.purchase { border-left-color: #f59e0b; }
-        .bz-toast.employees { border-left-color: #10b981; }
-        @keyframes bzToastIn { from { opacity: 0; transform: translateX(-115%); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes bzToastOut { to { opacity: 0; transform: translateX(-115%); } }
     </style>
 </head>
 <body>
 
-    <div class="bz-toasts" id="bzToasts"></div>
 
     <header class="bz-topbar">
       <div class="bz-brand">
@@ -156,36 +142,7 @@
 
   load();
   setInterval(load, 20000);   // live-ish refresh
-
-  // --- HQ notification toasts (animated, top-left) — only NEW events after baseline ---
-  var _seen = null;
-  function showNotifToast(it) {
-    var box = $('bzToasts'); if (!box) return;
-    var el = document.createElement('div');
-    el.className = 'bz-toast ' + (it.kind || '');
-    el.innerHTML = '<span class="ic">' + (it.icon || '🔔') + '</span><div class="tx">' +
-      '<div class="tt">' + esc(it.title || '') + '</div>' +
-      '<div class="mt">🏢 فرع ' + esc(it.branch || '') + (it.user ? ' · 👤 ' + esc(it.user) : '') + ' · ' + esc(it.ts || '') + '</div></div>';
-    box.appendChild(el);
-    setTimeout(function () { el.classList.add('out'); setTimeout(function () { if (el.parentNode) el.remove(); }, 420); }, 7000);
-  }
-  function pollNotifs() {
-    fetch('/api/notifications', { headers: { 'Accept': 'application/json' } })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) {
-        if (!j || !j.success) return;
-        var items = j.items || [];
-        if (_seen === null) { _seen = {}; items.forEach(function (it) { _seen[it.key] = 1; }); return; }  // baseline: no toast burst
-        items.slice().reverse().forEach(function (it) {
-          if (_seen[it.key]) return;
-          _seen[it.key] = 1;
-          showNotifToast(it);
-        });
-      })
-      .catch(function () {});
-  }
-  pollNotifs();
-  setInterval(pollNotifs, 15000);
+  // (الإشعارات المنبثقة + قائمة الجرس أصبحت عامة في app_ux.js لكل الصفحات)
 })();
 </script>
 

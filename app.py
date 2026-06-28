@@ -2424,35 +2424,54 @@ def api_overview():
                     "alert_totals": alert_totals, "alerts_grand": sum(alert_totals.values())})
 
 
-# Which audited changes raise an HQ notification toast (target → icon/kind).
-NOTIFY_TARGETS = {
-    "الجدول الأسبوعي": {"icon": "📋", "kind": "schedule"},
-    "طلبات الشراء": {"icon": "🛒", "kind": "purchase"},
-    "بيانات الموظفين": {"icon": "👥", "kind": "employees"},
-}
+# أيقونة الإشعار حسب كلمة مفتاحية في هدف التغيير (target)
+def _notify_icon(target):
+    t = target or ""
+    if "موظف" in t:
+        return "👥"
+    if "الجدول" in t:
+        return "📋"
+    if "شراء" in t:
+        return "🛒"
+    if "غسيل" in t:
+        return "🚿"
+    if "ورشة" in t:
+        return "🔧"
+    if "زيوت" in t or "فلاتر" in t:
+        return "🛢️"
+    if "توثيق" in t:
+        return "📁"
+    if "حوادث" in t or "مخالف" in t:
+        return "🚨"
+    if "GPS" in t or "تتبع" in t:
+        return "🛰️"
+    if "تسليم" in t or "مركبة" in t or "أبشر" in t or "سائق" in t or "تفويض" in t:
+        return "🚗"
+    if "فرع" in t:
+        return "🏢"
+    return "📝"
 
 
 @app.route("/api/notifications", methods=["GET"])
 @login_required
 def api_notifications():
-    """HQ-only feed for the overview toasts: recent relevant changes across branches
-    (schedule / purchase / employees) + document-expiry alerts. Each item carries a stable
-    key so the client animates only NEW ones."""
+    """HQ-only live feed: EVERY recent change in ANY branch (from the audit trail) +
+    document-expiry alerts. Each item carries a stable key so the client shows only new ones."""
     if not session.get("is_admin"):
         return jsonify({"error": "forbidden"}), 403
     items = []
-    cutoff = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+    cutoff = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
     for b in BRANCHES:
         for e in _audit_get_at(b["id"]):
-            meta = NOTIFY_TARGETS.get(e.get("target", ""))
             ts = e.get("ts", "")
-            if not meta or ts < cutoff:
+            target = e.get("target", "")
+            if not target or ts < cutoff:
                 continue
             items.append({
-                "key": "ev|%s|%s|%s|%s" % (b["id"], ts, e.get("target", ""), e.get("action", "")),
-                "kind": meta["kind"], "icon": meta["icon"],
-                "title": "%s — %s" % (e.get("action", "تحديث"), e.get("target", "")),
-                "branch": b["name"], "user": e.get("user", ""), "ts": ts,
+                "key": "ev|%s|%s|%s|%s" % (b["id"], ts, target, e.get("action", "")),
+                "kind": "change", "icon": _notify_icon(target),
+                "title": "%s — %s" % (e.get("action", "تحديث"), target),
+                "branch": b["name"], "user": e.get("user", "") or "النظام", "ts": ts,
             })
         ac = {"expired": 0, "d30": 0, "d90": 0}
         for a in _collect_expiry_alerts(rid=b["id"]):
@@ -2466,7 +2485,7 @@ def api_notifications():
                 "branch": b["name"], "user": "", "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             })
     items.sort(key=lambda x: x.get("ts", ""), reverse=True)
-    return jsonify({"success": True, "items": items[:60]})
+    return jsonify({"success": True, "items": items[:80]})
 
 
 def _blob_get_at(table, rid):
