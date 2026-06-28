@@ -780,14 +780,17 @@
 
     // ── Auto ping-pong motion: cards drift right ↔ left continuously ─────────
     var dir = -1, carry = 0, raf = null, hovering = false, holdUntil = 0;
+    var edgeDir = 0, EDGE_SPEED = 7;  // hover an edge → reveal next/prev smoothly in that direction
     var SPEED = 0.8;  // px per frame (~48px/s) — calm, readable drift
     var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
     function step(ts) {
       raf = requestAnimationFrame(step);
-      if (reduce || hovering || cards.length < 2 || (ts || 0) < holdUntil) return;
+      if (reduce || cards.length < 2) return;
       var max = track.scrollWidth - track.clientWidth;
       if (max <= 1) return;                        // everything fits — nothing to scroll
+      if (edgeDir !== 0) { track.scrollLeft += edgeDir * EDGE_SPEED; return; }  // edge-hover reveal
+      if (hovering || (ts || 0) < holdUntil) return;   // hovering the middle → pause; otherwise drift
       carry += dir * SPEED;
       var d = carry < 0 ? Math.ceil(carry) : Math.floor(carry);  // whole-px step (avoids sub-pixel rounding stalls)
       if (!d) return;
@@ -801,8 +804,19 @@
 
     if (slider) {
       slider.addEventListener('mouseenter', function () { hovering = true; });
-      slider.addEventListener('mouseleave', function () { hovering = false; });
+      slider.addEventListener('mouseleave', function () { hovering = false; edgeDir = 0; });
+      // hovering near the right/left edge reveals the next/previous cards in a smooth flow
+      slider.addEventListener('mousemove', function (e) {
+        var r = slider.getBoundingClientRect();
+        var x = e.clientX - r.left, zone = r.width * 0.24;
+        edgeDir = x < zone ? -1 : (x > r.width - zone ? 1 : 0);
+      });
     }
+    // the side arrows also reveal continuously while hovered
+    Array.prototype.forEach.call(document.querySelectorAll('.team-slider .team-nav'), function (btn, i) {
+      btn.addEventListener('mouseenter', function () { edgeDir = (i === 0) ? -1 : 1; });
+      btn.addEventListener('mouseleave', function () { edgeDir = 0; });
+    });
     track.addEventListener('touchstart', function () { hold(3000); }, { passive: true });
     track.addEventListener('wheel', function () { hold(3000); }, { passive: true });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) hold(400); });

@@ -381,6 +381,11 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS branch_accounts (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Drivers whose vehicle authorization was cancelled (from the Absher sync) —
+            # shown under the weekly schedule. Per-branch blob.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS deauthorized_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Tiny key/value flags for the workstation (e.g. "did we auto-seed example data?").
             db.execute(
                 "CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)"
@@ -2550,8 +2555,26 @@ def api_branches_overview():
 WS_BLOB_TABLES = [
     "employees", "schedule_data", "washing_schedule", "records_data",
     "drivers_ws", "oils_data", "purchase_data", "workshop_data",
-    "gps_devices_data", "handover_data",
+    "gps_devices_data", "handover_data", "deauthorized_data",
 ]
+
+
+@app.route("/api/deauthorized", methods=["GET", "POST"])
+@login_required
+def api_deauthorized():
+    """قائمة «تم إلغاء تفويضهم» (من مزامنة أبشر) — تظهر أسفل الجدول الأسبوعي.
+    GET: متاح لأي مستخدم مسجّل (مقسومة حسب الفرع). POST: للمدير فقط (لدفع القائمة)."""
+    if request.method == "POST":
+        if not session.get("is_admin"):
+            return jsonify({"success": False, "reason": "forbidden"}), 403
+        body = request.get_json(silent=True) or {}
+        rows = body.get("rows", body if isinstance(body, list) else [])
+        blob_set("deauthorized_data", rows if isinstance(rows, list) else [])
+        _audit_add("تحديث", "قائمة إلغاء التفويض", len(rows) if isinstance(rows, list) else None)
+        return jsonify({"success": True, "count": len(rows) if isinstance(rows, list) else 0})
+    data = blob_get("deauthorized_data")
+    rows = data if isinstance(data, list) else (data.get("rows", []) if isinstance(data, dict) else [])
+    return jsonify({"success": True, "rows": rows})
 
 
 @app.route("/api/ws_reset", methods=["POST"])
