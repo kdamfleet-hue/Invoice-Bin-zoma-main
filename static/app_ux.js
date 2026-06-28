@@ -502,7 +502,8 @@ var EMOJI_TO_LUCIDE = {
     '🚨': 'siren', '🔒': 'lock', '🔓': 'lock-open', '🔑': 'key', '👁️': 'eye', '👁': 'eye',
     '📍': 'map-pin', '🌙': 'moon', '☀️': 'sun', '↩': 'undo-2', '↪': 'redo-2', '↻': 'refresh-cw',
     '🔄': 'refresh-cw', '🚀': 'rocket', '💾': 'save', '🏷️': 'tag', '💬': 'message-circle',
-    '📞': 'phone', '🧾': 'receipt', '📥': 'download', '📤': 'upload', '🖼️': 'image', '👷': 'hard-hat'
+    '📞': 'phone', '🧾': 'receipt', '📥': 'download', '📤': 'upload', '🖼️': 'image', '👷': 'hard-hat',
+    '☰': 'menu', '✕': 'x', '✖': 'x', '×': 'x'
 };
 var _emTest = null, _emSplit = null;
 function _emBuild() {
@@ -702,6 +703,29 @@ function buildEnterpriseShell() {
             '<nav>' + navHtml + '</nav>';
         document.body.appendChild(aside);
 
+        // ---- mobile drawer: dim backdrop + a clear close button + easy dismiss ----
+        let backdrop = document.querySelector('.bz-side-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.className = 'bz-side-backdrop';
+            document.body.appendChild(backdrop);
+        }
+        const isMobileNav = () => window.matchMedia('(max-width: 1024px)').matches;
+        function bzSetDrawer(open) {
+            aside.classList.toggle('open', open);
+            backdrop.classList.toggle('show', open);
+            document.body.classList.toggle('bz-drawer-open', open);
+        }
+        window.bzCloseDrawer = function () { bzSetDrawer(false); };
+        backdrop.addEventListener('click', () => bzSetDrawer(false));
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') bzSetDrawer(false); });
+        aside.querySelectorAll('nav a').forEach(a => a.addEventListener('click', () => { if (isMobileNav()) bzSetDrawer(false); }));
+        const sideClose = document.createElement('button');
+        sideClose.type = 'button'; sideClose.className = 'bz-side-close'; sideClose.title = 'إغلاق';
+        sideClose.setAttribute('aria-label', 'إغلاق القائمة'); sideClose.textContent = '✕';
+        sideClose.addEventListener('click', () => bzSetDrawer(false));
+        const sBrand = aside.querySelector('.side-brand'); if (sBrand) sBrand.appendChild(sideClose);
+
         // ---- enrich the topbar ----
         const actions = topbar.querySelector('.bz-actions');
         const brand = topbar.querySelector('.bz-brand');
@@ -709,10 +733,10 @@ function buildEnterpriseShell() {
         if (brand && !document.getElementById('bzBurger')) {
             const burger = document.createElement('button');
             burger.id = 'bzBurger'; burger.type = 'button'; burger.className = 'bz-icon-btn bz-side-burger';
-            burger.title = 'القائمة'; burger.textContent = '☰';
+            burger.title = 'القائمة'; burger.setAttribute('aria-label', 'القائمة'); burger.textContent = '☰';
             burger.addEventListener('click', () => {
-                if (window.matchMedia('(max-width: 1024px)').matches) aside.classList.toggle('open');   // mobile: slide-in drawer
-                else document.body.classList.toggle('side-hidden');                                     // desktop: hide/show the sidebar
+                if (isMobileNav()) bzSetDrawer(!aside.classList.contains('open'));   // mobile: slide-in drawer + backdrop
+                else document.body.classList.toggle('side-hidden');                  // desktop: hide/show the sidebar
             });
             brand.parentNode.insertBefore(burger, brand);
         }
