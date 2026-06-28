@@ -355,6 +355,9 @@ function injectBranchSwitcher() {
                 window.BZ_BRANCH = j.name || 'الدمام';
                 var sub = document.querySelector('.bz-brand-text span');
                 if (sub) sub.textContent = 'نظام إدارة الأسطول — فرع ' + window.BZ_BRANCH;
+                window.bzApplyBranchLabel();                          // sync all chrome to the branch
+                setTimeout(window.bzApplyBranchLabel, 500);           // catch late JS-rendered titles
+                setTimeout(window.bzApplyBranchLabel, 1500);
                 if (j.is_admin) {                               // HQ links + aggregated alerts bell
                     injectAdminLinks();
                     var _bell = document.getElementById('bzBell');
@@ -557,18 +560,42 @@ function _startEmojiObserver() {
             if (!_emObs) return;
             _emObs.disconnect();
             try { bzReplaceEmojis(document.body); } catch (e) { }
+            try { window.bzApplyBranchLabel(); } catch (e) { }
             _emObs.observe(document.body, { childList: true, subtree: true });
         }, 300);
     });
     _emObs.observe(document.body, { childList: true, subtree: true });
 }
+// Make every "فرع الدمام" in the visible chrome follow the active branch (titles, subtitles,
+// footers…). Skips data tables, the team section, and form controls so real data is untouched.
+window.bzApplyBranchLabel = function () {
+    try {
+        var b = window.BZ_BRANCH;
+        if (!b || b === 'الدمام') return;            // الدمام = النص الأصلي بلا تغيير
+        var FIND = 'فرع الدمام', REP = 'فرع ' + b;
+        var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, INPUT: 1, OPTION: 1, SELECT: 1, TITLE: 1, CODE: 1, PRE: 1 };
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+            acceptNode: function (n) {
+                if (!n.nodeValue || n.nodeValue.indexOf(FIND) === -1) return NodeFilter.FILTER_REJECT;
+                var p = n.parentNode;
+                if (!p || !p.nodeName || SKIP[p.nodeName]) return NodeFilter.FILTER_REJECT;
+                if (p.closest && p.closest('table, #team, .team-section, [contenteditable="true"]')) return NodeFilter.FILTER_REJECT;
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+        var nodes = [], n;
+        while ((n = walker.nextNode())) nodes.push(n);
+        nodes.forEach(function (node) { node.nodeValue = node.nodeValue.split(FIND).join(REP); });
+    } catch (e) { /* non-critical */ }
+};
+
 function injectLucide() {
     try {
         if (document.getElementById('bzLucideLib')) { bzReplaceEmojis(document.body); _startEmojiObserver(); return; }
         var s = document.createElement('script');
         s.id = 'bzLucideLib';
         s.src = 'https://unpkg.com/lucide@latest';
-        s.onload = function () { bzReplaceEmojis(document.body); _startEmojiObserver(); };
+        s.onload = function () { bzReplaceEmojis(document.body); try { window.bzApplyBranchLabel(); } catch (e) { } _startEmojiObserver(); };
         s.onerror = function () { /* offline: emoji simply remain */ };
         document.head.appendChild(s);
     } catch (e) { /* non-critical */ }
