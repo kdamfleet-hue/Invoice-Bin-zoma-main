@@ -337,6 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initIdleTimeout();
     initLanguageTranslation();
     registerPWA();
+    injectLucide();
 });
 
 // --- Branch switcher: swap the active branch site-wide (multi-branch data isolation) ---
@@ -479,6 +480,95 @@ function injectTabHistory() {
                 })
                 .catch(function () { if (window.showToast) showToast('تعذّر الاتصال', 'error'); });
         }
+    } catch (e) { /* non-critical */ }
+}
+
+// --- Lucide icons: replace UI emoji with Lucide line-icons across the whole app ---
+// Centralized + DOM-based: only converts emoji rendered in the page (UI), never the emoji
+// inside WhatsApp/email/Excel message strings (those are built in JS, not in the DOM).
+// Colored status dots (🔴🟢🔵🟠🟡) are intentionally left as-is (they carry color meaning).
+var EMOJI_TO_LUCIDE = {
+    '🏠': 'house', '🚗': 'car', '🚙': 'car', '🚘': 'car', '🚚': 'truck', '🚛': 'truck',
+    '🛒': 'shopping-cart', '📋': 'clipboard-list', '🛢️': 'fuel', '🛢': 'fuel', '🚿': 'droplets',
+    '🔧': 'wrench', '🛠️': 'wrench', '🛠': 'wrench', '👥': 'users', '👤': 'user', '🔍': 'search',
+    '📁': 'folder', '📂': 'folder-open', '📡': 'satellite-dish', '🛰️': 'satellite', '🛰': 'satellite',
+    '📹': 'video', '📷': 'camera', '⚙️': 'settings', '⚙': 'settings', '🏢': 'building-2',
+    '📊': 'chart-column', '📈': 'trending-up', '📉': 'trending-down', '🕓': 'history', '🕒': 'clock',
+    '🕙': 'clock', '⏰': 'alarm-clock', '🔔': 'bell', '📄': 'file-text', '📝': 'file-pen',
+    '✅': 'circle-check', '✔️': 'check', '✔': 'check', '🖨️': 'printer', '🖨': 'printer', '➕': 'plus',
+    '🗑️': 'trash-2', '🗑': 'trash-2', '📧': 'mail', '✉️': 'mail', '📨': 'mail', '📩': 'mail',
+    '📲': 'smartphone', '📱': 'smartphone', '🔢': 'hash', '📅': 'calendar', '🗓️': 'calendar',
+    '🌴': 'tree-palm', '🏖️': 'umbrella', '🏖': 'umbrella', '⚠️': 'triangle-alert', '⚠': 'triangle-alert',
+    '🚨': 'siren', '🔒': 'lock', '🔓': 'lock-open', '🔑': 'key', '👁️': 'eye', '👁': 'eye',
+    '📍': 'map-pin', '🌙': 'moon', '☀️': 'sun', '↩': 'undo-2', '↪': 'redo-2', '↻': 'refresh-cw',
+    '🔄': 'refresh-cw', '🚀': 'rocket', '💾': 'save', '🏷️': 'tag', '💬': 'message-circle',
+    '📞': 'phone', '🧾': 'receipt', '📥': 'download', '📤': 'upload', '🖼️': 'image', '👷': 'hard-hat'
+};
+var _emTest = null, _emSplit = null;
+function _emBuild() {
+    var keys = Object.keys(EMOJI_TO_LUCIDE).sort(function (a, b) { return b.length - a.length; })
+        .map(function (e) { return e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
+    var src = '(' + keys.join('|') + ')';
+    _emTest = new RegExp(src);
+    _emSplit = new RegExp(src, 'g');
+}
+function bzReplaceEmojis(root) {
+    if (!_emTest) _emBuild();
+    root = root || document.body; if (!root) return;
+    var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, TITLE: 1, OPTION: 1, SELECT: 1, NOSCRIPT: 1, CODE: 1, PRE: 1, INPUT: 1 };
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: function (n) {
+            if (!n.nodeValue || !_emTest.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
+            var p = n.parentNode;
+            if (!p || !p.nodeName || SKIP[p.nodeName]) return NodeFilter.FILTER_REJECT;
+            if (p.closest && p.closest('[data-lucide],.bz-licon')) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+    var nodes = [], n; while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(function (node) {
+        var val = node.nodeValue, frag = document.createDocumentFragment(), last = 0, m;
+        _emSplit.lastIndex = 0;
+        while ((m = _emSplit.exec(val))) {
+            if (m.index > last) frag.appendChild(document.createTextNode(val.slice(last, m.index)));
+            var ic = document.createElement('i');
+            ic.setAttribute('data-lucide', EMOJI_TO_LUCIDE[m[1]]);
+            ic.className = 'bz-licon';
+            ic.textContent = m[1];                 // graceful fallback if the icon name is unknown
+            frag.appendChild(ic);
+            last = m.index + m[1].length;
+        }
+        if (last < val.length) frag.appendChild(document.createTextNode(val.slice(last)));
+        if (node.parentNode) node.parentNode.replaceChild(frag, node);
+    });
+    if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
+}
+var _emObs = null, _emT = null;
+function _startEmojiObserver() {
+    if (_emObs || !window.MutationObserver || !document.body) return;
+    _emObs = new MutationObserver(function (muts) {
+        // ignore the once-a-second clock tick (it has no emoji) to avoid needless re-walks
+        var relevant = muts.some(function (mu) { var t = mu.target; return !(t && t.closest && t.closest('.bz-clockline')); });
+        if (!relevant) return;
+        clearTimeout(_emT);
+        _emT = setTimeout(function () {
+            if (!_emObs) return;
+            _emObs.disconnect();
+            try { bzReplaceEmojis(document.body); } catch (e) { }
+            _emObs.observe(document.body, { childList: true, subtree: true });
+        }, 300);
+    });
+    _emObs.observe(document.body, { childList: true, subtree: true });
+}
+function injectLucide() {
+    try {
+        if (document.getElementById('bzLucideLib')) { bzReplaceEmojis(document.body); _startEmojiObserver(); return; }
+        var s = document.createElement('script');
+        s.id = 'bzLucideLib';
+        s.src = 'https://unpkg.com/lucide@latest';
+        s.onload = function () { bzReplaceEmojis(document.body); _startEmojiObserver(); };
+        s.onerror = function () { /* offline: emoji simply remain */ };
+        document.head.appendChild(s);
     } catch (e) { /* non-critical */ }
 }
 
