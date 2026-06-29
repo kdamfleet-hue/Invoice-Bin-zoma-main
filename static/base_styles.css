@@ -1010,3 +1010,44 @@ body.bz-drawer-open .bz-ai-fab, body.bz-drawer-open .bz-ai-panel { display: none
     .bz-ai-fab, body.bz-enterprise .bz-ai-fab { right: 16px; bottom: 16px; width: 52px; height: 52px; }
 }
 @media print { .bz-ai-fab, .bz-ai-panel { display: none !important; } }
+
+/* body stays transparent in BOTH themes so <html> is the canvas and the topographic
+   texture (z-index:-1) shows through. (Previously this came from the always-on
+   body.dark-mode rule; the theme is now driven by html, so assert it unconditionally.) */
+body { background-color: transparent !important; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   LIGHT MODE — opt-in via the ☀️ toggle (adds body.light-mode + html.light-mode).
+   Default stays the luxury charcoal (dark). Content surfaces go light; the premium
+   topbar + sidebar are kept dark. !important on the tokens beats the always-on
+   charcoal block higher up; this whole block is last so it wins by source order too.
+   ════════════════════════════════════════════════════════════════════════════ */
+body.light-mode {
+    --bg-color: #eef1f7 !important; --surface: #ffffff !important; --surface-hover: #f3f6fc !important;
+    --border: #e3e8f0 !important; --border-strong: #c8d2e0 !important;
+    --text-primary: #15233f !important; --text-secondary: #51607a !important; --text-muted: #8492a8 !important;
+    --glass-bg: rgba(255,255,255,.92) !important; --glass-border: rgba(197,160,89,.30) !important;
+    --brand-gold: #a9842f !important; --brand-gold-soft: #8a6a25 !important;
+    --shadow-sm: 0 1px 3px rgba(15,23,42,.08) !important; --shadow-md: 0 10px 26px rgba(15,23,42,.12) !important;
+    --shadow-lg: 0 22px 44px rgba(15,23,42,.16) !important;
+    --skeleton-start: #e3e8f0 !important; --skeleton-end: #f3f6fc !important;
+    color: #15233f;
+}
+/* page canvas: html.light-mode (0,1,1) beats the always-dark `html` !important rule (0,0,1) */
+html.light-mode {
+    background: #eef1f7 !important;
+    background-image:
+        radial-gradient(at 0% 0%, rgba(197,160,89,.05) 0, transparent 55%),
+        radial-gradient(at 100% 100%, rgba(197,160,89,.04) 0, transparent 55%) !important;
+}
+/* cards/glass: the charcoal block forces a dark gradient with !important — override it */
+body.light-mode .glass-surface, body.light-mode .card { background: #ffffff !important; border-color: #e7ebf2 !important; }
+body.light-mode .bz-stat, body.light-mode .ins-card, body.light-mode .ins-hero, body.light-mode .pf-card,
+body.light-mode .ins-num, body.light-mode .ins-mod, body.light-mode .rec-intro, body.light-mode .pf-note { background: #ffffff !important; }
+/* the topbar + sidebar are INTENTIONALLY kept dark (premium chrome); re-assert dark-appropriate
+   tokens locally so their gold/grey text stays visible against the dark chrome */
+body.light-mode .bz-topbar, body.light-mode .bz-sidebar {
+    --surface: #2D2D2D !important; --surface-hover: #363636 !important; --border: #3a3a3a !important; --border-strong: #4d4d4d !important;
+    --text-primary: #F4F4F4 !important; --text-secondary: #B0B0B0 !important; --text-muted: #8c8c8c !important;
+    --brand-gold: #C5A059 !important; --brand-gold-soft: #e0c489 !important;
+}

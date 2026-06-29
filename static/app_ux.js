@@ -1063,26 +1063,21 @@ window.bzSeedWorkstation = async function () {
 };
 
 // --- Theme Management ---
+// Theme: DARK (luxury charcoal) is the default. LIGHT mode is opt-in via the `light-mode`
+// class on <html>+<body> — so before JS runs the page is already dark (no light flash).
 function initThemeToggle() {
-    const savedTheme = localStorage.getItem('darkMode');
-    // Default to dark mode for a professional look
-    if (savedTheme === 'false') {
-        document.body.classList.remove('dark-mode');
-        document.documentElement.classList.remove('dark-mode');
-        updateToggleButtons(false);
-    } else {
-        document.body.classList.add('dark-mode');
-        document.documentElement.classList.add('dark-mode');
-        updateToggleButtons(true);
-    }
+    var light = localStorage.getItem('darkMode') === 'false';   // 'false' = user chose light
+    document.body.classList.toggle('light-mode', light);
+    document.documentElement.classList.toggle('light-mode', light);
+    updateToggleButtons(!light);
 }
 
-window.toggleDarkMode = function() {
-    document.body.classList.toggle('dark-mode');
-    document.documentElement.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('darkMode', isDark);
-    updateToggleButtons(isDark);
+window.toggleDarkMode = function () {
+    var isLight = document.body.classList.toggle('light-mode');
+    document.documentElement.classList.toggle('light-mode', isLight);
+    localStorage.setItem('darkMode', isLight ? 'false' : 'true');
+    updateToggleButtons(!isLight);
+    if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
 };
 
 function updateToggleButtons(isDark) {
