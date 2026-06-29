@@ -3631,6 +3631,50 @@ def delete_driver(driver_id):
     return jsonify({"success": True})
 
 
+@app.route("/api/drivers/bulk_delete", methods=["POST"])
+@login_required
+def bulk_delete_drivers():
+    """Admin-code-protected bulk delete from «جميع مركبات الفرع». All-or-nothing: the secret
+    code must match (constant-time) or nothing is touched. Per-branch (SQL for الدمام, blob else)."""
+    body = request.get_json(silent=True) or {}
+    if not hmac.compare_digest(str(body.get("lock", "")), WORKSTATION_PASSWORD):
+        return jsonify({"success": False, "reason": "locked", "error": "الرمز السري غير صحيح."}), 403
+    ids = []
+    for x in (body.get("ids") or [])[:2000]:
+        try:
+            ids.append(int(x))
+        except (TypeError, ValueError):
+            continue
+    ids = list(dict.fromkeys(ids))            # dedupe, keep order; all ints → no SQL injection
+    if not ids:
+        return jsonify({"success": False, "error": "لم تُحدَّد أي عناصر صالحة."}), 400
+    # Snapshot the FULL current roster BEFORE deleting so an accidental wipe is restorable
+    # (same pattern as the Absher apply → restore from Settings → version history).
+    try:
+        _, _current = _drivers_list_for_sync()
+        blob_set("drivers_backup", {"ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "rows": _current})
+    except Exception:
+        logger.warning("drivers_backup snapshot before bulk delete failed")
+    store = _driver_store()
+    if store in ("ws", "blob"):
+        tbl = _driver_blob_table(store)
+        idset = set(ids)
+        lst = blob_get(tbl) or []
+        kept = [d for d in lst if isinstance(d, dict) and d.get("id") not in idset]
+        deleted = len(lst) - len(kept)
+        blob_set(tbl, kept)
+    else:                                     # SQL (الدمام)
+        ph = ",".join(["?"] * len(ids))
+        with db_connection() as conn:
+            row = conn.execute("SELECT COUNT(*) AS n FROM drivers WHERE id IN (%s)" % ph, ids).fetchone()
+            deleted = (row["n"] if row else 0)
+            conn.execute("DELETE FROM drivers WHERE id IN (%s)" % ph, ids)
+            conn.commit()
+    _audit_add("حذف جماعي", "سجل السائقين/المركبات", deleted, "حذف %d عنصراً بالرمز السري" % deleted)
+    logger.info("Bulk driver delete: requested=%d deleted=%d store=%s", len(ids), deleted, store)
+    return jsonify({"success": True, "deleted": deleted})
+
+
 @app.route("/api/drivers/<int:driver_id>", methods=["PUT"])
 @login_required
 def update_driver(driver_id):

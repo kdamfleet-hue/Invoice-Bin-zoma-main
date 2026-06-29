@@ -210,6 +210,9 @@
       .sched-premium { background:#fff; color:#000; border:none; box-shadow:none; }
       .sched-toolbar, .sp-tabs { display:none !important; }
       .sp-panel { display:block !important; }
+      /* hide the bulk-select column + button from printed/PDF output of «جميع مركبات الفرع» */
+      #vehBulkDel, #vehSelAll, .vehChk { display:none !important; }
+      #spPanel-vehicles .sched th:first-child, #spPanel-vehicles .sched td:first-child { display:none !important; }
     }
     @media (max-width:768px) {
       .sched-premium { padding:14px; }
@@ -350,13 +353,15 @@
         <input id="vehSearch" type="text" oninput="filterVehicles(this.value)" placeholder="🔍 بحث بالاسم / اللوحة / الرقم الوظيفي / الجوال"
           style="flex:1; min-width:240px; padding:9px 12px; border:1px solid var(--p-border,#444); border-radius:10px; background:rgba(255,255,255,.05); color:var(--p-text,#eee); font-family:inherit; font-size:.9rem;">
         <span class="hint" id="vehCount">0 مركبة</span>
+        <button class="btn-outline" id="vehBulkDel" type="button" onclick="bulkDeleteVehicles()" style="padding:8px 14px;font-size:.85rem;font-weight:800;color:#ef4444;border-color:rgba(239,68,68,.4);display:none;">🗑 حذف المحدد (<span id="vehSelCount">0</span>)</button>
       </div>
       <div class="sched-table-wrap" id="vehPrintArea">
         <table class="sched">
           <thead><tr>
+            <th style="width:36px;text-align:center"><input type="checkbox" id="vehSelAll" title="تحديد الكل" style="width:16px;height:16px;cursor:pointer;accent-color:var(--p-accent,#c5a059)"></th>
             <th>#</th><th>الاسم</th><th>الرقم الوظيفي</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>رقم الجوال</th>
           </tr></thead>
-          <tbody id="bodyVeh"><tr><td colspan="6" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">جارٍ التحميل…</td></tr></tbody>
+          <tbody id="bodyVeh"><tr><td colspan="7" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">جارٍ التحميل…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -720,16 +725,60 @@
     function renderVehicles(rows) {
       const body = document.getElementById('bodyVeh'); if (!body) return;
       const cnt = document.getElementById('vehCount'); if (cnt) cnt.textContent = rows.length + ' مركبة';
-      if (!rows.length) { body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">لا توجد مركبات مسجّلة لهذا الفرع.</td></tr>'; return; }
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">لا توجد مركبات مسجّلة لهذا الفرع.</td></tr>'; vehSyncSelUI(); return; }
       body.innerHTML = rows.map(function (d, i) {
-        return '<tr><td>' + (i + 1) + '</td>' +
+        return '<tr><td style="text-align:center"><input type="checkbox" class="vehChk" data-id="' + vesc(d.id) + '" style="width:16px;height:16px;cursor:pointer;accent-color:var(--p-accent,#c5a059)"></td>' +
+          '<td>' + (i + 1) + '</td>' +
           '<td>' + vesc(d.name) + '</td>' +
           '<td style="direction:ltr;unicode-bidi:plaintext">' + vesc(d.empid) + '</td>' +
           '<td style="font-weight:700">' + vesc(d.plate) + '</td>' +
           '<td>' + vesc(d.car) + '</td>' +
           '<td style="direction:ltr;unicode-bidi:plaintext">' + vesc(d.phone) + '</td></tr>';
       }).join('');
+      vehSyncSelUI();
     }
+
+    // bulk selection + admin-code-protected delete (all-or-nothing)
+    function vehSelectedIds() {
+      return Array.prototype.map.call(document.querySelectorAll('#bodyVeh .vehChk:checked'), function (c) { return parseInt(c.getAttribute('data-id'), 10); }).filter(function (n) { return !isNaN(n); });
+    }
+    function vehSyncSelUI() {
+      var chks = document.querySelectorAll('#bodyVeh .vehChk');
+      var sel = document.querySelectorAll('#bodyVeh .vehChk:checked').length;
+      var cntEl = document.getElementById('vehSelCount'); if (cntEl) cntEl.textContent = sel;
+      var btn = document.getElementById('vehBulkDel'); if (btn) btn.style.display = sel ? 'inline-block' : 'none';
+      var all = document.getElementById('vehSelAll');
+      if (all) { all.checked = chks.length > 0 && sel === chks.length; all.indeterminate = sel > 0 && sel < chks.length; }
+    }
+    document.addEventListener('change', function (e) {
+      var t = e.target; if (!t) return;
+      if (t.id === 'vehSelAll') {
+        var on = t.checked;
+        document.querySelectorAll('#bodyVeh .vehChk').forEach(function (c) { c.checked = on; });
+        vehSyncSelUI();
+      } else if (t.classList && t.classList.contains('vehChk')) {
+        vehSyncSelUI();
+      }
+    });
+    window.bulkDeleteVehicles = async function () {
+      var ids = vehSelectedIds();
+      if (!ids.length) { await window.bzAlert('حدّد عنصراً واحداً على الأقل أولاً.'); return; }
+      var code = await window.bzPrompt('تأكيد حذف ' + ids.length + ' عنصراً نهائياً.\nأدخل رمز الأدمن السري للمتابعة:', '', { password: true });
+      if (code == null || code === '') return;
+      try {
+        var r = await fetch('/api/drivers/bulk_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids, lock: code }) });
+        var d = await r.json().catch(function () { return {}; });
+        if (r.ok && d.success) {
+          if (window.showToast) showToast('تم حذف ' + (d.deleted != null ? d.deleted : ids.length) + ' عنصراً ✓', 'success');
+          var all = document.getElementById('vehSelAll'); if (all) { all.checked = false; all.indeterminate = false; }
+          await loadVehicles();
+        } else if (d.reason === 'locked') {
+          await window.bzAlert('الرمز السري غير صحيح — لم يُحذف أي شيء.');
+        } else {
+          await window.bzAlert('تعذّر الحذف: ' + (d.error || 'خطأ غير معروف'));
+        }
+      } catch (e) { await window.bzAlert('تعذّر الاتصال بالخادم.'); }
+    };
     window.filterVehicles = function (q) {
       q = (q || '').trim().toLowerCase();
       const all = window.__vehAll || [];
