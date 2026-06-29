@@ -413,6 +413,7 @@ function injectAdminLinks() {
     try {
         var items = [
             { href: '/overview', text: 'مركز الفروع', icon: 'building-2', emoji: '🏢' },
+            { href: '/alerts', text: 'تنبيهات الوثائق', icon: 'bell-ring', emoji: '🔔' },
             { href: '/branches', text: 'جميع الفروع', icon: 'chart-column', emoji: '📊' },
             { href: '/absher_import', text: 'مزامنة أبشر', icon: 'refresh-cw', emoji: '🔄' }
         ];

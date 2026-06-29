@@ -410,6 +410,10 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS branch_accounts (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Automatic document-expiry alert settings (recipients/hour/window/enabled). GLOBAL (id=1).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS alert_settings (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Drivers whose vehicle authorization was cancelled (from the Absher sync) —
             # shown under the weekly schedule. Per-branch blob.
             db.execute(
@@ -2076,6 +2080,208 @@ def cron_expiry_alerts():
         _audit_add("إرسال تلقائي", "تنبيهات الوثائق بالبريد", res.get("count"),
                    "مجدول — إلى: " + ", ".join(res.get("recipients", [])))
     return jsonify({"success": res.get("sent", False), **res})
+
+
+# ════════════════════════════════════════════════════════════════════════════════════
+# AUTOMATIC scheduled document-expiry alerts — configured IN-APP (no env/external cron),
+# driven by an in-process daily scheduler. Sends one branded all-branches digest by email.
+# ════════════════════════════════════════════════════════════════════════════════════
+def _alert_cfg():
+    """Alert settings (global id=1). Disabled by default until the admin configures it."""
+    d = _global_blob_get("alert_settings")
+    d = d if isinstance(d, dict) else {}
+    def _int(v, default):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return default
+    return {
+        "enabled": bool(d.get("enabled", False)),
+        "recipients": [e for e in (d.get("recipients") or []) if isinstance(e, str) and e.strip()],
+        "hour": max(0, min(23, _int(d.get("hour", 7), 7))),
+        "window_days": max(1, min(180, _int(d.get("window_days", 30), 30))),
+        "last_sent": d.get("last_sent", ""),
+    }
+
+
+def _alert_cfg_set(cfg):
+    _global_blob_set("alert_settings", cfg)
+
+
+def _collect_all_branches_alerts(window_days):
+    """Aggregate expiry alerts across ALL branches, each tagged with the branch name."""
+    out = []
+    for b in BRANCHES:
+        try:
+            for a in _collect_expiry_alerts(window_days=window_days, rid=b["id"]):
+                if a.get("key") in ("expired", "d30", "d90"):
+                    a2 = dict(a)
+                    a2["branch"] = b["name"]
+                    out.append(a2)
+        except Exception:
+            logger.warning("expiry collect failed for branch %s", b.get("id"))
+    rank = {"expired": 0, "d30": 1, "d90": 2}
+    out.sort(key=lambda a: (rank.get(a.get("key"), 9), a.get("days", 0)))
+    return out
+
+
+def _build_digest_html(alerts, window_days):
+    today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    colors = {"expired": "#dc2626", "d30": "#d97706", "d90": "#ca8a04"}
+
+    def days_txt(a):
+        d = a.get("days")
+        if d is None:
+            return "—"
+        if d < 0:
+            return "منذ %d يوم" % abs(d)
+        return "اليوم" if d == 0 else ("خلال %d يوم" % d)
+
+    rows = ""
+    for a in alerts[:400]:
+        c = colors.get(a.get("key"), "#6b7280")
+        rows += (
+            "<tr>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;direction:ltr;font-family:monospace;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td>"
+            "<td style='padding:9px 12px;border-bottom:1px solid #eee;color:%s;font-weight:700;white-space:nowrap;'>%s</td>"
+            "</tr>"
+        ) % (html.escape(str(a.get("branch") or "—")), html.escape(str(a.get("name") or "—")),
+             html.escape(str(a.get("plate") or "—")), html.escape(str(a.get("doc") or "")),
+             html.escape(str(a.get("date") or "")), c, days_txt(a))
+    return (
+        "<div style='font-family:Tahoma,Arial,sans-serif;direction:rtl;text-align:right;background:#f4f6fb;padding:22px;'>"
+        "<div style='max-width:840px;margin:auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e6e9f0;'>"
+        "<div style='background:#0C2340;padding:18px 24px;border-bottom:4px solid #c9a227;'>"
+        "<div style='color:#fff;font-size:18px;font-weight:800;'>BIN ZOMAH INTL. — شركة بن زومة</div>"
+        "<div style='color:#c9a227;font-size:13px;font-weight:700;'>التنبيه اليومي لوثائق الأسطول — جميع الفروع</div></div>"
+        "<div style='padding:20px 24px;'>"
+        "<p style='color:#334;font-size:14px;margin:0 0 16px;'>وثائق منتهية أو تنتهي خلال <b>%d يوماً</b> &nbsp;•&nbsp; العدد: <b>%d</b> &nbsp;•&nbsp; %s</p>"
+        "<table style='width:100%%;border-collapse:collapse;font-size:13px;color:#222;'>"
+        "<thead><tr style='background:#0C2340;color:#fff;'>"
+        "<th style='padding:10px 12px;text-align:right;'>الفرع</th>"
+        "<th style='padding:10px 12px;text-align:right;'>الاسم</th>"
+        "<th style='padding:10px 12px;text-align:right;'>اللوحة</th>"
+        "<th style='padding:10px 12px;text-align:right;'>الوثيقة</th>"
+        "<th style='padding:10px 12px;text-align:right;'>تاريخ الانتهاء</th>"
+        "<th style='padding:10px 12px;text-align:right;'>المتبقّي</th></tr></thead>"
+        "<tbody>%s</tbody></table>"
+        "<p style='color:#94a3b8;font-size:11px;margin-top:18px;'>رسالة آلية يومية من نظام إدارة الأسطول — شركة بن زومة. الرجاء عدم الرد عليها.</p>"
+        "</div></div></div>"
+    ) % (window_days, len(alerts), today_str, rows)
+
+
+def _send_scheduled_digest(recipients, window_days):
+    recipients = [r for r in (recipients or []) if r]
+    if not recipients:
+        return {"sent": False, "reason": "no_recipients", "count": 0}
+    if not app.config.get("MAIL_USERNAME") or not app.config.get("MAIL_PASSWORD"):
+        return {"sent": False, "reason": "mail_not_configured", "count": 0}
+    alerts = _collect_all_branches_alerts(window_days)
+    if not alerts:
+        return {"sent": False, "reason": "no_alerts", "count": 0}
+    try:
+        msg = Message(
+            subject="🚨 التنبيه اليومي لوثائق الأسطول — شركة بن زومة (%d)" % len(alerts),
+            recipients=recipients,
+            html=_build_digest_html(alerts, window_days),
+            sender=app.config.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME"),
+        )
+        mail.send(msg)
+        return {"sent": True, "count": len(alerts), "recipients": recipients}
+    except Exception as e:
+        logger.exception("scheduled digest failed")
+        return {"sent": False, "reason": "send_error", "error": str(e), "count": len(alerts)}
+
+
+_alert_sched_started = False
+
+
+def _start_alert_scheduler():
+    """One in-process daemon thread; checks every 10 min and sends the daily digest once,
+    at/after the configured hour, if enabled. last_sent dedups across restarts."""
+    global _alert_sched_started
+    if _alert_sched_started:
+        return
+    _alert_sched_started = True
+
+    def _loop():
+        while True:
+            try:
+                with app.app_context():
+                    cfg = _alert_cfg()
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    if (cfg["enabled"] and cfg["recipients"]
+                            and datetime.now().hour >= cfg["hour"] and cfg["last_sent"] != today):
+                        res = _send_scheduled_digest(cfg["recipients"], cfg["window_days"])
+                        if res.get("reason") != "mail_not_configured":   # else retry when SMTP is ready
+                            cfg["last_sent"] = today
+                            _alert_cfg_set(cfg)
+                            logger.info("Scheduled expiry digest run: %s", res)
+            except Exception:
+                logger.exception("alert scheduler tick failed")
+            time.sleep(600)
+
+    threading.Thread(target=_loop, name="bz-alert-scheduler", daemon=True).start()
+    logger.info("Document-expiry alert scheduler started.")
+
+
+@app.route("/alerts")
+@login_required
+def alerts_page():
+    """Admin page to configure the automatic daily document-expiry email digest."""
+    if not session.get("is_admin"):
+        return redirect(url_for("index"))
+    return render_template("alerts.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/api/alert_settings", methods=["GET", "POST"])
+@login_required
+def api_alert_settings():
+    if not session.get("is_admin"):
+        return jsonify({"error": "forbidden"}), 403
+    if request.method == "GET":
+        cfg = _alert_cfg()
+        cfg["mail_configured"] = bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD"))
+        cfg["preview_count"] = len(_collect_all_branches_alerts(cfg["window_days"]))
+        return jsonify({"success": True, "settings": cfg})
+    body = request.get_json(silent=True) or {}
+
+    def _recips(v):
+        if isinstance(v, str):
+            v = re.split(r"[,;\s]+", v)
+        return [e.strip() for e in (v or []) if isinstance(e, str) and "@" in e.strip()][:50]
+
+    if body.get("action") == "test":     # send a one-off test now
+        cfg = _alert_cfg()
+        recips = _recips(body.get("recipients")) or cfg["recipients"]
+        try:
+            wd = max(1, min(180, int(body.get("window_days") or cfg["window_days"])))
+        except (TypeError, ValueError):
+            wd = cfg["window_days"]
+        res = _send_scheduled_digest(recips, wd)
+        if res.get("sent"):
+            _audit_add("إرسال تجريبي", "تنبيهات الوثائق التلقائية", res.get("count"),
+                       "إلى: " + ", ".join(res.get("recipients", [])))
+        return jsonify({"success": res.get("sent", False), **res})
+
+    try:
+        hour = max(0, min(23, int(body.get("hour", 7))))
+    except (TypeError, ValueError):
+        hour = 7
+    try:
+        wd = max(1, min(180, int(body.get("window_days", 30))))
+    except (TypeError, ValueError):
+        wd = 30
+    cfg = {"enabled": bool(body.get("enabled")), "recipients": _recips(body.get("recipients")),
+           "hour": hour, "window_days": wd, "last_sent": _alert_cfg().get("last_sent", "")}
+    _alert_cfg_set(cfg)
+    _audit_add("إعداد", "تنبيهات الوثائق التلقائية", len(cfg["recipients"]),
+               ("مُفعّلة" if cfg["enabled"] else "مُعطّلة") + " · الساعة %d · خلال %d يوم" % (hour, wd))
+    return jsonify({"success": True, "settings": cfg})
 
 
 # ── Workstation-only tab state (oils / purchase / workshop) ───────────────────
@@ -4237,6 +4443,10 @@ for _rule in list(app.url_map.iter_rules()):
             view_func=app.view_functions[_rule.endpoint],
             methods=sorted(_rule.methods - {"HEAD", "OPTIONS"}),
         )
+
+# Start the in-process daily scheduler for automatic document-expiry email digests.
+# Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
+_start_alert_scheduler()
 
 
 if __name__ == "__main__":
