@@ -550,19 +550,42 @@
       updateSummary(); scheduleSave();
     });
 
+    // ===== Driver swap = total separation of the two data "boxes" (per the branch spec) =====
+    //  • Employee box (DYNAMIC): picking/replacing a driver name clears the previous person's
+    //    employee data on that row and writes the new driver's master data. Fields with no
+    //    master source (الوظيفة / بطاقة السائق / الملاحظات) are CLEARED so a stale value from the
+    //    old driver never lingers on the new person (and بطاقة السائق never shows the wrong
+    //    expiry colour) — the admin re-enters them as needed.
+    //  • Vehicle box (PROTECTED): a driver swap NEVER touches رقم اللوحة/الموديل/نوع المركبة or any
+    //    technical spec (الطبالي/الحمولة/التسلسلي/الفحص/الرخصة/بطاقة التشغيل). The only courtesy is
+    //    auto-filling a brand-new BLANK row; an already-assigned vehicle stays exactly as-is.
     function autofillRow(section, idx, byKey) {
       const row = state[section][idx];
       if (!row || !window.FleetData) return;
       const rec = byKey === 'iqama' ? FleetData.byIqama(row.iqama) : FleetData.byName(row.name);
       if (!rec) return;
-      const set = (k, val) => { if (val && !String(row[k] || '').trim()) row[k] = val; };
-      if (byKey === 'iqama') set('name', rec.name); else set('iqama', rec.iqama);
-      set('empid', rec.empid);
-      set('plate', rec.plate);
-      set('phone', rec.phone);
-      set('vtype', rec.car);
+      // Identity guard: iqama is the unique key (present for every record). If the row already
+      // reflects this exact driver, the event is just a blur/re-fire — do nothing, so we never
+      // clobber a manual correction the admin made after the first autofill.
+      const recIqama = String(rec.iqama || '').replace(/\D/g, '');
+      const rowIqama = String(row.iqama || '').replace(/\D/g, '');
+      if (recIqama && recIqama === rowIqama &&
+          String(row.name || '').trim() === String(rec.name || '').trim()) return;
+      // Employee box — clear-and-replace from the master record (empty master ⇒ cleared).
+      const setEmp = (k, val) => { row[k] = (val == null ? '' : String(val)); };
+      setEmp('name', rec.name);
+      setEmp('iqama', rec.iqama);
+      setEmp('empid', rec.empid);
+      setEmp('phone', rec.phone);
+      setEmp('job', '');
+      setEmp('drivercard', '');
+      setEmp('empNotes', '');
+      // Vehicle box — protected; only fill a blank new row for convenience, never overwrite.
+      const fillVehIfBlank = (k, val) => { if (val && !String(row[k] || '').trim()) row[k] = val; };
+      fillVehIfBlank('plate', rec.plate);
+      fillVehIfBlank('vtype', rec.car);
       const ym = (rec.car || '').match(/\b(19|20)\d{2}\b/);
-      if (ym) set('model', ym[0]);
+      if (ym) fillVehIfBlank('model', ym[0]);
       renderBody('body' + cap(section), state[section], section);
     }
 
