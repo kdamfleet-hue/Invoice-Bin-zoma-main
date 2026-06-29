@@ -414,6 +414,10 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS alert_settings (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Document archive — uploaded vehicle/employee docs (image/PDF base64). Per-branch blob.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS documents_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Drivers whose vehicle authorization was cancelled (from the Absher sync) —
             # shown under the weekly schedule. Per-branch blob.
             db.execute(
@@ -1909,6 +1913,16 @@ def _collect_expiry_alerts(window_days=90, rid=None):
             if len(row) > 11:
                 add(nm, pl, "انتهاء الجواز", row[11])
 
+    # Uploaded documents (the Document Archive) — their expiry feeds the same alerts + digest.
+    docs = _bg("documents_data") or {}
+    drows = docs.get("rows") if isinstance(docs, dict) else (docs if isinstance(docs, list) else [])
+    for dr in (drows or []):
+        if not isinstance(dr, dict):
+            continue
+        ref = dr.get("entity_ref") or "—"
+        plate = ref if dr.get("entity_type") == "vehicle" else ""
+        add(ref, plate, dr.get("doc_type") or "وثيقة", dr.get("expiry"))
+
     rank = {"expired": 0, "d30": 1, "d90": 2}
     out.sort(key=lambda a: (rank.get(a["key"], 9), a["days"]))
     return out
@@ -2282,6 +2296,150 @@ def api_alert_settings():
     _audit_add("إعداد", "تنبيهات الوثائق التلقائية", len(cfg["recipients"]),
                ("مُفعّلة" if cfg["enabled"] else "مُعطّلة") + " · الساعة %d · خلال %d يوم" % (hour, wd))
     return jsonify({"success": True, "settings": cfg})
+
+
+# ════════════════════════════════════════════════════════════════════════════════════
+# DOCUMENT ARCHIVE — upload vehicle/employee documents (image/PDF stored as base64), per
+# branch, with expiry that FEEDS the expiry alerts. Additive user data (frozen-seed safe).
+# The list returns metadata only (fast); files are streamed by id from a separate endpoint.
+# ════════════════════════════════════════════════════════════════════════════════════
+DOC_MAX_FILE_BYTES = int(2.6 * 1024 * 1024)         # ~2.5 MB per file (decoded)
+DOC_MAX_ROWS = 500                                   # per branch
+DOC_MAX_BLOB_BYTES = 45 * 1024 * 1024                # ~45 MB total per branch
+DOC_ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"}
+DOC_TYPES = ["استمارة", "تأمين", "الفحص الدوري", "رخصة السير", "بطاقة التشغيل", "بطاقة السائق",
+             "الإقامة", "جواز السفر", "رخصة قيادة", "عقد", "أخرى"]
+
+
+def _documents_rows():
+    d = blob_get("documents_data") or {}
+    rows = d.get("rows") if isinstance(d, dict) else (d if isinstance(d, list) else [])
+    return [r for r in (rows or []) if isinstance(r, dict)]
+
+
+def _b64_size(data_uri):
+    """Decoded byte size of a data: URI, computed from the base64 length (no full decode)."""
+    try:
+        s = str(data_uri)
+        b64 = s.split(",", 1)[1] if "," in s else s
+        b64 = b64.strip()
+        return (len(b64) * 3) // 4 - b64[-2:].count("=")
+    except Exception:
+        return 0
+
+
+def _doc_meta(r):
+    m = {k: r.get(k) for k in ("id", "entity_type", "entity_ref", "doc_type", "number", "expiry", "notes", "ts")}
+    fl = r.get("file") or {}
+    m["file"] = {"name": fl.get("name"), "mime": fl.get("mime"), "size": fl.get("size")}
+    return m
+
+
+def _sniff_ok(data_uri, mime):
+    """Defense-in-depth: the actual decoded bytes must match the CLAIMED mime (blocks
+    polyglots / disguised files). Header check only — cheap."""
+    try:
+        s = str(data_uri)
+        b64 = (s.split(",", 1)[1] if "," in s else s).strip()
+        chunk = b64[:64]
+        chunk += "=" * (-len(chunk) % 4)
+        head = base64.b64decode(chunk)[:16]
+    except Exception:
+        return False
+    if mime == "image/jpeg":
+        return head[:3] == b"\xff\xd8\xff"
+    if mime == "image/png":
+        return head[:8] == b"\x89PNG\r\n\x1a\n"
+    if mime == "image/gif":
+        return head[:6] in (b"GIF87a", b"GIF89a")
+    if mime == "image/webp":
+        return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+    if mime == "application/pdf":
+        return head[:5] == b"%PDF-"
+    return False
+
+
+@app.route("/documents")
+@login_required
+def documents_page():
+    return render_template("documents.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/api/documents", methods=["GET", "POST"])
+@login_required
+def api_documents():
+    if request.method == "GET":
+        return jsonify({"success": True, "rows": [_doc_meta(r) for r in _documents_rows()], "doc_types": DOC_TYPES})
+    body = request.get_json(silent=True) or {}
+    rows = _documents_rows()
+    if len(rows) >= DOC_MAX_ROWS:
+        return jsonify({"success": False, "error": "بلغت الحد الأقصى لعدد الوثائق في هذا الفرع (%d)." % DOC_MAX_ROWS}), 400
+    f = body.get("file") or {}
+    data = f.get("data") or ""
+    mime = (f.get("mime") or "").lower().strip()
+    if not data or not str(data).startswith("data:"):
+        return jsonify({"success": False, "error": "الملف مطلوب."}), 400
+    if mime not in DOC_ALLOWED_MIME:
+        return jsonify({"success": False, "error": "نوع الملف غير مدعوم (صور JPG/PNG/WebP/GIF أو PDF فقط)."}), 400
+    size = _b64_size(data)
+    if size <= 0 or size > DOC_MAX_FILE_BYTES:
+        return jsonify({"success": False, "error": "حجم الملف يتجاوز 2.5 ميجابايت."}), 400
+    if not _sniff_ok(data, mime):
+        return jsonify({"success": False, "error": "محتوى الملف لا يطابق نوعه المُعلَن."}), 400
+    if sum(_b64_size((r.get("file") or {}).get("data", "")) for r in rows) + size > DOC_MAX_BLOB_BYTES:
+        return jsonify({"success": False, "error": "امتلأت مساحة أرشيف الفرع — احذف وثائق قديمة."}), 400
+    row = {
+        "id": "d" + datetime.now().strftime("%Y%m%d%H%M%S") + secrets.token_hex(3),
+        "entity_type": "vehicle" if body.get("entity_type") == "vehicle" else "employee",
+        "entity_ref": str(body.get("entity_ref") or "")[:120],
+        "doc_type": str(body.get("doc_type") or "أخرى")[:60],
+        "number": str(body.get("number") or "")[:80],
+        "expiry": str(body.get("expiry") or "")[:10],
+        "notes": str(body.get("notes") or "")[:300],
+        "file": {"name": str(f.get("name") or "ملف")[:160], "mime": mime, "size": size, "data": data},
+        "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    if not row["entity_ref"]:
+        return jsonify({"success": False, "error": "حدّد المركبة/الموظف (المرجع)."}), 400
+    rows.append(row)
+    blob_set("documents_data", {"rows": rows})
+    _audit_add("إضافة", "أرشيف الوثائق", len(rows), row["doc_type"] + " — " + row["entity_ref"])
+    return jsonify({"success": True, "row": _doc_meta(row)})
+
+
+@app.route("/api/documents/<doc_id>", methods=["DELETE"])
+@login_required
+def api_documents_delete(doc_id):
+    rows = _documents_rows()
+    kept = [r for r in rows if r.get("id") != doc_id]
+    if len(kept) == len(rows):
+        return jsonify({"success": False, "error": "غير موجود."}), 404
+    blob_set("documents_data", {"rows": kept})
+    _audit_add("حذف", "أرشيف الوثائق", len(kept), str(doc_id))
+    return jsonify({"success": True})
+
+
+@app.route("/api/documents/<doc_id>/file")
+@login_required
+def api_document_file(doc_id):
+    for r in _documents_rows():
+        if r.get("id") == doc_id:
+            fl = r.get("file") or {}
+            try:
+                s = str(fl.get("data") or "")
+                raw = base64.b64decode(s.split(",", 1)[1] if "," in s else s)
+            except Exception:
+                return ("", 404)
+            from flask import Response
+            mime = fl.get("mime") or "application/octet-stream"
+            resp = Response(raw, mimetype=mime)
+            # Hardening: never sniff; preview images inline, force everything else (e.g. PDF) to
+            # download so no embedded script can run same-origin. Bytes are magic-validated on upload.
+            resp.headers["X-Content-Type-Options"] = "nosniff"
+            resp.headers["Content-Disposition"] = "inline" if mime.startswith("image/") else "attachment"
+            resp.headers["Cache-Control"] = "private, max-age=600"
+            return resp
+    return ("", 404)
 
 
 # ── Workstation-only tab state (oils / purchase / workshop) ───────────────────

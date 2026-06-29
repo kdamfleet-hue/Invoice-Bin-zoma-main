@@ -784,6 +784,7 @@ function injectGlobalNavLinks() {
         else nav.appendChild(a);
     }
     addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
+    addLink('/documents', '📂 أرشيف الوثائق', 'a[href$="/records"]');
     addLink('/handover', '🚗 تسليم واستلام مركبة', 'a[href$="/"]');
     addLink('/insights', '🧠 التحليلات الذكية', 'a[href$="/cameras"]');
     addLink('/platform', '🚀 المنصة', 'a[href$="/insights"]');
