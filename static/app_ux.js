@@ -2063,7 +2063,7 @@ function bzAIGrid(table) {
 
 function bzAIColResolver(headers) {
     function norm(s) { return String(s == null ? '' : s).replace(/[ً-ْٰ]/g, '').replace(/^#\s*/, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
-    var map = {};
+    var map = Object.create(null);
     headers.forEach(function (h, i) { var k = norm(h); if (k && !(k in map)) map[k] = i; });
     return function (col) {
         if (typeof col === 'number') return (col >= 0 && col < headers.length) ? col : -1;
@@ -2098,13 +2098,74 @@ function bzAIAddRow(grid, values) {
 }
 
 // Validate ALL actions first, build a human diff + apply steps. Nothing mutates until run.
-function bzAIPlan(grid, actions) {
-    var resolve = bzAIColResolver(grid.headers), steps = [], delSteps = [], diff = [], errors = [], deletes = 0, MAXPER = 50;
+// Capture a labelled form control's best label (for/ancestor/preceding/placeholder/aria/name).
+function bzAIFieldLabel(el) {
+    try {
+        if (el.id) { var l = document.querySelector('label[for="' + ((window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id) + '"]'); if (l && l.textContent.trim()) return l.textContent; }
+    } catch (e) { }
+    var lab = el.closest('label'); if (lab && lab.textContent.trim()) return lab.textContent.replace(el.value || '', '');
+    var prev = el.previousElementSibling;
+    while (prev) { if (/^(label|span|div|p|h[1-6]|strong|b)$/i.test(prev.tagName) && prev.textContent.trim()) return prev.textContent; prev = prev.previousElementSibling; }
+    var p = el.parentElement;
+    if (p) { var pl = p.querySelector('label, .label, .field-label'); if (pl && pl.textContent.trim()) return pl.textContent; }
+    return el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.name || '';
+}
+// Page form fields (NOT inside a data table, not the chrome/AI panel) the assistant can read/fill.
+function bzAIFormFields() {
+    var scope = document.querySelector('.bz-shell') || document.body, out = [], seen = Object.create(null);
+    scope.querySelectorAll('input, select, textarea').forEach(function (el) {
+        if (el.closest('table')) return;                                   // table cells handled by the grid
+        if (el.closest('#bzAiPanel, .bz-ai-panel, .bz-topbar, .bz-sidebar, .bz-dock')) return;
+        var t = (el.type || '').toLowerCase();
+        if (['hidden', 'submit', 'button', 'file', 'search', 'image', 'reset'].indexOf(t) >= 0) return;
+        if (el.disabled || el.readOnly || el.offsetParent === null) return; // skip disabled/hidden
+        var label = (bzAIFieldLabel(el) || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+        if (!label || seen[label]) return;
+        seen[label] = 1;
+        if (out.length >= 40) return;                 // cap BEFORE push (forEach can't break)
+        var val = (t === 'checkbox' || t === 'radio') ? (el.checked ? '✓' : '') : (el.value || '');
+        out.push({ label: label, value: val, el: el, type: t });
+    });
+    return out;
+}
+function bzAIWriteField(el, val) {
+    if (!el) return;
+    var v = String(val == null ? '' : val);
+    if (el.type === 'checkbox' || el.type === 'radio') { el.checked = !!v && v !== '✗' && v !== '0' && v.toLowerCase() !== 'false'; }
+    else if (el.tagName === 'SELECT') {
+        var matched = false;
+        Array.prototype.forEach.call(el.options, function (o) { if (!matched && (o.value === v || (o.textContent || '').trim() === v)) { el.value = o.value; matched = true; } });
+        if (!matched && v) Array.prototype.forEach.call(el.options, function (o) { if (!matched && (o.textContent || '').trim().indexOf(v) >= 0) { el.value = o.value; matched = true; } });
+        if (!matched) el.value = v;
+    } else { el.value = v; }
+    el.classList.add('bz-ai-changed');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function bzAIPlan(grid, fields, actions) {
+    var resolve = grid ? bzAIColResolver(grid.headers) : null;
+    var steps = [], delSteps = [], diff = [], errors = [], deletes = 0, MAXPER = 50;
     function readCellVal(cell) { var f = cell && cell.querySelector('input,select,textarea'); return f ? (f.value || '') : (cell ? (cell.innerText || cell.textContent || '').trim() : ''); }
+    function nrm(s) { return String(s == null ? '' : s).replace(/[ً-ْٰ]/g, '').replace(/^#\s*/, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+    var fmap = Object.create(null); (fields || []).forEach(function (f) { if (f && f.label) { var k = nrm(f.label); if (!(k in fmap)) fmap[k] = f; } });
+    function resolveField(name) {
+        var k = nrm(name); if (!k) return null;
+        if (k in fmap) return fmap[k];
+        var hit = Object.keys(fmap).filter(function (h) { return h && (h.indexOf(k) === 0 || k.indexOf(h) === 0); });
+        return hit.length === 1 ? fmap[hit[0]] : null;
+    }
+    function needGrid() { if (!grid) throw 'لا يوجد جدول في هذه الصفحة (افتح التبويب المطلوب أولاً)'; }
     (actions || []).forEach(function (a) {
         try {
             if (!a || typeof a !== 'object') throw 'إجراء غير صالح';
-            if (a.op === 'set_cell') {
+            if (a.op === 'set_field') {
+                var f = resolveField(a.field || a.col || a.label); if (!f) throw 'حقل غير معروف: «' + (a.field || a.col || '') + '»';
+                var bf = f.el ? ((f.el.type === 'checkbox' || f.el.type === 'radio') ? (f.el.checked ? '✓' : '') : (f.el.value || '')) : '';
+                diff.push('حقل «' + f.label + '»: «' + bf + '» → «' + (a.value == null ? '' : a.value) + '»');
+                (function (el) { steps.push(function () { bzAIWriteField(el, a.value); }); })(f.el);
+            } else if (a.op === 'set_cell') {
+                needGrid();
                 var ci = resolve(a.col); if (ci < 0) throw 'عمود غير معروف: «' + (a.col || '') + '»';
                 var r = a.row; if (typeof r !== 'number' || r < 0 || r >= grid.trs.length) throw 'صف خارج النطاق';
                 (function (rr, cc) {
@@ -2113,6 +2174,7 @@ function bzAIPlan(grid, actions) {
                     steps.push(function () { bzAIWrite(grid.vis(grid.trs[rr])[cc], a.value); });
                 })(r, ci);
             } else if (a.op === 'fill_column') {
+                needGrid();
                 var ci2 = resolve(a.col); if (ci2 < 0) throw 'عمود غير معروف: «' + (a.col || '') + '»';
                 var n = 0;
                 grid.trs.forEach(function (tr) {
@@ -2124,16 +2186,18 @@ function bzAIPlan(grid, actions) {
                 if (n > MAXPER) throw 'التعبئة تتجاوز الحد (' + n + ')';
                 if (n) diff.push('تعبئة «' + grid.headers[ci2] + '» بـ «' + (a.value == null ? '' : a.value) + '» (' + n + ' خانة)');
             } else if (a.op === 'add_row') {
+                needGrid();
                 diff.push('+ صف جديد: ' + ((a.values || []).join(' · ') || '(فارغ)'));
                 steps.push(function () { bzAIAddRow(grid, a.values || []); });
             } else if (a.op === 'delete_row') {
+                needGrid();
                 var dr = a.row; if (typeof dr !== 'number' || dr < 0 || dr >= grid.trs.length) throw 'صف خارج النطاق';
                 deletes++; diff.push('− حذف صف ' + (dr + 1));
                 (function (rr) { delSteps.push(function () { var tr = grid.trs[rr]; if (tr && tr.isConnected) { tr.remove(); grid.table.dispatchEvent(new Event('input', { bubbles: true })); } }); })(dr);
             } else { throw 'عملية غير مدعومة'; }
         } catch (e) { errors.push(String(e)); }
     });
-    if (deletes > 0 && grid.trs.length - deletes < 1) return { steps: [], diff: [], errors: errors.concat(['لا يمكن حذف كل الصفوف']) };
+    if (deletes > 0 && grid && grid.trs.length - deletes < 1) return { steps: [], diff: [], errors: errors.concat(['لا يمكن حذف كل الصفوف']) };
     return { steps: steps.concat(delSteps), diff: diff, errors: errors };   // edits first, deletions last
 }
 
@@ -2145,6 +2209,31 @@ function injectAIAssistant() {
         if (document.getElementById('bzAiFab')) return;
         var esc = window.escapeHtml || function (s) { return String(s == null ? '' : s); };
         var titleOf = function () { return (typeof bzPageTitle === 'function') ? bzPageTitle() : document.title; };
+        var CKEY = 'bz_ai_convos_v1';
+
+        // ── conversation store (localStorage) ───────────────────────────────────
+        function loadConvos() { try { return JSON.parse(localStorage.getItem(CKEY) || '[]') || []; } catch (e) { return []; } }
+        function saveConvos() { try { localStorage.setItem(CKEY, JSON.stringify(convos.filter(function (c) { return c.messages && c.messages.length; }).slice(0, 60))); } catch (e) { } }
+        function nowStr() { var d = new Date(); function p(n) { return (n < 10 ? '0' : '') + n; } return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+        function classify(conv) {
+            var hasEdit = (conv.messages || []).some(function (m) { return m.edits; });
+            if (hasEdit) return 'تعديل بيانات';
+            var txt = (conv.messages || []).map(function (m) { return m.text; }).join(' ');
+            if (/\bكم\b|عدد|إجمالي|احسب|كمية/.test(txt)) return 'استفسار أعداد';
+            if (/موظف|سائق|إقامة|جوال/.test(txt)) return 'الموظفون والسائقون';
+            if (/مركبة|لوحة|سيارة|دينا|لوري/.test(txt)) return 'المركبات';
+            if (/جدول/.test(txt)) return 'الجدول الأسبوعي';
+            if (/زيت|صيانة|ورشة|فلتر/.test(txt)) return 'الصيانة';
+            if (/حادث|مخالف/.test(txt)) return 'الحوادث';
+            return 'عام';
+        }
+        function titleFor(conv) {
+            var u = (conv.messages || []).filter(function (m) { return m.role === 'user'; })[0];
+            return (u && u.text ? u.text : 'محادثة جديدة').replace(/\s+/g, ' ').trim().slice(0, 44);
+        }
+
+        var convos = loadConvos();
+        var cur = null, busy = false, typingEl = null, usage = null;
 
         var fab = document.createElement('button');
         fab.id = 'bzAiFab'; fab.type = 'button'; fab.className = 'bz-ai-fab';
@@ -2158,42 +2247,90 @@ function injectAIAssistant() {
         panel.innerHTML =
             '<header class="bz-ai-hd"><span class="bz-ai-av">🤖</span>' +
             '<div class="bz-ai-meta"><b>مساعد بن زومة الذكي</b><span class="bz-ai-ctx"></span></div>' +
-            '<button class="bz-ai-x" data-clear type="button" title="مسح المحادثة" aria-label="مسح">🧹</button>' +
+            '<button class="bz-ai-x" data-hist type="button" title="المحادثات السابقة" aria-label="المحادثات">🕓</button>' +
+            '<button class="bz-ai-x" data-new type="button" title="محادثة جديدة" aria-label="محادثة جديدة">➕</button>' +
             '<button class="bz-ai-x" data-close type="button" title="إغلاق" aria-label="إغلاق">✕</button></header>' +
+            '<div class="bz-ai-usage" title="استخدام اليوم — حدّ التطبيق الواقي لخدمة Gemini"></div>' +
             '<div class="bz-ai-msgs"></div>' +
             '<div class="bz-ai-chips"></div>' +
-            '<form class="bz-ai-bar"><textarea class="bz-ai-in" rows="1" placeholder="اسأل عن هذه الصفحة أو اطلب تعديلاً…" aria-label="رسالتك"></textarea>' +
+            '<div class="bz-ai-history" hidden><div class="bz-ai-history-hd"><b>المحادثات السابقة</b>' +
+            '<button class="bz-ai-x" data-histclose type="button" aria-label="رجوع">✕</button></div>' +
+            '<div class="bz-ai-history-list"></div></div>' +
+            '<form class="bz-ai-bar"><textarea class="bz-ai-in" rows="1" placeholder="اسأل عن أي تبويب أو اطلب تعديلاً…" aria-label="رسالتك"></textarea>' +
             '<button class="bz-ai-send" type="submit" title="إرسال" aria-label="إرسال">➤</button></form>';
         document.body.appendChild(panel);
 
-        var msgs = panel.querySelector('.bz-ai-msgs'),
-            chips = panel.querySelector('.bz-ai-chips'),
-            input = panel.querySelector('.bz-ai-in'),
-            ctxEl = panel.querySelector('.bz-ai-ctx'),
-            form = panel.querySelector('.bz-ai-bar');
-        var history = [], busy = false, typingEl = null;
+        var msgs = panel.querySelector('.bz-ai-msgs'), chips = panel.querySelector('.bz-ai-chips'),
+            input = panel.querySelector('.bz-ai-in'), ctxEl = panel.querySelector('.bz-ai-ctx'),
+            form = panel.querySelector('.bz-ai-bar'), usageEl = panel.querySelector('.bz-ai-usage'),
+            histEl = panel.querySelector('.bz-ai-history'), histList = panel.querySelector('.bz-ai-history-list');
 
-        function openP() { panel.hidden = false; fab.classList.add('on'); refreshCtx(); renderChips(); setTimeout(function () { input.focus(); }, 60); }
+        function lucidify() { try { if (typeof bzReplaceEmojis === 'function') bzReplaceEmojis(panel); } catch (e) { } }
+
+        // ── usage / limit counter ───────────────────────────────────────────────
+        function renderUsage() {
+            if (!usage) { usageEl.innerHTML = ''; return; }
+            var d = usage.day || 0, cap = usage.day_cap || 150, m = usage.minute || 0, mc = usage.minute_cap || 8, tok = usage.tokens || 0;
+            var gr = usage.global_cap ? (usage.global || 0) / usage.global_cap : 0;
+            var ratio = Math.max(cap ? d / cap : 0, gr), cls = ratio >= 0.9 ? 'red' : ratio >= 0.6 ? 'amber' : 'ok';
+            usageEl.className = 'bz-ai-usage ' + cls;
+            usageEl.innerHTML = '<span class="bz-ai-usage-bar"><i style="width:' + Math.min(100, Math.round(ratio * 100)) + '%"></i></span>' +
+                '<span class="bz-ai-usage-t">طلبات اليوم <b>' + d + '/' + cap + '</b> · الدقيقة ' + m + '/' + mc + ' · الرموز ' + Number(tok).toLocaleString('en-US') + '</span>';
+        }
+        function fetchUsage() { fetch('/api/ai/status', { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.usage) { usage = j.usage; renderUsage(); } }).catch(function () { }); }
+
+        // ── conversation lifecycle ──────────────────────────────────────────────
+        function newConvo() { cur = { id: 'c' + Date.now(), title: 'محادثة جديدة', type: 'عام', branch: (window.BZ_BRANCH || ''), ts: nowStr(), messages: [] }; convos.unshift(cur); msgs.innerHTML = ''; renderChips(); hideHistory(); }
+        function addMsg(role, text, extra) { var m = { role: role, text: text, ts: nowStr() }; if (extra) for (var k in extra) m[k] = extra[k]; if (cur) cur.messages.push(m); return m; }
+        function persist() { if (!cur) return; cur.title = titleFor(cur); cur.type = classify(cur); cur.ts = nowStr(); cur.branch = (window.BZ_BRANCH || ''); convos = [cur].concat(convos.filter(function (c) { return c !== cur; })); saveConvos(); }
+        function renderConvo() { msgs.innerHTML = ''; (cur && cur.messages || []).forEach(function (m) { bubble(m.role === 'user' ? 'user' : 'bot', fmt(m.text)); }); renderChips(); lucidify(); msgs.scrollTop = msgs.scrollHeight; }
+
+        function openP() { if (!cur) newConvo(); panel.hidden = false; fab.classList.add('on'); refreshCtx(); fetchUsage(); renderUsage(); hideHistory(); lucidify(); setTimeout(function () { input.focus(); }, 60); }
         function closeP() { panel.hidden = true; fab.classList.remove('on'); }
         fab.addEventListener('click', function () { panel.hidden ? openP() : closeP(); });
         panel.querySelector('[data-close]').addEventListener('click', closeP);
-        panel.querySelector('[data-clear]').addEventListener('click', function () { history = []; msgs.innerHTML = ''; renderChips(); });
-        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !panel.hidden) { e.stopPropagation(); closeP(); } });
+        panel.querySelector('[data-new]').addEventListener('click', function () { if (busy) return; persist(); newConvo(); input.focus(); });
+        panel.querySelector('[data-hist]').addEventListener('click', function () { persist(); showHistory(); });
+        panel.querySelector('[data-histclose]').addEventListener('click', hideHistory);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !panel.hidden) { e.stopPropagation(); if (!histEl.hidden) hideHistory(); else closeP(); } });
+
+        // ── history view (grouped + sorted by type) ─────────────────────────────
+        function showHistory() {
+            input.style.height = 'auto';               // so the overlay's bottom inset still clears the bar
+            var groups = {}, saved = convos.filter(function (c) { return c.messages && c.messages.length; });
+            saved.forEach(function (c) { (groups[c.type] = groups[c.type] || []).push(c); });
+            var keys = Object.keys(groups).sort();
+            histList.innerHTML = keys.length ? keys.map(function (t) {
+                return '<div class="bz-ai-hgrp">' + esc(t) + ' <span>(' + groups[t].length + ')</span></div>' + groups[t].map(function (c) {
+                    return '<div class="bz-ai-hitem" data-id="' + esc(c.id) + '"><div class="bz-ai-hitem-x"><div class="bz-ai-hitem-t">' + esc(c.title) + '</div>' +
+                        '<div class="bz-ai-hitem-m">' + esc(c.ts) + ' · ' + (c.messages ? c.messages.length : 0) + ' رسالة</div></div>' +
+                        '<button class="bz-ai-hdel" data-del="' + esc(c.id) + '" title="حذف" aria-label="حذف">🗑</button></div>';
+                }).join('');
+            }).join('') : '<div class="bz-ai-hempty">لا محادثات محفوظة بعد</div>';
+            histList.querySelectorAll('.bz-ai-hitem').forEach(function (it) {
+                it.addEventListener('click', function (e) { if (e.target.closest('[data-del]')) return; if (busy) return; var c = convos.filter(function (x) { return x.id === it.getAttribute('data-id'); })[0]; if (c) { cur = c; renderConvo(); hideHistory(); } });
+            });
+            histList.querySelectorAll('[data-del]').forEach(function (b) {
+                b.addEventListener('click', function (e) { e.stopPropagation(); if (busy) return; var id = b.getAttribute('data-del'); convos = convos.filter(function (x) { return x.id !== id; }); if (cur && cur.id === id) cur = null; saveConvos(); showHistory(); });
+            });
+            histEl.hidden = false; lucidify();
+        }
+        function hideHistory() { histEl.hidden = true; }
 
         function refreshCtx() { ctxEl.textContent = titleOf() + ' · فرع ' + (window.BZ_BRANCH || 'الدمام'); }
         function suggestions() {
             var p = location.pathname;
-            if (/employees/.test(p)) return ['لخّص بيانات الموظفين', 'من اقتربت إقامته من الانتهاء؟', 'أكمل خانات الجوال الفارغة بـ«غير متوفر»'];
+            if (/employees/.test(p)) return ['كم عدد الموظفين؟', 'من اقتربت إقامته من الانتهاء؟', 'أكمل خانات الجوال الفارغة بـ«غير متوفر»'];
             if (/oils/.test(p)) return ['ما إجمالي اللترات؟', 'أي مركبة تحتاج تغيير زيت؟'];
-            if (/schedule/.test(p)) return ['كم سائقاً بلا مركبة؟', 'من نوع مركبته «دينا»؟'];
+            if (/schedule/.test(p)) return ['كم سائقاً في الجدول؟', 'من نوع مركبته «دينا»؟'];
             if (/workshop/.test(p)) return ['لخّص أعمال الورشة', 'ما المركبات تحت الصيانة؟'];
             if (/incidents/.test(p)) return ['كم واقعة مفتوحة؟', 'أي مركبة تكرّرت حوادثها؟'];
             if (/washing/.test(p)) return ['من لم تُغسل مركبته بعد؟'];
-            return ['لخّص هذه الصفحة', 'كم عدد الصفوف؟'];
+            return ['كم عدد الموظفين في الجدول الأسبوعي؟', 'كم عدد المركبات؟', 'لخّص حالة الفرع'];
         }
         function renderChips() {
             chips.innerHTML = '';
-            if (history.length) return;
+            if (cur && cur.messages && cur.messages.length) return;
             suggestions().forEach(function (t) {
                 var b = document.createElement('button'); b.type = 'button'; b.className = 'bz-ai-chip'; b.textContent = t;
                 b.addEventListener('click', function () { input.value = t; submit(); });
@@ -2201,69 +2338,63 @@ function injectAIAssistant() {
             });
         }
         function fmt(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>'); }
-        function bubble(role, htmlStr) {
-            var b = document.createElement('div'); b.className = 'bz-ai-msg ' + role; b.innerHTML = htmlStr;
-            msgs.appendChild(b); msgs.scrollTop = msgs.scrollHeight; return b;
-        }
-        function typing(on) {
-            if (on) typingEl = bubble('bot typing', '<span class="bz-ai-dots"><i></i><i></i><i></i></span>');
-            else if (typingEl) { typingEl.remove(); typingEl = null; }
-        }
+        function bubble(role, htmlStr) { var b = document.createElement('div'); b.className = 'bz-ai-msg ' + role; b.innerHTML = htmlStr; msgs.appendChild(b); msgs.scrollTop = msgs.scrollHeight; return b; }
+        function typing(on) { if (on) typingEl = bubble('bot typing', '<span class="bz-ai-dots"><i></i><i></i><i></i></span>'); else if (typingEl) { typingEl.remove(); typingEl = null; } }
 
         form.addEventListener('submit', function (e) { e.preventDefault(); submit(); });
         input.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
+        input.addEventListener('input', function () { input.style.height = 'auto'; input.style.height = Math.min(120, input.scrollHeight) + 'px'; });
 
-        function currentGrid() {
-            var ts = (typeof bzFindDataTables === 'function') ? bzFindDataTables() : [];
-            return ts && ts[0] ? bzAIGrid(ts[0]) : null;
-        }
+        function currentGrid() { var ts = (typeof bzFindDataTables === 'function') ? bzFindDataTables() : []; return ts && ts[0] ? bzAIGrid(ts[0]) : null; }
 
         function submit() {
             if (busy) return;
-            var text = (input.value || '').trim();
-            if (!text) return;
-            input.value = ''; busy = true;
-            bubble('user', fmt(text)); history.push({ role: 'user', text: text }); renderChips();
+            var text = (input.value || '').trim(); if (!text) return;
+            if (!cur) newConvo();
+            input.value = ''; input.style.height = 'auto'; busy = true; hideHistory();
+            bubble('user', fmt(text)); addMsg('user', text); renderChips(); persist();
             typing(true);
             var grid = currentGrid();
+            var fields = (typeof bzAIFormFields === 'function') ? bzAIFormFields() : [];
             var aoa = grid ? [grid.headers].concat(grid.rows) : [];
+            var hist = (cur.messages || []).slice(0, -1).slice(-5).map(function (m) { return { role: m.role === 'user' ? 'user' : 'model', text: m.text }; });
             fetch('/api/ai/chat', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text, tab: (window.BZ_SNAP_TAB || ''), title: titleOf(), table: aoa, history: history.slice(0, -1).slice(-5) })
-            }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+                body: JSON.stringify({ message: text, tab: (window.BZ_SNAP_TAB || ''), title: titleOf(), table: aoa, fields: fields.map(function (f) { return { label: f.label, value: f.value }; }), history: hist })
+            }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }, function () { return { ok: r.ok, d: {} }; }); })
                 .then(function (res) {
                     typing(false);
                     var d = res.d || {};
-                    if (!res.ok) { bubble('bot', fmt('⚠ ' + (d.error || 'تعذّر تنفيذ الطلب'))); return; }
+                    if (d.usage) { usage = d.usage; renderUsage(); }
+                    if (!res.ok) { var em = d.error || 'تعذّر تنفيذ الطلب'; bubble('bot', fmt('⚠ ' + em)); addMsg('model', '⚠ ' + em); persist(); return; }
                     var reply = d.reply || '';
-                    bubble('bot', fmt(reply || '(لا يوجد رد)')); history.push({ role: 'model', text: reply });
+                    bubble('bot', fmt(reply || '(لا يوجد رد)')); lucidify();
                     var acts = d.table_actions || [];
-                    if (acts.length && grid) proposeEdits(grid, acts, d.frozen);
-                    else if (acts.length && !grid) bubble('bot', 'لا يوجد جدول قابل للتعديل في هذه الصفحة.');
+                    addMsg('model', reply, acts.length ? { edits: true } : null); persist();
+                    if (acts.length) proposeEdits(grid, fields, acts, d.frozen);
                 })
-                .catch(function () { typing(false); bubble('bot', 'تعذّر الاتصال بالمساعد.'); })
+                .catch(function () { typing(false); bubble('bot', 'تعذّر الاتصال بالمساعد.'); addMsg('model', 'تعذّر الاتصال بالمساعد.'); persist(); })
                 .then(function () { busy = false; input.focus(); });
         }
 
-        function proposeEdits(grid, actions, frozen) {
-            var plan = bzAIPlan(grid, actions);
+        function proposeEdits(grid, fields, actions, frozen) {
+            var plan = bzAIPlan(grid, fields, actions);
             if (!plan.steps.length) { bubble('bot', plan.errors.length ? ('تعذّر تطبيق المقترح: ' + esc(plan.errors[0])) : 'لا تعديلات قابلة للتطبيق.'); return; }
             var card = document.createElement('div'); card.className = 'bz-ai-apply';
             card.innerHTML = '<div class="bz-ai-apply-hd">✏️ تعديلات مقترحة (' + plan.steps.length + ')</div>' +
                 '<ul class="bz-ai-diff">' + plan.diff.slice(0, 14).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + (plan.diff.length > 14 ? '<li>…</li>' : '') + '</ul>' +
                 (plan.errors.length ? '<div class="bz-ai-warn">⚠ تجاهُل ' + plan.errors.length + ' إجراء غير صالح</div>' : '') +
-                '<div class="bz-ai-apply-acts"><button class="bz-ai-btn ghost" data-x type="button">تجاهل</button><button class="bz-ai-btn go" data-go type="button">تطبيق على الجدول</button></div>';
-            msgs.appendChild(card); msgs.scrollTop = msgs.scrollHeight;
+                '<div class="bz-ai-apply-acts"><button class="bz-ai-btn ghost" data-x type="button">تجاهل</button><button class="bz-ai-btn go" data-go type="button">تطبيق</button></div>';
+            msgs.appendChild(card); msgs.scrollTop = msgs.scrollHeight; lucidify();
             card.querySelector('[data-x]').addEventListener('click', function () { card.querySelector('.bz-ai-apply-acts').innerHTML = '<span class="bz-ai-mut">تم التجاهل</span>'; });
             card.querySelector('[data-go]').addEventListener('click', function () {
                 var run = function () {
                     var n = 0; plan.steps.forEach(function (s) { try { s(); n++; } catch (e) { } });
-                    card.querySelector('.bz-ai-apply-acts').innerHTML = '<span class="bz-ai-ok">✓ طُبّقت — راجع الجدول ثم احفظ الصفحة</span>';
+                    card.querySelector('.bz-ai-apply-acts').innerHTML = '<span class="bz-ai-ok">✓ طُبّقت — راجع الصفحة ثم احفظها</span>';
                     if (window.showToast) showToast('طُبّقت ' + n + ' تعديلاً ✓ — لا تنسَ حفظ الصفحة', 'success');
                 };
-                if (frozen && window.bzConfirm) {
-                    window.bzConfirm('هذا فرع الدمام (بيانات مرجعية مجمّدة).\nتطبيق ' + plan.steps.length + ' تعديلاً على الجدول؟').then(function (ok) { if (ok) run(); });
-                } else { run(); }
+                if (frozen && window.bzConfirm) { window.bzConfirm('هذا فرع الدمام (بيانات مرجعية مجمّدة).\nتطبيق ' + plan.steps.length + ' تعديلاً؟').then(function (ok) { if (ok) run(); }); }
+                else run();
             });
         }
     } catch (e) { /* non-critical */ }
