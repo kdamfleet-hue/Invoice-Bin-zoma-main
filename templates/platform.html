@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة بن زومة | إدارة الأسطول</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=21) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=21) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        .pf-hero { position: relative; overflow: hidden; max-width: 1300px; margin: -.25rem auto 1.5rem; padding: 2rem 2rem; border: 1px solid rgba(197,160,89,.3); border-radius: 20px; background: linear-gradient(135deg, #161616 0%, #0e0e0e 60%, #0c1730 130%); box-shadow: 0 18px 50px rgba(0,0,0,.4); }
+        .pf-hero h1 { margin: 0; font-size: 1.7rem; font-weight: 800; color: #fff; letter-spacing: .3px; }
+        .pf-hero .tag { color: var(--brand-gold-soft, #e0c489); font-weight: 700; font-size: .92rem; margin-top: 8px; max-width: 760px; line-height: 1.9; }
+        .pf-hero .chips { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+        .pf-chip { background: rgba(255,255,255,.05); border: 1px solid rgba(197,160,89,.3); border-radius: 12px; padding: 10px 16px; color: #fff; }
+        .pf-chip b { display: block; font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; color: var(--brand-gold-soft, #e0c489); }
+        .pf-chip span { font-size: .74rem; color: #cbd2dc; font-weight: 700; }
+        .pf-sec-title { max-width: 1300px; margin: 1.6rem auto .9rem; font-size: 1.05rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
+        .pf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 1.1rem; max-width: 1300px; margin: 0 auto; }
+        .pf-card { position: relative; display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.2rem 1.25rem; text-decoration: none; box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.08)); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+        .pf-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(0,0,0,.22); border-color: rgba(197,160,89,.5); }
+        .pf-ic { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; font-size: 1.5rem; background: rgba(197,160,89,.12); border: 1px solid rgba(197,160,89,.28); }
+        .pf-card h4 { margin: 4px 0 0; font-size: 1.02rem; font-weight: 800; color: var(--text-primary); }
+        .pf-card p { margin: 0; font-size: .82rem; color: var(--text-secondary); line-height: 1.8; flex: 1; }
+        .pf-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+        .pf-count { font-weight: 800; font-size: 1.15rem; color: var(--brand-gold, #c5a059); font-variant-numeric: tabular-nums; }
+        .pf-go { font-size: .76rem; font-weight: 800; color: var(--text-muted, #94a3b8); }
+        .pf-badge { position: absolute; top: 12px; inset-inline-start: 12px; font-size: .68rem; font-weight: 800; padding: 3px 9px; border-radius: 20px; background: rgba(239,68,68,.16); color: #ef4444; }
+        .pf-note { max-width: 1300px; margin: 1.6rem auto 1rem; padding: 1rem 1.25rem; border: 1px solid var(--border); border-right: 4px solid var(--accent, #c5a059); border-radius: 12px; background: var(--surface); color: var(--text-secondary); font-size: .86rem; line-height: 1.9; }
+        .pf-note strong { color: var(--text-primary); }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/tracking">🛰️ التتبع</a>
+        <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">🚀 منصة بن زومة لإدارة الأسطول</h2>
+
+      <div class="pf-hero">
+        <h1>مركز قيادة الأسطول — Fleet Command Center</h1>
+        <div class="tag">منصة موحّدة تجمع إدارة المركبات والسائقين، التتبع اللحظي GPS، الصيانة والورشة، الحوادث والتوثيق، والتحليلات الذكية في مكان واحد — كل ذلك ببيانات <b id="pfBranch">فرعك</b> الحقيقية.</div>
+        <div class="chips" id="pfChips">
+          <div class="pf-chip"><b id="cVehicles">—</b><span>مركبات</span></div>
+          <div class="pf-chip"><b id="cDrivers">—</b><span>سائقون</span></div>
+          <div class="pf-chip"><b id="cHealth">—</b><span>مؤشر الصحة</span></div>
+          <div class="pf-chip"><b id="cAlerts">—</b><span>تنبيهات وثائق</span></div>
+        </div>
+      </div>
+
+      <div class="pf-sec-title">🚛 إدارة الأسطول</div>
+      <div class="pf-grid">
+        <a class="pf-card" href="/schedule"><div class="pf-ic">📋</div><h4>الجدول الأسبوعي</h4><p>توزيع المركبات والسائقين أسبوعياً مع تواريخ الوثائق والفحص.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/employees"><div class="pf-ic">👥</div><h4>الموظفون والسائقون</h4><p>سجل الموظفين والسائقين، الهويات، الأرقام الوظيفية والمركبات المُسندة.</p><div class="pf-meta"><span class="pf-count" id="mEmployees">—</span><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/handover"><div class="pf-ic">🚗</div><h4>تسليم واستلام مركبة</h4><p>نماذج موقّعة لتسليم/استلام المركبات مع إرسالها بالبريد تلقائياً.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/purchase"><div class="pf-ic">🛒</div><h4>طلبات الشراء والإصلاح</h4><p>إنشاء وإرسال طلبات الشراء وأوامر الإصلاح كملفات رسمية.</p><div class="pf-meta"><span class="pf-count" id="mPurchase">—</span><span class="pf-go">فتح ←</span></div></a>
+      </div>
+
+      <div class="pf-sec-title">🛰️ التتبع GPS</div>
+      <div class="pf-grid">
+        <a class="pf-card" href="/tracking"><div class="pf-ic">🛰️</div><h4>التتبع اللحظي</h4><p>متابعة مواقع وحركة المركبات على الخريطة لحظياً.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/gps_dashboard"><div class="pf-ic">📡</div><h4>لوحة GPS</h4><p>نظرة شاملة على أجهزة التتبع وحالتها وأداء الأسطول.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/gps_devices"><div class="pf-ic">🔌</div><h4>أجهزة التتبع</h4><p>سجل أجهزة GPS المركّبة وربطها بالمركبات.</p><div class="pf-meta"><span class="pf-count" id="mGps">—</span><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/cameras"><div class="pf-ic">📹</div><h4>الكاميرات</h4><p>مراقبة كاميرات المركبات والمواقع.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+      </div>
+
+      <div class="pf-sec-title">🔧 الصيانة والعمليات</div>
+      <div class="pf-grid">
+        <a class="pf-card" href="/workshop"><div class="pf-ic">🔧</div><h4>الورشة</h4><p>متابعة أعمال الصيانة الوقائية والتصحيحية وقطع الغيار.</p><div class="pf-meta"><span class="pf-count" id="mWorkshop">—</span><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/oils"><div class="pf-ic">🛢️</div><h4>الزيوت والفلاتر</h4><p>سجل استهلاك الزيوت والفلاتر لكل مركبة.</p><div class="pf-meta"><span class="pf-count" id="mOils">—</span><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/washing"><div class="pf-ic">🚿</div><h4>الغسيل</h4><p>جدولة ومتابعة غسيل مركبات الأسطول.</p><div class="pf-meta"><span class="pf-count" id="mWashing">—</span><span class="pf-go">فتح ←</span></div></a>
+      </div>
+
+      <div class="pf-sec-title">🚨 السلامة والتوثيق والتحليلات</div>
+      <div class="pf-grid">
+        <a class="pf-card" href="/incidents"><div class="pf-badge" id="mIncOpen" style="display:none"></div><div class="pf-ic">🚨</div><h4>الحوادث والمخالفات</h4><p>توثيق الحوادث والمخالفات والمرفقات بمرجعية قانونية.</p><div class="pf-meta"><span class="pf-count" id="mIncidents">—</span><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/records"><div class="pf-ic">📁</div><h4>التوثيق والسجلات</h4><p>سجل إداري مؤرّخ لكل واقعة تخص الأسطول.</p><div class="pf-meta"><span class="pf-count" id="mRecords">—</span><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/insights"><div class="pf-ic">🧠</div><h4>التحليلات الذكية</h4><p>مؤشرات صحة الأسطول ومخاطر الوثائق محسوبة من بياناتك الحقيقية.</p><div class="pf-meta"><span class="pf-count" id="mHealth">—</span><span class="pf-go">فتح ←</span></div></a>
+        <a class="pf-card" href="/dashboard"><div class="pf-ic">📊</div><h4>اللوحة التنفيذية</h4><p>نظرة تنفيذية شاملة على مؤشرات الأداء والوثائق.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+      </div>
+
+      <div class="pf-note">
+        <strong>كل الوحدات أعلاه مُفعّلة وتعمل ببيانات فرعك الحقيقية.</strong>
+        الأرقام تُحدَّث مباشرةً من قاعدة البيانات. لا توجد هنا وحدات وهمية أو بيانات تجريبية — ما تراه هو ما يحتويه النظام فعلاً. لإرسال أي تقرير بالبريد استخدم زر <b>📤</b> في أي تبويب.
+      </div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function set(id, v) { var e = $(id); if (e) e.textContent = (v == null ? '0' : v); }
+  fetch('/api/insights', { headers: { 'Accept': 'application/json' } })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j || !j.success || !j.insights) return;
+      var ins = j.insights, f = ins.fleet || {}, v = ins.volume || {}, inc = ins.incidents || {}, d = ins.documents || {}, sc = ins.score || {};
+      if (ins.branch) $('pfBranch').textContent = 'فرع ' + ins.branch;
+      set('cVehicles', f.vehicles); set('cDrivers', f.drivers);
+      set('cHealth', sc.value); set('cAlerts', (d.expired || 0) + (d.d30 || 0) + (d.d90 || 0));
+      set('mEmployees', v.employees); set('mPurchase', v.purchase); set('mGps', v.gps_devices);
+      set('mWorkshop', v.workshop); set('mOils', v.oils); set('mWashing', v.washing);
+      set('mIncidents', inc.total); set('mRecords', v.records); set('mHealth', sc.value);
+      if (inc.open) { var b = $('mIncOpen'); b.style.display = 'block'; b.textContent = inc.open + ' مفتوحة'; }
+    })
+    .catch(function () {});
+})();
+</script>
+
+</body>
+</html>

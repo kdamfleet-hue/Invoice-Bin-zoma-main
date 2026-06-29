@@ -338,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initLanguageTranslation();
     registerPWA();
     injectLucide();
+    injectAIAssistant();
 });
 
 // --- Branch switcher: swap the active branch site-wide (multi-branch data isolation) ---
@@ -765,18 +766,22 @@ function injectGlobalNavLinks() {
         const a = document.createElement('a');
         a.setAttribute('href', href);
         a.textContent = text;
+        if (location.pathname === href) a.className = 'active';   // highlight the current tab
         const after = afterSel ? nav.querySelector(afterSel) : null;
         if (after && after.nextSibling) nav.insertBefore(a, after.nextSibling);
         else nav.appendChild(a);
     }
     addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
     addLink('/handover', '🚗 تسليم واستلام مركبة', 'a[href$="/"]');
-    addLink('/settings', '⚙️ الإعدادات', 'a[href$="/cameras"]');
+    addLink('/insights', '🧠 التحليلات الذكية', 'a[href$="/cameras"]');
+    addLink('/platform', '🚀 المنصة', 'a[href$="/insights"]');
+    addLink('/settings', '⚙️ الإعدادات', 'a[href$="/platform"]');
     // (no separate "الفاتورة" link — the homepage "الرئيسية" IS the invoice; /invoice aliases to it)
 }
 
-// Floating contact dock (WhatsApp + Email), bottom-left, on EVERY tab.
-// Skips if the page already provides its own dock (e.g. the homepage).
+// Floating contact dock (WhatsApp + Send-this-table + Email composer), bottom-left, on EVERY tab.
+// Skips if the page already provides its own dock (e.g. the homepage). The 📤 button exports /
+// emails the current tab's main table; 📧 opens an in-app email composer (works on any tab).
 function injectContactDock() {
     try {
         if (document.querySelector('.bz-dock')) return;
@@ -785,8 +790,11 @@ function injectContactDock() {
         dock.setAttribute('aria-label', 'إجراءات سريعة');
         dock.innerHTML =
             '<a class="bz-dock-btn wa" href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" data-label="واتساب" title="تواصل عبر واتساب" aria-label="واتساب">💬</a>' +
-            '<a class="bz-dock-btn mail" href="mailto:damfleet@bz.sa" data-label="إرسال بالإيميل" title="إرسال عبر الإيميل" aria-label="إرسال عبر الإيميل">📧</a>';
+            '<a class="bz-dock-btn share" href="javascript:void(0)" data-label="إرسال / تصدير الجدول" title="إرسال أو تصدير جدول هذه الصفحة (Excel · PDF · بريد · واتساب)" aria-label="إرسال أو تصدير">📤</a>' +
+            '<a class="bz-dock-btn mail" href="javascript:void(0)" data-label="بريد إلكتروني" title="إنشاء رسالة بريد إلكتروني" aria-label="بريد إلكتروني">📧</a>';
         document.body.appendChild(dock);
+        const sh = dock.querySelector('.share'); if (sh) sh.addEventListener('click', function (e) { e.preventDefault(); bzShareCurrentTab(); });
+        const ml = dock.querySelector('.mail'); if (ml) ml.addEventListener('click', function (e) { e.preventDefault(); bzComposeEmail(); });
     } catch (e) { /* non-critical */ }
 }
 
@@ -798,7 +806,7 @@ function injectHeroLogo() {
         if (document.querySelector('.bz-hero-logo, .logo, .ho-head, .site-logo')) return;
         const div = document.createElement('div');
         div.className = 'bz-hero-logo';
-        div.innerHTML = '<img src="/static/main_logo_v2.jpg" alt="شركة بن زومة">';
+        div.innerHTML = '<img src="/static/main_logo_clean.png" alt="شركة بن زومة">';
         shell.insertBefore(div, shell.firstChild);
     } catch (e) { /* non-critical */ }
 }
@@ -867,7 +875,12 @@ function buildEnterpriseShell() {
         }
         window.bzCloseDrawer = function () { bzSetDrawer(false); };
         backdrop.addEventListener('click', () => bzSetDrawer(false));
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') bzSetDrawer(false); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            var aip = document.getElementById('bzAiPanel');
+            if (aip && !aip.hidden) return;        // let the open AI chat panel handle Escape itself
+            bzSetDrawer(false);
+        });
         aside.querySelectorAll('nav a').forEach(a => a.addEventListener('click', () => { if (isMobileNav()) bzSetDrawer(false); }));
         const sideClose = document.createElement('button');
         sideClose.type = 'button'; sideClose.className = 'bz-side-close'; sideClose.title = 'إغلاق';
@@ -1794,7 +1807,7 @@ window.bzShare = function (getExcelBlob, opts) {
         '</div></div></div>';
     document.body.appendChild(overlay);
     const close = () => { overlay.remove(); };
-    overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.hasAttribute('data-x')) close(); });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay || (e.target.closest && e.target.closest('[data-x]'))) close(); });
 
     const fnameBase = (opts.filename || 'ملف').replace(/\.(xlsx|pdf)$/i, '');
     const getPdfEl = () => typeof opts.pdfElement === 'string' ? document.getElementById(opts.pdfElement) : opts.pdfElement;
@@ -1823,6 +1836,138 @@ window.bzShare = function (getExcelBlob, opts) {
         } catch (e) { showToast('حدث خطأ: ' + e.message, 'error'); }
         finally { btn.disabled = false; }
     }));
+};
+
+// ── Universal "send this table" (every table-bearing tab) ────────────────────────────
+// Loads SheetJS on demand to turn ANY DOM table (incl. input-grids) into a real .xlsx;
+// falls back to a UTF-8 CSV if the CDN is unavailable so Arabic still opens cleanly in Excel.
+let _xlsxLoading = null;
+function bzEnsureXlsx() {
+    if (window.XLSX) return Promise.resolve();
+    if (_xlsxLoading) return _xlsxLoading;
+    _xlsxLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+    });
+    return _xlsxLoading;
+}
+
+// Read a DOM table into an array-of-arrays, taking <input>/<select>/<textarea> VALUES
+// (so editable grids export their real content, not blanks). Skips pure action columns.
+function bzExtractTable(table) {
+    const aoa = [];
+    table.querySelectorAll('tr').forEach(tr => {
+        const cells = tr.querySelectorAll('th,td');
+        if (!cells.length) return;
+        const row = [];
+        cells.forEach(td => {
+            if (td.hasAttribute('data-noexport') || td.classList.contains('no-print')) return;
+            const f = td.querySelector('input,select,textarea');
+            let v;
+            if (f) { v = (f.type === 'checkbox') ? (f.checked ? '✓' : '') : (f.value || ''); }
+            else { v = (td.innerText || td.textContent || ''); }
+            row.push(String(v == null ? '' : v).replace(/\s+/g, ' ').trim());
+        });
+        if (row.some(c => c !== '')) aoa.push(row);
+    });
+    return aoa;
+}
+
+window.bzTableToXlsxBlob = async function (table, sheetName) {
+    const aoa = bzExtractTable(table);
+    if (!aoa.length) throw new Error('الجدول فارغ');
+    try {
+        await bzEnsureXlsx();
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, String(sheetName || 'بيانات').replace(/[\\/?*\[\]:]/g, ' ').slice(0, 28) || 'بيانات');
+        const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    } catch (e) {
+        const csv = aoa.map(r => r.map(c => '"' + c.replace(/"/g, '""') + '"').join(',')).join('\r\n');
+        return new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    }
+};
+
+// Find the page's significant data tables (visible, non-trivial), largest first.
+function bzFindDataTables() {
+    const scope = document.querySelector('.bz-shell') || document.querySelector('.dashboard-shell') || document.body;
+    return Array.from(scope.querySelectorAll('table')).filter(t => {
+        const rows = t.querySelectorAll('tr').length;
+        const cells = t.querySelectorAll('td,th').length;
+        return rows >= 2 && cells >= 4 && t.offsetParent !== null;
+    }).sort((a, b) => b.querySelectorAll('td,th').length - a.querySelectorAll('td,th').length);
+}
+
+function bzPageTitle() {
+    const el = document.querySelector('.bz-section-title, h1, h2');
+    return ((el && el.textContent) || document.title || 'تقرير').replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+
+// 📤 dock action: share/export THIS tab's main table; no table → open the email composer.
+window.bzShareCurrentTab = function () {
+    const tables = bzFindDataTables();
+    const title = bzPageTitle();
+    if (!tables.length) {
+        if (typeof showToast === 'function') showToast('لا يوجد جدول في هذه الصفحة — فُتح إنشاء بريد', 'info');
+        bzComposeEmail({ subject: title });
+        return;
+    }
+    bzShare(() => bzTableToXlsxBlob(tables[0], title), {
+        filename: title, subject: title, pdfElement: tables[0],
+        pdfOrientation: 'landscape', waMessage: 'تقرير: ' + title
+    });
+};
+
+// 📧 In-app email composer (to / cc / subject / body + optional "attach this page as PDF").
+// Posts to /api/compose_email. Works on EVERY tab — even ones without a table.
+window.bzComposeEmail = function (opts) {
+    opts = opts || {};
+    const ea = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop show'; overlay.style.zIndex = 3000;
+    overlay.innerHTML =
+        '<div class="modal-content-custom" style="max-width:520px;">' +
+        '<div class="modal-header-custom"><h2>📧 إرسال بريد إلكتروني</h2><button class="close-btn" data-x aria-label="إغلاق">✕</button></div>' +
+        '<div class="modal-body-custom">' +
+        '<label class="bz-fld"><span>إلى</span><input id="bzceTo" type="email" inputmode="email" dir="ltr" placeholder="recipient@example.com" value="' + ea(opts.to || '') + '"></label>' +
+        '<label class="bz-fld"><span>نسخة (CC) — اختياري</span><input id="bzceCc" type="text" dir="ltr" placeholder="عناوين مفصولة بفواصل"></label>' +
+        '<label class="bz-fld"><span>الموضوع</span><input id="bzceSub" type="text" value="' + ea(opts.subject || 'BIN ZOMAH INTL.') + '"></label>' +
+        '<label class="bz-fld"><span>الرسالة</span><textarea id="bzceBody" rows="5" placeholder="اكتب رسالتك هنا…">' + ea(opts.body || '') + '</textarea></label>' +
+        '<label class="bz-chk"><input id="bzceAttach" type="checkbox"> إرفاق هذه الصفحة كملف PDF</label>' +
+        '<div class="bz-msg2" id="bzceMsg"></div>' +
+        '<div class="bz-fld-actions"><button class="btn-outline" data-x type="button">إلغاء</button><button class="btn-primary" id="bzceSend" type="button">📨 إرسال</button></div>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', e => { if (e.target === overlay || (e.target.closest && e.target.closest('[data-x]'))) close(); });
+    const q = id => overlay.querySelector(id);
+    q('#bzceTo').focus();
+    q('#bzceSend').addEventListener('click', async () => {
+        const to = q('#bzceTo').value.trim();
+        const msg = q('#bzceMsg');
+        if (!to || to.indexOf('@') < 1 || to.indexOf('.') < 0) { msg.style.color = '#ef4444'; msg.textContent = 'أدخل بريداً إلكترونياً صحيحاً'; return; }
+        const fd = new FormData();
+        fd.append('email', to);
+        fd.append('subject', q('#bzceSub').value || 'BIN ZOMAH INTL.');
+        fd.append('body', q('#bzceBody').value || '');
+        q('#bzceCc').value.split(/[,;\s]+/).filter(Boolean).forEach(c => fd.append('cc', c));
+        const send = q('#bzceSend'); send.disabled = true; msg.style.color = 'var(--text-secondary)'; msg.textContent = 'جارٍ الإرسال…';
+        try {
+            if (q('#bzceAttach').checked) {
+                const el = document.querySelector('.bz-shell') || document.body;
+                const blob = await bzElementToPdfBlob(el, 'portrait');
+                fd.append('attachment', new File([blob], (q('#bzceSub').value || 'page').replace(/[\\/?*\[\]:]/g, ' ').slice(0, 40) + '.pdf', { type: 'application/pdf' }));
+            }
+            const r = await fetch('/api/compose_email', { method: 'POST', body: fd });
+            const d = await r.json().catch(() => ({}));
+            if (r.ok && d.success) { if (typeof showToast === 'function') showToast('تم إرسال البريد إلى ' + to, 'success'); close(); }
+            else { msg.style.color = '#ef4444'; msg.textContent = 'تعذّر الإرسال: ' + (d.error || 'تحقّق من إعداد البريد على الخادم'); }
+        } catch (e) { msg.style.color = '#ef4444'; msg.textContent = 'تعذّر الاتصال بالخادم'; }
+        finally { send.disabled = false; }
+    });
 };
 
 function applyEnglishStyles() {
@@ -1859,4 +2004,262 @@ function applyEnglishStyles() {
         `;
         document.head.appendChild(styleEl);
     }
+}
+
+// =============================================================================
+// AI ASSISTANT (مساعد بن زومة الذكي) — chat + reviewable table edits, every tab.
+// Sends the CURRENT tab's table to the server-side Gemini proxy (/api/ai/chat); the
+// key never reaches the browser. Proposed edits are shown as a diff and applied to the
+// live input-grid ONLY on confirm — the page's own save then persists (frozen-data safe).
+// Skipped on the open workstation sandbox (no token spend there).
+// =============================================================================
+
+// Read a table into {headers, rows, trs} keeping LIVE row order (no trimming) so model
+// row indices map 1:1 onto the on-page rows when applying edits.
+function bzAIGrid(table) {
+    function vis(tr) {
+        var o = [];
+        tr.querySelectorAll('th,td').forEach(function (c) {
+            if (c.hasAttribute('data-noexport') || c.classList.contains('no-print')) return;
+            o.push(c);
+        });
+        return o;
+    }
+    function rd(cell) {
+        var f = cell && cell.querySelector('input,select,textarea');
+        if (f) return f.type === 'checkbox' ? (f.checked ? '✓' : '') : (f.value || '');
+        return cell ? (cell.innerText || cell.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    }
+    var thead = table.querySelector('thead');
+    var headRows = thead ? Array.prototype.slice.call(thead.querySelectorAll('tr')) : [];
+    var body = table.querySelector('tbody') || table;
+    // data rows: skip header rows + placeholder/empty-state rows (single colspan cell, e.g. «لا يوجد»)
+    var trs = Array.prototype.filter.call(body.querySelectorAll('tr'), function (tr) {
+        return headRows.indexOf(tr) === -1 && tr.querySelector('td') && vis(tr).length > 1;
+    });
+    var dataCols = trs.length ? vis(trs[0]).length : 0;
+    // Header row = the thead row whose visible-cell count matches the data rows. Grouped grids
+    // (employees/schedule/oils/purchase) put a colspan group/title row FIRST and the real column
+    // labels in the LAST row, so blindly taking the first thead row would mis-map every column.
+    var headRow = null;
+    if (headRows.length) {
+        headRow = headRows[headRows.length - 1];
+        if (dataCols) {
+            var bestDiff = 1e9;
+            headRows.forEach(function (hr) { var diff = Math.abs(vis(hr).length - dataCols); if (diff < bestDiff) { bestDiff = diff; headRow = hr; } });
+        }
+    } else {
+        headRow = table.querySelector('tr');
+    }
+    var headers = headRow ? vis(headRow).map(function (c) { return (c.innerText || c.textContent || '').replace(/\s+/g, ' ').trim(); }) : [];
+    var rows = trs.map(function (tr) { return vis(tr).map(rd); });
+    return { headers: headers, rows: rows, trs: trs, vis: vis, table: table };
+}
+
+function bzAIColResolver(headers) {
+    function norm(s) { return String(s == null ? '' : s).replace(/[ً-ْٰ]/g, '').replace(/^#\s*/, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+    var map = {};
+    headers.forEach(function (h, i) { var k = norm(h); if (k && !(k in map)) map[k] = i; });
+    return function (col) {
+        if (typeof col === 'number') return (col >= 0 && col < headers.length) ? col : -1;
+        var k = norm(col); if (k === '') return -1;
+        if (k in map) return map[k];
+        var hit = Object.keys(map).filter(function (h) { return h && (h.indexOf(k) === 0 || k.indexOf(h) === 0); });
+        return hit.length === 1 ? map[hit[0]] : -1;
+    };
+}
+
+function bzAIWrite(cell, val) {
+    var f = cell && cell.querySelector('input,select,textarea');
+    if (f) {
+        if (f.type === 'checkbox') f.checked = !!val && val !== '✗' && val !== '' && val !== '0';
+        else f.value = String(val == null ? '' : val);
+        f.classList.add('bz-ai-changed');
+        f.dispatchEvent(new Event('input', { bubbles: true }));   // drive the page's own model-sync + autosave
+        f.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (cell) { cell.textContent = String(val == null ? '' : val); }
+}
+
+function bzAIAddRow(grid, values) {
+    var tbody = grid.table.querySelector('tbody') || grid.table;
+    var last = grid.trs[grid.trs.length - 1];
+    if (!last) return;
+    var clone = last.cloneNode(true);
+    clone.querySelectorAll('input,select,textarea').forEach(function (f) { if (f.type === 'checkbox') f.checked = false; else f.value = ''; });
+    tbody.appendChild(clone);
+    var cells = grid.vis(clone);
+    (values || []).forEach(function (v, i) { if (cells[i]) bzAIWrite(cells[i], v); });
+    grid.table.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// Validate ALL actions first, build a human diff + apply steps. Nothing mutates until run.
+function bzAIPlan(grid, actions) {
+    var resolve = bzAIColResolver(grid.headers), steps = [], delSteps = [], diff = [], errors = [], deletes = 0, MAXPER = 50;
+    function readCellVal(cell) { var f = cell && cell.querySelector('input,select,textarea'); return f ? (f.value || '') : (cell ? (cell.innerText || cell.textContent || '').trim() : ''); }
+    (actions || []).forEach(function (a) {
+        try {
+            if (!a || typeof a !== 'object') throw 'إجراء غير صالح';
+            if (a.op === 'set_cell') {
+                var ci = resolve(a.col); if (ci < 0) throw 'عمود غير معروف: «' + (a.col || '') + '»';
+                var r = a.row; if (typeof r !== 'number' || r < 0 || r >= grid.trs.length) throw 'صف خارج النطاق';
+                (function (rr, cc) {
+                    var before = readCellVal(grid.vis(grid.trs[rr])[cc]);
+                    diff.push('صف ' + (rr + 1) + ' · ' + grid.headers[cc] + ': «' + before + '» → «' + (a.value == null ? '' : a.value) + '»');
+                    steps.push(function () { bzAIWrite(grid.vis(grid.trs[rr])[cc], a.value); });
+                })(r, ci);
+            } else if (a.op === 'fill_column') {
+                var ci2 = resolve(a.col); if (ci2 < 0) throw 'عمود غير معروف: «' + (a.col || '') + '»';
+                var n = 0;
+                grid.trs.forEach(function (tr) {
+                    var cur = readCellVal(grid.vis(tr)[ci2]);
+                    if (a.only_empty !== false && String(cur).trim() !== '') return;
+                    if (String(cur) === String(a.value)) return;
+                    n++; steps.push(function () { bzAIWrite(grid.vis(tr)[ci2], a.value); });
+                });
+                if (n > MAXPER) throw 'التعبئة تتجاوز الحد (' + n + ')';
+                if (n) diff.push('تعبئة «' + grid.headers[ci2] + '» بـ «' + (a.value == null ? '' : a.value) + '» (' + n + ' خانة)');
+            } else if (a.op === 'add_row') {
+                diff.push('+ صف جديد: ' + ((a.values || []).join(' · ') || '(فارغ)'));
+                steps.push(function () { bzAIAddRow(grid, a.values || []); });
+            } else if (a.op === 'delete_row') {
+                var dr = a.row; if (typeof dr !== 'number' || dr < 0 || dr >= grid.trs.length) throw 'صف خارج النطاق';
+                deletes++; diff.push('− حذف صف ' + (dr + 1));
+                (function (rr) { delSteps.push(function () { var tr = grid.trs[rr]; if (tr && tr.isConnected) { tr.remove(); grid.table.dispatchEvent(new Event('input', { bubbles: true })); } }); })(dr);
+            } else { throw 'عملية غير مدعومة'; }
+        } catch (e) { errors.push(String(e)); }
+    });
+    if (deletes > 0 && grid.trs.length - deletes < 1) return { steps: [], diff: [], errors: errors.concat(['لا يمكن حذف كل الصفوف']) };
+    return { steps: steps.concat(delSteps), diff: diff, errors: errors };   // edits first, deletions last
+}
+
+function injectAIAssistant() {
+    try {
+        if (typeof inWorkstation === 'function' && inWorkstation()) return;       // no AI on the open sandbox
+        if (/\/(login|lock)/.test(location.pathname)) return;
+        if (!document.querySelector('.bz-topbar') && !document.querySelector('.bz-shell')) return;
+        if (document.getElementById('bzAiFab')) return;
+        var esc = window.escapeHtml || function (s) { return String(s == null ? '' : s); };
+        var titleOf = function () { return (typeof bzPageTitle === 'function') ? bzPageTitle() : document.title; };
+
+        var fab = document.createElement('button');
+        fab.id = 'bzAiFab'; fab.type = 'button'; fab.className = 'bz-ai-fab';
+        fab.title = 'المساعد الذكي'; fab.setAttribute('aria-label', 'المساعد الذكي');
+        fab.innerHTML = '<span class="bz-ai-fab-ic">🤖</span>';
+        document.body.appendChild(fab);
+
+        var panel = document.createElement('section');
+        panel.id = 'bzAiPanel'; panel.className = 'bz-ai-panel'; panel.setAttribute('dir', 'rtl');
+        panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'المساعد الذكي'); panel.hidden = true;
+        panel.innerHTML =
+            '<header class="bz-ai-hd"><span class="bz-ai-av">🤖</span>' +
+            '<div class="bz-ai-meta"><b>مساعد بن زومة الذكي</b><span class="bz-ai-ctx"></span></div>' +
+            '<button class="bz-ai-x" data-clear type="button" title="مسح المحادثة" aria-label="مسح">🧹</button>' +
+            '<button class="bz-ai-x" data-close type="button" title="إغلاق" aria-label="إغلاق">✕</button></header>' +
+            '<div class="bz-ai-msgs"></div>' +
+            '<div class="bz-ai-chips"></div>' +
+            '<form class="bz-ai-bar"><textarea class="bz-ai-in" rows="1" placeholder="اسأل عن هذه الصفحة أو اطلب تعديلاً…" aria-label="رسالتك"></textarea>' +
+            '<button class="bz-ai-send" type="submit" title="إرسال" aria-label="إرسال">➤</button></form>';
+        document.body.appendChild(panel);
+
+        var msgs = panel.querySelector('.bz-ai-msgs'),
+            chips = panel.querySelector('.bz-ai-chips'),
+            input = panel.querySelector('.bz-ai-in'),
+            ctxEl = panel.querySelector('.bz-ai-ctx'),
+            form = panel.querySelector('.bz-ai-bar');
+        var history = [], busy = false, typingEl = null;
+
+        function openP() { panel.hidden = false; fab.classList.add('on'); refreshCtx(); renderChips(); setTimeout(function () { input.focus(); }, 60); }
+        function closeP() { panel.hidden = true; fab.classList.remove('on'); }
+        fab.addEventListener('click', function () { panel.hidden ? openP() : closeP(); });
+        panel.querySelector('[data-close]').addEventListener('click', closeP);
+        panel.querySelector('[data-clear]').addEventListener('click', function () { history = []; msgs.innerHTML = ''; renderChips(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !panel.hidden) { e.stopPropagation(); closeP(); } });
+
+        function refreshCtx() { ctxEl.textContent = titleOf() + ' · فرع ' + (window.BZ_BRANCH || 'الدمام'); }
+        function suggestions() {
+            var p = location.pathname;
+            if (/employees/.test(p)) return ['لخّص بيانات الموظفين', 'من اقتربت إقامته من الانتهاء؟', 'أكمل خانات الجوال الفارغة بـ«غير متوفر»'];
+            if (/oils/.test(p)) return ['ما إجمالي اللترات؟', 'أي مركبة تحتاج تغيير زيت؟'];
+            if (/schedule/.test(p)) return ['كم سائقاً بلا مركبة؟', 'من نوع مركبته «دينا»؟'];
+            if (/workshop/.test(p)) return ['لخّص أعمال الورشة', 'ما المركبات تحت الصيانة؟'];
+            if (/incidents/.test(p)) return ['كم واقعة مفتوحة؟', 'أي مركبة تكرّرت حوادثها؟'];
+            if (/washing/.test(p)) return ['من لم تُغسل مركبته بعد؟'];
+            return ['لخّص هذه الصفحة', 'كم عدد الصفوف؟'];
+        }
+        function renderChips() {
+            chips.innerHTML = '';
+            if (history.length) return;
+            suggestions().forEach(function (t) {
+                var b = document.createElement('button'); b.type = 'button'; b.className = 'bz-ai-chip'; b.textContent = t;
+                b.addEventListener('click', function () { input.value = t; submit(); });
+                chips.appendChild(b);
+            });
+        }
+        function fmt(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>'); }
+        function bubble(role, htmlStr) {
+            var b = document.createElement('div'); b.className = 'bz-ai-msg ' + role; b.innerHTML = htmlStr;
+            msgs.appendChild(b); msgs.scrollTop = msgs.scrollHeight; return b;
+        }
+        function typing(on) {
+            if (on) typingEl = bubble('bot typing', '<span class="bz-ai-dots"><i></i><i></i><i></i></span>');
+            else if (typingEl) { typingEl.remove(); typingEl = null; }
+        }
+
+        form.addEventListener('submit', function (e) { e.preventDefault(); submit(); });
+        input.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
+
+        function currentGrid() {
+            var ts = (typeof bzFindDataTables === 'function') ? bzFindDataTables() : [];
+            return ts && ts[0] ? bzAIGrid(ts[0]) : null;
+        }
+
+        function submit() {
+            if (busy) return;
+            var text = (input.value || '').trim();
+            if (!text) return;
+            input.value = ''; busy = true;
+            bubble('user', fmt(text)); history.push({ role: 'user', text: text }); renderChips();
+            typing(true);
+            var grid = currentGrid();
+            var aoa = grid ? [grid.headers].concat(grid.rows) : [];
+            fetch('/api/ai/chat', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text, tab: (window.BZ_SNAP_TAB || ''), title: titleOf(), table: aoa, history: history.slice(0, -1).slice(-5) })
+            }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+                .then(function (res) {
+                    typing(false);
+                    var d = res.d || {};
+                    if (!res.ok) { bubble('bot', fmt('⚠ ' + (d.error || 'تعذّر تنفيذ الطلب'))); return; }
+                    var reply = d.reply || '';
+                    bubble('bot', fmt(reply || '(لا يوجد رد)')); history.push({ role: 'model', text: reply });
+                    var acts = d.table_actions || [];
+                    if (acts.length && grid) proposeEdits(grid, acts, d.frozen);
+                    else if (acts.length && !grid) bubble('bot', 'لا يوجد جدول قابل للتعديل في هذه الصفحة.');
+                })
+                .catch(function () { typing(false); bubble('bot', 'تعذّر الاتصال بالمساعد.'); })
+                .then(function () { busy = false; input.focus(); });
+        }
+
+        function proposeEdits(grid, actions, frozen) {
+            var plan = bzAIPlan(grid, actions);
+            if (!plan.steps.length) { bubble('bot', plan.errors.length ? ('تعذّر تطبيق المقترح: ' + esc(plan.errors[0])) : 'لا تعديلات قابلة للتطبيق.'); return; }
+            var card = document.createElement('div'); card.className = 'bz-ai-apply';
+            card.innerHTML = '<div class="bz-ai-apply-hd">✏️ تعديلات مقترحة (' + plan.steps.length + ')</div>' +
+                '<ul class="bz-ai-diff">' + plan.diff.slice(0, 14).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + (plan.diff.length > 14 ? '<li>…</li>' : '') + '</ul>' +
+                (plan.errors.length ? '<div class="bz-ai-warn">⚠ تجاهُل ' + plan.errors.length + ' إجراء غير صالح</div>' : '') +
+                '<div class="bz-ai-apply-acts"><button class="bz-ai-btn ghost" data-x type="button">تجاهل</button><button class="bz-ai-btn go" data-go type="button">تطبيق على الجدول</button></div>';
+            msgs.appendChild(card); msgs.scrollTop = msgs.scrollHeight;
+            card.querySelector('[data-x]').addEventListener('click', function () { card.querySelector('.bz-ai-apply-acts').innerHTML = '<span class="bz-ai-mut">تم التجاهل</span>'; });
+            card.querySelector('[data-go]').addEventListener('click', function () {
+                var run = function () {
+                    var n = 0; plan.steps.forEach(function (s) { try { s(); n++; } catch (e) { } });
+                    card.querySelector('.bz-ai-apply-acts').innerHTML = '<span class="bz-ai-ok">✓ طُبّقت — راجع الجدول ثم احفظ الصفحة</span>';
+                    if (window.showToast) showToast('طُبّقت ' + n + ' تعديلاً ✓ — لا تنسَ حفظ الصفحة', 'success');
+                };
+                if (frozen && window.bzConfirm) {
+                    window.bzConfirm('هذا فرع الدمام (بيانات مرجعية مجمّدة).\nتطبيق ' + plan.steps.length + ' تعديلاً على الجدول؟').then(function (ok) { if (ok) run(); });
+                } else { run(); }
+            });
+        }
+    } catch (e) { /* non-critical */ }
 }
