@@ -16,12 +16,7 @@ import base64
 import requests
 import json
 import re
-<<<<<<< HEAD
-=======
-import html
 import absher_sync          # محرّك مزامنة أبشر (قارئ xlsx بالمكتبة القياسية + الفروقات)
-from datetime import datetime
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_cors import CORS
@@ -223,7 +218,6 @@ def init_db():
     """Initialize database tables if they don't exist."""
     with app.app_context():
         with db_connection() as db:
-<<<<<<< HEAD
             db.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -244,17 +238,6 @@ def init_db():
                     drivercard TEXT
                 )
             """)
-            
-            # Migration to add drivercard column if missing
-            try:
-                db.execute("SELECT drivercard FROM drivers LIMIT 1")
-            except sqlite3.OperationalError:
-=======
-            db.execute(
-                "CREATE TABLE IF NOT EXISTS drivers ("
-                "id %s, name TEXT NOT NULL, empid TEXT, plate TEXT, "
-                "car TEXT, iqama TEXT, phone TEXT, drivercard TEXT)" % _pk_clause()
-            )
             db.execute(
                 "CREATE TABLE IF NOT EXISTS washing_schedule (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
@@ -282,7 +265,7 @@ def init_db():
             )
             # Dated version snapshots of each data tab (auto-saved on every change; restore from Settings).
             db.execute(
-                "CREATE TABLE IF NOT EXISTS data_snapshots (id %s, tab TEXT, ts TEXT, data TEXT, mode INTEGER)" % _pk_clause()
+                "CREATE TABLE IF NOT EXISTS data_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, tab TEXT, ts TEXT, data TEXT, mode INTEGER)"
             )
             # Workstation-only blob stores (id=2 sandbox). Additive & never seeded, so the
             # /importantworkstation namespace starts EMPTY and persists what the user types.
@@ -327,9 +310,10 @@ def init_db():
             )
             db.commit()
 
-            # Safe migration: add drivercard to older tables that lack it.
-            if "drivercard" not in _drivers_table_columns(db):
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
+            # Safe migration: add drivercard to older drivers tables that lack it.
+            try:
+                db.execute("SELECT drivercard FROM drivers LIMIT 1")
+            except sqlite3.OperationalError:
                 db.execute("ALTER TABLE drivers ADD COLUMN drivercard TEXT")
                 db.commit()
                 logger.info("Database Migration: Added drivercard column to drivers table")
@@ -457,17 +441,6 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         
-<<<<<<< HEAD
-        # Try to authenticate against the users table
-        with db_connection() as db:
-            row = db.execute("SELECT password_hash, role FROM users WHERE username = ?", (username,)).fetchone()
-        if row and check_password_hash(row["password_hash"], password):
-            session["authenticated"] = True
-            session.permanent = True
-            session["google_user"] = {"name": username, "email": f"{username}@system.local"}
-            session["role"] = row["role"]
-            logger.info("Successful login for user %s with role %s", username, row["role"])
-=======
         master_user = os.environ.get("ADMIN_USERNAME", "admin")
         master_pass = os.environ.get("MASTER_PASSWORD")
 
@@ -504,7 +477,6 @@ def login():
                 session["branch_id"] = branch_id
                 session["is_branch_user"] = True
             logger.info("Successful login")
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
             return redirect(url_for("index"))
         else:
             logger.warning("Failed login attempt for user %s", username)
@@ -513,12 +485,11 @@ def login():
     return render_template("login.html")
 
 
-<<<<<<< HEAD
-=======
 # ── Workstation namespace (/importantworkstation/*) ───────────────────────────
 # A COMPLETELY SEPARATE, OPEN entry that mirrors the site under a URL prefix. It is a
 # sandbox (edits go to id=2, never touching the real id=1 data) and the
 # Cameras/Employees/GPS-Sync tabs are password-locked. The MAIN site (/) is untouched.
+WS_PREFIX = os.environ.get("WS_PREFIX", "/importantworkstation")
 WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
 WS_TABS = {
     "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard",
@@ -911,7 +882,6 @@ def workstation_unlock():
     return render_template("tab_lock.html", next=nxt, error="كلمة المرور غير صحيحة")
 
 
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 @app.route("/logout")
 def logout():
     session.clear()
@@ -944,8 +914,6 @@ def index():
     return render_template("index.html", google_user=google_user, b64_en=b64_en, show_invoice_title=False)
 
 
-<<<<<<< HEAD
-=======
 @app.route("/dashboard")
 @login_required
 def dashboard():
@@ -1117,14 +1085,6 @@ def gps_devices():
     return render_template("gps_devices.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
-@app.route("/invoice")
-@login_required
-def invoice():
-    # The invoice IS the homepage — alias /invoice to it (single source, no duplicate template).
-    # This tab DOES show the "نظام الفواتير الذكي" heading (the homepage hides it).
-    return render_template("index.html", google_user=session.get("google_user"), b64_en=load_logo(), show_invoice_title=True)
-
-
 @app.route("/fleet_dashboard")
 @login_required
 def fleet_dashboard():
@@ -1141,7 +1101,6 @@ def service_worker():
     return resp
 
 
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 @app.route("/oils")
 @login_required
 def oils():
@@ -1187,13 +1146,6 @@ def employees():
     b64_en = load_logo()
     return render_template("employees.html", google_user=google_user, b64_en=b64_en)
 
-@app.route("/fleet_dashboard")
-@login_required
-def fleet_dashboard():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("fleet_dashboard.html", google_user=google_user, b64_en=b64_en)
-
 
 @app.route("/gps_sync")
 @login_required
@@ -1209,62 +1161,6 @@ def workshop():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("workshop.html", google_user=google_user, b64_en=b64_en)
-
-
-@app.route("/kpis")
-@login_required
-def kpis():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("kpis.html", google_user=google_user, b64_en=b64_en)
-
-
-@app.route("/gps_dashboard")
-@login_required
-def gps_dashboard():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("gps_dashboard.html", google_user=google_user, b64_en=b64_en)
-
-
-@app.route("/gps_devices")
-@login_required
-def gps_devices():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("gps_devices.html", google_user=google_user, b64_en=b64_en)
-
-
-@app.route("/api/gps_devices", methods=["GET", "POST"])
-@login_required
-def gps_devices_data():
-    if request.method == "POST":
-        try:
-            rows = (request.json or {}).get("rows", [])
-            data_str = json.dumps(rows, ensure_ascii=False)
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT id FROM gps_devices_data WHERE id = 1")
-                if c.fetchone():
-                    c.execute("UPDATE gps_devices_data SET data = ? WHERE id = 1", (data_str,))
-                else:
-                    c.execute("INSERT INTO gps_devices_data (id, data) VALUES (1, ?)", (data_str,))
-                conn.commit()
-            return jsonify({"success": True})
-        except Exception as e:
-            logger.error("gps_devices_data POST error: %s", e)
-            return jsonify({"success": False, "error": str(e)}), 500
-    try:
-        with db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT data FROM gps_devices_data WHERE id = 1")
-            row = c.fetchone()
-        if row:
-            return jsonify({"success": True, "rows": json.loads(row["data"])})
-        return jsonify({"success": True, "rows": []})
-    except Exception as e:
-        logger.error("gps_devices_data GET error: %s", e)
-        return jsonify({"success": False, "rows": []})
 
 
 @app.route("/api/download_workshop_template")
@@ -1714,7 +1610,6 @@ def washing_data():
             return jsonify({"success": False, "error": str(e)}), 500
     else:
         try:
-<<<<<<< HEAD
             with db_connection() as conn:
                 c = conn.cursor()
                 c.execute("SELECT data FROM washing_schedule WHERE id = 1")
@@ -1725,7 +1620,14 @@ def washing_data():
         except Exception as e:
             logger.error("washing_data GET error: %s", e)
             return jsonify({"success": False, "error": str(e)}), 500
-=======
+
+
+@app.route("/api/employees", methods=["GET", "POST"])
+@login_required
+def employees_data():
+    """Persist the employees roster. Sandboxed for workstation."""
+    if request.method == "POST":
+        try:
             rows = (request.json or {}).get("rows", [])
             blob_set("employees", rows)
             _audit_add("تحديث", "بيانات الموظفين", len(rows) if isinstance(rows, list) else None)
@@ -2881,7 +2783,6 @@ def ws_seed():
     except Exception:
         logger.exception("ws_seed error")
         return jsonify({"success": False}), 500
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 
 
 def _driver_store():
@@ -2901,14 +2802,11 @@ def _driver_blob_table(store):
 @app.route("/api/drivers", methods=["GET"])
 @login_required
 def get_drivers():
-<<<<<<< HEAD
-=======
     store = _driver_store()
     if store in ("ws", "blob"):
         # Isolated, server-persistent driver list (workstation id=2, or a branch row). Starts EMPTY.
         lst = blob_get(_driver_blob_table(store)) or []
         return jsonify(sorted(lst, key=lambda d: d.get("id", 0), reverse=True))
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
     with db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM drivers ORDER BY id DESC")
@@ -3106,8 +3004,6 @@ def add_driver():
     drivercard = data.get("drivercard", "").strip()
     if not name:
         return jsonify({"error": "Name is required"}), 400
-<<<<<<< HEAD
-=======
     store = _driver_store()
     if store in ("ws", "blob"):
         # Isolated blob roster (workstation id=2 or a branch row). الدمام's real table untouched.
@@ -3119,7 +3015,6 @@ def add_driver():
         lst.append(row)
         blob_set(tbl, lst)
         return jsonify({"success": True, **row})
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
     with db_connection() as conn:
         c = conn.cursor()
         c.execute(
@@ -3146,8 +3041,6 @@ def add_driver():
 @app.route("/api/drivers/<int:driver_id>", methods=["DELETE"])
 @login_required
 def delete_driver(driver_id):
-<<<<<<< HEAD
-=======
     store = _driver_store()
     if store in ("ws", "blob"):
         # Remove from the isolated blob roster (workstation/branch). الدمام's real table untouched.
@@ -3155,7 +3048,6 @@ def delete_driver(driver_id):
         lst = [d for d in (blob_get(tbl) or []) if d.get("id") != driver_id]
         blob_set(tbl, lst)
         return jsonify({"success": True})
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
     with db_connection() as conn:
         conn.execute("DELETE FROM drivers WHERE id = ?", (driver_id,))
         conn.commit()
@@ -3178,8 +3070,6 @@ def update_driver(driver_id):
     if not name:
         return jsonify({"error": "Name is required"}), 400
 
-<<<<<<< HEAD
-=======
     store = _driver_store()
     if store in ("ws", "blob"):
         # Update inside the isolated blob roster (workstation/branch). الدمام's real table untouched.
@@ -3194,12 +3084,11 @@ def update_driver(driver_id):
         return jsonify({"success": True, "id": driver_id, "name": name, "plate": plate, "car": car,
                         "iqama": iqama, "phone": phone, "drivercard": drivercard})
 
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
     with db_connection() as conn:
         c = conn.cursor()
         c.execute(
             """
-            UPDATE drivers 
+            UPDATE drivers
             SET name=?, empid=?, plate=?, car=?, iqama=?, phone=?, drivercard=?
             WHERE id=?
         """,
@@ -3754,172 +3643,4 @@ if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     logger.info("Starting server on port %d (debug=%s)", port, debug)
     app.run(host="0.0.0.0", port=port, debug=debug)
-
-
-
-# ── Expiry Alerts Configuration ──────────────────────────────────────────────
-ALERT_RECIPIENTS = [e.strip() for e in os.environ.get("ALERT_RECIPIENTS", "").split(",") if e.strip()]
-ALERT_CRON_KEY = os.environ.get("ALERT_CRON_KEY", "")
-
-def _parse_iso_date(s):
-    if not isinstance(s, str):
-        return None
-    m = re.match('^\\s*(\\d{4})-(\\d{2})-(\\d{2})\\s*$', s)
-    if not m:
-        return None
-    try:
-        y, mo, da = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        if y < 2000 or y > 2100:
-            return None
-        return datetime(y, mo, da)
-    except Exception:
-        return None
-
-def _collect_expiry_alerts(window_days=90):
-    """Return the list of documents expiring within `window_days` (or already expired)."""
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    out = []
-
-    def add(name, plate, doc, dstr):
-        d = _parse_iso_date(dstr)
-        if not d:
-            return
-        days = (d - today).days
-        if days > window_days:
-            return
-        if days < 0:
-            key, label = ('expired', 'منتهي')
-        elif days <= 30:
-            key, label = ('d30', '≤ 30 يوم')
-        else:
-            key, label = ('d90', '≤ 90 يوم')
-        out.append({'name': name or '—', 'plate': plate or '', 'doc': doc, 'date': dstr, 'days': days, 'key': key, 'label': label})
-    sd = blob_get('schedule_data') or {}
-    if isinstance(sd, dict):
-        for sect in ('main', 'spare'):
-            for r in sd.get(sect) or []:
-                if not isinstance(r, dict):
-                    continue
-                nm, pl = (r.get('name'), r.get('plate'))
-                add(nm, pl, 'الفحص الدوري', r.get('inspect'))
-                add(nm, pl, 'رخصة السير', r.get('license'))
-                add(nm, pl, 'بطاقة التشغيل', r.get('opcard'))
-                add(nm, pl, 'بطاقة السائق', r.get('drivercard'))
-    emps = blob_get('employees') or []
-    if isinstance(emps, list):
-        for row in emps:
-            if not isinstance(row, list):
-                continue
-            nm = (row[2] if len(row) > 2 else '') or (row[3] if len(row) > 3 else '')
-            pl = row[9] if len(row) > 9 else ''
-            if len(row) > 10:
-                add(nm, pl, 'انتهاء الإقامة', row[10])
-            if len(row) > 11:
-                add(nm, pl, 'انتهاء الجواز', row[11])
-    rank = {'expired': 0, 'd30': 1, 'd90': 2}
-    out.sort(key=lambda a: (rank.get(a['key'], 9), a['days']))
-    return out
-
-def _build_alert_email_html(alerts, filter_label=''):
-    today_str = datetime.now().strftime('%Y-%m-%d %H:%M')
-
-    def days_txt(a):
-        d = a.get('days')
-        if d is None:
-            return '—'
-        if d < 0:
-            return 'منذ %d يوم' % abs(d)
-        if d == 0:
-            return 'اليوم'
-        return 'خلال %d يوم' % d
-    colors = {'expired': '#dc2626', 'd30': '#d97706', 'd90': '#ca8a04', 'valid': '#16a34a', 'unknown': '#6b7280'}
-    rows = ''
-    for a in alerts[:300]:
-        c = colors.get(a.get('key'), '#6b7280')
-        rows += "<tr><td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td><td style='padding:9px 12px;border-bottom:1px solid #eee;direction:ltr;font-family:monospace;'>%s</td><td style='padding:9px 12px;border-bottom:1px solid #eee;'>%s</td><td style='padding:9px 12px;border-bottom:1px solid #eee;white-space:nowrap;'>%s</td><td style='padding:9px 12px;border-bottom:1px solid #eee;color:%s;font-weight:700;white-space:nowrap;'>%s · %s</td></tr>" % (html.escape(str(a.get('name') or '—')), html.escape(str(a.get('plate') or '—')), html.escape(str(a.get('doc') or '')), html.escape(str(a.get('date') or '')), c, html.escape(str(a.get('label') or '')), days_txt(a))
-    scope = html.escape(str(filter_label or 'الكل'))
-    return "<div style='font-family:Tahoma,Arial,sans-serif;direction:rtl;text-align:right;background:#f4f6fb;padding:22px;'><div style='max-width:760px;margin:auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e6e9f0;'><div style='background:#0C2340;padding:18px 24px;border-bottom:4px solid #c9a227;'><div style='color:#fff;font-size:18px;font-weight:800;'>BIN ZOMAH INTL. — شركة بن زومة</div><div style='color:#c9a227;font-size:13px;font-weight:700;'>تنبيه وثائق الأسطول — فرع الدمام</div></div><div style='padding:20px 24px;'><p style='color:#334;font-size:14px;margin:0 0 16px;'>الفرز المُرسَل: <b>%s</b> &nbsp;•&nbsp; العدد: <b>%d</b> &nbsp;•&nbsp; حتى تاريخ <b>%s</b></p><table style='width:100%%;border-collapse:collapse;font-size:13px;color:#222;'><thead><tr style='background:#0C2340;color:#fff;'><th style='padding:10px 12px;text-align:right;'>الاسم</th><th style='padding:10px 12px;text-align:right;'>اللوحة</th><th style='padding:10px 12px;text-align:right;'>الوثيقة</th><th style='padding:10px 12px;text-align:right;'>تاريخ الانتهاء</th><th style='padding:10px 12px;text-align:right;'>الحالة</th></tr></thead><tbody>%s</tbody></table><p style='color:#94a3b8;font-size:11px;margin-top:18px;'>هذه رسالة آلية من نظام إدارة الأسطول — شركة بن زومة. الرجاء عدم الرد عليها.</p></div></div></div>" % (scope, len(alerts), today_str, rows)
-
-def _send_expiry_alert_email(recipients, rows=None, filter_label=''):
-    """Send the alert email. If `rows` is given (from the dashboard's selected filter),
-    email EXACTLY those rows; otherwise fall back to the 'need-action' set."""
-    if rows is not None:
-        alerts = []
-        for r in rows:
-            if not isinstance(r, dict):
-                continue
-            try:
-                days = int(r.get('days')) if r.get('days') not in (None, '') else None
-            except (TypeError, ValueError):
-                days = None
-            alerts.append({'name': r.get('name') or '—', 'plate': r.get('plate') or '', 'doc': r.get('doc') or '', 'date': r.get('date') or '', 'days': days, 'key': r.get('key') or '', 'label': r.get('label') or ''})
-        if not filter_label:
-            filter_label = 'مُختار'
-    else:
-        alerts = [a for a in _collect_expiry_alerts() if a['key'] in ('expired', 'd30', 'd90')]
-        filter_label = filter_label or 'تحتاج إجراء'
-    if not alerts:
-        return {'sent': False, 'reason': 'no_alerts', 'count': 0}
-    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
-        return {'sent': False, 'reason': 'mail_not_configured', 'count': len(alerts)}
-    recipients = [r for r in recipients or [] if r]
-    if not recipients:
-        return {'sent': False, 'reason': 'no_recipients', 'count': len(alerts)}
-    try:
-        subject = '🚨 تنبيه وثائق الأسطول — شركة بن زومة (فرع الدمام)'
-        if filter_label:
-            subject += ' — ' + filter_label
-        msg = Message(subject=subject, recipients=recipients, html=_build_alert_email_html(alerts, filter_label), sender=app.config.get('MAIL_DEFAULT_SENDER') or app.config.get('MAIL_USERNAME'))
-        mail.send(msg)
-        return {'sent': True, 'count': len(alerts), 'recipients': recipients}
-    except Exception as e:
-        logger.exception('send expiry alert email failed')
-        return {'sent': False, 'reason': 'send_error', 'error': str(e), 'count': len(alerts)}
-
-@app.route('/api/expiry_alerts_preview', methods=['GET'])
-@login_required
-def expiry_alerts_preview():
-    """Counts + list the server sees (lets the dashboard show what WOULD be emailed)."""
-    try:
-        alerts = _collect_expiry_alerts()
-        attention = [a for a in alerts if a['key'] in ('expired', 'd30', 'd90')]
-        counts = {'expired': 0, 'd30': 0, 'd90': 0}
-        for a in attention:
-            counts[a['key']] += 1
-        return jsonify({'success': True, 'counts': counts, 'total': len(attention), 'mail_configured': bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')), 'default_recipients': ALERT_RECIPIENTS})
-    except Exception:
-        logger.exception('expiry preview error')
-        return jsonify({'success': False, 'counts': {}, 'total': 0})
-
-@app.route('/api/send_expiry_alerts', methods=['POST'])
-@login_required
-def send_expiry_alerts():
-    """Manual 'send now' from the dashboard. Recipients from the request or ALERT_RECIPIENTS."""
-    body = request.json or {}
-    recips = body.get('recipients') or ALERT_RECIPIENTS
-    if isinstance(recips, str):
-        recips = [e.strip() for e in re.split('[,;\\s]+', recips) if e.strip()]
-    rows = body.get('rows')
-    filt = (body.get('filter') or '').strip()
-    if isinstance(rows, list) and rows:
-        res = _send_expiry_alert_email(recips, rows=rows[:1000], filter_label=filt)
-    else:
-        res = _send_expiry_alert_email(recips, filter_label=filt)
-    if res.get('sent'):
-        _audit_add('إرسال', 'تنبيهات الوثائق بالبريد', res.get('count'), ('الفرز: ' + filt + ' — ' if filt else '') + 'إلى: ' + ', '.join(res.get('recipients', [])))
-    return jsonify({'success': res.get('sent', False), **res})
-
-@app.route('/api/cron/expiry_alerts', methods=['GET', 'POST'])
-def cron_expiry_alerts():
-    """Token-protected trigger for an external daily scheduler (ArabCord cron / cron-job.org).
-    Not login-protected; guarded by ALERT_CRON_KEY. Uses ALERT_RECIPIENTS for the recipient list."""
-    key = request.args.get('key', '')
-    if not key and request.is_json:
-        key = (request.json or {}).get('key', '')
-    if not ALERT_CRON_KEY or not hmac.compare_digest(str(key), ALERT_CRON_KEY):
-        return (jsonify({'success': False, 'error': 'unauthorized'}), 401)
-    res = _send_expiry_alert_email(ALERT_RECIPIENTS)
-    if res.get('sent'):
-        _audit_add('إرسال تلقائي', 'تنبيهات الوثائق بالبريد', res.get('count'), 'مجدول — إلى: ' + ', '.join(res.get('recipients', [])))
-    return jsonify({'success': res.get('sent', False), **res})
 

@@ -15,42 +15,6 @@
 
 Bin Zomah Fleet AI Enterprise Platform هي منصة متكاملة لإدارة وتشغيل ومراقبة أساطيل المركبات، تجمع بين:
 
-<<<<<<< HEAD
-## المزايا الرئيسية
-- إدارة بيانات المركبات والسائقين (إضافة، تعديل، حذف، بحث ذكي)
-- إنشاء فواتير وتقارير بتنسيق Excel (جاهزة للطباعة A4)
-- نظام تنبيهات عبر البريد الإلكتروني (SMTP) وWhatsApp API
-- لوحة تحكم لعرض إحصائيات وصيانة دورية
-- دعم Google OAuth وتوثيق بكلمة سر رئيسية
-
-## التقنيات المستخدمة
-- Backend: Python 3.10+، Flask
-- Frontend: HTML5, CSS3, JavaScript (Vanilla)
-- Database: SQLite
-- Excel generation: exceljs (frontend) / openpyxl أو مكتبات Python عند الحاجة
-
-## متطلبات التشغيل (محلي)
-1. أنشئ بيئة افتراضية Python
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate   # على لينكس / ماك
-   .venv\Scripts\activate    # على ويندوز
-   ```
-2. ثبّت المتطلبات:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. أنشئ ملف .env مستندًا إلى `.env.example` واملأ القيم (مثل مفاتيح SMTP وGoogle OAuth وMASTER_PASSWORD).
-4. تهيئة قاعدة البيانات (إن لزم):
-   ```bash
-   python init_db.py
-   ```
-5. تشغيل التطبيق:
-   ```bash
-   python app.py
-   ```
-6. افتح المتصفح وادخل إلى: http://localhost:5000
-=======
 * إدارة المركبات والسائقين
 * التتبع اللحظي GPS
 * الذكاء الاصطناعي والتحليلات التنبؤية
@@ -63,7 +27,6 @@ Bin Zomah Fleet AI Enterprise Platform هي منصة متكاملة لإدارة
 تم تصميم المنصة لتوفير مركز قيادة وتشغيل ذكي للأساطيل على مستوى المؤسسات.
 
 ⸻
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 
 🚀 المميزات الرئيسية
 

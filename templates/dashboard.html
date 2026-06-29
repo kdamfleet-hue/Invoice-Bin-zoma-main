@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة الإدارة التنفيذية — BIN ZOMAH INTL.</title>
-<<<<<<< HEAD
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -12,7 +11,7 @@
     <script defer src="{{ url_for('static', filename='app_ux.js', v=2) }}"></script>
     <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    
+
     <script>
         tailwind.config = {
             theme: {
@@ -26,277 +25,6 @@
                         bgLight: '#f8fafc'
                     }
                 }
-=======
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=20) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=20) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <!-- washing fallback seed (provides window.WASHING_VEHICLES if the API is empty) -->
-    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <style>
-        /* ============================================================
-           Executive Dashboard — deep-dark premium identity (read-only).
-           All tokens scoped to .bz-dash so the rest of the site is untouched.
-           ============================================================ */
-        .bz-dash {
-            /* ===== DEFAULT theme — glossy charcoal + muted-gold (matches the rest of the site) ===== */
-            --d-bg: #1A1A1A; --d-bg2: #161616; --d-card: #2D2D2D; --d-card-2: #262626;
-            --d-border: #3a3a3a; --d-border-2: #2f2f2f;
-            --d-text: #F4F4F4; --d-text-2: #B0B0B0; --d-muted: #9a9a9a;
-            /* dark right-sidebar surfaces (the sidebar stays dark in both themes) */
-            --s-bg: #131c2f; --s-bg2: #0e1626; --s-text: #c7d2e5; --s-muted: #7a86a0; --s-border: rgba(255,255,255,.07);
-            /* brand */
-            --gold: #C5A059; --gold-soft: #e0c489; --gold-on-dark: #e0c489; --navy: #0C2340; --navy-2: #16335c;
-            --green: #10b981; --amber: #f59e0b; --yellow: #eab308; --red: #ef4444; --blue: #2563eb; --purple: #7c3aed; --teal: #0d9488;
-            --shadow: 0 1px 3px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.5);
-            --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
-            /* semantic surfaces — tokenized so the theme toggle flips everything via one class */
-            --top-bg: rgba(20,20,20,.85);
-            --btn-bg: rgba(255,255,255,.05); --btn-hover-bg: rgba(255,255,255,.12); --btn-hover-fg: #fff;
-            --input-bg: #2D2D2D; --track-bg: rgba(255,255,255,.06); --row-hover: rgba(255,255,255,.04);
-            --head-color: #fff; --num-color: #fff;
-            --kpi-red: #fca5a5; --kpi-amber: #fcd34d; --kpi-green: #6ee7b7;
-            --focus-ring: 0 0 0 3px rgba(201,162,39,.15);
-            /* status chips / badges */
-            --ok-bg: rgba(16,185,129,.15); --ok-fg: #6ee7b7;
-            --bad-bg: rgba(239,68,68,.15); --bad-fg: #fca5a5;
-            --warn-bg: rgba(245,158,11,.16); --warn-fg: #fcd34d;
-            --y-bg: rgba(234,179,8,.14); --y-fg: #fde68a;
-            --info-bg: rgba(59,130,246,.15); --info-fg: #93c5fd;
-            --neutral-bg: rgba(255,255,255,.07); --neutral-fg: #8593ad;
-            margin: 0; background: var(--d-bg); color: var(--d-text);
-            font-family: 'Tajawal','Cairo',system-ui,sans-serif; min-height: 100vh;
-            transition: background .25s, color .25s;
-        }
-        /* ===== DARK theme (toggle) — restores the previous deep-dark identity ===== */
-        .bz-dash.theme-dark {
-            --d-bg: #080C14; --d-bg2: #0B111E; --d-card: #111726; --d-card-2: #0e1421;
-            --d-border: rgba(255,255,255,0.08); --d-border-2: rgba(255,255,255,0.04);
-            --d-text: #eaf1ff; --d-text-2: #c2cde3; --d-muted: #8593ad;
-            --s-bg: #0B111E; --s-bg2: #0e1421; --s-text: #c2cde3; --s-muted: #8593ad; --s-border: rgba(255,255,255,.08);
-            --gold-soft: #e3c766;
-            --top-bg: rgba(11,17,30,.82);
-            --btn-bg: rgba(255,255,255,.05); --btn-hover-bg: rgba(255,255,255,.12); --btn-hover-fg: #fff;
-            --input-bg: #0B111E; --track-bg: rgba(255,255,255,.05); --row-hover: rgba(255,255,255,.03);
-            --head-color: #fff; --num-color: #fff;
-            --kpi-red: #fca5a5; --kpi-amber: #fcd34d; --kpi-green: #6ee7b7;
-            --focus-ring: 0 0 0 3px rgba(201,162,39,.25);
-            --ok-bg: rgba(16,185,129,.15); --ok-fg: #6ee7b7;
-            --bad-bg: rgba(239,68,68,.15); --bad-fg: #fca5a5;
-            --warn-bg: rgba(245,158,11,.16); --warn-fg: #fcd34d;
-            --y-bg: rgba(234,179,8,.14); --y-fg: #fde68a;
-            --info-bg: rgba(59,130,246,.15); --info-fg: #93c5fd;
-            --neutral-bg: rgba(255,255,255,.07); --neutral-fg: #8593ad;
-            /* deeper shadows so cards keep their elevation on the dark surface */
-            --shadow: 0 1px 3px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.5);
-            --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
-        }
-        .bz-dash * { box-sizing: border-box; }
-
-        /* ---- Top bar ---- */
-        .dash-top {
-            position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 1rem;
-            padding: .7rem 1.25rem; backdrop-filter: blur(18px);
-            background: linear-gradient(180deg,#2c2c2c 0%,#1a1a1a 48%,#0e0e0e 100%) !important;
-            border-bottom: 1px solid var(--d-border);
-            box-shadow: 0 6px 26px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
-            transition: background .25s, box-shadow .25s;
-        }
-        .dash-top::after { content: ''; position: absolute; inset-inline: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, var(--gold), var(--gold-soft)); opacity: .92; }
-        .dash-top .brand { display: flex; align-items: center; gap: .7rem; }
-        .dash-top .brand img { height: 42px; width: auto; background: #fff; border-radius: 8px; padding: 3px; box-shadow: var(--shadow-sm); }
-        .dash-top .brand b { font-size: 1rem; font-weight: 800; letter-spacing: .3px; display: block; color: var(--head-color); }
-        .dash-top .brand span { font-size: .68rem; color: var(--gold-soft); font-weight: 700; }
-        .dash-top .spacer { flex: 1; }
-        .dash-top .meta { text-align: left; font-size: .72rem; color: var(--d-muted); line-height: 1.5; white-space: nowrap; }
-        .dash-top .meta b { color: var(--d-text); }
-        /* relocated date line (now in the content): brighter label + gold date values */
-        #topMeta b { color: var(--gold-soft); font-weight: 800; }
-        .dash-top .tbtn {
-            width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--d-border);
-            background: var(--btn-bg); color: var(--d-text-2); cursor: pointer; font-size: 1rem;
-            display: inline-flex; align-items: center; justify-content: center; transition: .15s; box-shadow: var(--shadow-sm);
-        }
-        .dash-top .tbtn:hover { background: var(--btn-hover-bg); color: var(--btn-hover-fg); }
-        .dash-top .back-link {
-            text-decoration: none; color: #fff; background: var(--navy); font-weight: 800;
-            font-size: .8rem; padding: 8px 14px; border-radius: 10px; transition: .15s; white-space: nowrap; box-shadow: var(--shadow-sm);
-        }
-        .dash-top .back-link:hover { background: var(--navy-2); }
-        .dash-burger { display: none; }
-
-        /* ---- Layout ---- */
-        .dash-layout { display: flex; align-items: flex-start; }
-        .dash-side {
-            width: 248px; flex: 0 0 248px; position: sticky; top: 58px; align-self: flex-start;
-            height: calc(100vh - 58px); overflow-y: auto; padding: 1rem .8rem;
-            background: linear-gradient(180deg,#242424 0%,#161616 42%,#0c0c0c 100%) !important;
-            border-inline-start: 1px solid rgba(197,160,89,.22);
-            box-shadow: 0 10px 34px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
-            transition: background .25s, box-shadow .25s;
-        }
-        .dash-side .side-title { font-size: .68rem; color: var(--s-muted); font-weight: 700; margin: 1rem .6rem .4rem; letter-spacing: .5px; }
-        .dash-side a {
-            display: flex; align-items: center; gap: .65rem; padding: 10px 14px; margin-bottom: 3px;
-            color: var(--s-text); text-decoration: none; border-radius: 11px; font-size: .86rem; font-weight: 600;
-            transition: .15s; border-inline-start: 3px solid transparent;
-        }
-        .dash-side a:hover { background: rgba(255,255,255,.06); color: #fff; }
-        .dash-side a.active { background: rgba(197,160,89,.18); color: var(--gold-on-dark); border-inline-start-color: var(--gold); }
-        .dash-side a .ic { font-size: 1.05rem; width: 22px; text-align: center; }
-
-        .dash-main { flex: 1; min-width: 0; padding: 1.4rem clamp(1rem, 3vw, 2.2rem) 4rem; }
-        .dash-h {
-            display: flex; align-items: center; gap: .6rem; font-size: 1.15rem; font-weight: 800; color: var(--head-color);
-            margin: 2rem 0 1rem; padding-bottom: .55rem; border-bottom: 1px solid var(--d-border);
-        }
-        .dash-h:first-child { margin-top: .3rem; }
-        .dash-h::before { content: ''; width: 5px; height: 1.15rem; background: var(--gold); border-radius: 3px; }
-        .dash-h .sub { font-size: .72rem; font-weight: 600; color: var(--d-muted); margin-inline-start: auto; }
-
-        /* ---- KPI cards ---- */
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: .9rem; }
-        .kpi {
-            background: var(--d-card); border: 1px solid var(--d-border); border-radius: 16px;
-            padding: 16px 18px; position: relative; overflow: hidden; box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s;
-        }
-        .kpi:hover { transform: translateY(-2px); box-shadow: 0 2px 6px rgba(16,24,40,.08), 0 16px 36px rgba(16,24,40,.08); }
-        .kpi::after { content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 4px; background: var(--accent, var(--gold)); opacity: .95; }
-        .kpi .k-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-        .kpi .k-label { font-size: .78rem; color: var(--d-muted); font-weight: 700; }
-        .kpi .k-ic { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; background: var(--accent-soft, rgba(201,162,39,.12)); }
-        .kpi .k-num { font-size: 2rem; font-weight: 900; margin-top: 8px; line-height: 1; color: var(--num-color); font-variant-numeric: tabular-nums; }
-        .kpi .k-foot { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; font-size: .72rem; color: var(--d-muted); margin-top: 6px; }
-        .kpi.k-gold { --accent: var(--gold); --accent-soft: rgba(201,162,39,.14); }
-        .kpi.k-green { --accent: var(--green); --accent-soft: rgba(16,185,129,.13); }
-        .kpi.k-red { --accent: var(--red); --accent-soft: rgba(239,68,68,.12); }
-        .kpi.k-amber { --accent: var(--amber); --accent-soft: rgba(245,158,11,.14); }
-        .kpi.k-blue { --accent: var(--blue); --accent-soft: rgba(37,99,235,.12); }
-        .kpi.k-navy { --accent: var(--navy-2); --accent-soft: rgba(22,51,92,.12); }
-        .kpi.k-red .k-num { color: var(--kpi-red); } .kpi.k-amber .k-num { color: var(--kpi-amber); }
-        .kpi.k-green .k-num { color: var(--kpi-green); }
-        /* real trend chip (computed from history snapshots — never fabricated) */
-        .k-trend { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; font-size: .7rem; padding: 2px 8px; border-radius: 999px; font-variant-numeric: tabular-nums; }
-        .k-trend.up { background: var(--ok-bg); color: var(--ok-fg); }
-        .k-trend.down { background: var(--bad-bg); color: var(--bad-fg); }
-        .k-trend.flat { background: var(--neutral-bg); color: var(--neutral-fg); }
-
-        /* ---- Cards / panels ---- */
-        .panel { background: var(--d-card); border: 1px solid var(--d-border); border-radius: 16px; padding: 1rem 1.1rem; box-shadow: var(--shadow); }
-        .grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.1rem; align-items: start; }
-        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 1.1rem; }
-
-        /* ---- Alert center ---- */
-        .filters { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .9rem; align-items: center; }
-        .chip {
-            border: 1px solid var(--d-border); background: var(--btn-bg); color: var(--d-text-2);
-            padding: 6px 13px; border-radius: 999px; font-size: .78rem; font-weight: 700; cursor: pointer; transition: .15s; box-shadow: var(--shadow-sm);
-        }
-        .chip:hover { background: var(--btn-hover-bg); color: var(--btn-hover-fg); }
-        .chip.on { background: var(--gold); color: var(--navy); border-color: var(--gold); }
-        .chip .c-n { opacity: .7; font-weight: 800; margin-inline-start: 4px; }
-
-        .dtable-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--d-border); }
-        table.dtable { width: 100%; border-collapse: collapse; font-size: .82rem; background: var(--d-card); }
-        table.dtable thead th {
-            background: var(--d-bg2); color: var(--d-text-2); font-weight: 800; text-align: right; padding: 11px 12px;
-            position: sticky; top: 0; white-space: nowrap; word-break: keep-all; overflow-wrap: normal;
-            border-bottom: 1px solid var(--d-border);
-        }
-        table.dtable tbody td { padding: 10px 12px; border-bottom: 1px solid var(--d-border-2); color: var(--d-text); vertical-align: middle; }
-        table.dtable tbody tr:hover td { background: var(--row-hover); }
-        table.dtable .plate { font-family: monospace; direction: ltr; unicode-bidi: plaintext; display: inline-block; font-weight: 700; }
-        .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; }
-        .st-expired { background: var(--bad-bg); color: var(--bad-fg); }
-        .st-d30 { background: var(--warn-bg); color: var(--warn-fg); }
-        .st-d90 { background: var(--y-bg); color: var(--y-fg); }
-        .st-valid { background: var(--ok-bg); color: var(--ok-fg); }
-        .st-unknown { background: var(--neutral-bg); color: var(--neutral-fg); }
-        .days-left { font-variant-numeric: tabular-nums; font-size: .72rem; color: var(--d-muted); }
-        /* sortable headers + selection checkboxes for the alerts table */
-        table.dtable th.al-sort { cursor: pointer; user-select: none; transition: color .15s; }
-        table.dtable th.al-sort:hover { color: var(--gold-on-dark); }
-        table.dtable .sort-ind { font-size: .68rem; color: var(--gold-on-dark); }
-        table.dtable input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--gold); vertical-align: middle; }
-
-        /* ---- Charts ---- */
-        .bar-row { display: flex; align-items: center; gap: .6rem; margin-bottom: .55rem; font-size: .8rem; }
-        .bar-row .bl { width: 96px; flex: 0 0 96px; color: var(--d-text-2); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .bar-row .bt { flex: 1; height: 14px; background: var(--track-bg); border-radius: 7px; overflow: hidden; }
-        .bar-row .bf { height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--navy-2), var(--gold)); }
-        .bar-row .bv { width: 34px; flex: 0 0 34px; text-align: left; font-weight: 800; color: var(--d-text); font-variant-numeric: tabular-nums; }
-        .donut-wrap { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
-        .donut { width: 150px; height: 150px; border-radius: 50%; flex: 0 0 150px; position: relative; }
-        .donut::after { content: ''; position: absolute; inset: 26px; border-radius: 50%; background: var(--d-card); box-shadow: inset 0 0 0 1px var(--d-border); }
-        .donut .d-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; }
-        .donut .d-c b { font-size: 1.5rem; font-weight: 900; color: var(--num-color); }
-        .donut .d-c span { font-size: .66rem; color: var(--d-muted); }
-        .legend { display: flex; flex-direction: column; gap: .4rem; font-size: .8rem; }
-        .legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; margin-inline-end: 7px; }
-        .legend div { display: flex; align-items: center; }
-        .legend b { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
-
-        /* ---- Search ---- */
-        .search-bar { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1rem; }
-        .search-bar input, .search-bar select {
-            background: var(--input-bg); border: 1px solid var(--d-border); color: var(--d-text);
-            border-radius: 11px; padding: 11px 14px; font: inherit; font-size: .85rem; outline: none; box-shadow: var(--shadow-sm);
-        }
-        .search-bar input { flex: 1; min-width: 220px; }
-        .search-bar input:focus, .search-bar select:focus { border-color: var(--gold); box-shadow: var(--focus-ring); }
-        .search-bar select { min-width: 150px; cursor: pointer; }
-
-        /* ---- History timeline ---- */
-        .timeline { position: relative; padding-inline-start: 22px; }
-        .timeline::before { content: ''; position: absolute; inset-inline-start: 6px; top: 4px; bottom: 4px; width: 2px; background: var(--d-border); }
-        .tl-item { position: relative; padding: 0 0 1.1rem 0; }
-        .tl-item::before { content: ''; position: absolute; inset-inline-start: -20px; top: 4px; width: 11px; height: 11px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(201,162,39,.15); }
-        .tl-item.base::before { background: var(--blue); box-shadow: 0 0 0 4px rgba(37,99,235,.15); }
-        .tl-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
-        .tl-date { font-weight: 800; color: var(--head-color); font-size: .86rem; }
-        .tl-time { font-size: .72rem; color: var(--d-muted); }
-        .tl-tag { font-size: .7rem; font-weight: 800; padding: 2px 9px; border-radius: 999px; background: rgba(201,162,39,.15); color: var(--gold-soft); }
-        .tl-note { font-size: .8rem; color: var(--d-text-2); margin: 5px 0 7px; }
-        .tl-acts { display: flex; gap: .4rem; flex-wrap: wrap; }
-        .tl-acts button {
-            border: 1px solid var(--d-border); background: var(--btn-bg); color: var(--d-text-2);
-            padding: 5px 11px; border-radius: 9px; font-size: .74rem; font-weight: 700; cursor: pointer; transition: .15s; box-shadow: var(--shadow-sm);
-        }
-        .tl-acts button:hover { background: var(--btn-hover-bg); color: var(--btn-hover-fg); }
-        .tl-acts button.restore:hover { background: var(--bad-bg); color: var(--bad-fg); border-color: rgba(239,68,68,.4); }
-
-        .muted-note { font-size: .76rem; color: var(--d-muted); line-height: 1.7; }
-        .empty-hint { color: var(--d-muted); font-size: .85rem; padding: 1.5rem; text-align: center; }
-        .pct-bar { height: 8px; border-radius: 6px; background: var(--track-bg); overflow: hidden; margin-top: 8px; }
-        .pct-bar > i { display: block; height: 100%; border-radius: 6px; }
-
-        /* ---- GPS live map ---- */
-        .gps-stats { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: .85rem; }
-        .gps-stat { background: var(--d-card-2); border: 1px solid var(--d-border); border-radius: 12px; padding: 10px 16px; min-width: 130px; }
-        .gps-stat b { font-size: 1.5rem; font-weight: 900; display: block; line-height: 1; font-variant-numeric: tabular-nums; color: var(--num-color); }
-        .gps-stat span { font-size: .72rem; color: var(--d-muted); }
-        .gps-wrap { position: relative; }
-        #dashMap { position: relative; z-index: 1; height: 400px; width: 100%; border-radius: 12px; border: 1px solid var(--d-border); background: var(--d-bg2); }
-        .gps-overlay {
-            position: absolute; inset: 0; z-index: 500; display: flex; flex-direction: column; gap: .7rem;
-            align-items: center; justify-content: center; text-align: center; padding: 1.5rem;
-            background: rgba(8,12,20,.78); border-radius: 12px; color: #eaf1ff;
-        }
-        .gps-overlay.hidden { display: none; }
-        .gps-overlay .gi { font-size: 2.4rem; }
-        .gps-overlay .chip { background: rgba(255,255,255,.92); color: var(--navy); }
-        .gps-spinner { width: 38px; height: 38px; border: 4px solid rgba(255,255,255,.25); border-top-color: var(--gold); border-radius: 50%; animation: bz-spin .9s linear infinite; }
-        @keyframes bz-spin { to { transform: rotate(360deg); } }
-        .leaflet-popup-content { font-family: 'Tajawal','Cairo',sans-serif; }
-        .dmark { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 10px; color: #fff; }
-
-        @media (max-width: 900px) {
-            .grid-2 { grid-template-columns: 1fr; }
-            .dash-burger { display: inline-flex; }
-            .dash-side {
-                position: fixed; inset-inline-start: 0; top: 56px; z-index: 55; height: calc(100vh - 56px);
-                transform: translateX(110%); transition: transform .25s; box-shadow: -12px 0 40px rgba(0,0,0,.5);
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
             }
         }
     </script>
@@ -311,12 +39,7 @@
         .dmark { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 10px; color: #fff; }
     </style>
 </head>
-<<<<<<< HEAD
 <body class="flex h-screen overflow-hidden text-gray-800">
-=======
-<body class="bz-dash">
-<script>try{if(localStorage.getItem('bz_dash_theme')==='dark')document.body.classList.add('theme-dark');}catch(e){}</script>
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 
     <aside class="w-64 bg-primary text-white flex flex-col justify-between hidden md:flex">
         <div>
@@ -347,7 +70,6 @@
                 </a>
             </nav>
         </div>
-<<<<<<< HEAD
         <div class="p-4 text-center text-xs text-gray-500 border-t border-gray-700">
             جميع الحقوق محفوظة &copy; 2026
         </div>
@@ -360,43 +82,6 @@
                 <div>
                     <h2 class="text-lg font-bold">الرئيسية / فرع الدمام</h2>
                     <p class="text-xs text-gray-300" id="topMeta"></p>
-=======
-        <div class="spacer"></div>
-        <button class="tbtn" id="themeBtn" onclick="bzToggleDashTheme()" title="التبديل للوضع الداكن">🌙</button>
-        <a class="back-link" id="backLink" href="/">← الموقع</a>
-    </header>
-
-    <div class="dash-layout">
-        <!-- ===== Sidebar ===== -->
-        <aside class="dash-side" id="side">
-            <div class="side-title">الأقسام</div>
-            <a href="#overview" class="active"><span class="ic">📊</span> نظرة عامة</a>
-            <a href="#alerts"><span class="ic">🚨</span> مركز التنبيهات</a>
-            <a href="#gps"><span class="ic">🛰️</span> التتبع المباشر</a>
-            <a href="#charts"><span class="ic">📈</span> الرسوم البيانية</a>
-            <a href="#search"><span class="ic">🔎</span> البحث والفلاتر</a>
-            <a href="#history"><span class="ic">🕒</span> سجل التحديثات</a>
-            <a href="#audit"><span class="ic">📝</span> سجل التدقيق</a>
-            <a href="/kpis"><span class="ic">🎯</span> مؤشرات الأداء (KPIs)</a>
-            <div class="side-title">التبويبات</div>
-            <nav id="quickLinks"></nav>
-        </aside>
-
-        <!-- ===== Main ===== -->
-        <main class="dash-main">
-
-            <!-- date line (relocated out of the top bar; populated by topMeta() via id) -->
-            <div class="meta" id="topMeta" style="font-size:.82rem;color:var(--d-text-2);margin:.2rem 0 .1rem;line-height:1.6;">—</div>
-
-            <!-- Overview / KPIs -->
-            <div class="dash-h" id="overview">نظرة عامة تنفيذية <span class="sub" id="ovSub"></span></div>
-            <section class="kpi-grid" id="kpiGrid"></section>
-
-            <div class="grid-2" style="margin-top:1.1rem;">
-                <div class="panel">
-                    <div style="font-weight:800;margin-bottom:.7rem;">مؤشرات الجاهزية</div>
-                    <div id="readiness"></div>
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
                 </div>
             </div>
             <div class="flex items-center gap-4">
@@ -474,7 +159,6 @@
                 </div>
             </div>
 
-<<<<<<< HEAD
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="glass-card lg:col-span-2 relative">
                     <div class="flex justify-between items-center mb-4">
@@ -487,39 +171,6 @@
                     <div class="relative">
                         <div id="dashMap"></div>
                         <div class="gps-overlay" id="gpsOverlay"><div class="gps-spinner"></div><div class="text-gray-600 font-bold mt-2">جارٍ تجهيز الخريطة…</div></div>
-=======
-            <!-- Alerts -->
-            <div class="dash-h" id="alerts">🚨 مركز تنبيهات الوثائق <span class="sub" id="alSub"></span></div>
-            <section class="panel">
-                <div id="alMailBar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.7rem .8rem;background:var(--d-card-2);border:1px solid var(--d-border);border-radius:12px;">
-                    <span style="font-weight:700;font-size:.84rem;">📧 إرسال تنبيهات الوثائق بالبريد:</span>
-                    <input id="alMailTo" type="text" placeholder="بريد المستلمين (افصل بفاصلة)" style="flex:1;min-width:220px;background:var(--d-bg2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:8px 12px;font:inherit;font-size:.82rem;outline:none;">
-                    <button class="chip on" id="alMailBtn" onclick="sendExpiryMail()">📧 إرسال حسب الفرز</button>
-                    <span class="muted-note" id="alMailHint" style="width:100%;margin-top:2px;">…</span>
-                </div>
-                <div class="filters" id="alFilters"></div>
-                <div class="dtable-wrap">
-                    <table class="dtable">
-                        <thead id="alHead"><tr>
-                            <th style="width:38px;text-align:center"><input type="checkbox" id="alSelectAll" onclick="toggleAllAlerts(this)" title="تحديد الكل"></th>
-                            <th class="al-sort" onclick="sortAlerts('name')">الاسم<span class="sort-ind" data-k="name"></span></th><th class="al-sort" onclick="sortAlerts('plate')">رقم اللوحة<span class="sort-ind" data-k="plate"></span></th><th class="al-sort" onclick="sortAlerts('doc')">الوثيقة<span class="sort-ind" data-k="doc"></span></th><th class="al-sort" onclick="sortAlerts('date')">تاريخ الانتهاء<span class="sort-ind" data-k="date"></span></th><th class="al-sort" onclick="sortAlerts('days')">المتبقي<span class="sort-ind" data-k="days"></span></th><th class="al-sort" onclick="sortAlerts('status')">الحالة<span class="sort-ind" data-k="status"></span></th>
-                        </tr></thead>
-                        <tbody id="alBody"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- GPS live map -->
-            <div class="dash-h" id="gps">🛰️ التتبع المباشر للأسطول <span class="sub" id="gpsSub"></span></div>
-            <section class="panel">
-                <div class="gps-stats">
-                    <div class="gps-stat"><b id="gpsTotal">0</b><span>مركبات على الخريطة</span></div>
-                    <div class="gps-stat"><b id="gpsOnline" style="color:var(--ok-fg)">0</b><span>🟢 نشطة الآن</span></div>
-                    <div class="gps-stat"><b id="gpsOffline" style="color:var(--bad-fg)">0</b><span>🔴 متوقفة</span></div>
-                    <div class="gps-stat" style="flex:1;min-width:auto;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;background:transparent;border:none;">
-                        <button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>
-                        <a class="chip" id="gpsFull" href="/tracking" style="text-decoration:none;">↗ التتبع الكامل</a>
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
                     </div>
                 </div>
                 
@@ -723,7 +374,6 @@
   }
 
   var alFilter = 'attention'; // attention = expired+d30+d90
-<<<<<<< HEAD
   // Helper to generate unique ID for each alert
   function getAlertId(a) {
     return btoa(a.name + '|' + a.doc + '|' + a.date);
@@ -732,7 +382,6 @@
   var resolvedSet = new Set(JSON.parse(localStorage.getItem('resolvedAlerts') || '[]'));
   var alertNotes = JSON.parse(localStorage.getItem('alertNotes') || '{}');
 
-=======
   var alSort = { key: 'status', dir: 1 };   // sortable-table state
   var alSelected = {};                       // selected row keys (persist across sort/filter)
   var alCurList = [];                        // current sorted + filtered visible list
@@ -767,7 +416,6 @@
     var n = Object.keys(alSelected).length, btn = $('alMailBtn');
     if (btn && !btn.disabled) btn.textContent = n ? ('📧 إرسال المحدد (' + n + ')') : '📧 إرسال حسب الفرز';
   }
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
   function renderAlerts() {
     var counts = { expired: 0, d30: 0, d90: 0, valid: 0, unknown: 0 };
     ALERTS.forEach(function (a) { counts[a.st.key]++; });
@@ -802,7 +450,6 @@
     Array.prototype.forEach.call($('t-alerts-filters').querySelectorAll('button'), function (c) {
       c.onclick = function () { alFilter = c.getAttribute('data-k'); renderAlerts(); };
     });
-<<<<<<< HEAD
 
     if (!list.length) { $('t-alerts').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">لا توجد وثائق ✓</p>'; return; }
 
@@ -895,24 +542,6 @@
         setTimeout(function () { renderAlerts(); }, 800);
       };
     });
-=======
-    alCurList = alVisibleList().slice().sort(alCompare);
-    $('alSub').textContent = alCurList.length + ' وثيقة';
-    Array.prototype.forEach.call(document.querySelectorAll('#alHead .sort-ind'), function (el) {
-      el.textContent = (alSort.key === el.getAttribute('data-k')) ? (alSort.dir > 0 ? ' ▲' : ' ▼') : '';
-    });
-    if (!alCurList.length) {
-      $('alBody').innerHTML = '<tr><td colspan="7" class="empty-hint">لا توجد وثائق في هذا التصنيف ✓</td></tr>';
-      var sa0 = $('alSelectAll'); if (sa0) sa0.checked = false; updateAlMailBtn(); return;
-    }
-    $('alBody').innerHTML = alCurList.slice(0, 400).map(function (a, i) {
-      var ck = alSelected[alKey(a)] ? ' checked' : '';
-      return '<tr><td style="text-align:center"><input type="checkbox" class="al-ck" data-i="' + i + '" onclick="alRowToggle(this)"' + ck + '></td><td>' + esc(a.name) + '</td><td><span class="plate">' + esc(a.plate || '—') + '</span></td><td>' + esc(a.doc) +
-        '</td><td>' + esc(a.date) + '</td><td class="days-left">' + fmtDays(a.st) + '</td><td><span class="badge ' + a.st.cls + '">' + a.st.label + '</span></td></tr>';
-    }).join('');
-    var sa = $('alSelectAll'); if (sa) sa.checked = alCurList.every(function (a) { return alSelected[alKey(a)]; });
-    updateAlMailBtn();
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
   }
 
   // ---------- KPIs ----------
@@ -961,9 +590,6 @@
       { c: 'k-amber', ic: '🗓️', label: 'تنتهي خلال 90 يوم', num: d90, foot: 'تخطيط للتجديد' },
       { c: 'k-green', ic: '🧼', label: 'غُسلت هذا الشهر', num: washedThis, foot: 'لم تُغسل: ' + (pendingThis < 0 ? 0 : pendingThis) }
     ];
-<<<<<<< HEAD
-    //$('kpiGrid').innerHTML(function (k) {
-=======
     $('kpiGrid').innerHTML = cards.map(function (k) {
       var trendHtml = '', footText = k.foot;
       if (k.trend) {
@@ -971,7 +597,6 @@
         trendHtml = '<span class="k-trend ' + (up ? 'up' : 'down') + '" title="مقارنةً بآخر نسخة في سجل التحديثات">' + (up ? '▲ +' : '▼ ') + k.trend.delta + '</span>';
         footText = k.trend.age; // show the real period instead of the static sub-stat when something actually changed
       }
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
       return '<div class="kpi ' + k.c + '"><div class="k-top"><span class="k-label">' + k.label + '</span><span class="k-ic">' + k.ic + '</span></div>' +
         '<div class="k-num">' + k.num + '</div><div class="k-foot">' + trendHtml + '<span>' + esc(footText) + '</span></div></div>';
     }).join('');
@@ -994,11 +619,7 @@
     rows.forEach(function (r) { if (r && r.vtype) { var k = String(r.vtype).split(' ')[0]; byType[k] = (byType[k] || 0) + 1; } });
     var parts = Object.keys(byType).sort(function (a, b) { return byType[b] - byType[a]; }).slice(0, 6)
       .map(function (k) { return esc(k) + ': <b>' + byType[k] + '</b>'; });
-<<<<<<< HEAD
-    // parts.length ? parts.join(' &nbsp;•&nbsp; ') : '—';
-
-    
-        // Update Tailwind KPIs
+    // Update Tailwind KPIs
         if($('t-vehicles')) {
             $('t-vehicles').textContent = vehicles;
             $('t-vehicles-foot').textContent = (rows.length ? (rows.length + ' في الجدول الأسبوعي') : '');
@@ -1019,10 +640,7 @@
             $('t-compliance').textContent = docPct + '%';
             $('t-compliance-foot').textContent = 'نسبة الوثائق السارية';
         }
-    \n    // 'آخر قراءة: ' + new Date().toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
-=======
-    $('fleetMini').innerHTML = parts.length ? parts.join(' &nbsp;•&nbsp; ') : '—';
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
+    // 'آخر قراءة: ' + new Date().toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
   }
 
   // ---------- charts ----------
@@ -1057,15 +675,9 @@
     var total = segs.reduce(function (s, x) { return s + x.n; }, 0);
     var acc = 0, stops = [];
     segs.forEach(function (s) { if (s.n > 0) { var a = acc / (total || 1) * 360, b = (acc + s.n) / (total || 1) * 360; stops.push(s.col + ' ' + a + 'deg ' + b + 'deg'); acc += s.n; } });
-<<<<<<< HEAD
-    // = total ? ('conic-gradient(' + stops.join(',') + ')') : 'rgba(255,255,255,.05)';
-    // = '<b>' + total + '</b><span>وثيقة</span>';
-    // = segs.map(function (s) {
-=======
     $('chDonut').style.background = total ? ('conic-gradient(' + stops.join(',') + ')') : 'var(--track-bg)';
     $('donutCenter').innerHTML = '<b>' + total + '</b><span>وثيقة</span>';
     $('donutLegend').innerHTML = segs.map(function (s) {
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
       return '<div><i style="background:' + s.col + '"></i>' + s.k + '<b>' + s.n + '</b></div>';
     }).join('');
   }
@@ -1253,28 +865,7 @@
     var lockCode = await window.bzPrompt('🔒 أدخل رمز الإرسال للمتابعة:', '', { password: true });
     if (lockCode === null) return;   // أُلغيت العملية
     if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
-<<<<<<< HEAD
-
-    var list;
-    if (alFilter === 'attention') {
-      list = ALERTS.filter(function (a) { return a.st.key === 'expired' || a.st.key === 'd30' || a.st.key === 'd90'; });
-    } else if (alFilter === 'resolved') {
-      list = ALERTS.filter(function (a) { return resolvedSet.has(getAlertId(a)); });
-    } else if (alFilter === 'all') {
-      list = ALERTS.slice();
-    } else {
-      list = ALERTS.filter(function (a) { return a.st.key === alFilter; });
-    }
-    
-    var labelMap = { attention: 'تحتاج إجراء', expired: 'منتهية', d30: '≤ 30 يوم', d90: '≤ 90 يوم', valid: 'سارية', resolved: 'مُقيّدة', all: 'الكل' };
-    var filterLabel = labelMap[alFilter] || 'الكل';
-
-    var payload = { recipients: to, rows: list, filter: filterLabel };
-
-    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-=======
     fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to, rows: rows, filter: scopeLabel, lock: lockCode }) })
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
       .then(function (r) { return r.json(); })
       .then(function (res) {
         var msg;
@@ -1287,13 +878,8 @@
         if (hint) hint.innerHTML = msg;
         if (window.showToast && res.success) showToast('تم إرسال التنبيه (' + scopeLabel + ')', 'success');
       })
-<<<<<<< HEAD
-      .catch(function () { if (hint) hint.innerHTML = '<span style="color:#fca5a5">تعذّر الاتصال بالخادم.</span>'; })
-      .finally(function () { if (btn) { btn.disabled = false; btn.textContent = 'إرسال'; } });
-=======
       .catch(function () { if (hint) hint.innerHTML = '<span style="color:var(--bad-fg)">تعذّر الاتصال بالخادم.</span>'; })
       .finally(function () { if (btn) { btn.disabled = false; } updateAlMailBtn(); });
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
   };
 
   // ---------- audit log (server-side, read-only, append-only) ----------
@@ -1317,13 +903,9 @@
   function weekNo(d) { var t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7)); var w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7); }
   function topMeta() {
     var now = new Date();
-<<<<<<< HEAD
-    $('topMeta').textContent = now.toLocaleDateString('ar-EG', { dateStyle: 'medium', weekday: 'long' }) + ' | الأسبوع ' + weekNo(now);
-=======
     var tm = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     $('topMeta').innerHTML = 'التاريخ: <b>' + now.toLocaleDateString('ar-EG', { dateStyle: 'medium' }) + '</b> &nbsp;·&nbsp; الوقت: <b>' + tm + '</b> &nbsp;·&nbsp; الأسبوع <b>' + weekNo(now) + '</b>';
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
-    $('backLink').href = PREFIX + '/';
+    if ($('backLink')) $('backLink').href = PREFIX + '/';
   }
   function quickLinks() {
     var tabs = [

@@ -4,8 +4,6 @@
  * Page Transitions, Idle Session Timeout, and Bilingual Translation.
  */
 
-<<<<<<< HEAD
-=======
 // Global flag: are we inside the open /importantworkstation sandbox? Every tab uses this
 // to start EMPTY and persist to the server (id=2) instead of showing the main site's data.
 // Purely path-based, so the main site (/) is never affected — even in the same browser.
@@ -51,7 +49,6 @@ window.BZ_ISOLATED = window.BZ_WS || (window.BZ_BRANCH_ID !== 1);
     } catch (e) { /* ignore */ }
 })();
 
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 const translations = {
     "en": {
         // Titles and headers
@@ -269,8 +266,6 @@ const translations = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-<<<<<<< HEAD
-=======
     injectGlobalNavLinks();
     applyWorkstationRestrictions();
     buildEnterpriseShell();
@@ -279,7 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
     injectHeroLogo();
     injectClock();
     injectTabHistory();
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
     initThemeToggle();
     injectTopographicBackground();
     injectUXContainers();
@@ -291,8 +285,6 @@ document.addEventListener('DOMContentLoaded', () => {
     injectLucide();
 });
 
-<<<<<<< HEAD
-=======
 // --- Branch switcher: swap the active branch site-wide (multi-branch data isolation) ---
 // Skips workstation pages (the workstation is its own isolated mode). Updates the header
 // subtitle on every tab, exposes window.BZ_BRANCH, and reloads after switching so all data refreshes.
@@ -992,7 +984,6 @@ window.bzSeedWorkstation = async function () {
     window.location.reload();
 };
 
->>>>>>> 76e1366e06858eefb36fc3eee7d2a4a6e1a3d187
 // --- Theme Management ---
 function initThemeToggle() {
     const savedTheme = localStorage.getItem('darkMode');
