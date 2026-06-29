@@ -521,7 +521,17 @@ var EMOJI_TO_LUCIDE = {
     '📍': 'map-pin', '🌙': 'moon', '☀️': 'sun', '↩': 'undo-2', '↪': 'redo-2', '↻': 'refresh-cw',
     '🔄': 'refresh-cw', '🚀': 'rocket', '💾': 'save', '🏷️': 'tag', '💬': 'message-circle',
     '📞': 'phone', '🧾': 'receipt', '📥': 'download', '📤': 'upload', '🖼️': 'image', '👷': 'hard-hat',
-    '☰': 'menu', '✕': 'x', '✖': 'x', '×': 'x'
+    '☰': 'menu', '✕': 'x', '✖': 'x', '×': 'x',
+    // added for the AI assistant + insights/platform pages (all UI emoji → Lucide)
+    '🤖': 'bot', '🧹': 'eraser', '🧠': 'brain', '⚡': 'zap', '✏️': 'pencil', '✏': 'pencil',
+    '🔌': 'plug', '➤': 'send', '⏳': 'hourglass',
+    // full sweep — every remaining UI emoji across all tabs → Lucide
+    '❌': 'circle-x', '✓': 'check', '✗': 'x', '📎': 'paperclip', '↗️': 'arrow-up-right', '↗': 'arrow-up-right',
+    '🔎': 'search', '🎯': 'target', '🚫': 'ban', '⛔': 'ban', '🧼': 'droplets', '❓': 'circle-help',
+    '⬇️': 'arrow-down', '⬇': 'arrow-down', '🛵': 'bike', '🗂️': 'folders', '🗂': 'folders',
+    '🗺️': 'map', '🗺': 'map', '📭': 'mailbox', '↔️': 'arrow-left-right', '↔': 'arrow-left-right',
+    '🌐': 'globe', '🔙': 'arrow-left', '🪪': 'id-card', '🔗': 'link', '🚐': 'bus',
+    '🛡️': 'shield', '🛡': 'shield', '📦': 'package'
 };
 var _emTest = null, _emSplit = null;
 function _emBuild() {
