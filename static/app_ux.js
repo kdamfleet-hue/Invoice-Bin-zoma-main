@@ -339,6 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
     registerPWA();
     injectLucide();
     injectAIAssistant();
+    injectHelpTour();
 });
 
 // --- Branch switcher: swap the active branch site-wide (multi-branch data isolation) ---
@@ -2398,4 +2399,84 @@ function injectAIAssistant() {
             });
         }
     } catch (e) { /* non-critical */ }
+}
+
+// =============================================================================
+// GUIDED TOUR (جولة تعريفية) — a one-time spotlight walkthrough for new users,
+// re-launchable any time from the ❓ button. Non-blocking, RTL, mobile-friendly.
+// =============================================================================
+window.bzTour = function (rawSteps) {
+    var steps = (rawSteps || []).map(function (s) {
+        return { el: (typeof s.el === 'string') ? document.querySelector(s.el) : s.el, title: s.title, body: s.body };
+    }).filter(function (s) { return s.el && s.el.offsetParent !== null; });
+    if (!steps.length) return;
+    if (document.querySelector('.bz-tour')) return;
+    var i = 0;
+    var ov = document.createElement('div'); ov.className = 'bz-tour'; ov.setAttribute('dir', 'rtl');
+    ov.innerHTML =
+        '<div class="bz-tour-spot"></div>' +
+        '<div class="bz-tour-pop" role="dialog" aria-live="polite"><div class="bz-tour-ttl"></div><div class="bz-tour-body"></div>' +
+        '<div class="bz-tour-foot"><span class="bz-tour-dots"></span><div class="bz-tour-btns">' +
+        '<button class="bz-tour-skip" type="button">تخطّي</button><button class="bz-tour-prev" type="button">السابق</button>' +
+        '<button class="bz-tour-next" type="button">التالي</button></div></div></div>';
+    document.body.appendChild(ov);
+    var spot = ov.querySelector('.bz-tour-spot'), pop = ov.querySelector('.bz-tour-pop'),
+        ttl = ov.querySelector('.bz-tour-ttl'), body = ov.querySelector('.bz-tour-body'),
+        dots = ov.querySelector('.bz-tour-dots'), prevB = ov.querySelector('.bz-tour-prev'), nextB = ov.querySelector('.bz-tour-next');
+    function done() { try { localStorage.setItem('bz_tour_done', '1'); } catch (e) { } ov.remove(); document.removeEventListener('keydown', onKey); window.removeEventListener('resize', render); window.removeEventListener('scroll', render, true); }
+    function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); done(); } else if (e.key === 'Enter' || e.key === 'ArrowLeft') go(1); else if (e.key === 'ArrowRight') go(-1); }
+    function go(d) { i += d; if (i < 0) i = 0; if (i >= steps.length) { done(); return; } render(); }
+    function place() {
+        var s = steps[i], r = s.el.getBoundingClientRect(), pad = 8;
+        spot.style.cssText = 'top:' + (r.top - pad) + 'px;left:' + (r.left - pad) + 'px;width:' + (r.width + pad * 2) + 'px;height:' + (r.height + pad * 2) + 'px;';
+        var ph = pop.offsetHeight || 150, below = r.bottom + 12;
+        var top = (below + ph < window.innerHeight - 8) ? below : Math.max(8, r.top - 12 - ph);
+        var left = Math.min(Math.max(12, r.left + r.width / 2 - pop.offsetWidth / 2), window.innerWidth - pop.offsetWidth - 12);
+        pop.style.top = top + 'px'; pop.style.left = left + 'px';
+    }
+    function render() {
+        var s = steps[i];
+        ttl.textContent = s.title; body.textContent = s.body;
+        dots.innerHTML = steps.map(function (_, k) { return '<i class="' + (k === i ? 'on' : '') + '"></i>'; }).join('');
+        prevB.style.visibility = i === 0 ? 'hidden' : 'visible';
+        nextB.textContent = i === steps.length - 1 ? 'إنهاء' : 'التالي';
+        try { s.el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { }
+        setTimeout(place, 240);
+    }
+    ov.querySelector('.bz-tour-skip').addEventListener('click', done);
+    prevB.addEventListener('click', function () { go(-1); });
+    nextB.addEventListener('click', function () { go(1); });
+    spot.addEventListener('click', function () { go(1); });
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', render);
+    window.addEventListener('scroll', render, true);
+    render();
+};
+
+function injectHelpTour() {
+    try {
+        var topbar = document.querySelector('.bz-topbar');
+        if (!topbar || /\/(login|lock)/.test(location.pathname)) return;
+        var actions = topbar.querySelector('.bz-actions');
+        if (actions && !document.getElementById('bzHelpBtn')) {
+            var b = document.createElement('button');
+            b.id = 'bzHelpBtn'; b.type = 'button'; b.className = 'bz-icon-btn';
+            b.title = 'جولة تعريفية'; b.setAttribute('aria-label', 'جولة تعريفية'); b.textContent = '❓';
+            b.addEventListener('click', startTour);
+            actions.insertBefore(b, actions.firstChild);
+        }
+        var seen = false; try { seen = !!localStorage.getItem('bz_tour_done'); } catch (e) { }
+        if (!seen) setTimeout(startTour, 1500);   // auto-run once for new users
+    } catch (e) { /* non-critical */ }
+    function startTour() {
+        window.bzTour([
+            { el: '.bz-sidebar nav, .bz-topbar .bz-nav', title: 'القائمة الرئيسية', body: 'كل تبويبات النظام هنا: الجدول الأسبوعي، الموظفون، الورشة، الحوادث، التحليلات والمزيد.' },
+            { el: '#bzBranchWrap, .bz-branch-wrap, .bz-branch-badge', title: 'الفرع النشط', body: 'بدّل بين الفروع لعرض وتحرير بيانات كل فرع على حدة بمعزل عن غيره.' },
+            { el: '#bzTopSearch', title: 'بحث سريع', body: 'ابحث فوراً داخل بيانات الصفحة الحالية.' },
+            { el: '#bzAiFab', title: 'المساعد الذكي', body: 'اسأله عن أعداد بياناتك أو اطلب منه تعبئة/تعديل الجداول — يقترح، تراجع، ثم تحفظ بنفسك.' },
+            { el: '.bz-dock', title: 'المشاركة والبريد', body: 'أرسل أي جدول أو تقرير بالبريد أو واتساب، أو صدّره Excel / PDF.' },
+            { el: '#darkModeToggle', title: 'الوضع الليلي/النهاري', body: 'بدّل مظهر الموقع بين الفاخر الداكن والفاتح بضغطة.' },
+            { el: '#bzHelpBtn', title: 'أعد الجولة أي وقت', body: 'تقدر تعيد هذه الجولة التعريفية من هنا متى احتجت. بالتوفيق!' }
+        ]);
+    }
 }

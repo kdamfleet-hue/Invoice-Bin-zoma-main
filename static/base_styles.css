@@ -1076,3 +1076,22 @@ body.light-mode .bz-topbar, body.light-mode .bz-sidebar {
     --text-primary: #F4F4F4 !important; --text-secondary: #B0B0B0 !important; --text-muted: #8c8c8c !important;
     --brand-gold: #C5A059 !important; --brand-gold-soft: #e0c489 !important;
 }
+
+/* ════ Guided tour (جولة تعريفية) — spotlight + tooltip, non-blocking, RTL ════ */
+.bz-tour { position: fixed; inset: 0; z-index: 5500; pointer-events: none; }
+.bz-tour-spot { position: fixed; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(8,12,20,.72); outline: 2px solid var(--brand-gold, #c5a059); outline-offset: 3px; transition: top .3s cubic-bezier(.4,0,.2,1), left .3s cubic-bezier(.4,0,.2,1), width .3s, height .3s; pointer-events: auto; cursor: pointer; }
+.bz-tour-pop { position: fixed; width: 322px; max-width: calc(100vw - 24px); background: var(--surface, #1a1a1a); border: 1px solid rgba(197,160,89,.4); border-radius: 16px; box-shadow: 0 24px 64px rgba(0,0,0,.6); padding: 16px 18px; pointer-events: auto; transition: top .3s ease, left .3s ease; animation: bzTourIn .25s ease; }
+@keyframes bzTourIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.bz-tour-ttl { font-weight: 800; color: var(--brand-gold-soft, #e0c489); font-size: 1.02rem; margin-bottom: 6px; }
+.bz-tour-body { color: var(--text-primary, #eee); font-size: .88rem; line-height: 1.85; }
+.bz-tour-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; gap: 10px; }
+.bz-tour-dots { display: flex; gap: 5px; align-items: center; }
+.bz-tour-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--border, #444); transition: .2s; }
+.bz-tour-dots i.on { background: var(--brand-gold, #c5a059); width: 18px; border-radius: 4px; }
+.bz-tour-btns { display: flex; gap: 8px; }
+.bz-tour-btns button { border: none; cursor: pointer; border-radius: 9px; padding: 7px 15px; font-family: inherit; font-weight: 800; font-size: .8rem; }
+.bz-tour-next { background: var(--accent-gradient, linear-gradient(135deg,#C5A059,#d8b87a)); color: #1a1a1a; }
+.bz-tour-prev { background: var(--surface-hover, #2d2d2d); color: var(--text-secondary, #bbb); }
+.bz-tour-skip { background: transparent; color: var(--text-muted, #888); }
+@media (max-width: 560px) { .bz-tour-pop { width: calc(100vw - 24px); left: 12px !important; } }
+@media print { .bz-tour { display: none !important; } }
