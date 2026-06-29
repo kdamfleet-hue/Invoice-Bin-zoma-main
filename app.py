@@ -301,6 +301,30 @@ def _pk_clause():
     return "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
 
 
+def _persistent_secret_key():
+    """A SECRET_KEY that survives restarts AND redeploys so users are NOT logged out.
+    Precedence: env SECRET_KEY (best) → a key stored once in the (persistent) database →
+    an ephemeral key only if the DB is unreachable. Because the DB persists across deploys
+    (your data does), the stored key is stable forever after the first generation."""
+    env = (os.environ.get("SECRET_KEY") or "").strip()
+    if env:
+        return env
+    try:
+        with db_connection() as db:
+            db.execute("CREATE TABLE IF NOT EXISTS app_secret (id INTEGER PRIMARY KEY, data TEXT NOT NULL)")
+            row = db.execute("SELECT data FROM app_secret WHERE id = 1").fetchone()
+            if row and row["data"]:
+                return row["data"]
+            key = secrets.token_hex(32)
+            db.execute("INSERT INTO app_secret (id, data) VALUES (1, ?)", (key,))
+            db.commit()
+            logger.info("Stored a persistent SECRET_KEY in the database (sessions now survive redeploys).")
+            return key
+    except Exception as e:
+        logger.warning("Persistent SECRET_KEY unavailable (%s) — falling back to an ephemeral key.", e)
+        return app.secret_key
+
+
 def _drivers_table_columns(db):
     """Return the set of column names on the drivers table (portable)."""
     if USE_POSTGRES:
@@ -443,6 +467,12 @@ def init_db():
     logger.info("Database initialized successfully.")
 
 init_db()
+
+# Lock in a stable session key from the persistent DB (unless SECRET_KEY is set in the env),
+# so deploys/restarts no longer log everyone out. Runs once at import, before serving requests.
+if not (os.environ.get("SECRET_KEY") or "").strip():
+    app.secret_key = _persistent_secret_key()
+    app.config["SECRET_KEY"] = app.secret_key
 
 
 @app.route("/login", methods=["GET", "POST"])
