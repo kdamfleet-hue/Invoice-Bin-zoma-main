@@ -418,6 +418,13 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS documents_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Learned driver registry — per-branch memory of each driver's personal data
+            # (بطاقة السائق expiry / الوظيفة / الجوال / الرقم الوظيفي / ملاحظات) keyed by national-id
+            # (iqama), harvested from what the admin types into the weekly schedule. Lets a
+            # driver's card-expiry auto-fill + colour on every future selection. Additive only.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS driver_registry (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Drivers whose vehicle authorization was cancelled (from the Absher sync) —
             # shown under the weekly schedule. Per-branch blob.
             db.execute(
@@ -1732,6 +1739,60 @@ def employees_data():
         return jsonify({"success": False, "error": "تعذّر جلب بيانات الموظفين."}), 500
 
 
+# ===== Learned driver registry (per-branch) =====
+# Maps national-id (iqama, digits only) → the driver's personal employee fields, harvested
+# from the weekly schedule so بطاقة السائق / الوظيفة / الجوال auto-fill on every future pick.
+_REG_FIELDS = ("empid", "phone", "job", "drivercard", "empNotes")
+DRIVER_REG_MAX = 4000  # safety cap on distinct drivers remembered per branch
+# Per-field length caps so a huge paste into الملاحظات can't bloat the blob that ships to every client.
+_REG_FIELD_MAX = {"empid": 40, "phone": 40, "job": 40, "drivercard": 40, "empNotes": 200}
+# Serialize the registry read-modify-write. The Procfile pins gunicorn to --workers 1 --threads 8,
+# so one in-process lock fully prevents lost updates when two admins on the same branch save at once.
+_DRIVER_REG_LOCK = threading.Lock()
+
+
+def _norm_iqama(v):
+    return re.sub(r"\D", "", str(v or ""))
+
+
+def _harvest_driver_registry(sd):
+    """Best-effort: fold any non-empty personal fields from the schedule rows into the
+    per-branch driver registry, keyed by iqama. Latest non-empty value wins; a blank NEVER
+    clears a remembered value — so a swap that clears a row keeps the driver's memory intact.
+    Never raises into the caller (the schedule save must always succeed)."""
+    if not isinstance(sd, dict):
+        return
+    with _DRIVER_REG_LOCK:  # atomic get→mutate→set within the single gunicorn worker
+        reg = blob_get("driver_registry") or {}
+        if not isinstance(reg, dict):
+            reg = {}
+        changed = False
+        for section in ("main", "spare", "vacation"):
+            for row in (sd.get(section) or []):
+                if not isinstance(row, dict):
+                    continue
+                key = _norm_iqama(row.get("iqama"))
+                if not key:
+                    continue
+                existing = key in reg
+                if not existing and len(reg) >= DRIVER_REG_MAX:
+                    continue  # cap reached: stop remembering NEW drivers, still update existing ones
+                entry = reg.get(key) if existing else {}
+                if not isinstance(entry, dict):
+                    entry = {}
+                local_changed = False
+                for f in _REG_FIELDS:
+                    val = str(row.get(f, "") or "").strip()[:_REG_FIELD_MAX.get(f, 80)]
+                    if val and entry.get(f) != val:
+                        entry[f] = val
+                        local_changed = True
+                if local_changed and entry:
+                    reg[key] = entry
+                    changed = True
+        if changed:
+            blob_set("driver_registry", reg)
+
+
 @app.route("/api/schedule_data", methods=["GET", "POST"])
 @login_required
 def schedule_data():
@@ -1740,6 +1801,10 @@ def schedule_data():
         try:
             sd = request.json or {}
             blob_set("schedule_data", sd)
+            try:
+                _harvest_driver_registry(sd)  # learn each driver's card-expiry/job for future autofill
+            except Exception:
+                logger.warning("driver_registry harvest failed (non-fatal)")
             _n = (len(sd.get("main", []) or []) + len(sd.get("spare", []) or [])) if isinstance(sd, dict) else None
             _audit_add("تحديث", "الجدول الأسبوعي", _n)
             return jsonify({"success": True})
@@ -1751,6 +1816,18 @@ def schedule_data():
     except Exception:
         logger.exception("schedule_data GET error")
         return jsonify({"success": False, "error": "تعذّر جلب الجدول الأسبوعي."}), 500
+
+
+@app.route("/api/driver_registry", methods=["GET"])
+@login_required
+def driver_registry():
+    """Per-branch learned driver memory (iqama → personal fields) used by schedule autofill."""
+    try:
+        reg = blob_get("driver_registry") or {}
+        return jsonify({"success": True, "data": reg if isinstance(reg, dict) else {}})
+    except Exception:
+        logger.exception("driver_registry GET error")
+        return jsonify({"success": False, "error": "تعذّر جلب سجل السائقين."}), 500
 
 
 @app.route("/api/records", methods=["GET", "POST"])

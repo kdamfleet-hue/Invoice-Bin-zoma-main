@@ -423,6 +423,7 @@
     function colsFor(section) { return section === 'vacation' ? EMP_COLS : COLS; }
 
     let state = { title: '', date: '', main: [], spare: [], vacation: [], summary: {} };
+    let DRIVER_REG = {};   // learned per-driver memory: iqama(digits) → {empid,phone,job,drivercard,empNotes}
     let saveTimer = null;
 
     function blankRow() { const o = {}; COLS.forEach(c => o[c.key] = ''); o.empNotes = ''; return o; }
@@ -433,6 +434,7 @@
       buildHead('headMain', 'main'); buildHead('headSpare', 'spare'); buildHead('headVac', 'vacation');
       await loadData();
       try { await FleetData.load(); FleetData.fillDatalist('driverNames'); } catch (e) {}
+      await loadDriverRegistry();   // learned card-expiry/job memory, keyed by iqama
       renderAll();
       loadVehicles();        // «جميع مركبات الفرع»
       loadDeauthorized();    // «تم إلغاء تفويضهم»
@@ -540,6 +542,11 @@
       const row = arr && arr[+t.dataset.i];
       if (!row) return;
       row[t.dataset.k] = t.value;
+      // Learn personal fields as they're typed so the same driver auto-fills them next time.
+      if (REG_FIELDS.indexOf(t.dataset.k) !== -1) regRemember(row.iqama, t.dataset.k, t.value);
+      // When the iqama becomes known, back-fill the registry from any personal fields already
+      // typed on this row — so same-session reuse works regardless of column entry order.
+      else if (t.dataset.k === 'iqama') REG_FIELDS.forEach(f => regRemember(row.iqama, f, row[f]));
       if (t.dataset.k !== 'name' && t.dataset.k !== 'iqama') { updateSummary(); scheduleSave(); }
     });
     // autofill triggers on change (after picking from datalist / leaving field)
@@ -549,6 +556,27 @@
       if (t.dataset.k === 'name' || t.dataset.k === 'iqama') autofillRow(t.dataset.sec, +t.dataset.i, t.dataset.k);
       updateSummary(); scheduleSave();
     });
+
+    // ---- learned driver registry: iqama(digits) → {empid,phone,job,drivercard,empNotes} ----
+    const regKey = v => String(v || '').replace(/\D/g, '');
+    const REG_FIELDS = ['empid', 'phone', 'job', 'drivercard', 'empNotes'];
+    const REG_MAXLEN = { empid: 40, phone: 40, job: 40, drivercard: 40, empNotes: 200 };
+    async function loadDriverRegistry() {
+      try {
+        const r = await fetch('/api/driver_registry');
+        if (r.ok) { const j = await r.json(); if (j && j.success && j.data && typeof j.data === 'object') DRIVER_REG = j.data; }
+      } catch (e) {}
+    }
+    // Remember a personal field the instant the admin types it (reusable within the session;
+    // the server also harvests it on save for future sessions). A blank never erases memory.
+    function regRemember(iqama, key, val) {
+      const k = regKey(iqama);
+      if (!k || REG_FIELDS.indexOf(key) === -1) return;
+      const v = String(val || '').trim().slice(0, REG_MAXLEN[key] || 40);
+      if (!v) return;
+      if (!DRIVER_REG[k] || typeof DRIVER_REG[k] !== 'object') DRIVER_REG[k] = {};
+      DRIVER_REG[k][key] = v;
+    }
 
     // ===== Driver swap = total separation of the two data "boxes" (per the branch spec) =====
     //  • Employee box (DYNAMIC): picking/replacing a driver name clears the previous person's
@@ -571,15 +599,19 @@
       const rowIqama = String(row.iqama || '').replace(/\D/g, '');
       if (recIqama && recIqama === rowIqama &&
           String(row.name || '').trim() === String(rec.name || '').trim()) return;
-      // Employee box — clear-and-replace from the master record (empty master ⇒ cleared).
+      // Employee box — clear-and-replace. FleetData (the imported master) is authoritative for
+      // the fields it carries (empid/phone); the LEARNED registry (DRIVER_REG, keyed by iqama)
+      // supplies the fields no master holds — بطاقة السائق / الوظيفة / الملاحظات — and back-fills
+      // empid/phone when the master is blank. Anything still unknown is cleared (no stale carry).
+      const reg = DRIVER_REG[recIqama] || {};
       const setEmp = (k, val) => { row[k] = (val == null ? '' : String(val)); };
       setEmp('name', rec.name);
       setEmp('iqama', rec.iqama);
-      setEmp('empid', rec.empid);
-      setEmp('phone', rec.phone);
-      setEmp('job', '');
-      setEmp('drivercard', '');
-      setEmp('empNotes', '');
+      setEmp('empid', rec.empid || reg.empid || '');
+      setEmp('phone', rec.phone || reg.phone || '');
+      setEmp('job', reg.job || '');
+      setEmp('drivercard', reg.drivercard || '');
+      setEmp('empNotes', reg.empNotes || '');
       // Vehicle box — protected; only fill a blank new row for convenience, never overwrite.
       const fillVehIfBlank = (k, val) => { if (val && !String(row[k] || '').trim()) row[k] = val; };
       fillVehIfBlank('plate', rec.plate);
