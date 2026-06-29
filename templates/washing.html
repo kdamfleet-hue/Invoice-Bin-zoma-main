@@ -51,6 +51,17 @@
         .driver-edit-input { width: 100%; border: none; background: transparent; color: var(--text-primary); font-family: inherit; font-size: 0.85rem; font-weight: bold; text-align: right; outline: none; padding: 4px; transition: var(--trans); border-radius: 4px; }
         .driver-edit-input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
         #washTable tbody td.cell-total { font-weight: 800; font-size: 1rem; background: var(--surface-hover); }
+        #washTable thead th.col-price, #washTable thead th.col-amount { background: var(--accent, #c9a227); color: #0C2340; }
+        #washTable tbody td.cell-amount { font-weight: 800; font-size: 1rem; color: var(--brand-gold-soft, #e0c489); background: rgba(197,160,89,.10); white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .wash-price-in { width: 58px; padding: 5px 4px; text-align: center; border: 1px solid var(--border-strong, #4d4d4d); border-radius: 7px; background: var(--bg-color, #1a1a1a); color: var(--text-primary); font-family: inherit; font-size: .85rem; font-weight: 700; outline: none; -moz-appearance: textfield; }
+        .wash-price-in:focus { border-color: var(--accent, #c5a059); box-shadow: 0 0 0 2px var(--accent-glow, rgba(197,160,89,.26)); }
+        .wash-finance { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 0 auto 1.3rem; max-width: 940px; }
+        .wash-finance .wf-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 17px; font-size: .9rem; font-weight: 700; color: var(--text-secondary); }
+        .wash-finance .wf-item b { font-size: 1.18rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .wash-finance .wf-item.total { border-color: rgba(197,160,89,.45); } .wash-finance .wf-item.total b { color: var(--brand-gold, #c5a059); }
+        .wash-finance .wf-item.month { border-color: rgba(96,165,250,.4); } .wash-finance .wf-item.month b { color: #60a5fa; }
+        .wash-finance .wf-item.paid b { color: #10b981; } .wash-finance .wf-item.pend b { color: #f59e0b; }
+        @media print { .wash-price-in { border: none; background: transparent; padding: 0; } }
         #washTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
 
         /* Wash status cells — meaning carried by symbol (✓/✗) AND text, never color alone */
@@ -141,6 +152,17 @@
         <span class="ms-pill pending">لم يستلم بعد <span class="badge" id="msPending">0</span></span>
     </div>
 
+    <!-- Financial summary — automatic wash-price calculator. Two honest scopes:
+         (1) cumulative year-to-date total = Σ(price × المجموع) = sum of the المبلغ column;
+         (2) THIS month's invoice (one wash/vehicle = its price) split into received vs pending,
+         where مُعتمَد + معلّق = فاتورة الشهر. -->
+    <div class="wash-finance" id="washFinance" aria-live="polite">
+        <span class="wf-item total">💰 إجمالي فاتورة الغسيل (تراكمي ٢٠٢٦): <b id="wfTotal">0</b> ر.س</span>
+        <span class="wf-item month">🧾 فاتورة هذا الشهر (<span id="wfMonthName">—</span>): <b id="wfMonth">0</b> ر.س</span>
+        <span class="wf-item paid">✅ مُعتمَد: <b id="wfPaid">0</b> ر.س</span>
+        <span class="wf-item pend">⏳ معلّق: <b id="wfPending">0</b> ر.س</span>
+    </div>
+
     <!-- Search -->
     <div class="search-bar">
         <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." oninput="filterTable()">
@@ -155,7 +177,7 @@
                 <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
                 <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
                 <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
-                <col style="width:7%">
+                <col style="width:7%"><col style="width:7%"><col style="width:9%">
             </colgroup>
             <thead>
                 <tr>
@@ -170,6 +192,8 @@
                     <th class="col-month" id="mhead-8">9</th><th class="col-month" id="mhead-9">10</th>
                     <th class="col-month" id="mhead-10">11</th><th class="col-month" id="mhead-11">12</th>
                     <th class="col-total"><span class="nb">المجموع</span></th>
+                    <th class="col-price"><span class="nb">سعر</span> <span class="nb">الغسلة</span></th>
+                    <th class="col-amount"><span class="nb">المبلغ</span> <span class="nb">(ر.س)</span></th>
                 </tr>
             </thead>
             <tbody id="washBody"></tbody>
@@ -258,6 +282,31 @@
 
     function getTotal(v) { return v.m.reduce((a, b) => a + b, 0); }
 
+    // ===== Automatic wash pricing by vehicle type (auto from «نوع السيارة», editable per row) =====
+    // Precedence handles overlaps (e.g. «ايسوزو بيكب» → بيكب wins → 30, not 80).
+    const WASH_PRICE = { lorry: 80, medium: 75, small: 30 };
+    function washCategory(type) {
+        const t = String(type || '').toLowerCase();
+        if (/بيك\s*اب|بيكب|بيك أب|pickup|pick\s*up/.test(t)) return 'small';            // بيكب (incl. ايسوزو بيكب) → 30
+        if (/دينا|صندوق|جيب|فورتشنر|fortuner|برادو|prado/.test(t)) return 'medium';      // دينا/صندوق/جيب → 75
+        if (/ايسوزو|إيسوزو|شاحنة|لوري|لواري|قلاب|isuzu|truck/.test(t)) return 'lorry';    // لواري/شاحنة → 80
+        return 'small';                                                                  // سيدان (كورولا/اكسنت/سيراتو…) → 30
+    }
+    function washPrice(v) {
+        if (v && v.price != null && v.price !== '' && !isNaN(Number(v.price))) return Number(v.price);
+        return WASH_PRICE[washCategory(v && v.type)];
+    }
+    function washAmount(v) { return washPrice(v) * getTotal(v); }
+    function updateWashPrice(idx, val) {
+        const v = vehicles[idx]; if (!v) return;
+        const n = parseFloat(val);
+        if (val === '' || isNaN(n) || n < 0) { delete v.price; }   // blank/invalid → revert to auto
+        else { v.price = n; }
+        renderTable(document.getElementById('searchInput').value);
+        updateStats();
+        saveState(false);
+    }
+
     function renderTable(filter) {
         const tbody = document.getElementById('washBody');
         tbody.innerHTML = '';
@@ -282,7 +331,9 @@
                                : '<span class="x-mark" title="لم يستلم">✗</span>';
                 html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}${cur}" onclick="toggle(${idx},${mi})" title="${escapeHtml(MONTH_NAMES[mi])}: ${w ? 'استلم' : 'لم يستلم'}">${mark}</td>`;
             }
-            html += `<td class="cell-total">${total}</td></tr>`;
+            html += `<td class="cell-total">${total}</td>` +
+                `<td class="cell-price"><input type="number" class="wash-price-in" min="0" step="5" value="${washPrice(v)}" onchange="updateWashPrice(${idx}, this.value)" title="سعر الغسلة الواحدة — تلقائي حسب نوع المركبة، ويمكن تعديله"></td>` +
+                `<td class="cell-amount">${washAmount(v).toLocaleString('en-US')}</td></tr>`;
             allHtml += html;
         });
         tbody.innerHTML = allHtml;
@@ -357,6 +408,24 @@
         const msP = document.getElementById('msPending');
         if (msR) msR.textContent = currentM;
         if (msP) msP.textContent = pending;
+
+        // Financial — two honest scopes (see banner comment):
+        //   totalAmt  = Σ(price × المجموع) → cumulative year-to-date (matches the المبلغ column sum)
+        //   this month = one wash/vehicle = its price; paid/pending split by the current-month cell,
+        //   so paidAmt + pendAmt === monthAmt (every vehicle owes exactly one wash this month).
+        let totalAmt = 0, monthAmt = 0, paidAmt = 0, pendAmt = 0;
+        vehicles.forEach(v => {
+            totalAmt += washAmount(v);
+            const price = washPrice(v);
+            monthAmt += price;
+            if (v.m[cm] === 1) paidAmt += price; else pendAmt += price;
+        });
+        const fmt = n => Number(n || 0).toLocaleString('en-US');
+        const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt(val); };
+        setTxt('wfTotal', totalAmt); setTxt('wfMonth', monthAmt);
+        setTxt('wfPaid', paidAmt); setTxt('wfPending', pendAmt);
+        const wmn = document.getElementById('wfMonthName');
+        if (wmn) wmn.textContent = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[cm]) || '';
     }
 
     function saveState(showMsg = true) {
