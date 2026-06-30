@@ -120,7 +120,20 @@
             .sig-section { flex-direction: column; }
             .sig-item:first-child { border-inline-start: none; border-bottom: 1px solid var(--border); }
         }
+
+        @media print {
+            .bz-topbar, .bz-sidebar, .action-bar { display: none !important; }
+            .bz-shell { margin: 0 !important; padding: 0 !important; }
+            body { background: #fff !important; }
+            .report-header { border-radius: 0 !important; }
+        }
     </style>
+    {% if kiosk %}<style>
+        /* Kiosk mode: hide all nav chrome — workshop report fills the full viewport */
+        .bz-topbar, .bz-topbar * { display: none !important; }
+        header.bz-topbar + * { margin-top: 0 !important; }
+        .bz-shell { margin-top: 1.5rem !important; }
+    </style>{% endif %}
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -160,7 +173,8 @@
 
         <div id="workshopPrintable">
         <div class="report-header">
-            <h1>تقرير فنى الورشة عن السيارة الموضحه بيناتها ادناه لفرع الدمام</h1>
+            <h1>Workshop Technical Report — Bin Zomah Trading &amp; Development Company</h1>
+            <div style="font-size:.9rem;font-weight:600;opacity:.85;margin-top:.3rem;">BIN ZOMAH INTL. — Dammam Branch / تقرير صيانة الورشة — فرع الدمام</div>
         </div>
 
         <div class="meta-grid">
@@ -200,8 +214,8 @@
                 <thead>
                     <tr>
                         <th class="col-idx">م</th>
-                        <th class="col-note">الملاحظات</th>
-                        <th class="col-sol">الحل</th>
+                        <th class="col-note">Remarks / الملاحظات</th>
+                        <th class="col-sol">Solution / الإصلاح</th>
                     </tr>
                 </thead>
                 <tbody id="notesBody">
@@ -212,11 +226,11 @@
 
         <div class="sig-section">
             <div class="sig-item">
-                <label>توقيع الفني /</label>
+                <label>Technician Signature / توقيع الفني</label>
                 <input type="text" id="sigTech" placeholder="الاسم أو التوقيع">
             </div>
             <div class="sig-item">
-                <label>توقيع مسؤول الحركة /</label>
+                <label>Movement Supervisor Signature / توقيع مشرف الحركة</label>
                 <input type="text" id="sigManager" placeholder="الاسم أو التوقيع">
             </div>
         </div>
@@ -449,7 +463,7 @@
             ws.getRow(3).height = 18;
             ws.mergeCells('C1:I3');
             const titleCell = ws.getCell('C1');
-            titleCell.value = T('تقرير فنى الورشة — شركة بن زومة للتجارة والإنماء') + '\nBIN ZOMAH INTL. — ' + T('فرع الدمام');
+            titleCell.value = 'Workshop Technical Report — Bin Zomah Trading & Development Company\nBIN ZOMAH INTL. — Dammam Branch / فرع الدمام';
             titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: W } };
             titleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             titleCell.fill = navyFill;
@@ -532,7 +546,7 @@
 
             ws.mergeCells('D7:G7');
             const notesHead = ws.getCell('D7');
-            notesHead.value = T('الملاحظات');
+            notesHead.value = 'Remarks / الملاحظات';
             notesHead.font = navyText(14);
             notesHead.alignment = { horizontal: 'center', vertical: 'middle' };
             notesHead.fill = navyFill;
@@ -540,7 +554,7 @@
 
             ws.mergeCells('H7:I7');
             const solHead = ws.getCell('H7');
-            solHead.value = T('الحل');
+            solHead.value = 'Solution / الإصلاح';
             solHead.font = navyText(14);
             solHead.alignment = { horizontal: 'center', vertical: 'middle' };
             solHead.fill = navyFill;
@@ -598,12 +612,12 @@
             ws.mergeCells(`C${sigRowA}:I${sigRowA}`);
             ws.mergeCells(`C${sigRowB}:I${sigRowB}`);
             const sigCell1 = ws.getCell(`C${sigRowA}`);
-            sigCell1.value = T('توقيع الفني') + ' / ' + sigT;
+            sigCell1.value = 'Technician Signature / توقيع الفني : ' + sigT;
             sigCell1.font = blackText(13, true);
             sigCell1.alignment = { horizontal: 'right', vertical: 'middle' };
             sigCell1.border = { top: { style: 'medium', color: { argb: BLACK } }, left: bThin, right: bThin, bottom: bThin };
             const sigCell2 = ws.getCell(`C${sigRowB}`);
-            sigCell2.value = T('توقيع مسؤول الحركة') + ' / ' + sigM;
+            sigCell2.value = 'Movement Supervisor Signature / توقيع مشرف الحركة : ' + sigM;
             sigCell2.font = blackText(13, true);
             sigCell2.alignment = { horizontal: 'right', vertical: 'middle' };
             sigCell2.border = borderAll;
@@ -619,7 +633,7 @@
             ws.mergeCells(`C${footRow}:I${footRow}`);
             const footCell = ws.getCell(`C${footRow}`);
             const todayStr = new Date().toISOString().split('T')[0];
-            footCell.value = T('أُعدّ بواسطة قسم الحركة — فرع الدمام') + `     ${dateVal || todayStr}`;
+            footCell.value = `Prepared by the Movement Department – Dammam Branch     ${dateVal || todayStr}`;
             footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: 'FF595959' } };
             footCell.alignment = { horizontal: 'center', vertical: 'middle' };
 

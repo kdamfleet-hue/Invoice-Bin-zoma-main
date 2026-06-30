@@ -493,12 +493,25 @@ if not (os.environ.get("SECRET_KEY") or "").strip():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("authenticated"):
+        if session.get("kiosk"):
+            return redirect(url_for("workshop"))
         return redirect(url_for("index"))
-        
+
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-        
+
+        # Kiosk account: workshop-only, no nav. Check first (constant-time, no DB needed).
+        if KIOSK_PASSWORD and hmac.compare_digest(username, KIOSK_USER) and hmac.compare_digest(password, KIOSK_PASSWORD):
+            session.clear()
+            session["authenticated"] = True
+            session.permanent = True
+            session["google_user"] = {"name": KIOSK_USER, "email": KIOSK_USER + "@binzomah.local"}
+            session["is_admin"] = False
+            session["kiosk"] = True
+            logger.info("Kiosk login")
+            return redirect(url_for("workshop"))
+
         master_user = os.environ.get("ADMIN_USERNAME", "admin")
         master_pass = os.environ.get("MASTER_PASSWORD")
 
@@ -548,6 +561,10 @@ def login():
 # sandbox (edits go to id=2, never touching the real id=1 data) and the
 # Cameras/Employees/GPS-Sync tabs are password-locked. The MAIN site (/) is untouched.
 WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
+
+# Kiosk account: workshop-report-only access, no nav, full-screen.
+KIOSK_USER     = os.environ.get("KIOSK_USER",     "jam")
+KIOSK_PASSWORD = os.environ.get("KIOSK_PASSWORD", "Jam-123123")
 WS_TABS = {
     "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard",
     "schedule": "schedule", "oils": "oils", "purchase": "purchase",
@@ -1220,7 +1237,8 @@ def gps_sync():
 def workshop():
     google_user = session.get("google_user")
     b64_en = load_logo()
-    return render_template("workshop.html", google_user=google_user, b64_en=b64_en)
+    return render_template("workshop.html", google_user=google_user, b64_en=b64_en,
+                           kiosk=bool(session.get("kiosk")))
 
 
 @app.route("/search")
