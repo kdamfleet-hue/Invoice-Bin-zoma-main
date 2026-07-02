@@ -993,8 +993,9 @@ def index():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    # Read-only executive dashboard. Reads existing /api/* data via GET; never writes
-    # unless the user explicitly clicks "restore" in the Update-History panel.
+    # Executive dashboard. Mostly reads existing /api/* data via GET; the two write paths
+    # are Update-History "restore" (/api/snapshots/restore) and inline edits inside
+    # مركز تنبيهات الوثائق, which go through /api/alerts_center/update.
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("dashboard.html", google_user=google_user, b64_en=b64_en)
@@ -1768,6 +1769,10 @@ _REG_FIELD_MAX = {"empid": 40, "phone": 40, "job": 40, "drivercard": 40, "empNot
 # so one in-process lock fully prevents lost updates when two admins on the same branch save at once.
 _DRIVER_REG_LOCK = threading.Lock()
 
+# Serializes the alerts-center inline-edit read-modify-write (and the Document Archive
+# delete) against itself, for the same reason as _DRIVER_REG_LOCK above.
+_ALERTS_CENTER_LOCK = threading.Lock()
+
 
 def _norm_iqama(v):
     return re.sub(r"\D", "", str(v or ""))
@@ -2505,11 +2510,12 @@ def api_documents():
 @app.route("/api/documents/<doc_id>", methods=["DELETE"])
 @login_required
 def api_documents_delete(doc_id):
-    rows = _documents_rows()
-    kept = [r for r in rows if r.get("id") != doc_id]
-    if len(kept) == len(rows):
-        return jsonify({"success": False, "error": "غير موجود."}), 404
-    blob_set("documents_data", {"rows": kept})
+    with _ALERTS_CENTER_LOCK:  # avoid racing an alerts-center edit of the same document
+        rows = _documents_rows()
+        kept = [r for r in rows if r.get("id") != doc_id]
+        if len(kept) == len(rows):
+            return jsonify({"success": False, "error": "غير موجود."}), 404
+        blob_set("documents_data", {"rows": kept})
     _audit_add("حذف", "أرشيف الوثائق", len(kept), str(doc_id))
     return jsonify({"success": True})
 
@@ -2535,6 +2541,110 @@ def api_document_file(doc_id):
             resp.headers["Cache-Control"] = "private, max-age=600"
             return resp
     return ("", 404)
+
+
+# ── مركز تنبيهات الوثائق — inline edit from the dashboard ─────────────────────
+# The dashboard's alert table is BUILT from 3 different sources (weekly-schedule rows,
+# employees rows, uploaded Document Archive rows). This endpoint writes an edited expiry
+# straight back to whichever source produced that alert row, using the SAME branch-scoped
+# blob_get/blob_set every other tab uses — so it respects the active session's branch and
+# the workstation sandbox exactly like editing the source tab directly would.
+#
+# Schedule/employee rows have no stable id, so they're addressed positionally (idx) and
+# double-checked against a client-supplied plate/iqama snapshot — a BLANK plate/iqama
+# never counts as a match (two blank rows would otherwise look identical) — before the
+# write is allowed; a mismatch (or a row that no longer exists at that index) means the
+# underlying list shifted since the page loaded, so the write is refused with 409 and the
+# client is told to reload. Document Archive rows already carry a real unique `id`
+# (_documents_rows) so no positional/match check is needed there.
+#
+# _ALERTS_CENTER_LOCK (defined near _DRIVER_REG_LOCK above) serializes this route's own
+# read-modify-write against itself and against the Document Archive's delete endpoint
+# (both threaded under gunicorn --workers 1 --threads 8). It does NOT serialize against
+# the sibling whole-blob saves (POST /api/schedule_data, POST /api/employees) — those
+# still follow this app's existing last-write-wins model for every tab, same as before
+# this endpoint existed.
+@app.route("/api/alerts_center/update", methods=["POST"])
+@login_required
+def alerts_center_update():
+    try:
+        body = request.get_json(silent=True) or {}
+        value = str(body.get("value") or "").strip()[:10]
+        if value and not _parse_iso_date(value):
+            return jsonify({"success": False, "error": "تاريخ غير صالح."}), 400
+        src = body.get("src")
+
+        if src == "schedule":
+            section = body.get("section")
+            field = body.get("field")
+            if section not in ("main", "spare") or field not in ("inspect", "license", "opcard", "drivercard"):
+                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+            try:
+                idx = int(body.get("idx"))
+            except (TypeError, ValueError):
+                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+            with _ALERTS_CENTER_LOCK:
+                sd = blob_get("schedule_data")
+                rows = sd.get(section) if isinstance(sd, dict) else None
+                if not isinstance(rows, list) or idx < 0 or idx >= len(rows) or not isinstance(rows[idx], dict):
+                    return jsonify({"success": False, "error": "لم يعد هذا الصف موجوداً — أعد تحميل الصفحة."}), 409
+                row = rows[idx]
+                if field == "drivercard":
+                    key = _norm_iqama(row.get("iqama"))
+                    ok = bool(key) and key == _norm_iqama(body.get("iqama"))
+                else:
+                    key = str(row.get("plate") or "").strip()
+                    ok = bool(key) and key == str(body.get("plate") or "").strip()
+                if not ok:
+                    return jsonify({"success": False, "error": "تغيّرت بيانات الصف — أعد تحميل الصفحة."}), 409
+                row[field] = value
+                blob_set("schedule_data", sd)
+            try:
+                _harvest_driver_registry(sd)
+            except Exception:
+                logger.warning("driver_registry harvest failed (non-fatal)")
+            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, (value or "تفريغ") + " — " + (row.get("name") or row.get("plate") or ""))
+            return jsonify({"success": True, "value": value})
+
+        if src == "employee":
+            try:
+                idx = int(body.get("idx"))
+                field = int(body.get("field"))
+            except (TypeError, ValueError):
+                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+            if field not in (10, 11):  # matches employees.html COLS[10]/[11] = إقامة/جواز expiry only
+                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+            with _ALERTS_CENTER_LOCK:
+                rows = blob_get("employees")
+                if not isinstance(rows, list) or idx < 0 or idx >= len(rows) or not isinstance(rows[idx], list):
+                    return jsonify({"success": False, "error": "لم يعد هذا الصف موجوداً — أعد تحميل الصفحة."}), 409
+                row = rows[idx]
+                actual_iqama = str(row[1] if len(row) > 1 else "").strip()
+                if not actual_iqama or actual_iqama != str(body.get("iqama") or "").strip():
+                    return jsonify({"success": False, "error": "تغيّرت بيانات الصف — أعد تحميل الصفحة."}), 409
+                if len(row) <= field:
+                    row.extend([""] * (field + 1 - len(row)))
+                row[field] = value
+                blob_set("employees", rows)
+            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, (value or "تفريغ") + " — " + (row[2] if len(row) > 2 and row[2] else (row[3] if len(row) > 3 else "")))
+            return jsonify({"success": True, "value": value})
+
+        if src == "document":
+            doc_id = str(body.get("id") or "")
+            with _ALERTS_CENTER_LOCK:
+                rows = _documents_rows()
+                found = next((r for r in rows if r.get("id") == doc_id), None)
+                if not found:
+                    return jsonify({"success": False, "error": "الوثيقة لم تعد موجودة — أعد تحميل الصفحة."}), 409
+                found["expiry"] = value
+                blob_set("documents_data", {"rows": rows})
+            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, (value or "تفريغ") + " — " + (found.get("entity_ref") or ""))
+            return jsonify({"success": True, "value": value})
+
+        return jsonify({"success": False, "error": "مصدر غير معروف."}), 400
+    except Exception:
+        logger.exception("alerts_center_update error")
+        return jsonify({"success": False, "error": "تعذّر حفظ التعديل."}), 500
 
 
 # ── Workstation-only tab state (oils / purchase / workshop) ───────────────────
