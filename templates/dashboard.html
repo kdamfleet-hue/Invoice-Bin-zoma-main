@@ -195,10 +195,12 @@
         table.dtable th.al-sort:hover { color: var(--gold-on-dark); }
         table.dtable .sort-ind { font-size: .68rem; color: var(--gold-on-dark); }
         table.dtable input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--gold); vertical-align: middle; }
-        /* inline expiry-date edit (مركز تنبيهات الوثائق) */
+        /* inline edit (مركز تنبيهات الوثائق) — every column (اسم/لوحة/وثيقة/تاريخ) is editable */
+        .al-text-in { background: var(--d-bg2); border: 1px solid var(--d-border); color: var(--d-text); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: .78rem; outline: none; width: 100%; min-width: 70px; box-sizing: border-box; }
+        .al-text-in:focus { border-color: var(--gold); box-shadow: var(--focus-ring); }
+        .al-plate-in { font-family: monospace; direction: ltr; unicode-bidi: plaintext; }
         .al-date-cell { display: inline-flex; align-items: center; gap: 6px; }
-        .al-date-in { background: var(--d-bg2); border: 1px solid var(--d-border); color: var(--d-text); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: .78rem; font-variant-numeric: tabular-nums; outline: none; color-scheme: dark; }
-        .al-date-in:focus { border-color: var(--gold); box-shadow: var(--focus-ring); }
+        .al-date-in { width: auto; font-variant-numeric: tabular-nums; color-scheme: dark; }
         .al-date-clear { background: none; border: none; color: var(--d-muted); cursor: pointer; font-size: .8rem; padding: 2px 4px; border-radius: 6px; line-height: 1; transition: .15s; }
         .al-date-clear:hover { color: var(--bad-fg); background: var(--bad-bg); }
         .al-dirty-date { display: block; color: var(--warn-fg); font-size: .68rem; font-weight: 700; margin-top: 3px; white-space: nowrap; }
@@ -561,8 +563,8 @@
           var v = r[doc.key];
           if (!v) return;
           ALERTS.push({
-            name: r.name || '—', plate: r.plate || '', doc: doc.label, date: v, st: statusOf(v),
-            ref: { src: 'schedule', section: section, idx: idx, field: doc.key, plate: r.plate || '', iqama: r.iqama || '' }
+            name: r.name || '', plate: r.plate || '', doc: doc.label, date: v, st: statusOf(v),
+            ref: { src: 'schedule', section: section, idx: idx, dateField: doc.key, plate: r.plate || '', iqama: r.iqama || '' }
           });
         });
       });
@@ -570,23 +572,24 @@
     // employees: iqama (idx10) + passport (idx11)
     (DATA.employees || []).forEach(function (row, idx) {
       if (!Array.isArray(row)) return;
-      var nm = row[2] || row[3] || '—', pl = row[9] || '';
+      var nm = row[2] || row[3] || '', pl = row[9] || '';
       [[10, 'انتهاء الإقامة'], [11, 'انتهاء الجواز']].forEach(function (p) {
         var v = row[p[0]];
         if (!v) return;
         ALERTS.push({
           name: nm, plate: pl, doc: p[1], date: v, st: statusOf(v),
-          ref: { src: 'employee', idx: idx, field: p[0], iqama: row[1] || '' }
+          ref: { src: 'employee', idx: idx, dateField: p[0], iqama: row[1] || '' }
         });
       });
     });
-    // Document Archive uploads — same expiry pool the email digest already includes.
+    // Document Archive uploads — same expiry pool the email digest already includes. name/plate
+    // both map to the same underlying entity_ref field (there's only one identity field per doc).
     (DATA.documents || []).forEach(function (row) {
       if (!row || !row.expiry) return;
-      var entRef = row.entity_ref || '—';
+      var isVehicle = row.entity_type === 'vehicle';
       ALERTS.push({
-        name: entRef, plate: row.entity_type === 'vehicle' ? entRef : '', doc: row.doc_type || 'وثيقة',
-        date: row.expiry, st: statusOf(row.expiry),
+        name: row.entity_ref || '', plate: isVehicle ? (row.entity_ref || '') : '', doc: row.doc_type || 'وثيقة',
+        date: row.expiry, st: statusOf(row.expiry), plateEditable: isVehicle,
         ref: { src: 'document', id: row.id }
       });
     });
@@ -657,6 +660,18 @@
     $('alBody').innerHTML = alCurList.slice(0, 400).map(function (a, i) {
       var ck = alSelected[alKey(a)] ? ' checked' : '';
       var canEdit = !!a.ref;
+      var nameCell = canEdit
+        ? '<input type="text" class="al-text-in" value="' + esc(a.name) + '" maxlength="100" onchange="saveAlertField(' + i + ", 'name', this.value)\" title=\"تعديل الاسم\">"
+        : esc(a.name || '—');
+      var plateCell;
+      if (canEdit && (a.ref.src !== 'document' || a.plateEditable)) {
+        plateCell = '<input type="text" class="al-text-in al-plate-in" value="' + esc(a.plate) + '" maxlength="30" onchange="saveAlertField(' + i + ", 'plate', this.value)\" title=\"تعديل رقم اللوحة\">";
+      } else {
+        plateCell = '<span class="plate">' + esc(a.plate || '—') + '</span>';
+      }
+      var docCell = (canEdit && a.ref.src === 'document')
+        ? '<input type="text" class="al-text-in" value="' + esc(a.doc) + '" maxlength="60" onchange="saveAlertField(' + i + ", 'doctype', this.value)\" title=\"تعديل نوع الوثيقة\">"
+        : esc(a.doc);
       var raw = String(a.date || '').trim();
       var isIso = /^\d{4}-\d{2}-\d{2}$/.test(raw);
       var dateCell;
@@ -664,11 +679,11 @@
         // A non-ISO legacy value (dirty data) can't populate a native date input, but it must
         // still be VISIBLE (not silently blanked) so nobody mistakes it for an empty field.
         var dirtyNote = (raw && !isIso) ? ' <small class="al-dirty-date" title="قيمة محفوظة غير قياسية">⚠ ' + esc(raw) + '</small>' : '';
-        dateCell = '<span class="al-date-cell"><input type="date" class="al-date-in" value="' + esc(isIso ? raw : '') + '" onchange="saveAlertDate(' + i + ', this.value)" title="تعديل تاريخ الانتهاء"><button type="button" class="al-date-clear" onclick="clearAlertDate(' + i + ')" title="مسح التاريخ (إزالة من التنبيهات)">✖</button></span>' + dirtyNote;
+        dateCell = '<span class="al-date-cell"><input type="date" class="al-text-in al-date-in" value="' + esc(isIso ? raw : '') + '" onchange="saveAlertField(' + i + ", 'date', this.value)\" title=\"تعديل تاريخ الانتهاء\"><button type=\"button\" class=\"al-date-clear\" onclick=\"clearAlertDate(" + i + ')" title="مسح التاريخ (إزالة من التنبيهات)">✖</button></span>' + dirtyNote;
       } else {
         dateCell = esc(a.date);
       }
-      return '<tr><td style="text-align:center"><input type="checkbox" class="al-ck" data-i="' + i + '" onclick="alRowToggle(this)"' + ck + '></td><td>' + esc(a.name) + '</td><td><span class="plate">' + esc(a.plate || '—') + '</span></td><td>' + esc(a.doc) +
+      return '<tr><td style="text-align:center"><input type="checkbox" class="al-ck" data-i="' + i + '" onclick="alRowToggle(this)"' + ck + '></td><td>' + nameCell + '</td><td>' + plateCell + '</td><td>' + docCell +
         '</td><td>' + dateCell + '</td><td class="days-left">' + fmtDays(a.st) + '</td><td><span class="badge ' + a.st.cls + '">' + a.st.label + '</span></td></tr>';
     }).join('');
     var sa = $('alSelectAll'); if (sa) sa.checked = alCurList.every(function (a) { return alSelected[alKey(a)]; });
@@ -676,37 +691,45 @@
   }
 
   // ---------- alerts: inline edit (writes straight back to the source row) ----------
-  function applyAlertValueToSource(ref, value) {
+  // targetField: 'date' | 'name' | 'plate' | 'doctype' — every column shown in the table is
+  // editable, mapped server-side to whichever real field that logical name means for this
+  // row's source (see the /api/alerts_center/update docstring in app.py for the full map).
+  function applyAlertValueToSource(ref, targetField, value) {
     if (ref.src === 'schedule') {
-      var srows = DATA.schedule && DATA.schedule[ref.section];
-      if (srows && srows[ref.idx]) srows[ref.idx][ref.field] = value;
+      var srow = DATA.schedule && DATA.schedule[ref.section] && DATA.schedule[ref.section][ref.idx];
+      if (srow) srow[targetField === 'date' ? ref.dateField : targetField] = value;
     } else if (ref.src === 'employee') {
       var erow = DATA.employees && DATA.employees[ref.idx];
-      if (Array.isArray(erow)) { while (erow.length <= ref.field) erow.push(''); erow[ref.field] = value; }
+      if (Array.isArray(erow)) {
+        var idx = targetField === 'date' ? ref.dateField : targetField === 'plate' ? 9 : (erow[2] || !erow[3] ? 2 : 3);
+        while (erow.length <= idx) erow.push('');
+        erow[idx] = value;
+      }
     } else if (ref.src === 'document') {
+      var key = targetField === 'date' ? 'expiry' : targetField === 'doctype' ? 'doc_type' : 'entity_ref';
       for (var d = 0; d < (DATA.documents || []).length; d++) {
-        if (DATA.documents[d] && DATA.documents[d].id === ref.id) { DATA.documents[d].expiry = value; break; }
+        if (DATA.documents[d] && DATA.documents[d].id === ref.id) { DATA.documents[d][key] = value; break; }
       }
     }
   }
-  function refKey(ref) { return [ref.src, ref.section, ref.idx, ref.field, ref.id].join('|'); }
+  function refFieldKey(ref, targetField) { return [ref.src, ref.section, ref.idx, ref.id, targetField].join('|'); }
   var alSaving = {};
   // Takes the ref DIRECTLY (not a list index) so a slow confirm dialog or a concurrent
   // save that re-sorts alCurList in between can never cause this to act on the wrong row.
-  function saveAlertRef(ref, value, label) {
-    var key = refKey(ref);
+  function saveAlertFieldRef(ref, targetField, value) {
+    var key = refFieldKey(ref, targetField);
     if (alSaving[key]) { if (window.showToast) showToast('جارٍ حفظ هذا التعديل بالفعل…', 'info'); return; }
-    value = String(value || '').trim();
-    if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) { if (window.showToast) showToast('صيغة تاريخ غير صالحة', 'error'); return; }
+    value = String(value == null ? '' : value).trim();
+    if (targetField === 'date' && value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) { if (window.showToast) showToast('صيغة تاريخ غير صالحة', 'error'); renderAlerts(); return; }
     alSaving[key] = true;
-    var body = {}; for (var k in ref) body[k] = ref[k]; body.value = value;
+    var body = {}; for (var k in ref) body[k] = ref[k]; body.targetField = targetField; body.value = value;
     fetch('/api/alerts_center/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         delete alSaving[key];
         if (res.ok && res.j && res.j.success) {
-          applyAlertValueToSource(ref, value);
-          if (window.showToast) showToast(value ? 'تم تحديث التاريخ ✓' : 'تم مسح التنبيه ✓', 'success');
+          applyAlertValueToSource(ref, targetField, value);
+          if (window.showToast) showToast(targetField === 'date' && !value ? 'تم مسح التنبيه ✓' : 'تم الحفظ ✓', 'success');
           refreshAlertsAndViews();
         } else {
           if (window.showToast) showToast((res.j && res.j.error) || 'تعذّر الحفظ', 'error');
@@ -715,17 +738,17 @@
       })
       .catch(function () { delete alSaving[key]; if (window.showToast) showToast('تعذّر الاتصال بالخادم', 'error'); renderAlerts(); });
   }
-  window.saveAlertDate = function (i, value) {
+  window.saveAlertField = function (i, targetField, value) {
     var a = alCurList[i];
     if (!a || !a.ref) return;
-    saveAlertRef(a.ref, value);
+    saveAlertFieldRef(a.ref, targetField, value);
   };
   window.clearAlertDate = async function (i) {
     var a = alCurList[i];
     if (!a || !a.ref) return;
     var ref = a.ref, doc = a.doc || '', name = a.name || a.plate || '';
     if (!(await window.bzConfirm('مسح تاريخ «' + doc + '» لـ «' + name + '»؟ سيختفي من التنبيهات حتى يُدخل تاريخ جديد.'))) return;
-    saveAlertRef(ref, '');
+    saveAlertFieldRef(ref, 'date', '');
   };
   function refreshAlertsAndViews() {
     var seJobEl = $('seJob'), seTypeEl = $('seType');

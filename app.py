@@ -2545,18 +2545,31 @@ def api_document_file(doc_id):
 
 # ── مركز تنبيهات الوثائق — inline edit from the dashboard ─────────────────────
 # The dashboard's alert table is BUILT from 3 different sources (weekly-schedule rows,
-# employees rows, uploaded Document Archive rows). This endpoint writes an edited expiry
-# straight back to whichever source produced that alert row, using the SAME branch-scoped
-# blob_get/blob_set every other tab uses — so it respects the active session's branch and
-# the workstation sandbox exactly like editing the source tab directly would.
+# employees rows, uploaded Document Archive rows). This endpoint writes an edited value
+# straight back to whichever source produced that alert row — every column shown in the
+# table (الاسم / رقم اللوحة / الوثيقة / تاريخ الانتهاء) is editable, not just the date —
+# using the SAME branch-scoped blob_get/blob_set every other tab uses, so it respects the
+# active session's branch and the workstation sandbox exactly like editing the source tab
+# directly would.
+#
+# `targetField` (logical, same vocabulary across all 3 sources) says WHAT is being edited:
+#   'date'    → the specific date field the alert is about (dateField: inspect/license/
+#               opcard/drivercard for schedule, 10/11 for employee, always expiry for document)
+#   'name'    → schedule row.name / employee col 2-or-3 (whichever is populated) / document entity_ref
+#   'plate'   → schedule row.plate / employee col 9 / document entity_ref (vehicle docs only)
+#   'doctype' → document row.doc_type only (schedule/employee alerts have a fixed label, not
+#               a real field, so 'doctype' is rejected for those two sources)
 #
 # Schedule/employee rows have no stable id, so they're addressed positionally (idx) and
-# double-checked against a client-supplied plate/iqama snapshot — a BLANK plate/iqama
-# never counts as a match (two blank rows would otherwise look identical) — before the
-# write is allowed; a mismatch (or a row that no longer exists at that index) means the
-# underlying list shifted since the page loaded, so the write is refused with 409 and the
-# client is told to reload. Document Archive rows already carry a real unique `id`
-# (_documents_rows) so no positional/match check is needed there.
+# double-checked against a client-supplied identity snapshot (plate and/or iqama) before
+# the write is allowed — anchored on whichever identity field is NOT the one being edited
+# (e.g. editing plate anchors on iqama, editing a driver-scoped field anchors on plate) so
+# "fix the wrong plate/name" is exactly the case this guard is designed to allow safely. A
+# BLANK anchor never counts as a match (two blank rows would otherwise look identical); a
+# mismatch (or a row that no longer exists at that index) means the underlying list shifted
+# since the page loaded, so the write is refused with 409 and the client is told to reload.
+# Document Archive rows already carry a real unique `id` (_documents_rows) so no
+# positional/identity check is needed there regardless of which field is being edited.
 #
 # _ALERTS_CENTER_LOCK (defined near _DRIVER_REG_LOCK above) serializes this route's own
 # read-modify-write against itself and against the Document Archive's delete endpoint
@@ -2564,56 +2577,86 @@ def api_document_file(doc_id):
 # the sibling whole-blob saves (POST /api/schedule_data, POST /api/employees) — those
 # still follow this app's existing last-write-wins model for every tab, same as before
 # this endpoint existed.
+_ALERTS_FIELD_CAPS = {"date": 10, "name": 100, "plate": 30, "doctype": 60}
+
+
+def _alerts_center_clean_value(target_field, raw):
+    value = str(raw or "").strip()[:_ALERTS_FIELD_CAPS.get(target_field, 60)]
+    if target_field == "date" and value and not _parse_iso_date(value):
+        return None, jsonify({"success": False, "error": "تاريخ غير صالح."}), 400
+    return value, None, None
+
+
 @app.route("/api/alerts_center/update", methods=["POST"])
 @login_required
 def alerts_center_update():
     try:
         body = request.get_json(silent=True) or {}
-        value = str(body.get("value") or "").strip()[:10]
-        if value and not _parse_iso_date(value):
-            return jsonify({"success": False, "error": "تاريخ غير صالح."}), 400
         src = body.get("src")
+        target_field = body.get("targetField")
+        if target_field not in ("date", "name", "plate", "doctype"):
+            return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+        value, err_resp, err_code = _alerts_center_clean_value(target_field, body.get("value"))
+        if err_resp is not None:
+            return err_resp, err_code
 
         if src == "schedule":
+            if target_field == "doctype":
+                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
             section = body.get("section")
-            field = body.get("field")
-            if section not in ("main", "spare") or field not in ("inspect", "license", "opcard", "drivercard"):
+            if section not in ("main", "spare"):
                 return jsonify({"success": False, "error": "طلب غير صالح."}), 400
             try:
                 idx = int(body.get("idx"))
             except (TypeError, ValueError):
                 return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+            if target_field == "date":
+                date_field = body.get("dateField")
+                if date_field not in ("inspect", "license", "opcard", "drivercard"):
+                    return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+                store_key = date_field
+            else:
+                store_key = target_field  # 'name' or 'plate'
             with _ALERTS_CENTER_LOCK:
                 sd = blob_get("schedule_data")
                 rows = sd.get(section) if isinstance(sd, dict) else None
                 if not isinstance(rows, list) or idx < 0 or idx >= len(rows) or not isinstance(rows[idx], dict):
                     return jsonify({"success": False, "error": "لم يعد هذا الصف موجوداً — أعد تحميل الصفحة."}), 409
                 row = rows[idx]
-                if field == "drivercard":
-                    key = _norm_iqama(row.get("iqama"))
-                    ok = bool(key) and key == _norm_iqama(body.get("iqama"))
-                else:
-                    key = str(row.get("plate") or "").strip()
-                    ok = bool(key) and key == str(body.get("plate") or "").strip()
+                # Anchor identity on whichever field ISN'T being written: plate identifies the
+                # row/vehicle slot itself; iqama identifies the driver currently assigned to it.
+                if store_key == "plate":
+                    akey = _norm_iqama(row.get("iqama")); ok = bool(akey) and akey == _norm_iqama(body.get("iqama"))
+                else:  # name, drivercard, inspect, license, opcard — all anchor on the row's plate
+                    akey = str(row.get("plate") or "").strip(); ok = bool(akey) and akey == str(body.get("plate") or "").strip()
                 if not ok:
                     return jsonify({"success": False, "error": "تغيّرت بيانات الصف — أعد تحميل الصفحة."}), 409
-                row[field] = value
+                row[store_key] = value
                 blob_set("schedule_data", sd)
             try:
                 _harvest_driver_registry(sd)
             except Exception:
                 logger.warning("driver_registry harvest failed (non-fatal)")
-            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, (value or "تفريغ") + " — " + (row.get("name") or row.get("plate") or ""))
+            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, store_key + ": " + (value or "تفريغ") + " — " + (row.get("name") or row.get("plate") or ""))
             return jsonify({"success": True, "value": value})
 
         if src == "employee":
+            if target_field == "doctype":
+                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
             try:
                 idx = int(body.get("idx"))
-                field = int(body.get("field"))
             except (TypeError, ValueError):
                 return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-            if field not in (10, 11):  # matches employees.html COLS[10]/[11] = إقامة/جواز expiry only
-                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+            store_idx = None  # 'name' is resolved below, once the current row is known
+            if target_field == "date":
+                try:
+                    store_idx = int(body.get("dateField"))
+                except (TypeError, ValueError):
+                    return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+                if store_idx not in (10, 11):  # matches employees.html COLS[10]/[11] = إقامة/جواز expiry
+                    return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+            elif target_field == "plate":
+                store_idx = 9  # COLS[9] = رقم اللوحة
             with _ALERTS_CENTER_LOCK:
                 rows = blob_get("employees")
                 if not isinstance(rows, list) or idx < 0 or idx >= len(rows) or not isinstance(rows[idx], list):
@@ -2622,23 +2665,29 @@ def alerts_center_update():
                 actual_iqama = str(row[1] if len(row) > 1 else "").strip()
                 if not actual_iqama or actual_iqama != str(body.get("iqama") or "").strip():
                     return jsonify({"success": False, "error": "تغيّرت بيانات الصف — أعد تحميل الصفحة."}), 409
-                if len(row) <= field:
-                    row.extend([""] * (field + 1 - len(row)))
-                row[field] = value
+                if store_idx is None:  # target_field == "name": whichever of COLS[2]/[3] is
+                    # actually populated on the CURRENT row — decided server-side, not client-supplied.
+                    store_idx = 2 if (row[2] if len(row) > 2 else "") or not (row[3] if len(row) > 3 else "") else 3
+                if len(row) <= store_idx:
+                    row.extend([""] * (store_idx + 1 - len(row)))
+                row[store_idx] = value
                 blob_set("employees", rows)
-            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, (value or "تفريغ") + " — " + (row[2] if len(row) > 2 and row[2] else (row[3] if len(row) > 3 else "")))
+            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, target_field + ": " + (value or "تفريغ") + " — " + (row[2] if len(row) > 2 and row[2] else (row[3] if len(row) > 3 else "")))
             return jsonify({"success": True, "value": value})
 
         if src == "document":
+            store_key = {"date": "expiry", "name": "entity_ref", "plate": "entity_ref", "doctype": "doc_type"}[target_field]
             doc_id = str(body.get("id") or "")
             with _ALERTS_CENTER_LOCK:
                 rows = _documents_rows()
                 found = next((r for r in rows if r.get("id") == doc_id), None)
                 if not found:
                     return jsonify({"success": False, "error": "الوثيقة لم تعد موجودة — أعد تحميل الصفحة."}), 409
-                found["expiry"] = value
+                if store_key != "expiry" and not value:
+                    return jsonify({"success": False, "error": "هذا الحقل لا يمكن تفريغه."}), 400
+                found[store_key] = value
                 blob_set("documents_data", {"rows": rows})
-            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, (value or "تفريغ") + " — " + (found.get("entity_ref") or ""))
+            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, store_key + ": " + (value or "تفريغ") + " — " + (found.get("entity_ref") or ""))
             return jsonify({"success": True, "value": value})
 
         return jsonify({"success": False, "error": "مصدر غير معروف."}), 400
