@@ -1088,23 +1088,34 @@
     // builds the workbook and returns an Excel Blob (used by both download and share)
     async function buildScheduleBlob() {
       const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet('الجدول الأسبوعي', { views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 3 }] });
+      const ws = wb.addWorksheet('الجدول الأسبوعي', { views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 4 }] });
       EXPORT_COL_WIDTHS.forEach((w, i) => ws.getColumn(i + 1).width = w);
 
+      // Company logo — reserved row above the title (the reference workbook anchors its own
+      // logo image the same way, above the date/title row rather than overlapping it).
+      ws.getRow(1).height = 46;
+      const logoB64 = "{{ b64_en }}";
+      if (logoB64 && logoB64 !== '') {
+        try {
+          const logoId = wb.addImage({ base64: 'data:image/png;base64,' + logoB64, extension: 'png' });
+          ws.addImage(logoId, { tl: { col: 0.2, row: 0.1 }, ext: { width: 110, height: 42 } });
+        } catch (e) { console.error('Logo error', e); }
+      }
+
       // Title bar — date + report title, plain text (no banner fill), matches the reference
-      ws.mergeCells(1, 2, 1, 3);
-      const dcell = ws.getCell(1, 2);
+      ws.mergeCells(2, 2, 2, 3);
+      const dcell = ws.getCell(2, 2);
       dcell.value = state.date || '';
       dcell.font = { name: 'DIN Condensed', size: 12, bold: true };
       dcell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      ws.mergeCells(1, 4, 1, EXPORT_TOTAL_COLS);
-      const tcell = ws.getCell(1, 4);
+      ws.mergeCells(2, 4, 2, EXPORT_TOTAL_COLS);
+      const tcell = ws.getCell(2, 4);
       tcell.value = state.title || bzTL('الجدول الأسبوعي');
       tcell.font = { name: 'DIN Condensed', size: 14, bold: true };
       tcell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      ws.getRow(1).height = 22;
+      ws.getRow(2).height = 22;
 
-      let r = 3;
+      let r = 4;
       writeExportHeader(ws, r); r++;
       state.main.forEach((row, i) => { writeExportDataRow(ws, r, i + 1, row); r++; });
       if (state.main.length) closeExportTable(ws, r - 1);

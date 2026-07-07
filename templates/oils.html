@@ -1460,17 +1460,28 @@
                 ws.getRow(rowNum).height = opts.height || 20.25;
             }
 
-            let r = 1;
+            // Company logo — reserved rows above the title (the reference workbook reserves
+            // this exact space, rows 1-3, for its own embedded logo image).
+            [1, 2, 3].forEach(rn => { ws.getRow(rn).height = 22; });
+            const logoB64 = "{{ b64_en }}";
+            if (logoB64 && logoB64 !== '') {
+                try {
+                    const logoId = wb.addImage({ base64: 'data:image/png;base64,' + logoB64, extension: 'png' });
+                    ws.addImage(logoId, { tl: { col: 0.15, row: 0.1 }, ext: { width: 140, height: 62 } });
+                } catch (e) { console.error('Logo error', e); }
+            }
+
+            let r = 4;
 
             // 1. Title — colored Cairo text, no fill (matches the reference exactly)
-            try { ws.mergeCells('A1:J1'); } catch(e) {}
-            const titleCell = ws.getCell('A1');
+            try { ws.mergeCells('A'+r+':J'+r); } catch(e) {}
+            const titleCell = ws.getCell('A'+r);
             titleCell.value = document.getElementById('oilsTitle').value;
             titleCell.font = { name: 'Cairo', size: 14, bold: true, color: { argb: TITLE_BLUE } };
             titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
             titleCell.border = { top: medBlack, bottom: thinBlack, left: medBlack, right: thinBlack };
-            ws.getRow(1).height = 25.5;
-            r = 2;
+            ws.getRow(r).height = 25.5;
+            r += 1;
 
             // 2. Oils header row — muted panel fill + gold accent under A:F only (labels via
             // bzTL so EN export translates)
