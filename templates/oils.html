@@ -1063,15 +1063,15 @@
     <div style="width: 100%; max-width: 1200px; margin: 30px auto; padding: 0 20px;">
         <div style="display:flex; justify-content: space-between; font-weight:bold; font-size:1.1rem; padding-top: 10px;">
             <div style="width: 50%; text-align:right;">
-                <input type="text" value="وبناءا عليه تم طلب وشراء فلاتر جديدة  —  الحسابات" style="width:100%; border:none; text-align:right; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);">
+                <input type="text" id="oilsConclusion" value="وبناءا عليه تم طلب وشراء فلاتر جديدة  —  الحسابات" style="width:100%; border:none; text-align:right; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);">
             </div>
             <div style="width: 20%; text-align:center;">
                 <div style="margin-bottom:40px;">قسم الحركة</div>
-                <input type="text" value="خالد بن محمد الغامدي" style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);">
+                <input type="text" id="oilsSigDept" value="خالد بن محمد الغامدي" style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);">
             </div>
             <div style="width: 20%; text-align:center;">
                 <div style="margin-bottom:40px;">التعميد</div>
-                <input type="text" placeholder="..." style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);">
+                <input type="text" id="oilsSigApproval" placeholder="..." style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);">
             </div>
         </div>
     </div>
@@ -1389,6 +1389,14 @@
         // Build the Excel workbook fully from the current DOM (matches the page 1:1)
         // and return a Blob. Layout flows DYNAMICALLY from the actual row counts, so
         // added oils rows AND added filter rows are all included.
+        //
+        // Styling below mirrors the reference file "بيان_الزيوت" exactly: Cairo/Tajawal
+        // fonts, muted light-gray panels (not navy banners) for headers/section-titles,
+        // a gold accent only under the main table's A:F header cells, and a genuine
+        // zebra-striped data table (explicit white/gray fills, not "no fill"). The
+        // reference's row-66 stray duplicate note and row-86 stray spacer fill are
+        // deliberately NOT reproduced — the extracted build spec flagged both as almost
+        // certainly leftover artifacts in that file, not a design intent to copy.
         async function buildOilsBlob() {
             if(typeof ExcelJS === 'undefined') throw new Error('مكتبة التصدير غير محمّلة بعد');
             const TL = (window.bzTL || function(s){ return s; });
@@ -1396,83 +1404,103 @@
             const wb = new ExcelJS.Workbook();
             const ws = wb.addWorksheet('بيان الزيوت', { properties: { defaultRowHeight: 22 } });
 
-            // --- Corporate styling helpers (DESIGN_SYSTEM §6 — B&W print safe) ---
-            const NAVY = 'FF0C2340', GOLD = 'FFC9A227', ZEBRA = 'FFF2F2F2',
-                  WHITE = 'FFFFFFFF', BLACK = 'FF000000', GRID = 'FF595959';
-            const thin = { style: 'thin', color: { argb: GRID } };
-            const allBorders = { top: thin, left: thin, bottom: thin, right: thin };
+            // --- Reference-matched palette & fonts ---
+            const TITLE_BLUE = 'FF2E56A5', GOLD = 'FFC9A227', GRID = 'FF595959',
+                  MUTED_L = 'FFF2F2F2', MUTED_D = 'FFD9D9D9', CONCLUSION_FILL = 'FFF5F3EE',
+                  WHITE = 'FFFFFFFF', BLACK = 'FF000000';
+            const thinGrid = { style: 'thin', color: { argb: GRID } };
+            const thinBlack = { style: 'thin', color: { argb: BLACK } };
+            const medBlack = { style: 'medium', color: { argb: BLACK } };
+            const medGold = { style: 'medium', color: { argb: GOLD } };
+            const gridBorder = { top: thinGrid, left: thinGrid, right: thinGrid, bottom: thinGrid };
+            const blackThinBox = { top: thinBlack, left: thinBlack, right: thinBlack, bottom: thinBlack };
             const COLS = ['A','B','C','D','E','F','G','H','I','J'];
             const whiteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WHITE } };
-            const zebraFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
+            const zebraFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUTED_L } };
+            const mutedLightFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUTED_L } };
+            const mutedDarkFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUTED_D } };
 
             ws.columns = [
-                { width: 5 }, { width: 16 }, { width: 22 }, { width: 16 },
-                { width: 14 }, { width: 12 }, { width: 30 }, { width: 10 },
-                { width: 10 }, { width: 10 }
+                { width: 5 }, { width: 17 }, { width: 20.125 }, { width: 14.5 },
+                { width: 11 }, { width: 10 }, { width: 17 }, { width: 8 },
+                { width: 10 }, { width: 10.625 }
             ];
+            ws.views = [{ rightToLeft: true }];
 
-            function styleData(cell, isZebra) {
-                cell.border = allBorders;
+            function styleData(cell, isZebra, gridColor) {
+                cell.border = { top: { style: 'thin', color: { argb: gridColor } }, bottom: { style: 'thin', color: { argb: gridColor } }, left: { style: 'thin', color: { argb: gridColor } }, right: { style: 'thin', color: { argb: gridColor } } };
                 cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                cell.font = { name: 'Tajawal', size: 11, bold: false, color: { argb: BLACK } };
+                cell.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: BLACK } };
                 cell.fill = isZebra ? zebraFill : whiteFill;
-            }
-            function styleHeaderCell(cell) {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
-                cell.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: WHITE } };
-                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                cell.border = { top: thin, left: thin, right: thin, bottom: { style: 'medium', color: { argb: GOLD } } };
             }
             function styleNoteRow(rowNum, span) {
                 (span || COLS).forEach(col => {
                     const c = ws.getCell(col + rowNum);
-                    c.border = allBorders;
+                    c.border = blackThinBox;
                     c.fill = whiteFill;
-                    c.font = { name: 'Tajawal', size: 11, color: { argb: BLACK } };
+                    c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: BLACK } };
                     c.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true, readingOrder: 'rtl' };
                 });
-                const ro = ws.getRow(rowNum);
-                if(ro.height < 22) ro.height = 22;
+                ws.getRow(rowNum).height = 22;
             }
-            function sectionTitle(rowNum, text, span) {
-                const cols = span || ['A','B','C','D','E','F','G','H'];
+            // Muted-panel section title (ملاحظات/فلاتر الديزل headers) — no navy banner.
+            function sectionTitle(rowNum, text, span, opts) {
+                opts = opts || {};
+                const cols = span || ['A','B','C','D','E','F','G','H','I','J'];
                 try { ws.mergeCells(cols[0] + rowNum + ':' + cols[cols.length-1] + rowNum); } catch(e) {}
                 const c = ws.getCell(cols[0] + rowNum);
                 c.value = text;
-                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
-                c.font = { name: 'Tajawal', size: 13, bold: true, color: { argb: WHITE } };
-                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                ws.getRow(rowNum).height = 28;
+                c.fill = opts.dark ? mutedDarkFill : mutedLightFill;
+                c.font = { name: 'Cairo', size: opts.size || 13, bold: true, color: { argb: BLACK } };
+                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: !!opts.wrap };
+                const border = { left: medBlack, right: opts.rightThin ? thinBlack : medBlack };
+                if (!opts.noTop) border.top = medBlack;
+                if (!opts.noBottom) border.bottom = medBlack;
+                cols.forEach(col => { ws.getCell(col + rowNum).border = border; });
+                ws.getRow(rowNum).height = opts.height || 20.25;
             }
 
             let r = 1;
 
-            // 1. Title (merged across the oils-table width)
-            try { ws.mergeCells('A1:H1'); } catch(e) {}
+            // 1. Title — colored Cairo text, no fill (matches the reference exactly)
+            try { ws.mergeCells('A1:J1'); } catch(e) {}
             const titleCell = ws.getCell('A1');
             titleCell.value = document.getElementById('oilsTitle').value;
-            titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
-            titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: WHITE } };
-            titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-            ws.getRow(1).height = 34;
+            titleCell.font = { name: 'Cairo', size: 14, bold: true, color: { argb: TITLE_BLUE } };
+            titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            titleCell.border = { top: medBlack, bottom: thinBlack, left: medBlack, right: thinBlack };
+            ws.getRow(1).height = 25.5;
             r = 2;
 
-            // 2. Oils header row (labels via bzTL so EN export translates)
+            // 2. Oils header row — muted panel fill + gold accent under A:F only (labels via
+            // bzTL so EN export translates)
             const oilsHeaders = ['م','رقم لوحة السيارة','المستخدم','تاريخ تغيير الزيت','رقم العداد','عدد اللترات','عدد فلاتر الزيت والديزل والهواء'];
             const oilsHeaderRow = r;
-            ['A','B','C','D','E','F','G'].forEach((col, i) => {
+            ['A','B','C','D','E','F'].forEach((col, i) => {
                 const c = ws.getCell(col + r);
                 c.value = TL(oilsHeaders[i]);
-                styleHeaderCell(c);
+                c.fill = mutedLightFill;
+                c.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
+                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                c.border = { bottom: medGold, left: thinGrid, right: thinGrid };
             });
-            ws.getRow(r).height = 26;
-            ws.views = [{ rightToLeft: true, state: 'frozen', ySplit: oilsHeaderRow }];
+            ws.getCell('A'+r).border = { bottom: medGold, left: medBlack, right: thinGrid };
+            try { ws.mergeCells('G'+r+':J'+r); } catch(e) {}
+            const gHdr = ws.getCell('G'+r);
+            gHdr.value = TL(oilsHeaders[6]);
+            gHdr.fill = mutedLightFill;
+            gHdr.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
+            gHdr.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            ['G','H','I','J'].forEach(col => { ws.getCell(col+r).border = { bottom: thinBlack }; });
+            ws.getCell('J'+r).border = { bottom: thinBlack, right: thinBlack };
+            ws.getRow(r).height = 24.75;
             r++;
 
-            // 3. Main Oils Table (ALL dynamic rows)
+            // 3. Main Oils Table (ALL dynamic rows) — zebra striping, G:J merged per row
             const oilsRows = document.querySelectorAll('#oilsBody tr');
             let liveCount = 0, totalLiters = 0;
-            oilsRows.forEach((tr) => {
+            const firstOilsRow = r, oilsRowsArr = Array.prototype.slice.call(oilsRows);
+            oilsRowsArr.forEach((tr) => {
                 const tds = tr.querySelectorAll('td');
                 const getVal = (c) => {
                     if(!tds[c]) return '';
@@ -1480,36 +1508,50 @@
                     if(input) return input.value;
                     return tds[c].innerText.replace('❌','').trim();
                 };
+                const isZebra = (liveCount % 2 === 1);
                 ws.getCell('A'+r).value = liveCount + 1;
                 ws.getCell('B'+r).value = getVal(1);
                 ws.getCell('C'+r).value = getVal(2);
                 ws.getCell('D'+r).value = getVal(3);
                 ws.getCell('E'+r).value = getVal(4);
                 ws.getCell('F'+r).value = getVal(5);
-                ws.getCell('G'+r).value = getVal(6);
+                ['A','B','C','D','E','F'].forEach(col => styleData(ws.getCell(col + r), isZebra, GRID));
                 const lit = parseFloat(getVal(5));
                 if(!isNaN(lit)) totalLiters += lit;
-                const zebra = (liveCount % 2 === 1);
-                ['A','B','C','D','E','F','G'].forEach(col => styleData(ws.getCell(col + r), zebra));
+                try { ws.mergeCells('G'+r+':J'+r); } catch(e) {}
+                const gCell = ws.getCell('G'+r);
+                gCell.value = getVal(6);
+                ['G','H','I','J'].forEach(col => styleData(ws.getCell(col + r), isZebra, 'FF000000'));
                 const rowObj = ws.getRow(r);
-                if(rowObj.height < 22) rowObj.height = 22;
+                rowObj.height = 17.25;
                 liveCount++; r++;
             });
+            // last data row: drop the bottom border (closed instead by the totals row's top)
+            if (liveCount) {
+                const lastRow = r - 1;
+                COLS.forEach(col => {
+                    const b = Object.assign({}, ws.getCell(col + lastRow).border);
+                    delete b.bottom;
+                    ws.getCell(col + lastRow).border = b;
+                });
+            }
 
-            // 4. Total consumed oils (liters) row
+            // 4. Total consumed oils (liters) row — muted-panel label box + plain value box
             try { ws.mergeCells('A'+r+':E'+r); } catch(e) {}
             const totLabel = ws.getCell('A'+r);
             totLabel.value = TL('إجمالي الزيوت المستهلكة (عدد اللترات)');
-            totLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
-            totLabel.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: WHITE } };
+            totLabel.fill = mutedLightFill;
+            totLabel.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
             totLabel.alignment = { vertical: 'middle', horizontal: 'center' };
-            try { ws.mergeCells('F'+r+':G'+r); } catch(e) {}
+            ['A','B','C','D','E'].forEach(col => { ws.getCell(col+r).border = { top: medBlack, bottom: medBlack, left: col==='A'?medBlack:undefined, right: col==='E'?medBlack:undefined }; });
+            try { ws.mergeCells('F'+r+':J'+r); } catch(e) {}
             const totVal = ws.getCell('F'+r);
             totVal.value = totalLiters;
             totVal.font = { name: 'Tajawal', size: 13, bold: true, color: { argb: BLACK } };
             totVal.alignment = { vertical: 'middle', horizontal: 'center' };
-            totVal.border = allBorders;
-            ws.getRow(r).height = 26;
+            ['F','G','H','I'].forEach(col => { ws.getCell(col+r).border = { top: medBlack, bottom: medBlack, left: col==='F'?medBlack:undefined }; });
+            ws.getCell('J'+r).border = { top: medBlack, bottom: medBlack, right: thinBlack };
+            ws.getRow(r).height = 17.25;
             r += 2;
 
             const tables = document.querySelectorAll('.excel-table');
@@ -1524,74 +1566,130 @@
 
             // 5. Top Notes (notes & filter details)
             if(topNotesTable) {
-                sectionTitle(r, TL('ملاحظات وتفاصيل الفلاتر')); r++;
+                sectionTitle(r, TL('ملاحظات وتفاصيل الفلاتر'), null, { wrap: true }); r++;
                 topNotesTable.querySelectorAll('input').forEach(inp => {
-                    try { ws.mergeCells('A'+r+':H'+r); } catch(e) {}
+                    try { ws.mergeCells('A'+r+':J'+r); } catch(e) {}
                     ws.getCell('A'+r).value = inp.value;
-                    styleNoteRow(r, ['A','B','C','D','E','F','G','H']);
+                    styleNoteRow(r);
                     r++;
                 });
                 r++;
             }
 
-            // 6. Filters Table — ALL dynamic rows
+            // 6. Filters breakdown — one 2N-row list rendered as two side-by-side column
+            // groups (A-E / F-J), matching the reference's "second sub-table" exactly.
             if(filtersTable) {
                 const fHeaders = ['م','نوع الفلتر','السابق','المستهلك','المتبقي','م','نوع الفلتر','السابق','المستهلك','المتبقي'];
                 COLS.forEach((col, i) => {
                     const c = ws.getCell(col + r);
                     c.value = TL(fHeaders[i]);
-                    styleHeaderCell(c);
+                    c.fill = mutedLightFill;
+                    c.font = { name: 'Cairo', size: 10, bold: true, color: { argb: BLACK } };
+                    c.alignment = { vertical: 'middle', horizontal: 'center' };
+                    c.border = { top: thinBlack, bottom: medBlack, left: thinBlack, right: thinBlack };
                 });
-                ws.getRow(r).height = 26;
+                ws.getCell('A'+r).border = Object.assign({}, ws.getCell('A'+r).border, { left: medBlack });
+                ws.getCell('J'+r).border = Object.assign({}, ws.getCell('J'+r).border, { right: medBlack });
+                ws.getRow(r).height = 21.75;
                 r++;
 
                 const filterRows = filtersTable.querySelectorAll('tbody tr');
-                filterRows.forEach((tr, idx) => {
+                const filterRowsArr = Array.prototype.slice.call(filterRows);
+                filterRowsArr.forEach((tr, idx) => {
                     const tds = tr.querySelectorAll('td');
                     const getVal = (c) => tds[c] ? (tds[c].querySelector('input') ? tds[c].querySelector('input').value : tds[c].innerText.trim()) : '';
+                    const isZebra = (idx % 2 === 1);
                     ws.getCell('A'+r).value = idx + 1;
                     ws.getCell('B'+r).value = getVal(1);
                     ws.getCell('C'+r).value = getVal(2);
                     ws.getCell('D'+r).value = getVal(3);
                     ws.getCell('E'+r).value = getVal(4);
-                    ws.getCell('F'+r).value = idx + 1 + filterRows.length;
+                    ws.getCell('F'+r).value = idx + 1 + filterRowsArr.length;
                     ws.getCell('G'+r).value = getVal(6);
                     ws.getCell('H'+r).value = getVal(7);
                     ws.getCell('I'+r).value = getVal(8);
                     ws.getCell('J'+r).value = getVal(9);
-                    const zebra = (idx % 2 === 1);
-                    COLS.forEach(col => styleData(ws.getCell(col + r), zebra));
-                    const rowObj = ws.getRow(r);
-                    if(rowObj.height < 22) rowObj.height = 22;
+                    COLS.forEach(col => {
+                        const cell = ws.getCell(col + r);
+                        cell.border = gridBorder;
+                        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                        cell.font = { name: 'Tajawal', size: 10, bold: true, color: { argb: BLACK } };
+                        cell.fill = isZebra ? zebraFill : whiteFill;
+                    });
+                    ws.getCell('A'+r).border = Object.assign({}, ws.getCell('A'+r).border, { left: medBlack });
+                    ws.getCell('J'+r).border = Object.assign({}, ws.getCell('J'+r).border, { right: medBlack });
+                    ws.getRow(r).height = 24.75;
                     r++;
                 });
+                if (filterRowsArr.length) {
+                    const lastRow = r - 1;
+                    COLS.forEach(col => { ws.getCell(col+lastRow).border = Object.assign({}, ws.getCell(col+lastRow).border, { bottom: medBlack }); });
+                }
                 r++;
             }
 
-            // 7. Diesel filters notes
+            // 7. Diesel filters section — darker muted-panel title (open bottom) + bullet
+            // lines framed only by side-rails (no horizontal dividers between them)
             if(bottomNotesTable) {
                 const bottomNotes = bottomNotesTable.querySelectorAll('input');
                 if(bottomNotes.length) {
-                    sectionTitle(r, TL('فلاتر الديزل')); r++;
+                    sectionTitle(r, TL('فلاتر الديزل'), null, { dark: true, size: 11, noBottom: true, height: 15 }); r++;
                     bottomNotes.forEach(inp => {
-                        try { ws.mergeCells('A'+r+':H'+r); } catch(e) {}
-                        ws.getCell('A'+r).value = inp.value;
-                        styleNoteRow(r, ['A','B','C','D','E','F','G','H']);
+                        try { ws.mergeCells('A'+r+':J'+r); } catch(e) {}
+                        const c = ws.getCell('A'+r);
+                        c.value = inp.value;
+                        c.font = { name: 'Cairo', size: 11, bold: true, color: { argb: BLACK } };
+                        c.alignment = { vertical: 'middle', horizontal: 'right' };
+                        COLS.forEach(col => { ws.getCell(col+r).border = {}; });
+                        ws.getCell('A'+r).border = { left: medBlack };
+                        ws.getCell('J'+r).border = { right: medBlack };
+                        ws.getRow(r).height = 15.75;
                         r++;
                     });
-                    r++;
                 }
             }
 
-            // 8. Corporate footer row
-            try { ws.mergeCells('A'+r+':H'+r); } catch(e) {}
-            const footCell = ws.getCell('A'+r);
-            const today = new Date().toISOString().slice(0, 10);
-            footCell.value = TL('أُعدّ بواسطة قسم الحركة — فرع الدمام') + '   |   ' + today;
-            footCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: BLACK } };
-            footCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            // 8. Conclusion line — distinct fill, fully closed box (seals the diesel section)
+            try { ws.mergeCells('A'+r+':J'+r); } catch(e) {}
+            const conclCell = ws.getCell('A'+r);
+            const conclEl = document.getElementById('oilsConclusion');
+            conclCell.value = conclEl ? conclEl.value : TL('وبناءا عليه تم طلب وشراء فلاتر جديدة — الحسابات');
+            conclCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CONCLUSION_FILL } };
+            conclCell.font = { name: 'Cairo', size: 12, bold: true, color: { argb: BLACK } };
+            conclCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            const medBox = { top: medBlack, bottom: medBlack, left: medBlack, right: medBlack };
+            COLS.forEach(col => { ws.getCell(col+r).border = medBox; ws.getCell(col+r).fill = conclCell.fill; });
+            ws.getRow(r).height = 15.75;
+            r += 1;
 
-            // 9. Print setup — clean B&W landscape (DESIGN_SYSTEM §6).
+            // 9. Signature block — قسم الحركة (A:C) / المحاسب (E) / التعميد (H); only the
+            // first column carries the ruled signature line, matching the reference exactly
+            // (the app doesn't currently collect a "المحاسب" name, so that slot stays blank).
+            try { ws.mergeCells('A'+r+':C'+r); } catch(e) {}
+            ws.getCell('A'+r).value = TL('قسم الحركة');
+            ws.getCell('A'+r).font = { name: 'Cairo', size: 11, bold: true, color: { argb: BLACK } };
+            ws.getCell('A'+r).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws.getCell('A'+r).border = { top: medBlack };
+            ['B','C'].forEach(col => { ws.getCell(col+r).border = { top: medBlack }; });
+            ws.getCell('E'+r).value = TL('المحاسب');
+            ws.getCell('E'+r).font = { name: 'Cairo', size: 11, bold: true, color: { argb: BLACK } };
+            ws.getCell('E'+r).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws.getCell('H'+r).value = TL('التعميد');
+            ws.getCell('H'+r).font = { name: 'Cairo', size: 11, bold: true, color: { argb: BLACK } };
+            ws.getCell('H'+r).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws.getRow(r).height = 28.5;
+            r += 1;
+            try { ws.mergeCells('A'+r+':C'+r); } catch(e) {}
+            const sigDeptEl = document.getElementById('oilsSigDept');
+            ws.getCell('A'+r).value = sigDeptEl ? sigDeptEl.value : '';
+            ws.getCell('A'+r).font = { name: 'Cairo', size: 10, bold: true, color: { argb: BLACK } };
+            ws.getCell('A'+r).alignment = { vertical: 'middle', horizontal: 'center' };
+            const sigApprovalEl = document.getElementById('oilsSigApproval');
+            ws.getCell('H'+r).value = sigApprovalEl ? sigApprovalEl.value : '';
+            ws.getCell('H'+r).font = { name: 'Cairo', size: 10, bold: true, color: { argb: BLACK } };
+            ws.getRow(r).height = 21.0;
+
+            // 10. Print setup — clean B&W landscape (DESIGN_SYSTEM §6).
             ws.pageSetup = {
                 fitToPage: true, fitToWidth: 1, fitToHeight: 0,
                 orientation: 'landscape', horizontalCentered: true,

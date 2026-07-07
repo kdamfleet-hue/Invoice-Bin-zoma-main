@@ -962,159 +962,248 @@
       if (d) d.addEventListener('change', (e) => { state.date = e.target.value; scheduleSave(); });
     });
 
-    // ===== Excel export — two column groups (employee + vehicle) =====
-    const HDR_FILL = 'FFBDD7EE', GRP_EMP_FILL = 'FF0C2340', GRP_VEH_FILL = 'FFC9A227', SPARE_FILL = 'FFFFCCCC', SUM_FILL = 'FFD9E2F3';
-    const TOTAL_COLS = 1 + COLS.length; // م + 17 data columns = 18 (A..R)
-    // column widths: م, then employee group widths, then vehicle group widths
-    const COLW = [5,
-      10, 22, 14, 9, 16, 13, 24,                 // employee group (7)
-      11, 7, 13, 7, 7, 12, 16, 16, 16, 24 ];     // vehicle group (10)
+    // ===== Excel export — matches the company's real weekly-update workbook format =====
+    // Column order/labels/colors/fonts mirror the reference file "تحديث الاسبوعي" exactly:
+    // an interleaved employee+vehicle order (NOT the on-screen EMP_COLS-then-VEH_COLS grouping
+    // used above for driver/vehicle-swap isolation), single شared "الملاحظات" column, رقم الجوال
+    // last. Deliberate anomalies found in the reference (a duplicated/relocated spare-table
+    // header, stray borders, an outlier off-brand title font/color) are normalized rather than
+    // reproduced — they read as one-off glitches in that file, not a design intent to copy.
+    const EXPORT_COLS = [
+      { key: 'empid',      label: 'الرقم الوظيفي' },
+      { key: 'name',       label: 'اسم السائق' },
+      { key: 'iqama',      label: 'رقم الإقامة' },
+      { key: 'job',        label: 'الوظيفة' },
+      { key: 'plate',      label: 'رقم اللوحة' },
+      { key: 'model',      label: 'الموديل' },
+      { key: 'vtype',      label: 'نوع المركبة' },
+      { key: 'pallets',    label: 'عدد الطبالي' },
+      { key: 'load',       label: 'الحمولة' },
+      { key: 'vserial',    label: 'الرقم التسلسلي' },
+      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', date: true },
+      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   date: true },
+      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق',  date: true },
+      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', date: true },
+      { key: 'notes',      label: 'الملاحظات' },
+      { key: 'phone',      label: 'رقم الجوال' },
+    ];
+    // م + 16 data columns, widths taken from the reference workbook's own column widths
+    const EXPORT_COL_WIDTHS = [3.125, 9.0, 20.125, 12.125, 5.75, 11.625, 6.125, 12.875, 8.125, 11.0, 15.125, 18.125, 16.125, 17.125, 17.125, 12.75, 22.0];
+    const EXPORT_TOTAL_COLS = 1 + EXPORT_COLS.length;
 
-    function thin(c) { return { style: 'thin', color: { argb: c || 'FF000000' } }; }
-    function allThin() { return { top: thin(), bottom: thin(), left: thin(), right: thin() }; }
+    const XL_BLUE = 'FFBDD7EE', XL_NAVY_TXT = 'FF0F2747', XL_GOLD = 'FFC9A227',
+          XL_SUMMARY_FILL = 'FFD9E2F3', XL_RED = 'FFEB3D3D', XL_YELLOW = 'FFFFFF00', XL_BLACK = 'FF000000';
 
-    // group-header row over the column headers
-    function writeGroupHeader(ws, rowNum, withVehicle) {
-      const r = ws.getRow(rowNum); r.height = 22;
-      // م spans both header rows
-      ws.mergeCells(rowNum, 1, rowNum + 1, 1);
-      const idx = ws.getCell(rowNum, 1);
-      idx.value = bzTL('م');
-      idx.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GRP_EMP_FILL } };
-      idx.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-      idx.alignment = { horizontal: 'center', vertical: 'center' };
-      idx.border = allThin();
-      // employee group band
-      const empStart = 2, empEnd = 1 + EMP_COLS.length;
-      ws.mergeCells(rowNum, empStart, rowNum, empEnd);
-      const eg = ws.getCell(rowNum, empStart);
-      eg.value = bzTL('بيانات الموظف');
-      eg.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GRP_EMP_FILL } };
-      eg.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-      eg.alignment = { horizontal: 'center', vertical: 'center' };
-      for (let c = empStart; c <= empEnd; c++) ws.getCell(rowNum, c).border = allThin();
-      if (withVehicle) {
-        const vStart = empEnd + 1, vEnd = empEnd + VEH_COLS.length;
-        ws.mergeCells(rowNum, vStart, rowNum, vEnd);
-        const vg = ws.getCell(rowNum, vStart);
-        vg.value = bzTL('بيانات المركبات');
-        vg.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GRP_VEH_FILL } };
-        vg.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF1A1500' } };
-        vg.alignment = { horizontal: 'center', vertical: 'center' };
-        for (let c = vStart; c <= vEnd; c++) ws.getCell(rowNum, c).border = allThin();
+    function xThin() { return { style: 'thin', color: { argb: XL_BLACK } }; }
+    function xMed() { return { style: 'medium', color: { argb: XL_BLACK } }; }
+    function xAllThin() { return { top: xThin(), bottom: xThin(), left: xThin(), right: xThin() }; }
+    // Frames a merged banner/title row: top+bottom on every cell, left only on the first,
+    // right only on the last — avoids stray internal vertical dividers inside the merge.
+    function xBoxMergedRow(ws, rowNum, span, side) {
+      for (let c = 1; c <= span; c++) {
+        const b = { top: side(), bottom: side() };
+        if (c === 1) b.left = side();
+        if (c === span) b.right = side();
+        ws.getCell(rowNum, c).border = b;
       }
     }
-    // column-label header row (cols = column set for this table)
-    function writeColHeader(ws, rowNum, cols) {
-      const r = ws.getRow(rowNum); r.height = 30;
-      cols.forEach((c, i) => {
-        const cell = ws.getCell(rowNum, i + 2); // skip م (merged from group row)
+
+    // Combines the employee-notes and vehicle-notes fields into the single "الملاحظات"
+    // column the reference file uses (our on-screen table keeps them as two separate fields).
+    function exportCellValue(row, col) {
+      if (col.key === 'notes') {
+        const a = String(row.empNotes || '').trim(), b = String(row.notes || '').trim();
+        return a && b ? (a + ' | ' + b) : (a || b);
+      }
+      return row[col.key] || '';
+    }
+    // Red = already expired, yellow = expiring within 30 days — reuses this app's own
+    // document-expiry thresholds (the reference file's manual highlights had no single
+    // consistent day-count rule to copy, per the extracted build spec).
+    function expiryFillFor(dateStr) {
+      const m = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      const d = new Date(+m[1], +m[2] - 1, +m[3]);
+      const days = Math.floor((d - new Date(new Date().toDateString())) / 86400000);
+      if (days < 0) return XL_RED;
+      if (days <= 30) return XL_YELLOW;
+      return null;
+    }
+
+    function writeExportHeader(ws, rowNum) {
+      ws.getRow(rowNum).height = 24;
+      const h = ws.getCell(rowNum, 1);
+      h.value = bzTL('م');
+      h.font = { name: 'DIN Condensed', size: 10, color: { argb: XL_BLACK } };
+      h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      h.border = { top: xMed(), bottom: xThin(), left: xMed(), right: xMed() };
+      EXPORT_COLS.forEach((c, i) => {
+        const cell = ws.getCell(rowNum, i + 2);
         cell.value = bzTL(c.label);
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HDR_FILL } };
-        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2747' } };
-        cell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-        cell.border = { top: thin(), bottom: { style: 'medium', color: { argb: 'FFC9A227' } }, left: thin(), right: thin() };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_BLUE } };
+        cell.font = { name: 'Calibri', size: 11, bold: false, color: { argb: XL_NAVY_TXT } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = { top: xMed(), bottom: xThin(), left: xThin(), right: xThin() };
       });
     }
-    // writes group header + column header, returns next row index
-    function writeHeader(ws, rowNum, cols) {
-      writeGroupHeader(ws, rowNum, cols.length > EMP_COLS.length);
-      writeColHeader(ws, rowNum + 1, cols);
-      return rowNum + 2;
-    }
-    function writeDataRow(ws, rowNum, serial, row, cols) {
-      const r = ws.getRow(rowNum);
-      r.values = [serial, ...cols.map(c => row[c.key] || '')];
-      r.eachCell({ includeEmpty: true }, (cell, col) => {
-        if (col > 1 + cols.length) return;
-        cell.font = { name: 'Arial', size: 11 };
-        cell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-        cell.border = allThin();
+    function writeExportDataRow(ws, rowNum, serial, row) {
+      ws.getRow(rowNum).height = 19.5;
+      const idx = ws.getCell(rowNum, 1);
+      idx.value = serial;
+      idx.font = { name: 'DIN Condensed', size: 10, bold: true, color: { argb: XL_BLACK } };
+      idx.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      idx.border = { top: xThin(), bottom: xThin(), left: xMed(), right: xMed() };
+      EXPORT_COLS.forEach((c, i) => {
+        const cell = ws.getCell(rowNum, i + 2);
+        const v = exportCellValue(row, c);
+        cell.value = v;
+        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: XL_BLACK } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = xAllThin();
+        if (c.date && v) {
+          cell.numFmt = 'mm-dd-yy';
+          const fill = expiryFillFor(v);
+          if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+        }
       });
     }
-    function sectionTitle(ws, rowNum, text, fill, span) {
+    // Closes a table with a medium bottom rule across every column (matches the reference's
+    // "last row of the table gets a medium bottom border" convention).
+    function closeExportTable(ws, rowNum) {
+      for (let c = 1; c <= EXPORT_TOTAL_COLS; c++) {
+        const cell = ws.getCell(rowNum, c);
+        cell.border = Object.assign({}, cell.border, { bottom: xMed() });
+      }
+    }
+    function exportSectionTitle(ws, rowNum, text, span, size) {
       ws.mergeCells(rowNum, 1, rowNum, span);
       const cell = ws.getCell(rowNum, 1);
       cell.value = bzTL(text);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
-      cell.font = { name: 'Calibri', size: 13, bold: true };
-      cell.alignment = { horizontal: 'center', vertical: 'center' };
-      for (let c = 1; c <= span; c++) ws.getCell(rowNum, c).border = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } };
+      cell.font = { name: 'DIN Condensed', size: size || 13, bold: true, color: { argb: XL_BLACK } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      xBoxMergedRow(ws, rowNum, span, xMed); // section titles: bottom+sides only (no top)
+      for (let c = 1; c <= span; c++) delete ws.getCell(rowNum, c).border.top;
     }
 
     // builds the workbook and returns an Excel Blob (used by both download and share)
     async function buildScheduleBlob() {
       const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet('الجدول الأسبوعي', { views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 4 }] });
-      COLW.forEach((w, i) => ws.getColumn(i + 1).width = w);
+      const ws = wb.addWorksheet('الجدول الأسبوعي', { views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 3 }] });
+      EXPORT_COL_WIDTHS.forEach((w, i) => ws.getColumn(i + 1).width = w);
 
-      // Title (A1:R1)
-      ws.mergeCells(1, 1, 1, TOTAL_COLS);
-      const t = ws.getCell('A1');
-      t.value = state.title || bzTL('الجدول الأسبوعي');
-      t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0C2340' } };
-      t.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
-      t.alignment = { horizontal: 'center', vertical: 'center' };
+      // Title bar — date + report title, plain text (no banner fill), matches the reference
+      ws.mergeCells(1, 2, 1, 3);
+      const dcell = ws.getCell(1, 2);
+      dcell.value = state.date || '';
+      dcell.font = { name: 'DIN Condensed', size: 12, bold: true };
+      dcell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      ws.mergeCells(1, 4, 1, EXPORT_TOTAL_COLS);
+      const tcell = ws.getCell(1, 4);
+      tcell.value = state.title || bzTL('الجدول الأسبوعي');
+      tcell.font = { name: 'DIN Condensed', size: 14, bold: true };
+      tcell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       ws.getRow(1).height = 22;
-      // Date (B2)
-      ws.getCell('B2').value = (bzTL('التاريخ') + ': ') + (state.date || '');
-      ws.getCell('B2').font = { name: 'Calibri', size: 12, bold: true };
-      ws.getRow(2).height = 16.5;
 
       let r = 3;
-      r = writeHeader(ws, r, COLS);
-      state.main.forEach((row, i) => { writeDataRow(ws, r, i + 1, row, COLS); r++; });
+      writeExportHeader(ws, r); r++;
+      state.main.forEach((row, i) => { writeExportDataRow(ws, r, i + 1, row); r++; });
+      if (state.main.length) closeExportTable(ws, r - 1);
 
       r += 1;
-      sectionTitle(ws, r, 'بيان المركبات الاسبير والمعطلة', SPARE_FILL, TOTAL_COLS); r += 1;
-      r = writeHeader(ws, r, COLS);
-      state.spare.forEach((row, i) => { writeDataRow(ws, r, i + 1, row, COLS); r++; });
+      exportSectionTitle(ws, r, 'بيان المركبات الاسبير والمعطلة', EXPORT_TOTAL_COLS, 9); r += 1;
+      writeExportHeader(ws, r); r++;
+      state.spare.forEach((row, i) => { writeExportDataRow(ws, r, i + 1, row); r++; });
+      if (state.spare.length) closeExportTable(ws, r - 1);
 
-      // Vacation section — employee data only (7 cols)
+      // Summary + on-leave drivers — two mini-tables side by side (matches the reference)
+      r += 1;
       const vac = state.vacation.filter(v => Object.values(v).some(x => String(x || '').trim()));
+      const sumSpan = 8, vacStartCol = sumSpan + 2, vacSpan = 1 + EMP_COLS.length;
+      exportSectionTitle(ws, r, 'ملخص الأعداد', sumSpan, 13);
       if (vac.length) {
-        r += 1;
-        sectionTitle(ws, r, 'السائقون في إجازة (هذا الأسبوع)', SUM_FILL, 1 + EMP_COLS.length); r += 1;
-        r = writeHeader(ws, r, EMP_COLS);
-        vac.forEach((row, i) => { writeDataRow(ws, r, i + 1, row, EMP_COLS); r++; });
+        ws.mergeCells(r, vacStartCol, r, vacStartCol + vacSpan - 1);
+        const vcell = ws.getCell(r, vacStartCol);
+        vcell.value = bzTL('السائقون في إجازة (هذا الأسبوع)');
+        vcell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_SUMMARY_FILL } };
+        vcell.font = { name: 'Calibri', size: 11, bold: true };
+        vcell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        for (let c = vacStartCol; c < vacStartCol + vacSpan; c++) ws.getCell(r, c).border = xAllThin();
       }
-
-      // Summary
       r += 1;
-      sectionTitle(ws, r, 'ملخص الأعداد', SUM_FILL, 8); r += 1;
       const sumHdr = ['م', 'عدد السائقين', 'عدد الدينات', 'عدد اللواري', 'عدد الموصلين', 'عدد الموزعين', 'عدد السائقين في إجازة'];
-      ws.mergeCells(r, 7, r, 8);
+      ws.mergeCells(r, 7, r, sumSpan);
       sumHdr.forEach((h, i) => {
         const cell = ws.getCell(r, i + 1);
         cell.value = bzTL(h);
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HDR_FILL } };
-        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2747' } };
-        cell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-        cell.border = allThin();
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_BLUE } };
+        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: XL_NAVY_TXT } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = xAllThin();
       });
-      ws.getCell(r, 8).border = allThin();
+      ws.getCell(r, sumSpan).border = xAllThin();
+      const vHdrLabels = ['م', 'الرقم الوظيفي', 'اسم السائق', 'رقم الإقامة', 'الوظيفة', 'تاريخ انتهاء بطاقة السائق', 'رقم الجوال', 'الملاحظات'];
+      if (vac.length) {
+        vHdrLabels.forEach((h, i) => {
+          const cell = ws.getCell(r, vacStartCol + i);
+          cell.value = bzTL(h);
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_BLUE } };
+          cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: XL_NAVY_TXT } };
+          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.border = xAllThin();
+        });
+      }
+      const sumHdrRow = r;
       r += 1;
       const s = state.summary || {};
       const sumVals = ['1', s.drivers || '', s.dinas || '', s.lorries || '', s.delivery || '', s.distributors || '', s.vacation || ''];
-      ws.mergeCells(r, 7, r, 8);
+      ws.mergeCells(r, 7, r, sumSpan);
       sumVals.forEach((v, i) => {
         const cell = ws.getCell(r, i + 1);
         cell.value = v;
         cell.font = { name: 'Arial', size: 12, bold: true };
-        cell.alignment = { horizontal: 'center', vertical: 'center' };
-        cell.border = allThin();
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = xAllThin();
       });
-      ws.getCell(r, 8).border = allThin();
+      ws.getCell(r, sumSpan).border = xAllThin();
+      if (vac.length) {
+        vac.forEach((row, i) => {
+          const rr = sumHdrRow + 1 + i;
+          const vRow = [i + 1, row.empid, row.name, row.iqama, row.job, row.drivercard, row.phone, row.empNotes];
+          const DRIVERCARD_CI = 5;
+          vRow.forEach((val, ci) => {
+            const cell = ws.getCell(rr, vacStartCol + ci);
+            cell.value = val || '';
+            cell.font = { name: 'Arial', size: 11, bold: true };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = xAllThin();
+            if (ci === DRIVERCARD_CI && val) {
+              cell.numFmt = 'mm-dd-yy';
+              const fill = expiryFillFor(val);
+              if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+            }
+          });
+        });
+        r = Math.max(r, sumHdrRow + vac.length);
+      }
 
-      // Footer + signature
+      // Footer + signature (plain DIN Condensed banner + caption, matches the reference)
       r += 2;
-      ws.mergeCells(r, 1, r, TOTAL_COLS);
+      xBoxMergedRow(ws, r, EXPORT_TOTAL_COLS, xMed);
+      ws.mergeCells(r, 1, r, EXPORT_TOTAL_COLS);
       const f = ws.getCell(r, 1);
       f.value = bzTL('تم إعداد هذا الجدول بواسطة قسم الحركة');
-      f.font = { name: 'Calibri', size: 12, bold: true };
-      f.alignment = { horizontal: 'center', vertical: 'center' };
-      r += 1; ws.getCell(r, 3).value = bzTL('قسم الحركة'); ws.getCell(r, 3).font = { name: 'Arial', size: 11, bold: true };
-      r += 1; ws.getCell(r, 3).value = 'خالد بن محمد الغامدي'; ws.getCell(r, 3).font = { name: 'Arial', size: 11, bold: true };
+      f.font = { name: 'DIN Condensed', size: 15, bold: true };
+      f.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      r += 2;
+      ws.mergeCells(r, 1, r, 3);
+      ws.getCell(r, 1).value = bzTL('قسم الحركة');
+      ws.getCell(r, 1).font = { name: 'DIN Condensed', size: 16, bold: true };
+      ws.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle' };
+      r += 1;
+      ws.mergeCells(r, 1, r, 3);
+      ws.getCell(r, 1).value = 'خالد بن محمد الغامدي';
+      ws.getCell(r, 1).font = { name: 'DIN Condensed', size: 16, bold: true };
+      ws.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle' };
 
       ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
 
