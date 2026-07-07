@@ -425,6 +425,12 @@ def init_db():
             db.execute(
                 "CREATE TABLE IF NOT EXISTS driver_registry (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
             )
+            # Learned vehicle registry — per-branch memory of each vehicle's technical spec
+            # (الطبالي/الحمولة/الرقم التسلسلي/تواريخ الفحص والرخصة وبطاقة التشغيل/الملاحظات) keyed by
+            # normalized plate, harvested the same way as driver_registry above. Additive only.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS vehicle_registry (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
             # Drivers whose vehicle authorization was cancelled (from the Absher sync) —
             # shown under the weekly schedule. Per-branch blob.
             db.execute(
@@ -1816,6 +1822,70 @@ def _harvest_driver_registry(sd):
             blob_set("driver_registry", reg)
 
 
+# ===== Learned vehicle registry (per-branch) — symmetric to the driver registry above =====
+# Maps normalized plate → the vehicle's technical fields, harvested from the weekly schedule
+# so a known vehicle's spec auto-fills on every future selection, mirroring the driver side:
+# selecting a driver never touches the vehicle box, and selecting a vehicle never touches the
+# driver box — each "swap" only ever replaces its own data.
+_VEH_REG_FIELDS = ("model", "vtype", "pallets", "load", "vserial", "inspect", "license", "opcard", "notes")
+VEHICLE_REG_MAX = 4000
+_VEH_REG_FIELD_MAX = {"model": 20, "vtype": 40, "pallets": 10, "load": 20, "vserial": 40,
+                      "inspect": 40, "license": 40, "opcard": 40, "notes": 300}
+_VEHICLE_REG_LOCK = threading.Lock()
+_AR_DIGITS = "٠١٢٣٤٥٦٧٨٩"
+
+
+def _norm_plate(v):
+    """Digits-then-letters, Arabic-Indic digits folded to Latin — matches window.normalizePlate
+    in app_ux.js exactly, so the same plate always resolves to the same registry key regardless
+    of digit script or letter/digit typing order."""
+    s = str(v or "")
+    for i, ch in enumerate(_AR_DIGITS):
+        s = s.replace(ch, str(i))
+    s = re.sub(r"\s+", "", s)
+    digits = "".join(re.findall(r"\d+", s))
+    letters = "".join(re.findall(r"[^\d]+", s))
+    return digits + letters
+
+
+def _harvest_vehicle_registry(sd):
+    """Best-effort: fold any non-empty technical-spec fields from schedule rows (main/spare —
+    vacation rows carry no vehicle) into the per-branch vehicle registry, keyed by normalized
+    plate. Latest non-empty value wins; a blank NEVER clears a remembered value. Never raises
+    into the caller (the schedule save must always succeed)."""
+    if not isinstance(sd, dict):
+        return
+    with _VEHICLE_REG_LOCK:
+        reg = blob_get("vehicle_registry") or {}
+        if not isinstance(reg, dict):
+            reg = {}
+        changed = False
+        for section in ("main", "spare"):
+            for row in (sd.get(section) or []):
+                if not isinstance(row, dict):
+                    continue
+                key = _norm_plate(row.get("plate"))
+                if not key:
+                    continue
+                existing = key in reg
+                if not existing and len(reg) >= VEHICLE_REG_MAX:
+                    continue
+                entry = reg.get(key) if existing else {}
+                if not isinstance(entry, dict):
+                    entry = {}
+                local_changed = False
+                for f in _VEH_REG_FIELDS:
+                    val = str(row.get(f, "") or "").strip()[:_VEH_REG_FIELD_MAX.get(f, 80)]
+                    if val and entry.get(f) != val:
+                        entry[f] = val
+                        local_changed = True
+                if local_changed and entry:
+                    reg[key] = entry
+                    changed = True
+        if changed:
+            blob_set("vehicle_registry", reg)
+
+
 @app.route("/api/schedule_data", methods=["GET", "POST"])
 @login_required
 def schedule_data():
@@ -1828,6 +1898,10 @@ def schedule_data():
                 _harvest_driver_registry(sd)  # learn each driver's card-expiry/job for future autofill
             except Exception:
                 logger.warning("driver_registry harvest failed (non-fatal)")
+            try:
+                _harvest_vehicle_registry(sd)  # learn each vehicle's spec for future autofill
+            except Exception:
+                logger.warning("vehicle_registry harvest failed (non-fatal)")
             _n = (len(sd.get("main", []) or []) + len(sd.get("spare", []) or [])) if isinstance(sd, dict) else None
             _audit_add("تحديث", "الجدول الأسبوعي", _n)
             return jsonify({"success": True})
@@ -1851,6 +1925,18 @@ def driver_registry():
     except Exception:
         logger.exception("driver_registry GET error")
         return jsonify({"success": False, "error": "تعذّر جلب سجل السائقين."}), 500
+
+
+@app.route("/api/vehicle_registry", methods=["GET"])
+@login_required
+def vehicle_registry():
+    """Per-branch learned vehicle memory (plate → technical-spec fields) used by schedule autofill."""
+    try:
+        reg = blob_get("vehicle_registry") or {}
+        return jsonify({"success": True, "data": reg if isinstance(reg, dict) else {}})
+    except Exception:
+        logger.exception("vehicle_registry GET error")
+        return jsonify({"success": False, "error": "تعذّر جلب سجل المركبات."}), 500
 
 
 @app.route("/api/records", methods=["GET", "POST"])
@@ -2637,6 +2723,10 @@ def alerts_center_update():
                 _harvest_driver_registry(sd)
             except Exception:
                 logger.warning("driver_registry harvest failed (non-fatal)")
+            try:
+                _harvest_vehicle_registry(sd)
+            except Exception:
+                logger.warning("vehicle_registry harvest failed (non-fatal)")
             _audit_add("تعديل", "مركز تنبيهات الوثائق", None, store_key + ": " + (value or "تفريغ") + " — " + (row.get("name") or row.get("plate") or ""))
             return jsonify({"success": True, "value": value})
 

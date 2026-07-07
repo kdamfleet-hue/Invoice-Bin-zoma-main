@@ -424,6 +424,7 @@
 
     let state = { title: '', date: '', main: [], spare: [], vacation: [], summary: {} };
     let DRIVER_REG = {};   // learned per-driver memory: iqama(digits) → {empid,phone,job,drivercard,empNotes}
+    let VEH_REG = {};      // learned per-vehicle memory: normalizePlate(plate) → {model,vtype,pallets,load,vserial,inspect,license,opcard,notes}
     let saveTimer = null;
 
     function blankRow() { const o = {}; COLS.forEach(c => o[c.key] = ''); o.empNotes = ''; return o; }
@@ -435,6 +436,7 @@
       await loadData();
       try { await FleetData.load(); FleetData.fillDatalist('driverNames'); } catch (e) {}
       await loadDriverRegistry();   // learned card-expiry/job memory, keyed by iqama
+      await loadVehicleRegistry();  // learned vehicle-spec memory, keyed by plate
       renderAll();
       loadVehicles();        // «جميع مركبات الفرع»
       loadDeauthorized();    // «تم إلغاء تفويضهم»
@@ -547,13 +549,17 @@
       // When the iqama becomes known, back-fill the registry from any personal fields already
       // typed on this row — so same-session reuse works regardless of column entry order.
       else if (t.dataset.k === 'iqama') REG_FIELDS.forEach(f => regRemember(row.iqama, f, row[f]));
-      if (t.dataset.k !== 'name' && t.dataset.k !== 'iqama') { updateSummary(); scheduleSave(); }
+      // Symmetric learning for the vehicle box, keyed by plate instead of iqama.
+      if (VEH_REG_FIELDS.indexOf(t.dataset.k) !== -1) vehRegRemember(row.plate, t.dataset.k, t.value);
+      else if (t.dataset.k === 'plate') VEH_REG_FIELDS.forEach(f => vehRegRemember(row.plate, f, row[f]));
+      if (t.dataset.k !== 'name' && t.dataset.k !== 'iqama' && t.dataset.k !== 'plate') { updateSummary(); scheduleSave(); }
     });
     // autofill triggers on change (after picking from datalist / leaving field)
     document.addEventListener('change', (e) => {
       const t = e.target;
       if (t.tagName !== 'INPUT' || !t.dataset.sec) return;
       if (t.dataset.k === 'name' || t.dataset.k === 'iqama') autofillRow(t.dataset.sec, +t.dataset.i, t.dataset.k);
+      else if (t.dataset.k === 'plate') autofillVehicleRow(t.dataset.sec, +t.dataset.i);
       updateSummary(); scheduleSave();
     });
 
@@ -576,6 +582,79 @@
       if (!v) return;
       if (!DRIVER_REG[k] || typeof DRIVER_REG[k] !== 'object') DRIVER_REG[k] = {};
       DRIVER_REG[k][key] = v;
+    }
+
+    // ---- learned vehicle registry: normalizePlate(plate) → {model,vtype,pallets,load,vserial,inspect,license,opcard,notes} ----
+    const vehRegKey = v => (window.normalizePlate ? normalizePlate(v) : String(v || ''));
+    const VEH_REG_FIELDS = ['model', 'vtype', 'pallets', 'load', 'vserial', 'inspect', 'license', 'opcard', 'notes'];
+    const VEH_REG_MAXLEN = { model: 20, vtype: 40, pallets: 10, load: 20, vserial: 40, inspect: 40, license: 40, opcard: 40, notes: 300 };
+    async function loadVehicleRegistry() {
+      try {
+        const r = await fetch('/api/vehicle_registry');
+        if (r.ok) { const j = await r.json(); if (j && j.success && j.data && typeof j.data === 'object') VEH_REG = j.data; }
+      } catch (e) {}
+    }
+    // Remember a technical-spec field the instant the admin types it (mirrors regRemember).
+    function vehRegRemember(plate, key, val) {
+      const k = vehRegKey(plate);
+      if (!k || VEH_REG_FIELDS.indexOf(key) === -1) return;
+      const v = String(val || '').trim().slice(0, VEH_REG_MAXLEN[key] || 40);
+      if (!v) return;
+      if (!VEH_REG[k] || typeof VEH_REG[k] !== 'object') VEH_REG[k] = {};
+      VEH_REG[k][key] = v;
+    }
+    // Resolves the vehicle box for a plate from FleetData (master) + VEH_REG (learned).
+    //   mode 'replace'  — clear-and-fill every field (an explicit plate change: a genuine swap)
+    //   mode 'courtesy' — only fill fields that are currently blank (a driver pick incidentally
+    //                     set a blank row's plate; the vehicle box otherwise stays untouched)
+    function resolveVehicleFields(row, mode) {
+      const rec = window.FleetData ? FleetData.byPlate(row.plate) : null;
+      const reg = VEH_REG[vehRegKey(row.plate)] || {};
+      const carStr = (rec && rec.car) || reg.vtype || '';
+      const ym = carStr.match(/\b(19|20)\d{2}\b/);
+      const values = {
+        vtype: (rec && rec.car) || reg.vtype || '',
+        model: (ym ? ym[0] : '') || reg.model || '',
+        pallets: reg.pallets || '', load: reg.load || '', vserial: reg.vserial || '',
+        inspect: reg.inspect || '', license: reg.license || '', opcard: reg.opcard || '', notes: reg.notes || '',
+      };
+      Object.keys(values).forEach(k => {
+        if (mode === 'replace') row[k] = values[k];
+        else if (!String(row[k] || '').trim()) row[k] = values[k];
+      });
+    }
+
+    // ===== Vehicle swap = total separation, symmetric to the driver swap below =====
+    //  • Vehicle box (DYNAMIC): picking/typing a different plate clears the previous vehicle's
+    //    technical spec on that row and writes the new vehicle's known data (FleetData master +
+    //    the learned vehicle registry). Fields with no known value are CLEARED so a stale spec
+    //    from the old vehicle never lingers (e.g. its فحص دوري date never applies to a different
+    //    truck) — the admin re-enters them as needed, exactly like an unknown driver's job/بطاقة.
+    //  • Employee box (PROTECTED): a vehicle swap NEVER touches the driver's identity/personal
+    //    fields — only a brand-new BLANK row gets a courtesy driver-name fill if the vehicle
+    //    record also names an assigned driver; an already-assigned driver stays exactly as-is.
+    function autofillVehicleRow(section, idx) {
+      const row = state[section][idx];
+      if (!row) return;
+      const normPlate = vehRegKey(row.plate);
+      if (!normPlate) return;
+      const rec = window.FleetData ? FleetData.byPlate(row.plate) : null;
+      const reg = VEH_REG[normPlate] || {};
+      // Identity guard: if vtype already matches what this exact plate resolves to (and we have
+      // something to compare against), this is a blur/re-fire — skip, so a manual correction the
+      // admin made after the first autofill (e.g. fixing عدد الطبالي) survives.
+      const resolvedVtype = (rec && rec.car) || reg.vtype || '';
+      if (resolvedVtype && String(row.vtype || '').trim() === resolvedVtype.trim()) return;
+      resolveVehicleFields(row, 'replace');
+      // Employee box — protected; only fill a blank new row for convenience.
+      if (rec) {
+        const fillEmpIfBlank = (k, val) => { if (val && !String(row[k] || '').trim()) row[k] = val; };
+        fillEmpIfBlank('name', rec.name);
+        fillEmpIfBlank('iqama', rec.iqama);
+        fillEmpIfBlank('empid', rec.empid);
+        fillEmpIfBlank('phone', rec.phone);
+      }
+      renderBody('body' + cap(section), state[section], section);
     }
 
     // ===== Driver swap = total separation of the two data "boxes" (per the branch spec) =====
@@ -613,11 +692,12 @@
       setEmp('drivercard', reg.drivercard || '');
       setEmp('empNotes', reg.empNotes || '');
       // Vehicle box — protected; only fill a blank new row for convenience, never overwrite.
-      const fillVehIfBlank = (k, val) => { if (val && !String(row[k] || '').trim()) row[k] = val; };
-      fillVehIfBlank('plate', rec.plate);
-      fillVehIfBlank('vtype', rec.car);
-      const ym = (rec.car || '').match(/\b(19|20)\d{2}\b/);
-      if (ym) fillVehIfBlank('model', ym[0]);
+      // Reuses the same master+registry resolver the vehicle-swap side uses (courtesy mode:
+      // blank fields only), so a brand-new row gets the vehicle's FULL known spec, not just
+      // plate/vtype/model, the moment a driver whose FleetData record names an assigned plate
+      // is picked.
+      if (!String(row.plate || '').trim() && rec.plate) row.plate = rec.plate;
+      resolveVehicleFields(row, 'courtesy');
       renderBody('body' + cap(section), state[section], section);
     }
 
