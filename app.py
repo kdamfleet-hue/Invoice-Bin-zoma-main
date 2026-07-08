@@ -3755,6 +3755,8 @@ def update_driver(driver_id):
     if not name:
         return jsonify({"error": "Name is required"}), 400
 
+    # احفظ القيم القديمة لتمريرها للمزامنة بعد التحديث
+    old_name, old_plate = "", ""
     store = _driver_store()
     if store in ("ws", "blob"):
         # Update inside the isolated blob roster (workstation/branch). الدمام's real table untouched.
@@ -3762,6 +3764,7 @@ def update_driver(driver_id):
         lst = blob_get(tbl) or []
         for d in lst:
             if d.get("id") == driver_id:
+                old_name, old_plate = d.get("name", ""), d.get("plate", "")
                 d.update({"name": name, "empid": empid, "plate": plate, "car": car,
                           "iqama": iqama, "phone": phone, "drivercard": drivercard})
                 break
@@ -3782,6 +3785,14 @@ def update_driver(driver_id):
         conn.commit()
 
     logger.info("Driver updated: %s (id=%d)", name, driver_id)
+    # تحديث fleet_data.json وكل التبويبات من قاعدة البيانات تلقائياً
+    try:
+        _rebuild_fleet_json()
+        _sync_all_tabs_from_drivers(old_name=old_name, old_plate=old_plate,
+                                    new_name=name, new_plate=plate, new_car=car)
+    except Exception:
+        logger.warning("sync_all_tabs after driver update failed (non-fatal)")
+
     return jsonify(
         {
             "success": True,
@@ -3794,6 +3805,197 @@ def update_driver(driver_id):
             "drivercard": drivercard,
         }
     )
+
+
+def _rebuild_fleet_json():
+    """يُعيد بناء /static/fleet_data.json من جدول drivers الفعلي.
+    يُستدعى بعد كل تعديل/إضافة/حذف لسائق لضمان تزامن autofill عبر التبويبات."""
+    try:
+        _, drivers = _drivers_list_for_sync()
+        fleet = [
+            {
+                "name": d.get("name", ""),
+                "empid": d.get("empid", ""),
+                "iqama": d.get("iqama", ""),
+                "plate": d.get("plate", ""),
+                "car": d.get("car", ""),
+                "phone": d.get("phone", ""),
+            }
+            for d in drivers
+            if d.get("name", "").strip()
+        ]
+        fleet_path = os.path.join(app.root_path, "static", "fleet_data.json")
+        with open(fleet_path, "w", encoding="utf-8") as f:
+            json.dump(fleet, f, ensure_ascii=False, indent=2)
+        logger.info("fleet_data.json rebuilt: %d records", len(fleet))
+    except Exception:
+        logger.exception("_rebuild_fleet_json failed")
+
+
+def _normalize_plate_py(plate):
+    """Python نظير normalizePlate في JS — لمطابقة اللوحات بشكل موحد."""
+    p = str(plate or "")
+    ar_digits = "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669"
+    for i, c in enumerate(ar_digits):
+        p = p.replace(c, str(i))
+    p = "".join(p.split())  # remove spaces
+    import re as _re
+    digits = "".join(_re.findall(r"\d+", p))
+    letters = "".join(_re.findall(r"[^\d]+", p))
+    return digits + letters
+
+
+def _sync_all_tabs_from_drivers(old_name=None, old_plate=None, new_name=None, new_plate=None, new_car=None):
+    """يحدّث جدول الغسيل والجدول الأسبوعي تلقائياً بناءً على السائق المحدّث.
+    إذا تغيّر الاسم أو اللوحة، يُصحح القيمة في جميع الصفوف التي تحمل القيمة القديمة."""
+    changed = False
+
+    # ―― جدول الغسيل ――
+    try:
+        washing = blob_get("washing_schedule")
+        if isinstance(washing, list):
+            for v in washing:
+                # تصحيح السائق بمطابقة اللوحة أولاً (الأدق)
+                plate_match = (old_plate and v.get("plate") and
+                               _normalize_plate_py(v["plate"]) == _normalize_plate_py(old_plate))
+                name_match = (old_name and v.get("driver", "").strip() == old_name.strip())
+                if plate_match or name_match:
+                    if new_name and new_name != v.get("driver"):
+                        v["driver"] = new_name
+                        changed = True
+                    if new_car and new_car != v.get("type"):
+                        v["type"] = new_car
+                        changed = True
+                    if new_plate and new_plate != v.get("plate"):
+                        v["plate"] = new_plate
+                        changed = True
+            if changed:
+                blob_set("washing_schedule", washing)
+                logger.info("washing_schedule synced after driver update")
+    except Exception:
+        logger.exception("sync washing_schedule failed")
+
+    # ―― الجدول الأسبوعي ――
+    try:
+        sd = blob_get("schedule_data")
+        if isinstance(sd, dict):
+            sched_changed = False
+            for section in ("main", "spare", "vacation"):
+                for row in (sd.get(section) or []):
+                    if not isinstance(row, dict):
+                        continue
+                    plate_match = (old_plate and row.get("plate") and
+                                   _normalize_plate_py(row["plate"]) == _normalize_plate_py(old_plate))
+                    name_match = (old_name and row.get("name", "").strip() == old_name.strip())
+                    if plate_match or name_match:
+                        if new_name and new_name != row.get("name"):
+                            row["name"] = new_name
+                            sched_changed = True
+                        if new_plate and new_plate != row.get("plate"):
+                            row["plate"] = new_plate
+                            sched_changed = True
+                        if new_car and new_car != row.get("vtype"):
+                            row["vtype"] = new_car
+                            sched_changed = True
+            if sched_changed:
+                blob_set("schedule_data", sd)
+                logger.info("schedule_data synced after driver update")
+    except Exception:
+        logger.exception("sync schedule_data failed")
+
+
+@app.route("/api/sync_all_from_drivers", methods=["POST"])
+@login_required
+def api_sync_all_from_drivers():
+    """يمزامن جميع التبويبات (غسيل + أسبوعي) مع أحدث بيانات السائقين.
+    يحذف المركبات التي لا سائق لها (plate تبيّن أنها ليست في قاعدة البيانات)، ويضيف الناقصة،
+    ويصحح الأسماء واللوحات."""
+    try:
+        _, drivers = _drivers_list_for_sync()
+        # بناء فهرس لوحة→سائق من قاعدة البيانات
+        plate_map = {}  # normalized_plate → driver_record
+        for d in drivers:
+            np = _normalize_plate_py(d.get("plate", ""))
+            if np:
+                plate_map[np] = d
+
+        washing_updated = 0
+        washing_added = 0
+        washing_removed = 0
+        sched_updated = 0
+
+        # ―― تحديث جدول الغسيل ――
+        washing = blob_get("washing_schedule")
+        if not isinstance(washing, list):
+            washing = []
+
+        # صحّح الموجود واحذف الملغية
+        valid_washing = []
+        for v in washing:
+            np = _normalize_plate_py(v.get("plate", ""))
+            rec = plate_map.get(np)
+            if rec:
+                if rec.get("name", "").strip() and rec["name"] != v.get("driver"):
+                    v["driver"] = rec["name"]
+                    washing_updated += 1
+                if rec.get("car", "").strip() and rec["car"] != v.get("type"):
+                    v["type"] = rec["car"]
+                    washing_updated += 1
+                valid_washing.append(v)
+            else:
+                # لوحة ليست في قاعدة البيانات → احتفظ بها (قد تكون مدخلة يدوياً)
+                valid_washing.append(v)
+
+        # أضف المركبات الناقصة
+        existing_plates = {_normalize_plate_py(v.get("plate", "")) for v in valid_washing}
+        max_id = max((v.get("id") or 0 for v in valid_washing), default=0)
+        for np, d in plate_map.items():
+            if np and np not in existing_plates and d.get("name", "").strip():
+                max_id += 1
+                valid_washing.append({
+                    "id": max_id,
+                    "plate": d.get("plate", ""),
+                    "type": d.get("car", ""),
+                    "driver": d.get("name", ""),
+                    "m": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                })
+                washing_added += 1
+
+        blob_set("washing_schedule", valid_washing)
+
+        # ―― تحديث الجدول الأسبوعي ――
+        sd = blob_get("schedule_data")
+        if isinstance(sd, dict):
+            for section in ("main", "spare", "vacation"):
+                for row in (sd.get(section) or []):
+                    if not isinstance(row, dict):
+                        continue
+                    np = _normalize_plate_py(row.get("plate", ""))
+                    rec = plate_map.get(np)
+                    if rec:
+                        if rec.get("name", "").strip() and rec["name"] != row.get("name"):
+                            row["name"] = rec["name"]
+                            sched_updated += 1
+                        if rec.get("car", "").strip() and rec["car"] != row.get("vtype"):
+                            row["vtype"] = rec["car"]
+                            sched_updated += 1
+            blob_set("schedule_data", sd)
+
+        # إعادة بناء fleet_data.json
+        _rebuild_fleet_json()
+
+        logger.info("sync_all_from_drivers: washing upd=%d add=%d | sched upd=%d",
+                    washing_updated, washing_added, sched_updated)
+        return jsonify({
+            "success": True,
+            "washing_updated": washing_updated,
+            "washing_added": washing_added,
+            "schedule_updated": sched_updated,
+            "total_drivers": len(drivers)
+        })
+    except Exception:
+        logger.exception("sync_all_from_drivers failed")
+        return jsonify({"success": False, "error": "فشل التزامن"}), 500
 
 
 @app.route("/api/generate_po", methods=["POST"])

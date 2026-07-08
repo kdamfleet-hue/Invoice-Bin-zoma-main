@@ -220,6 +220,7 @@
     <div class="actions-bar" style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
         <button class="btn-primary" onclick="addWashRow()" style="background:linear-gradient(135deg,#1f9d57,#16a34a);">➕ إضافة مركبة</button>
         <button class="btn-outline" onclick="syncFromFleet()">🔄 تحديث من قاعدة البيانات</button>
+        <button class="btn-outline" style="border-color:rgba(96,165,250,.5);color:#60a5fa;" onclick="fullServerSync()">🌐 مزامنة شاملة من السيرفر</button>
         <button class="btn-outline" onclick="reauditPlates()">↻ مراجعة اللوحات والأنواع</button>
         <button class="btn-submit-gold" id="washExportBtn" onclick="exportXlsx()">📥 تصدير Excel</button>
         <button class="btn-submit-orange" onclick="shareWashing()">📤 مشاركة / تصدير</button>
@@ -721,6 +722,41 @@
             showToast('تم تصحيح ' + corrections + ' حقل (لوحات/أنواع) وحفظها ✅', 'success');
         } else {
             showToast('لا توجد تصحيحات — البيانات مطابقة ✓', 'info');
+        }
+    }
+
+    // 🌐 مزامنة شاملة من السيرفر — يرسل طلب POST للـ API الذي يصحح جميع البيانات من جدول السائقين
+    async function fullServerSync() {
+        const confirmed = await window.bzConfirm(
+            'سيتم مزامنة جدول الغسيل والجدول الأسبوعي كاملاً مع آخر بيانات السائقين في قاعدة البيانات.\n' +
+            '• تصحيح أسماء السائقين وأرقام اللوحات\n' +
+            '• إضافة المركبات الناقصة\n' +
+            'هل تريد المتابعة؟'
+        );
+        if (!confirmed) return;
+
+        showToast('جاري المزامنة الشاملة... ⏳', 'info');
+        try {
+            const res = await fetch('/api/sync_all_from_drivers', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showToast(
+                    `✅ اكتملت المزامنة — تحديث ${data.washing_updated} حقل، إضافة ${data.washing_added} مركبة جديدة، ${data.schedule_updated} صف في الجدول الأسبوعي`,
+                    'success'
+                );
+                // أعد تحميل البيانات من السيرفر لتحديث الجدول
+                const r2 = await fetch('/api/washing_data');
+                const d2 = await r2.json();
+                if (d2.success && d2.vehicles && d2.vehicles.length > 0) {
+                    vehicles = d2.vehicles;
+                    renderTable(document.getElementById('searchInput').value);
+                    updateStats();
+                }
+            } else {
+                showToast('فشلت المزامنة: ' + (data.error || 'خطأ غير معروف'), 'error');
+            }
+        } catch (e) {
+            showToast('خطأ في الاتصال بالسيرفر', 'error');
         }
     }
 
