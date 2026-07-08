@@ -722,8 +722,21 @@
       const rec = window.FleetData ? FleetData.byPlate(row.plate) : null;
       const reg = VEH_REG[normPlate] || {};
       const resolvedVtype = (rec && rec.car) || reg.vtype || '';
-      if (resolvedVtype && String(row.vtype || '').trim() === resolvedVtype.trim()) return;
+      // ── تعبئة بيانات المركبة
       resolveVehicleFields(row, 'replace');
+      // ── تعبئة بيانات السائق من سجل اللوحة (فقط إذا كانت حقول السائق فارغة)
+      if (rec && rec.name) {
+        if (!String(row.name || '').trim())       row.name       = rec.name;
+        if (!String(row.iqama || '').trim())      row.iqama      = rec.iqama || '';
+        if (!String(row.empid || '').trim())      row.empid      = rec.empid || '';
+        if (!String(row.phone || '').trim())      row.phone      = rec.phone || '';
+        // fill learned driver registry fields too
+        const recIqama = String(rec.iqama || '').replace(/\D/g, '');
+        const drReg = recIqama ? (DRIVER_REG[recIqama] || {}) : {};
+        if (!String(row.job || '').trim())        row.job        = drReg.job || '';
+        if (!String(row.drivercard || '').trim()) row.drivercard = drReg.drivercard || '';
+        if (!String(row.empNotes || '').trim())   row.empNotes   = drReg.empNotes || '';
+      }
       renderBody('body' + cap(section), state[section], section);
     }
 
