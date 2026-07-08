@@ -3257,25 +3257,28 @@ body.light-mode .bz-sidebar {
     opacity: 0.6;
 }
 
-/* 2. Cursor Glow */
+/* 2. Cursor Glow — visible by default (dark is this site's untoggled default theme;
+   the toggle only ever adds body.light-mode, so gating this on a "dark-mode" class
+   that's never applied left it permanently invisible). Hidden in light mode, where a
+   gold glow wouldn't read well against a white background. */
 #cursor-glow {
     position: fixed;
     top: 0;
     left: 0;
     width: 400px;
     height: 400px;
-    background: radial-gradient(circle closest-side, rgba(197, 160, 89, 0.15), transparent);
+    background: radial-gradient(circle closest-side, rgba(212, 175, 55, 0.18), transparent);
     border-radius: 50%;
     transform: translate(-50%, -50%);
     pointer-events: none;
     z-index: 9999;
     mix-blend-mode: screen;
     transition: opacity 0.3s;
-    opacity: 0;
+    opacity: 1;
 }
 
-body.dark-mode #cursor-glow {
-    opacity: 1;
+body.light-mode #cursor-glow {
+    opacity: 0;
 }
 
 /* 3. Scroll Reveal */
@@ -3325,7 +3328,8 @@ body.dark-mode #cursor-glow {
     }
 }
 
-/* 5. BZ Seal Rotating Glow (applied to brand image) */
+/* 5. BZ Seal Rotating Glow (applied to brand image) — always subtly rotating (a standing
+   signature flourish, not just a hover trick), brightening further on hover. */
 .bz-brand {
     position: relative;
 }
@@ -3341,7 +3345,7 @@ body.dark-mode #cursor-glow {
     background: conic-gradient(from 0deg, transparent, transparent, var(--brand-gold), transparent, transparent);
     animation: bzSpin 4s linear infinite;
     z-index: -1;
-    opacity: 0;
+    opacity: 0.45;
     transition: opacity 0.5s;
 }
 

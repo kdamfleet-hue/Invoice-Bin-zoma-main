@@ -2829,10 +2829,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         entry.target.classList.add('active');
                     }
                     
-                    // CountUp animation
+                    // CountUp animation — target value comes from data-count (not the displayed
+                    // Arabic-Indic text, which parseFloat can't read) so it counts up correctly
+                    // regardless of locale/format.
                     if (entry.target.classList.contains('count-up') && !entry.target.dataset.counted) {
-                        const finalVal = parseFloat(entry.target.innerText.replace(/,/g, '')) || 0;
-                        animateCountUp(entry.target, finalVal);
+                        const finalVal = parseFloat(entry.target.dataset.count) || 0;
+                        animateCountUp(entry.target, finalVal, entry.target.dataset.format || '{n}');
                         entry.target.dataset.counted = 'true';
                     }
                 }
@@ -2881,7 +2883,7 @@ document.addEventListener('DOMContentLoaded', function() {
         draw() {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(197, 160, 89, ${this.opacity})`;
+            ctx.fillStyle = `rgba(212, 175, 55, ${this.opacity})`;
             ctx.fill();
         }
     }
@@ -2902,16 +2904,24 @@ document.addEventListener('DOMContentLoaded', function() {
     animateParticles();
 });
 
-function animateCountUp(el, endVal) {
+/** Convert Latin digits to Arabic-Indic (matches this site's number display everywhere else). */
+function toArabicDigits(str) {
+    const ar = '٠١٢٣٤٥٦٧٨٩';
+    return String(str).replace(/[0-9]/g, (d) => ar[+d]);
+}
+
+function animateCountUp(el, endVal, format) {
     let startTimestamp = null;
     const duration = 1500;
+    const fmt = format || '{n}';
     const step = (timestamp) => {
         if (!startTimestamp) startTimestamp = timestamp;
         const progress = Math.min((timestamp - startTimestamp) / duration, 1);
         // easeOutQuart
         const ease = 1 - Math.pow(1 - progress, 4);
         const currentVal = (endVal * ease).toFixed(endVal % 1 !== 0 ? 1 : 0);
-        el.innerText = currentVal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        const grouped = currentVal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        el.innerText = fmt.replace('{n}', toArabicDigits(grouped));
         if (progress < 1) {
             window.requestAnimationFrame(step);
         }
