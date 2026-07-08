@@ -4914,6 +4914,83 @@ for _rule in list(app.url_map.iter_rules()):
         )
 
 # Start the in-process daily scheduler for automatic document-expiry email digests.
+
+# ==============================================================================
+# CENTRAL FLEET REGISTRY
+# ==============================================================================
+
+@app.route("/registry")
+@login_required
+def registry_page():
+    return render_template("registry.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/api/registry_data", methods=["GET"])
+@login_required
+def api_registry_data():
+    try:
+        # 1. Fetch Drivers (Base)
+        _, drivers = _drivers_list_for_sync()
+        
+        # 2. Fetch Employees
+        employees_blob = blob_get("employees")
+        emp_rows = employees_blob if isinstance(employees_blob, list) else (employees_blob.get("rows") if isinstance(employees_blob, dict) else [])
+        emp_names = set()
+        emp_iqamas = set()
+        for r in (emp_rows or []):
+            if isinstance(r, list) and len(r) > 2:
+                emp_iqamas.add(absher_sync.norm_id(r[1]))
+                emp_names.add(str(r[2]).strip())
+            elif isinstance(r, dict):
+                emp_iqamas.add(absher_sync.norm_id(r.get("iqama") or r.get("الإقامة - البطاقة") or r.get("الإقامة")))
+                emp_names.add(str(r.get("name") or r.get("اسم العامل")).strip())
+                
+        # 3. Fetch Washing
+        washing = blob_get("washing_schedule")
+        washing_plates = set()
+        if isinstance(washing, list):
+            for v in washing:
+                washing_plates.add(_normalize_plate_py(v.get("plate", "")))
+                
+        # 4. Fetch Schedule
+        sd = blob_get("schedule_data")
+        sched_plates = set()
+        if isinstance(sd, dict):
+            for section in ("main", "spare", "vacation"):
+                for row in (sd.get(section) or []):
+                    if isinstance(row, dict):
+                        sched_plates.add(_normalize_plate_py(row.get("plate", "")))
+
+        # Compile
+        results = []
+        for d in drivers:
+            plate_norm = _normalize_plate_py(d.get("plate", ""))
+            iqama_norm = absher_sync.norm_id(d.get("iqama", ""))
+            name = str(d.get("name", "")).strip()
+            
+            in_emp = (iqama_norm in emp_iqamas and bool(iqama_norm)) or (name in emp_names and bool(name))
+            in_wash = plate_norm in washing_plates and bool(plate_norm)
+            in_sched = plate_norm in sched_plates and bool(plate_norm)
+            
+            results.append({
+                "id": d.get("id"),
+                "name": d.get("name", ""),
+                "empid": d.get("empid", ""),
+                "plate": d.get("plate", ""),
+                "car": d.get("car", ""),
+                "iqama": d.get("iqama", ""),
+                "phone": d.get("phone", ""),
+                "drivercard": d.get("drivercard", ""),
+                "in_emp": in_emp,
+                "in_wash": in_wash,
+                "in_sched": in_sched
+            })
+            
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        logger.exception("api_registry_data failed")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 _start_alert_scheduler()
 

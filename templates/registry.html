@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>السجل الشامل للأسطول — BIN ZOMAH INTL.</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=27) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=27) }}"></script>
+    <style>
+        .registry-container {
+            width: 100%;
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            margin-top: 1rem;
+        }
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            background: var(--bg);
+            color: var(--text-primary);
+            transition: var(--trans);
+        }
+        .search-box input:focus {
+            border-color: var(--brand-gold);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.2);
+        }
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+        .stat-card h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .stat-card .val {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--brand-navy);
+        }
+        table.bz-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table.bz-table th, table.bz-table td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid var(--border);
+        }
+        table.bz-table th {
+            background: var(--brand-navy);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        table.bz-table tr:hover {
+            background: var(--surface-hover);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin: 2px;
+            text-align: center;
+        }
+        .badge-yes { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-no { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        
+        .action-btns button {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .modal-overlay.active {
+            opacity: 1; pointer-events: auto;
+        }
+        .modal-content {
+            background: var(--surface);
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%; max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transform: translateY(-20px);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+        .modal-title { margin-top: 0; color: var(--brand-navy); font-weight: bold; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; }
+        .form-group input {
+            width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px;
+            background: var(--bg); color: var(--text-primary);
+        }
+        .modal-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
+    </style>
+</head>
+<body class="light-mode">
+    <header class="bz-topbar">
+        <div class="bz-brand">
+            <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="bz-logo">
+            <span class="bz-title">السجل الشامل للأسطول</span>
+        </div>
+        <nav class="bz-nav">
+            <a href="/">🏠 الرئيسية</a>
+            <a href="/employees">👥 الموظفين</a>
+            <a href="/schedule">📋 الجدول الأسبوعي</a>
+            <a href="/washing">🚿 الغسيل</a>
+        </nav>
+        <div class="bz-actions">
+            <button class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+            <a href="/logout" class="bz-logout">خروج</a>
+        </div>
+    </header>
+
+    <div class="bz-shell">
+        <h2 class="bz-section-title">🗂️ السجل الشامل للمركبات والسائقين</h2>
+        
+        <div class="stats-cards">
+            <div class="stat-card"><h3>إجمالي السائقين</h3><div class="val" id="statTotal">-</div></div>
+            <div class="stat-card"><h3>مسجلين في الغسيل</h3><div class="val" id="statWash">-</div></div>
+            <div class="stat-card"><h3>مسجلين في الأسبوعي</h3><div class="val" id="statSched">-</div></div>
+            <div class="stat-card"><h3>موظفين (ببيانات HR)</h3><div class="val" id="statEmp">-</div></div>
+        </div>
+
+        <div class="registry-container">
+            <div class="toolbar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 ابحث بالاسم، الإقامة، اللوحة أو الماركة..." oninput="filterTable()">
+                </div>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <button class="btn-primary" onclick="openModal(null)">➕ إضافة سائق</button>
+                    <button class="btn-outline" style="border-color:rgba(96,165,250,.5);color:#60a5fa;" onclick="runFullSync()">🌐 مزامنة ذكية لجميع التبويبات</button>
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="bz-table" id="registryTable">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>الإقامة</th>
+                            <th>اللوحة</th>
+                            <th>المركبة</th>
+                            <th>ترابط البيانات (Integrity)</th>
+                            <th style="text-align:center;">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="registryBody">
+                        <tr><td colspan="6" style="text-align:center;padding:2rem;">جاري تحميل البيانات... ⏳</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit/Add Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-content">
+            <h3 class="modal-title" id="modalTitle">تعديل بيانات السائق</h3>
+            <input type="hidden" id="editId">
+            <div class="form-group">
+                <label>الاسم الكامل</label>
+                <input type="text" id="editName">
+            </div>
+            <div class="form-group">
+                <label>رقم الإقامة</label>
+                <input type="text" id="editIqama">
+            </div>
+            <div class="form-group">
+                <label>رقم اللوحة</label>
+                <input type="text" id="editPlate">
+            </div>
+            <div class="form-group">
+                <label>الماركة والطراز (المركبة)</label>
+                <input type="text" id="editCar">
+            </div>
+            <div class="form-group">
+                <label>رقم الجوال</label>
+                <input type="text" id="editPhone">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-outline" onclick="closeModal()">إلغاء</button>
+                <button class="btn-primary" onclick="saveDriver()">💾 حفظ وتحديث كل التبويبات</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+
+        async function loadRegistry() {
+            try {
+                const res = await fetch('/api/registry_data');
+                const data = await res.json();
+                if (data.success) {
+                    allData = data.data;
+                    renderTable();
+                    updateStats();
+                } else {
+                    if(window.showToast) showToast('خطأ في تحميل السجل', 'error');
+                }
+            } catch(e) {
+                if(window.showToast) showToast('فشل الاتصال بالسيرفر', 'error');
+            }
+        }
+
+        function renderTable() {
+            const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+            const tbody = document.getElementById('registryBody');
+            
+            let html = '';
+            let visibleCount = 0;
+
+            allData.forEach((d, idx) => {
+                const searchable = `${d.name} ${d.plate} ${d.iqama} ${d.car}`.toLowerCase();
+                if (query && !searchable.includes(query)) return;
+                
+                visibleCount++;
+                
+                const badgeWash = d.in_wash ? '<span class="badge badge-yes">✓ غسيل</span>' : '<span class="badge badge-no">✗ غسيل</span>';
+                const badgeSched = d.in_sched ? '<span class="badge badge-yes">✓ أسبوعي</span>' : '<span class="badge badge-no">✗ أسبوعي</span>';
+                const badgeEmp = d.in_emp ? '<span class="badge badge-yes">✓ موظفين (HR)</span>' : '<span class="badge badge-no">✗ موظفين</span>';
+
+                html += `
+                    <tr>
+                        <td style="font-weight:bold;color:var(--brand-navy)">${escapeHtml(d.name || '---')}</td>
+                        <td>${escapeHtml(d.iqama || '---')}</td>
+                        <td style="direction:ltr;text-align:right;">${escapeHtml(d.plate || '---')}</td>
+                        <td>${escapeHtml(d.car || '---')}</td>
+                        <td>${badgeWash} ${badgeSched} ${badgeEmp}</td>
+                        <td class="action-btns" style="text-align:center;">
+                            <button class="btn-outline" onclick='openModal(${idx})'>✏️ تعديل</button>
+                            <button class="btn-outline" style="border-color:#ef4444;color:#ef4444;" onclick='deleteDriver(${d.id})'>🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            if (visibleCount === 0) {
+                html = `<tr><td colspan="6" style="text-align:center;padding:2rem;">لم يتم العثور على نتائج.</td></tr>`;
+            }
+            tbody.innerHTML = html;
+        }
+
+        function filterTable() {
+            renderTable();
+        }
+
+        function updateStats() {
+            document.getElementById('statTotal').innerText = allData.length;
+            document.getElementById('statWash').innerText = allData.filter(d => d.in_wash).length;
+            document.getElementById('statSched').innerText = allData.filter(d => d.in_sched).length;
+            document.getElementById('statEmp').innerText = allData.filter(d => d.in_emp).length;
+        }
+
+        // Modal Logic
+        function openModal(idx) {
+            if (idx === null) {
+                document.getElementById('modalTitle').innerText = 'إضافة سائق جديد';
+                document.getElementById('editId').value = '';
+                document.getElementById('editName').value = '';
+                document.getElementById('editIqama').value = '';
+                document.getElementById('editPlate').value = '';
+                document.getElementById('editCar').value = '';
+                document.getElementById('editPhone').value = '';
+            } else {
+                const d = allData[idx];
+                document.getElementById('modalTitle').innerText = 'تعديل بيانات السائق';
+                document.getElementById('editId').value = d.id;
+                document.getElementById('editName').value = d.name || '';
+                document.getElementById('editIqama').value = d.iqama || '';
+                document.getElementById('editPlate').value = d.plate || '';
+                document.getElementById('editCar').value = d.car || '';
+                document.getElementById('editPhone').value = d.phone || '';
+            }
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+
+        async function saveDriver() {
+            const id = document.getElementById('editId').value;
+            const payload = {
+                name: document.getElementById('editName').value,
+                iqama: document.getElementById('editIqama').value,
+                plate: document.getElementById('editPlate').value,
+                car: document.getElementById('editCar').value,
+                phone: document.getElementById('editPhone').value,
+                empid: '', drivercard: ''
+            };
+            
+            if (!payload.name.trim()) {
+                if(window.showToast) showToast('يرجى إدخال اسم السائق', 'error');
+                return;
+            }
+
+            const isNew = !id;
+            const url = isNew ? '/api/drivers' : `/api/drivers/${id}`;
+            const method = isNew ? 'POST' : 'PUT';
+
+            if(window.showToast) showToast('جاري الحفظ وتحديث التبويبات... ⏳', 'info');
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success || data.id) {
+                    if(window.showToast) showToast('✅ تم الحفظ وتحديث الجداول بنجاح', 'success');
+                    closeModal();
+                    loadRegistry(); // Reload all
+                } else {
+                    if(window.showToast) showToast(data.error || 'فشل الحفظ', 'error');
+                }
+            } catch(e) {
+                if(window.showToast) showToast('خطأ في الاتصال', 'error');
+            }
+        }
+
+        async function deleteDriver(id) {
+            const confirmed = await window.bzConfirm('هل أنت متأكد من حذف السائق نهائياً من قاعدة البيانات؟\nملاحظة: هذا لن يحذفه من التبويبات بل سيمنع التحديث المستقبلي له.');
+            if (!confirmed) return;
+            try {
+                const res = await fetch(`/api/drivers/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    if(window.showToast) showToast('تم الحذف', 'success');
+                    loadRegistry();
+                }
+            } catch(e) {
+                if(window.showToast) showToast('فشل الحذف', 'error');
+            }
+        }
+
+        async function runFullSync() {
+            const confirmed = await window.bzConfirm('هل تريد تشغيل المزامنة الذكية؟\nسيتم تحديث لوحات وأسماء السائقين وإضافة النواقص عبر جميع التبويبات.');
+            if (!confirmed) return;
+            
+            if(window.showToast) showToast('جاري المزامنة الشاملة... ⏳', 'info');
+            try {
+                const res = await fetch('/api/sync_all_from_drivers', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    if(window.showToast) showToast(`✅ اكتملت المزامنة: الغسيل (${data.washing_updated} تعديل, ${data.washing_added} إضافة)، الأسبوعي (${data.schedule_updated})`, 'success');
+                    loadRegistry();
+                } else {
+                    if(window.showToast) showToast('فشلت المزامنة', 'error');
+                }
+            } catch(e) {
+                if(window.showToast) showToast('خطأ في الاتصال', 'error');
+            }
+        }
+
+        // Utils
+        function escapeHtml(unsafe) {
+            return (unsafe || '').replace(/[&<"']/g, function(m) {
+                switch (m) {
+                    case '&': return '&amp;';
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '"': return '&quot;';
+                    default: return '&#039;';
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', loadRegistry);
+    </script>
+</body>
+</html>
