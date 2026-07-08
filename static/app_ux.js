@@ -409,21 +409,21 @@ async function openAlertsModal() {
             const days = calculateDaysLeft(d[f.key]);
             if (days !== null && days <= 30) {
                 const color = days < 0 ? 'var(--red)' : (days <= 7 ? 'var(--amber)' : 'var(--yellow)');
-                const txt = days < 0 ? \`منتهي منذ \${Math.abs(days)} يوم\` : \`ينتهي خلال \${days} يوم\`;
-                localAlerts.push(\`<div style="color:\${color}; font-size:0.9rem;">⚠️ <b>\${f.label}:</b> \${d[f.key] || ''} (\${txt})</div>\`);
+                const txt = days < 0 ? `منتهي منذ ${Math.abs(days)} يوم` : `ينتهي خلال ${days} يوم`;
+                localAlerts.push(`<div style="color:${color}; font-size:0.9rem;">⚠️ <b>${f.label}:</b> ${d[f.key] || ''} (${txt})</div>`);
                 alertsCount++;
             }
         });
         
         if (localAlerts.length > 0) {
-            html += \`
+            html += `
             <div style="background:var(--d-bg); padding:10px; border-radius:6px; margin-bottom:10px; border-right:4px solid var(--red);">
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <strong style="color:var(--gold)">\${d.name || ''}</strong>
-                    <span style="direction:ltr;">\${d.plate || ''}</span>
+                    <strong style="color:var(--gold)">${d.name || ''}</strong>
+                    <span style="direction:ltr;">${d.plate || ''}</span>
                 </div>
-                \${localAlerts.join('')}
-            </div>\`;
+                ${localAlerts.join('')}
+            </div>`;
         }
     });
 
@@ -431,7 +431,7 @@ async function openAlertsModal() {
         html = '<div style="text-align:center; padding:30px; color:var(--green); font-size:1.2rem;">✅ جميع الرخص والوثائق سارية المفعول (لا توجد انتهاءات قريبة).</div>';
     }
 
-    const modalHtml = \`
+    const modalHtml = `
     <div id="alertsModal" class="modal active">
         <div class="modal-content" style="max-width:600px; max-height:80vh; display:flex; flex-direction:column;">
             <div class="modal-header">
@@ -439,13 +439,13 @@ async function openAlertsModal() {
             </div>
             <div style="flex:1; overflow-y:auto; padding:15px;">
                 <p style="color:var(--d-muted); margin-bottom:15px; font-size:0.9rem;">يعرض هذا الرادار تلقائياً أي وثيقة انتهت أو ستنتهي خلال 30 يوماً لجميع الأسطول.</p>
-                \${html}
+                ${html}
             </div>
             <div class="modal-footer">
                 <button class="btn-outline" onclick="document.getElementById('alertsModal').remove()">إغلاق</button>
             </div>
         </div>
-    </div>\`;
+    </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
@@ -459,38 +459,38 @@ async function openTimeline(identifier) {
     const d = fleet.find(x => x.id == identifier || x.plate == identifier);
     if (!d) return;
     
-    const html = \`
+    const html = `
     <div id="timelineModal" class="modal active">
         <div class="modal-content" style="max-width:500px;">
             <div class="modal-header">
                 <h3>السجل الزمني للمركبة</h3>
             </div>
             <div style="padding:15px; text-align:center; border-bottom:1px solid var(--d-border);">
-                <h2 style="color:var(--gold); margin:0;">\${d.name || '---'}</h2>
-                <div style="direction:ltr; font-size:1.2rem; margin:5px 0;">\${d.plate || '---'}</div>
-                <div style="color:var(--d-muted);">\${d.car || '---'}</div>
+                <h2 style="color:var(--gold); margin:0;">${d.name || '---'}</h2>
+                <div style="direction:ltr; font-size:1.2rem; margin:5px 0;">${d.plate || '---'}</div>
+                <div style="color:var(--d-muted);">${d.car || '---'}</div>
             </div>
             <div style="padding:15px;">
                 <div style="display:flex; flex-direction:column; gap:15px; position:relative; padding-right:20px; border-right:2px solid var(--gold);">
                     <div style="position:relative;">
                         <div style="position:absolute; right:-27px; top:2px; background:var(--d-bg); border:2px solid var(--gold); border-radius:50%; width:12px; height:12px;"></div>
                         <div style="color:var(--d-muted); font-size:0.8rem;">تاريخ الفحص الدوري</div>
-                        <div style="font-weight:bold; color:var(--text);">\${d.inspect || 'غير مسجل'}</div>
+                        <div style="font-weight:bold; color:var(--text);">${d.inspect || 'غير مسجل'}</div>
                     </div>
                     <div style="position:relative;">
                         <div style="position:absolute; right:-27px; top:2px; background:var(--d-bg); border:2px solid var(--blue); border-radius:50%; width:12px; height:12px;"></div>
                         <div style="color:var(--d-muted); font-size:0.8rem;">تاريخ رخصة السير</div>
-                        <div style="font-weight:bold; color:var(--text);">\${d.license || 'غير مسجل'}</div>
+                        <div style="font-weight:bold; color:var(--text);">${d.license || 'غير مسجل'}</div>
                     </div>
                     <div style="position:relative;">
                         <div style="position:absolute; right:-27px; top:2px; background:var(--d-bg); border:2px solid var(--green); border-radius:50%; width:12px; height:12px;"></div>
                         <div style="color:var(--d-muted); font-size:0.8rem;">تاريخ بطاقة التشغيل</div>
-                        <div style="font-weight:bold; color:var(--text);">\${d.opcard || 'غير مسجل'}</div>
+                        <div style="font-weight:bold; color:var(--text);">${d.opcard || 'غير مسجل'}</div>
                     </div>
                     <div style="position:relative;">
                         <div style="position:absolute; right:-27px; top:2px; background:var(--d-bg); border:2px solid var(--purple); border-radius:50%; width:12px; height:12px;"></div>
                         <div style="color:var(--d-muted); font-size:0.8rem;">انتهاء الإقامة</div>
-                        <div style="font-weight:bold; color:var(--text);">\${d.iqama || 'غير مسجل'}</div>
+                        <div style="font-weight:bold; color:var(--text);">${d.iqama || 'غير مسجل'}</div>
                     </div>
                 </div>
             </div>
@@ -498,6 +498,6 @@ async function openTimeline(identifier) {
                 <button class="btn-outline" onclick="document.getElementById('timelineModal').remove()">إغلاق</button>
             </div>
         </div>
-    </div>\`;
+    </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
 }
