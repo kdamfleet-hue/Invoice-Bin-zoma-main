@@ -739,7 +739,7 @@
     function autofillRow(section, idx, byKey) {
       const row = state[section][idx];
       if (!row || !window.FleetData) return;
-      const rec = byKey === 'iqama' ? FleetData.byIqama(row.iqama) : FleetData.byName(row.name);
+      const rec = byKey === 'iqama' ? FleetData.byIqama(row.iqama) : (byKey === 'empid' ? FleetData.byEmpid(row.empid) : FleetData.byName(row.name));
       if (!rec) return;
       // Identity guard: iqama is the unique key (present for every record). If the row already
       // reflects this exact driver, the event is just a blur/re-fire — do nothing, so we never
@@ -763,13 +763,7 @@
       setEmp('job', reg.job || '');
       setEmp('drivercard', reg.drivercard || '');
       setEmp('empNotes', reg.empNotes || '');
-      // Vehicle box — protected; only fill a blank new row for convenience, never overwrite.
-      // Reuses the same master+registry resolver the vehicle-swap side uses (courtesy mode:
-      // blank fields only), so a brand-new row gets the vehicle's FULL known spec, not just
-      // plate/vtype/model, the moment a driver whose FleetData record names an assigned plate
-      // is picked.
-      if (!String(row.plate || '').trim() && rec.plate) row.plate = rec.plate;
-      resolveVehicleFields(row, 'courtesy');
+      // Vehicle box intentionally untouched per user request (strict separation of Employee/Vehicle data entry).
       renderBody('body' + cap(section), state[section], section);
     }
 
