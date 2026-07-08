@@ -4961,16 +4961,39 @@ def api_registry_data():
                     if isinstance(row, dict):
                         sched_plates.add(_normalize_plate_py(row.get("plate", "")))
 
+        # 5. Fetch Other Tabs as Strings
+        import json
+        def _get_blob_str(t):
+            b = blob_get(t)
+            return json.dumps(b, ensure_ascii=False) if b else ""
+        
+        str_oils = _get_blob_str("oils_data")
+        str_purch = _get_blob_str("purchase_data")
+        str_ws = _get_blob_str("workshop_data")
+        str_hand = _get_blob_str("handover_data")
+        str_inc = _get_blob_str("incidents_data")
+        str_rec = _get_blob_str("records_data")
+
         # Compile
         results = []
         for d in drivers:
             plate_norm = _normalize_plate_py(d.get("plate", ""))
+            plate_raw = str(d.get("plate", "")).strip()
             iqama_norm = absher_sync.norm_id(d.get("iqama", ""))
             name = str(d.get("name", "")).strip()
             
             in_emp = (iqama_norm in emp_iqamas and bool(iqama_norm)) or (name in emp_names and bool(name))
             in_wash = plate_norm in washing_plates and bool(plate_norm)
             in_sched = plate_norm in sched_plates and bool(plate_norm)
+            
+            has_p = bool(plate_raw and len(plate_raw) > 2)
+            has_n = bool(name and len(name) > 3)
+            
+            def check_in_str(s):
+                if has_p and plate_raw in s: return True
+                if has_p and plate_norm in s: return True
+                if has_n and name in s: return True
+                return False
             
             results.append({
                 "id": d.get("id"),
@@ -4983,7 +5006,13 @@ def api_registry_data():
                 "drivercard": d.get("drivercard", ""),
                 "in_emp": in_emp,
                 "in_wash": in_wash,
-                "in_sched": in_sched
+                "in_sched": in_sched,
+                "in_oils": check_in_str(str_oils),
+                "in_purch": check_in_str(str_purch),
+                "in_ws": check_in_str(str_ws),
+                "in_hand": check_in_str(str_hand),
+                "in_inc": check_in_str(str_inc),
+                "in_rec": check_in_str(str_rec)
             })
             
         return jsonify({"success": True, "data": results})

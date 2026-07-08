@@ -269,6 +269,7 @@
       <button class="btn-submit-gold" onclick="exportExcel()">📥 تصدير Excel</button>
       <button class="btn-submit-orange" onclick="shareSchedule()">📤 مشاركة / تصدير</button>
       <button class="btn-outline" onclick="openWaAll()">📲 إرسال للجميع عبر واتساب</button>
+      <button class="btn-outline" onclick="openFleetModal()">🚚 استدعاء مركبة</button>
       <button class="btn-outline" onclick="window.print()">🖨️ طباعة</button>
     </div>
 
@@ -292,6 +293,7 @@
       <button class="sp-tab active" id="tabBtnMain" onclick="switchSchedTab('main',this)">🚛 الجدول الرئيسي <span class="sp-chip" id="chipMain">0</span></button>
       <button class="sp-tab" id="tabBtnSpare" onclick="switchSchedTab('spare',this)">🛠️ الاسبير والمعطلة <span class="sp-chip red" id="chipSpare">0</span></button>
       <button class="sp-tab" id="tabBtnVac" onclick="switchSchedTab('vacation',this)">🌴 الإجازات <span class="sp-chip" id="chipVac">0</span></button>
+      <button class="sp-tab" id="tabBtnUnscheduled" onclick="switchSchedTab('unscheduled',this)">⚠️ غير المجدولة <span class="sp-chip red" id="chipUnscheduled">0</span></button>
       <button class="sp-tab" id="tabBtnExp" onclick="switchSchedTab('expired',this)">🔴 تنبيهات الانتهاء <span class="sp-chip red" id="chipExp">0</span></button>
       <button class="sp-tab" id="tabBtnVeh" onclick="switchSchedTab('vehicles',this)">🚗 جميع مركبات الفرع <span class="sp-chip" id="chipVeh">0</span></button>
     </div>
@@ -366,6 +368,20 @@
       </div>
     </div>
 
+    <!-- TAB: UNSCHEDULED VEHICLES -->
+    <div class="sp-panel" id="spPanel-unscheduled">
+      <div class="sec-title"><h2>⚠️ المركبات المستبعدة / غير المجدولة</h2></div>
+      <p class="hint" style="margin:-4px 0 10px;">يعرض هذا القسم تلقائياً أي مركبة مسجلة في الأسطول وليست موجودة في الجدول الرئيسي أو الاسبير أو الإجازات. يمكنك إضافتها للجدول بضغطة زر لتجنب نسيانها.</p>
+      <div class="sched-table-wrap">
+        <table class="sched">
+          <thead><tr>
+            <th>الاسم</th><th>الإقامة</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>إجراء سريع</th>
+          </tr></thead>
+          <tbody id="bodyUnscheduled"><tr><td colspan="5" style="text-align:center;padding:1.4rem;">جارٍ المقارنة بالأسطول...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- تم إلغاء تفويضهم (من مزامنة أبشر) — يظهر دائماً أسفل الجدول، قابل للتعديل والحذف والتصدير -->
     <div class="sec-title" style="margin-top:2rem;"><h2 style="color:#FF6B6B;">🚫 تم إلغاء تفويضهم</h2>
       <span class="sp-chip red" id="deauthCount">0</span></div>
@@ -387,6 +403,22 @@
       <div class="dept">قسم الحركة</div>
       <div>خالد بن محمد الغامدي</div>
     </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Fleet Select Modal -->
+  <div class="modal-overlay" id="fleetModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:9999;">
+    <div style="background:var(--surface);padding:2rem;border-radius:12px;width:90%;max-width:400px;">
+      <h3 style="margin-top:0;color:var(--brand-navy);">🚚 استدعاء مركبة من الأسطول</h3>
+      <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:1rem;">اختر رقم اللوحة أو اسم السائق لإضافته للجدول الرئيسي فوراً.</p>
+      <div style="margin-bottom:1rem;">
+        <input type="text" id="fleetSearchInput" list="driverNames" placeholder="اكتب أو اختر السائق / اللوحة" style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);font-size:1rem;">
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;">
+        <button class="btn-outline" onclick="closeFleetModal()">إلغاء</button>
+        <button class="btn-primary" onclick="confirmFleetCall()">➕ إضافة للجدول</button>
+      </div>
     </div>
   </div>
 
@@ -501,6 +533,7 @@
       renderBody('bodySpare', state.spare, 'spare');
       renderBody('bodyVac', state.vacation, 'vacation');
       updateSummary();
+      renderUnscheduled();
     }
 
     function renderBody(bodyId, rows, section) {
@@ -1434,6 +1467,112 @@
         '<div class="wa-all-list">' + items + '</div></div></div>';
       document.body.appendChild(overlay);
       overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.hasAttribute('data-x')) overlay.remove(); });
+    }
+    // --- Fleet Modal Logic ---
+    function openFleetModal() {
+      document.getElementById('fleetModal').style.display = 'flex';
+      document.getElementById('fleetSearchInput').value = '';
+      document.getElementById('fleetSearchInput').focus();
+    }
+    function closeFleetModal() {
+      document.getElementById('fleetModal').style.display = 'none';
+    }
+    function confirmFleetCall() {
+      const val = document.getElementById('fleetSearchInput').value.trim();
+      if (!val) {
+        showToast('يرجى إدخال اللوحة أو اسم السائق', 'error');
+        return;
+      }
+      if (!window.FleetData) {
+        showToast('بيانات الأسطول غير متوفرة', 'error');
+        return;
+      }
+      let rec = window.FleetData.byName(val) || window.FleetData.byPlate(val);
+      if (!rec) {
+        rec = window.FleetData.all().find(d => (d.name && d.name.includes(val)) || (d.plate && d.plate.includes(val)));
+      }
+      if (rec) {
+        const row = blankRow();
+        row.name = rec.name;
+        row.plate = rec.plate;
+        row.vtype = rec.car;
+        row.iqama = rec.iqama;
+        state.main.push(row);
+        renderAll();
+        saveState();
+        closeFleetModal();
+        showToast('✅ تم إضافة السائق للجدول', 'success');
+      } else {
+        showToast('لم يتم العثور على السائق', 'error');
+      }
+    }
+
+    // --- Unscheduled Vehicles Logic ---
+    function renderUnscheduled() {
+      if (!window.FleetData) return;
+      const allFleet = window.FleetData.all() || [];
+      const scheduledPlates = new Set();
+      const scheduledNames = new Set();
+      ['main', 'spare', 'vacation'].forEach(sec => {
+        (state[sec] || []).forEach(r => {
+          if (r.plate) scheduledPlates.add(FleetData.normalizePlate(r.plate));
+          if (r.name) scheduledNames.add(r.name.trim());
+        });
+      });
+      
+      const unscheduled = allFleet.filter(d => {
+        if (!d.plate && !d.name) return false;
+        if (d.plate && scheduledPlates.has(FleetData.normalizePlate(d.plate))) return false;
+        if (d.name && scheduledNames.has(d.name.trim())) return false;
+        return true;
+      });
+      
+      const chip = document.getElementById('chipUnscheduled');
+      if(chip) chip.innerText = unscheduled.length;
+      
+      let html = '';
+      unscheduled.forEach(d => {
+        const nm = (d.name||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const pl = (d.plate||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const cr = (d.car||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const iq = (d.iqama||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        
+        html += `<tr>
+          <td style="font-weight:bold;color:var(--brand-navy)">${nm || '---'}</td>
+          <td>${iq || '---'}</td>
+          <td style="direction:ltr;text-align:right;">${pl || '---'}</td>
+          <td>${cr || '---'}</td>
+          <td style="text-align:center;">
+            <button class="btn-primary" style="padding:4px 10px;font-size:0.8rem;" onclick="addUnscheduledToMain('${nm}','${pl}','${cr}','${iq}')">➕ للجدول</button>
+          </td>
+        </tr>`;
+      });
+      if (unscheduled.length === 0) {
+        html = `<tr><td colspan="5" style="text-align:center;padding:1.4rem;color:#16a34a;font-weight:bold;">✅ جميع مركبات الأسطول مجدولة!</td></tr>`;
+      }
+      const tbody = document.getElementById('bodyUnscheduled');
+      if(tbody) tbody.innerHTML = html;
+    }
+
+    function addUnscheduledToMain(name, plate, car, iqama) {
+      const row = blankRow();
+      row.name = name;
+      row.plate = plate;
+      row.vtype = car;
+      row.iqama = iqama;
+      state.main.push(row);
+      renderAll();
+      saveState();
+      showToast('✅ تم نقل المركبة للجدول', 'success');
+    }
+
+    // Call renderUnscheduled when FleetData finishes loading
+    const oldFleetLoad = window.FleetData ? window.FleetData.load : null;
+    if (window.FleetData) {
+      window.FleetData.load = async function() {
+        if(oldFleetLoad) await oldFleetLoad.apply(this, arguments);
+        renderUnscheduled();
+      };
     }
   </script>
 </body>
