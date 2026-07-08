@@ -555,7 +555,7 @@
         let html = `<td class="col-idx">${idx + 1}</td>`;
         cols.forEach(c => {
           const v = escapeHtml(row[c.key] || '');
-          const listAttr = c.key === 'name' ? ' list="driverNames"' : '';
+          const listAttr = (c.key === 'name' || c.key === 'empid' || c.key === 'plate' || c.key === 'iqama') ? ' list="driverNames"' : '';
           // presentation-only cell classes: date status (with days hint) + job/plate badge look
           let cls = '';
           let dataAttr = '';
@@ -601,7 +601,7 @@
     document.addEventListener('change', async (e) => {
       const t = e.target;
       if (t.tagName !== 'INPUT' || !t.dataset.sec) return;
-      if (t.dataset.k === 'name' || t.dataset.k === 'iqama') autofillRow(t.dataset.sec, +t.dataset.i, t.dataset.k);
+      if (t.dataset.k === 'name' || t.dataset.k === 'iqama' || t.dataset.k === 'empid') autofillRow(t.dataset.sec, +t.dataset.i, t.dataset.k);
       else if (t.dataset.k === 'plate') autofillVehicleRow(t.dataset.sec, +t.dataset.i);
 
       // ── التحديث الشامل: عند تغيير اسم السائق أو رقم اللوحة ──────────────────
@@ -713,15 +713,7 @@
       });
     }
 
-    // ===== Vehicle swap = total separation, symmetric to the driver swap below =====
-    //  • Vehicle box (DYNAMIC): picking/typing a different plate clears the previous vehicle's
-    //    technical spec on that row and writes the new vehicle's known data (FleetData master +
-    //    the learned vehicle registry). Fields with no known value are CLEARED so a stale spec
-    //    from the old vehicle never lingers (e.g. its فحص دوري date never applies to a different
-    //    truck) — the admin re-enters them as needed, exactly like an unknown driver's job/بطاقة.
-    //  • Employee box (PROTECTED): a vehicle swap NEVER touches the driver's identity/personal
-    //    fields — only a brand-new BLANK row gets a courtesy driver-name fill if the vehicle
-    //    record also names an assigned driver; an already-assigned driver stays exactly as-is.
+    // ===== Vehicle swap =====
     function autofillVehicleRow(section, idx) {
       const row = state[section][idx];
       if (!row) return;
@@ -729,20 +721,9 @@
       if (!normPlate) return;
       const rec = window.FleetData ? FleetData.byPlate(row.plate) : null;
       const reg = VEH_REG[normPlate] || {};
-      // Identity guard: if vtype already matches what this exact plate resolves to (and we have
-      // something to compare against), this is a blur/re-fire — skip, so a manual correction the
-      // admin made after the first autofill (e.g. fixing عدد الطبالي) survives.
       const resolvedVtype = (rec && rec.car) || reg.vtype || '';
       if (resolvedVtype && String(row.vtype || '').trim() === resolvedVtype.trim()) return;
       resolveVehicleFields(row, 'replace');
-      // Employee box — protected; only fill a blank new row for convenience.
-      if (rec) {
-        const fillEmpIfBlank = (k, val) => { if (val && !String(row[k] || '').trim()) row[k] = val; };
-        fillEmpIfBlank('name', rec.name);
-        fillEmpIfBlank('iqama', rec.iqama);
-        fillEmpIfBlank('empid', rec.empid);
-        fillEmpIfBlank('phone', rec.phone);
-      }
       renderBody('body' + cap(section), state[section], section);
     }
 

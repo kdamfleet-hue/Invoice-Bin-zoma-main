@@ -1673,13 +1673,18 @@ window.FleetData = (function () {
         records().forEach(function (d) {
             const n = window.escapeHtml((d.name || '').trim());
             const p = window.escapeHtml((d.plate || '').trim());
+            const e = window.escapeHtml((d.empid || '').trim());
             if (n && !added.has(n)) {
-                opts += '<option value="' + n + '">' + p + '</option>';
+                opts += '<option value="' + n + '">' + p + (e ? ' | ' + e : '') + '</option>';
                 added.add(n);
             }
             if (p && !added.has(p)) {
                 opts += '<option value="' + p + '">' + n + '</option>';
                 added.add(p);
+            }
+            if (e && !added.has(e)) {
+                opts += '<option value="' + e + '">' + n + '</option>';
+                added.add(e);
             }
         });
         el.innerHTML = opts;
@@ -1719,7 +1724,7 @@ window.FleetData = (function () {
     }
 
     return {
-        load: load, records: records, byName: byName, byPlate: byPlate, byIqama: byIqama,
+        load: load, records: records, byName: byName, byPlate: byPlate, byIqama: byIqama, byEmpid: byEmpid,
         fillDatalist: fillDatalist, attachAutofill: attachAutofill,
         // Aliases some templates (schedule.html, washing.html) call directly on FleetData —
         // kept here so those call sites don't need their own null-guards duplicated.
