@@ -199,36 +199,42 @@
         </div>
     </div>
 
-    <!-- Edit/Add Modal -->
+        <!-- Edit/Add Modal -->
     <div class="modal-overlay" id="editModal">
-        <div class="modal-content">
-            <h3 class="modal-title" id="modalTitle">تعديل بيانات السائق</h3>
+        <div class="modal-content" style="max-width: 800px; width: 95%;">
+            <h3 class="modal-title" id="modalTitle">تعديل بيانات السائق والمركبة</h3>
             <input type="hidden" id="editId">
-            <div class="form-group">
-                <label>الاسم الكامل</label>
-                <input type="text" id="editName">
+            <div style="display:flex; gap:2rem; flex-wrap:wrap;">
+                <div style="flex:1; min-width:300px;">
+                    <h4 style="color:var(--brand-primary); margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">بيانات الموظف</h4>
+                    <div class="form-group"><label>الرقم الوظيفي</label><input type="text" id="editEmpid"></div>
+                    <div class="form-group"><label>اسم السائق</label><input type="text" id="editName"></div>
+                    <div class="form-group"><label>رقم الإقامة</label><input type="text" id="editIqama"></div>
+                    <div class="form-group"><label>الوظيفة</label><input type="text" id="editJob"></div>
+                    <div class="form-group"><label>تاريخ انتهاء بطاقة السائق</label><input type="date" id="editDrivercard"></div>
+                    <div class="form-group"><label>رقم الجوال</label><input type="text" id="editPhone"></div>
+                    <div class="form-group"><label>الملاحظات</label><input type="text" id="editEmpNotes"></div>
+                </div>
+                <div style="flex:1; min-width:300px;">
+                    <h4 style="color:var(--brand-orange); margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">بيانات المركبة</h4>
+                    <div class="form-group"><label>رقم اللوحة</label><input type="text" id="editPlate"></div>
+                    <div class="form-group"><label>الموديل</label><input type="text" id="editModel"></div>
+                    <div class="form-group"><label>نوع المركبة</label><input type="text" id="editCar"></div>
+                    <div class="form-group"><label>عدد الطبالي</label><input type="text" id="editPallets"></div>
+                    <div class="form-group"><label>الحمولة</label><input type="text" id="editLoad"></div>
+                    <div class="form-group"><label>الرقم التسلسلي</label><input type="text" id="editVserial"></div>
+                    <div class="form-group"><label>تاريخ انتهاء الفحص الدوري</label><input type="date" id="editInspect"></div>
+                    <div class="form-group"><label>تاريخ انتهاء رخصة السير</label><input type="date" id="editLicense"></div>
+                    <div class="form-group"><label>تاريخ انتهاء بطاقة التشغيل</label><input type="date" id="editOpcard"></div>
+                    <div class="form-group"><label>الملاحظات</label><input type="text" id="editNotes"></div>
+                </div>
             </div>
-            <div class="form-group">
-                <label>رقم الإقامة</label>
-                <input type="text" id="editIqama">
-            </div>
-            <div class="form-group">
-                <label>رقم اللوحة</label>
-                <input type="text" id="editPlate">
-            </div>
-            <div class="form-group">
-                <label>الماركة والطراز (المركبة)</label>
-                <input type="text" id="editCar">
-            </div>
-            <div class="form-group">
-                <label>رقم الجوال</label>
-                <input type="text" id="editPhone">
-            </div>
-            <div class="modal-actions">
+            <div class="modal-actions" style="margin-top: 1.5rem;">
                 <button class="btn-outline" onclick="closeModal()">إلغاء</button>
-                <button class="btn-primary" onclick="saveDriver()">💾 حفظ وتحديث كل التبويبات</button>
+                <button class="btn-primary" onclick="saveDriver()">💾 حفظ وتحديث السجل</button>
             </div>
         </div>
+    </div>
     </div>
 
     <script>
@@ -306,16 +312,37 @@
         }
 
         // Modal Logic
-        function openModal(idx) {
+                function openModal(idx) {
+            const fields = ['editId', 'editEmpid', 'editName', 'editIqama', 'editJob', 'editDrivercard', 'editPhone', 'editEmpNotes',
+                            'editPlate', 'editModel', 'editCar', 'editPallets', 'editLoad', 'editVserial', 'editInspect', 'editLicense', 'editOpcard', 'editNotes'];
             if (idx === null) {
-                document.getElementById('modalTitle').innerText = 'إضافة سائق جديد';
-                document.getElementById('editId').value = '';
-                document.getElementById('editName').value = '';
-                document.getElementById('editIqama').value = '';
-                document.getElementById('editPlate').value = '';
-                document.getElementById('editCar').value = '';
-                document.getElementById('editPhone').value = '';
+                document.getElementById('modalTitle').innerText = 'إضافة سائق/مركبة جديدة';
+                fields.forEach(f => document.getElementById(f).value = '');
             } else {
+                const d = allData[idx];
+                document.getElementById('modalTitle').innerText = 'تعديل بيانات السائق/المركبة';
+                document.getElementById('editId').value = d.id;
+                document.getElementById('editEmpid').value = d.empid || '';
+                document.getElementById('editName').value = d.name || '';
+                document.getElementById('editIqama').value = d.iqama || '';
+                document.getElementById('editJob').value = d.job || '';
+                document.getElementById('editDrivercard').value = d.drivercard || '';
+                document.getElementById('editPhone').value = d.phone || '';
+                document.getElementById('editEmpNotes').value = d.empNotes || '';
+                
+                document.getElementById('editPlate').value = d.plate || '';
+                document.getElementById('editModel').value = d.model || '';
+                document.getElementById('editCar').value = d.car || '';
+                document.getElementById('editPallets').value = d.pallets || '';
+                document.getElementById('editLoad').value = d.load || '';
+                document.getElementById('editVserial').value = d.vserial || '';
+                document.getElementById('editInspect').value = d.inspect || '';
+                document.getElementById('editLicense').value = d.license || '';
+                document.getElementById('editOpcard').value = d.opcard || '';
+                document.getElementById('editNotes').value = d.notes || '';
+            }
+            document.getElementById('editModal').classList.add('active');
+        } else {
                 const d = allData[idx];
                 document.getElementById('modalTitle').innerText = 'تعديل بيانات السائق';
                 document.getElementById('editId').value = d.id;
@@ -332,16 +359,54 @@
             document.getElementById('editModal').classList.remove('active');
         }
 
-        async function saveDriver() {
-            const id = document.getElementById('editId').value;
+                async function saveDriver() {
             const payload = {
+                id: document.getElementById('editId').value,
+                empid: document.getElementById('editEmpid').value,
                 name: document.getElementById('editName').value,
                 iqama: document.getElementById('editIqama').value,
-                plate: document.getElementById('editPlate').value,
-                car: document.getElementById('editCar').value,
+                job: document.getElementById('editJob').value,
+                drivercard: document.getElementById('editDrivercard').value,
                 phone: document.getElementById('editPhone').value,
-                empid: '', drivercard: ''
+                empNotes: document.getElementById('editEmpNotes').value,
+                plate: document.getElementById('editPlate').value,
+                model: document.getElementById('editModel').value,
+                car: document.getElementById('editCar').value,
+                pallets: document.getElementById('editPallets').value,
+                load: document.getElementById('editLoad').value,
+                vserial: document.getElementById('editVserial').value,
+                inspect: document.getElementById('editInspect').value,
+                license: document.getElementById('editLicense').value,
+                opcard: document.getElementById('editOpcard').value,
+                notes: document.getElementById('editNotes').value
             };
+
+            if (!payload.name) {
+                if(window.showToast) showToast('الاسم مطلوب', 'error');
+                return;
+            }
+
+            const method = payload.id ? 'PUT' : 'POST';
+            const url = payload.id ? `/api/drivers/${payload.id}` : '/api/drivers';
+
+            try {
+                const res = await fetch(url, {
+                    method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const d = await res.json();
+                if (d.success) {
+                    if(window.showToast) showToast('تم الحفظ بنجاح!', 'success');
+                    closeModal();
+                    loadRegistry();
+                } else {
+                    if(window.showToast) showToast('فشل في الحفظ', 'error');
+                }
+            } catch(e) {
+                if(window.showToast) showToast('خطأ في الاتصال', 'error');
+            }
+        };
             
             if (!payload.name.trim()) {
                 if(window.showToast) showToast('يرجى إدخال اسم السائق', 'error');

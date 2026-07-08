@@ -3234,7 +3234,7 @@ def _drivers_list_for_sync():
     if store == "sql":
         with db_connection() as conn:
             c = conn.cursor()
-            c.execute("SELECT id, name, empid, plate, car, iqama, phone, drivercard FROM drivers ORDER BY id")
+            c.execute("SELECT * FROM drivers ORDER BY id")
             return store, [dict(r) for r in c.fetchall()]
     return store, (blob_get(_driver_blob_table(store)) or [])
 
@@ -3627,26 +3627,35 @@ def api_gps_sync():
 @login_required
 def add_driver():
     data = request.json or {}
-    name = data.get("name", "").strip()
-    empid = data.get("empid", "").strip()
-    plate = data.get("plate", "").strip()
-    car = data.get("car", "").strip()
-    iqama = data.get("iqama", "").strip()
-    phone = data.get("phone", "").strip()
-    drivercard = data.get("drivercard", "").strip()
-    if not name:
+    fields = ['name', 'empid', 'plate', 'car', 'iqama', 'phone', 'drivercard',
+              'job', 'empNotes', 'model', 'pallets', 'load', 'vserial', 
+              'inspect', 'license', 'opcard', 'notes']
+    
+    vals = {f: data.get(f, "").strip() for f in fields}
+    
+    if not vals['name']:
         return jsonify({"error": "Name is required"}), 400
+        
     store = _driver_store()
     if store in ("ws", "blob"):
-        # Isolated blob roster (workstation id=2 or a branch row). الدمام's real table untouched.
         tbl = _driver_blob_table(store)
         lst = blob_get(tbl) or []
         new_id = max([d.get("id", 0) for d in lst], default=0) + 1
-        row = {"id": new_id, "name": name, "empid": empid, "plate": plate, "car": car,
-               "iqama": iqama, "phone": phone, "drivercard": drivercard}
+        row = {"id": new_id, **vals}
         lst.append(row)
         blob_set(tbl, lst)
         return jsonify({"success": True, **row})
+        
+    with db_connection() as conn:
+        c = conn.cursor()
+        cols = ", ".join(fields)
+        placeholders = ", ".join(["?"] * len(fields))
+        c.execute(f"INSERT INTO drivers ({cols}) VALUES ({placeholders})", tuple(vals[f] for f in fields))
+        conn.commit()
+        new_id = c.lastrowid
+        
+    logger.info("Driver added: %s (id=%s)", vals['name'], new_id)
+    return jsonify({"success": True, "id": new_id, **vals})
     with db_connection() as conn:
         c = conn.cursor()
         if USE_POSTGRES:
@@ -3744,33 +3753,55 @@ def bulk_delete_drivers():
 @login_required
 def update_driver(driver_id):
     data = request.json or {}
-    name = data.get("name", "").strip()
-    empid = data.get("empid", "").strip()
-    plate = data.get("plate", "").strip()
-    car = data.get("car", "").strip()
-    iqama = data.get("iqama", "").strip()
-    phone = data.get("phone", "").strip()
-    drivercard = data.get("drivercard", "").strip()
+    fields = ['name', 'empid', 'plate', 'car', 'iqama', 'phone', 'drivercard',
+              'job', 'empNotes', 'model', 'pallets', 'load', 'vserial', 
+              'inspect', 'license', 'opcard', 'notes']
+              
+    vals = {f: data.get(f, "").strip() for f in fields}
 
-    if not name:
+    if not vals['name']:
         return jsonify({"error": "Name is required"}), 400
 
-    # احفظ القيم القديمة لتمريرها للمزامنة بعد التحديث
     old_name, old_plate = "", ""
     store = _driver_store()
     if store in ("ws", "blob"):
-        # Update inside the isolated blob roster (workstation/branch). الدمام's real table untouched.
         tbl = _driver_blob_table(store)
         lst = blob_get(tbl) or []
         for d in lst:
             if d.get("id") == driver_id:
                 old_name, old_plate = d.get("name", ""), d.get("plate", "")
-                d.update({"name": name, "empid": empid, "plate": plate, "car": car,
-                          "iqama": iqama, "phone": phone, "drivercard": drivercard})
+                d.update(vals)
                 break
         blob_set(tbl, lst)
-        return jsonify({"success": True, "id": driver_id, "name": name, "plate": plate, "car": car,
-                        "iqama": iqama, "phone": phone, "drivercard": drivercard})
+        
+        # مزامنة الجداول الأخرى إذا تغيرت اللوحة أو الاسم
+        if old_name != vals['name'] or old_plate != vals['plate']:
+            _sync_all_tabs_from_drivers(
+                old_name=old_name, old_plate=old_plate,
+                new_name=vals['name'], new_plate=vals['plate'], new_car=vals['car']
+            )
+        
+        return jsonify({"success": True, "id": driver_id, **vals})
+
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT name, plate FROM drivers WHERE id=?", (driver_id,))
+        row = c.fetchone()
+        if row:
+            old_name, old_plate = row["name"], row["plate"]
+
+        set_clause = ", ".join([f"{f}=?" for f in fields])
+        c.execute(f"UPDATE drivers SET {set_clause} WHERE id=?", tuple(vals[f] for f in fields) + (driver_id,))
+        conn.commit()
+
+    if old_name != vals['name'] or old_plate != vals['plate']:
+        _sync_all_tabs_from_drivers(
+            old_name=old_name, old_plate=old_plate,
+            new_name=vals['name'], new_plate=vals['plate'], new_car=vals['car']
+        )
+
+    logger.info("Driver updated: id=%s name=%s plate=%s", driver_id, vals['name'], vals['plate'])
+    return jsonify({"success": True, "id": driver_id, **vals})
 
     with db_connection() as conn:
         c = conn.cursor()

@@ -2539,6 +2539,30 @@ document.addEventListener('change', async function(e) {
             input.value = rec.iqama || '';
         } else if ((header.includes('وظيفي') || header.includes('رقم')) && !input.value && header.includes('وظيفي')) {
             input.value = rec.empid || '';
+        } else if (header.includes('وظيفة') && !input.value) {
+            input.value = rec.job || '';
+        } else if (header.includes('بطاقة السائق') && !input.value) {
+            input.value = rec.drivercard || '';
+        } else if (header.includes('جوال') && !input.value) {
+            input.value = rec.phone || '';
+        } else if (header.includes('موديل') && !input.value) {
+            input.value = rec.model || '';
+        } else if (header.includes('طبالي') && !input.value) {
+            input.value = rec.pallets || '';
+        } else if (header.includes('حمولة') && !input.value) {
+            input.value = rec.load || '';
+        } else if (header.includes('تسلسلي') && !input.value) {
+            input.value = rec.vserial || '';
+        } else if (header.includes('فحص') && !input.value) {
+            input.value = rec.inspect || '';
+        } else if (header.includes('رخصة السير') && !input.value) {
+            input.value = rec.license || '';
+        } else if (header.includes('تشغيل') && !input.value) {
+            input.value = rec.opcard || '';
+        } else if (header.includes('ملاحظات') && !input.value) {
+            // Can be empNotes or notes depending on if it's in the employee section or vehicle section
+            // We just use notes as default if there's no way to distinguish
+            input.value = rec.notes || rec.empNotes || '';
         }
     });
 });
