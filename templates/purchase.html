@@ -281,8 +281,8 @@
     <div class="table-container glass-surface" id="poFormArea">
         <div class="section-title">🚗 بيانات السيارة والسائق</div>
 
-        <!-- Universal Search -->
-        <div style="position:relative;margin-bottom:15px;">
+        <!-- Universal Search (interactive tool only — excluded from PDF export) -->
+        <div class="pdf-exclude" style="position:relative;margin-bottom:15px;">
             <label style="font-weight:bold;color:var(--accent);font-size:1rem;display:block;margin-bottom:6px;">🔍 بحث شامل (اسم / رقم إقامة / رقم لوحة / جوال):</label>
             <input type="text" id="universalSearch" placeholder="ابحث هنا... مثال: خالد أو 7775 أو 2487345031" oninput="universalSearchFn()" style="width:100%;padding:14px 16px;border:2px solid var(--accent);border-radius:10px;font-size:1.05rem;font-family:'Cairo';font-weight:700;background:var(--surface);color:var(--text-primary);box-sizing:border-box;transition:var(--trans);">
             <div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:0 0 10px 10px;max-height:300px;overflow-y:auto;z-index:100;box-shadow:var(--shadow-md);"></div>
@@ -321,7 +321,7 @@
         <!-- Parts -->
         <table id="partsTable" class="excel-table bz-fit">
             <thead>
-                <tr><th colspan="7" class="excel-header">قطع الغيار <button class="btn-add-row" onclick="addPartRow()">+ إضافة</button></th></tr>
+                <tr><th colspan="7" class="excel-header">قطع الغيار <button class="btn-add-row pdf-exclude" onclick="addPartRow()">+ إضافة</button></th></tr>
                 <tr>
                     <th style="width: 5%;">م</th>
                     <th style="width: 35%;">البيان</th>
@@ -338,7 +338,7 @@
         <!-- Repairs -->
         <table id="repairsTable" class="excel-table bz-fit">
             <thead>
-                <tr><th colspan="5" class="excel-header">الإصلاح <button class="btn-add-row" onclick="addRepairRow()">+ إضافة</button></th></tr>
+                <tr><th colspan="5" class="excel-header">الإصلاح <button class="btn-add-row pdf-exclude" onclick="addRepairRow()">+ إضافة</button></th></tr>
                 <tr>
                     <th style="width: 5%;">م</th>
                     <th style="width: 45%;">الوصف</th>
@@ -353,7 +353,7 @@
         <!-- Tires -->
         <table id="tiresTable" class="excel-table bz-fit">
             <thead>
-                <tr><th colspan="9" class="excel-header">الكفرات <button class="btn-add-row" onclick="addTireRow()">+ إضافة</button></th></tr>
+                <tr><th colspan="9" class="excel-header">الكفرات <button class="btn-add-row pdf-exclude" onclick="addTireRow()">+ إضافة</button></th></tr>
                 <tr>
                     <th style="width: 5%;">م</th>
                     <th style="width: 15%;">تاريخ التغيير</th>
@@ -372,7 +372,7 @@
         <!-- Batteries -->
         <table id="batteriesTable" class="excel-table bz-fit">
             <thead>
-                <tr><th colspan="8" class="excel-header">البطاريات <button class="btn-add-row" onclick="addBatteryRow()">+ إضافة</button></th></tr>
+                <tr><th colspan="8" class="excel-header">البطاريات <button class="btn-add-row pdf-exclude" onclick="addBatteryRow()">+ إضافة</button></th></tr>
                 <tr>
                     <th style="width: 5%;">م</th>
                     <th style="width: 30%;">الوصف</th>
@@ -450,7 +450,7 @@
             </tbody>
         </table>
 
-        <div style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
+        <div class="pdf-exclude" style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
             <button class="btn-submit-gold" onclick="downloadPO(this)">📥 استخراج الطلب (Excel)</button>
             <button class="btn-primary" onclick="sharePO(this)">📤 مشاركة / تصدير</button>
             <button class="btn-submit-orange" onclick="openCustomModal('emailModal')">📧 إرسال عبر الإيميل</button>
@@ -618,7 +618,7 @@
             const empty = t.querySelector('.empty-row');
             if (empty) empty.remove();
             const r = document.createElement('tr');
-            r.innerHTML = `<td>${pc}</td><td><input class="p-desc"></td><td><input type="number" class="p-qty" oninput="calcPartVal(this);updateSummaryFieldsFromTables();recalcSummary();updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="number" class="p-price" oninput="calcPartVal(this);updateSummaryFieldsFromTables();recalcSummary();updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="number" class="p-val" readonly></td><td><input class="p-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updatePartIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
+            r.innerHTML = `<td>${pc}</td><td><input class="p-desc"></td><td><input type="number" class="p-qty" oninput="calcPartVal(this);updateSummaryFieldsFromTables();recalcSummary();updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="number" class="p-price" oninput="calcPartVal(this);updateSummaryFieldsFromTables();recalcSummary();updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="number" class="p-val" readonly></td><td><input class="p-notes"></td><td><button class="btn-remove pdf-exclude" onclick="this.closest('tr').remove();updatePartIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
             t.appendChild(r);
         }
         function updatePartIds() {
@@ -637,7 +637,7 @@
             const empty = t.querySelector('.empty-row');
             if (empty) empty.remove();
             const r = document.createElement('tr');
-            r.innerHTML = `<td>${rc}</td><td><input class="r-desc"></td><td><input type="number" class="r-val" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input class="r-notes"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateRepairIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
+            r.innerHTML = `<td>${rc}</td><td><input class="r-desc"></td><td><input type="number" class="r-val" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input class="r-notes"></td><td><button class="btn-remove pdf-exclude" onclick="this.closest('tr').remove();updateRepairIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
             t.appendChild(r);
         }
         function updateRepairIds() {
@@ -654,7 +654,7 @@
             const empty = t.querySelector('.empty-row');
             if (empty) empty.remove();
             const r = document.createElement('tr');
-            r.innerHTML = `<td>${tc}</td><td><input type="date" class="ti-date" value="${new Date().toISOString().split('T')[0]}"></td><td><input type="number" class="ti-count"></td><td><input type="number" class="ti-front"></td><td><input type="number" class="ti-back"></td><td><input type="number" class="ti-prev" oninput="calcTireDist(this)"></td><td><input type="number" class="ti-curr" oninput="calcTireDist(this)"></td><td><input type="number" class="ti-dist" readonly></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateTireIds()">✕</button></td>`;
+            r.innerHTML = `<td>${tc}</td><td><input type="date" class="ti-date" value="${new Date().toISOString().split('T')[0]}"></td><td><input type="number" class="ti-count"></td><td><input type="number" class="ti-front"></td><td><input type="number" class="ti-back"></td><td><input type="number" class="ti-prev" oninput="calcTireDist(this)"></td><td><input type="number" class="ti-curr" oninput="calcTireDist(this)"></td><td><input type="number" class="ti-dist" readonly></td><td><button class="btn-remove pdf-exclude" onclick="this.closest('tr').remove();updateTireIds()">✕</button></td>`;
             t.appendChild(r);
         }
         function calcTireDist(el) { const tr = el.closest('tr'); const prev = parseInt(tr.querySelector('.ti-prev').value) || 0; const curr = parseInt(tr.querySelector('.ti-curr').value) || 0; tr.querySelector('.ti-dist').value = curr - prev; }
@@ -672,7 +672,7 @@
             const empty = t.querySelector('.empty-row');
             if (empty) empty.remove();
             const r = document.createElement('tr');
-            r.innerHTML = `<td>${bc}</td><td><input class="b-desc"></td><td><input type="number" class="b-count" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input class="b-size"></td><td><input class="b-amp"></td><td><input type="number" class="b-price" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="date" class="b-date" value="${new Date().toISOString().split('T')[0]}"></td><td><button class="btn-remove" onclick="this.closest('tr').remove();updateBatteryIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
+            r.innerHTML = `<td>${bc}</td><td><input class="b-desc"></td><td><input type="number" class="b-count" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input class="b-size"></td><td><input class="b-amp"></td><td><input type="number" class="b-price" oninput="updateSummaryFieldsFromTables();recalcSummary()"></td><td><input type="date" class="b-date" value="${new Date().toISOString().split('T')[0]}"></td><td><button class="btn-remove pdf-exclude" onclick="this.closest('tr').remove();updateBatteryIds();updateSummaryFieldsFromTables();recalcSummary()">✕</button></td>`;
             t.appendChild(r);
         }
         function updateBatteryIds() {

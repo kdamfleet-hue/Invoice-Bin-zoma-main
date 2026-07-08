@@ -1806,13 +1806,42 @@ function bzEnsureHtml2pdf() {
     return _html2pdfLoading;
 }
 
-/** Render a DOM element to a PDF Blob (Arabic-safe; rasterizes the element). */
+/** Render a DOM element to a PDF Blob (Arabic-safe; rasterizes the element).
+ * Two mechanisms keep the PDF to just the printable data, not on-screen tools:
+ * 1) Elements marked class="pdf-exclude" (search boxes, add/refresh buttons) are skipped.
+ * 2) Any @media print rules already defined on the page (several tabs already hide their
+ *    toolbars/action-columns/buttons for browser printing) are re-applied unconditionally
+ *    inside html2canvas's cloned document — html2canvas renders screen styles by default
+ *    and never sees print-only rules otherwise. */
 window.bzElementToPdfBlob = async function (element, orientation) {
     if (!element) throw new Error('bzElementToPdfBlob: no element provided');
     await bzEnsureHtml2pdf();
     const opt = {
         margin: 6, image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        html2canvas: {
+            scale: 2, useCORS: true, backgroundColor: '#ffffff',
+            ignoreElements: (el) => el.classList && el.classList.contains('pdf-exclude'),
+            onclone: (clonedDoc) => {
+                try {
+                    const printRules = [];
+                    Array.from(document.styleSheets).forEach((sheet) => {
+                        let rules;
+                        try { rules = sheet.cssRules; } catch (e) { return; } // cross-origin sheet — skip
+                        if (!rules) return;
+                        Array.from(rules).forEach((rule) => {
+                            if (rule.type === CSSRule.MEDIA_RULE && /print/.test(rule.media.mediaText)) {
+                                Array.from(rule.cssRules).forEach((inner) => printRules.push(inner.cssText));
+                            }
+                        });
+                    });
+                    if (printRules.length) {
+                        const style = clonedDoc.createElement('style');
+                        style.textContent = printRules.join('\n');
+                        clonedDoc.head.appendChild(style);
+                    }
+                } catch (e) { /* best-effort — never block PDF generation over this */ }
+            }
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: orientation || 'landscape' }
     };
     return window.html2pdf().set(opt).from(element).toPdf().output('blob');
