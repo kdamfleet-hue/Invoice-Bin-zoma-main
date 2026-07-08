@@ -135,10 +135,21 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)')
             db.commit()
 
-            if 'drivercard' not in _drivers_table_columns(db):
+            existing_cols = _drivers_table_columns(db)
+            if 'drivercard' not in existing_cols:
                 db.execute('ALTER TABLE drivers ADD COLUMN drivercard TEXT')
                 db.commit()
                 logger.info('Database Migration: Added drivercard column to drivers table')
+                
+            new_cols = [
+                'job', 'empNotes', 'model', 'pallets', 'load', 
+                'vserial', 'inspect', 'license', 'opcard', 'notes'
+            ]
+            for col in new_cols:
+                if col not in existing_cols:
+                    db.execute(f'ALTER TABLE drivers ADD COLUMN {col} TEXT')
+                    db.commit()
+                    logger.info(f'Database Migration: Added {col} column to drivers table')
 
             count = db.execute('SELECT COUNT(*) AS cnt FROM drivers').fetchone()['cnt']
             if count == 0:

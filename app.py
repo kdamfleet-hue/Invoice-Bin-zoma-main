@@ -3839,28 +3839,39 @@ def update_driver(driver_id):
 
 
 def _rebuild_fleet_json():
-    """يُعيد بناء /static/fleet_data.json من جدول drivers الفعلي.
-    يُستدعى بعد كل تعديل/إضافة/حذف لسائق لضمان تزامن autofill عبر التبويبات."""
-    try:
-        _, drivers = _drivers_list_for_sync()
-        fleet = [
-            {
+    # Deprecated: We now use dynamic endpoint /api/fleet_data
+    pass
+
+@app.route("/api/fleet_data")
+@login_required
+def api_fleet_data():
+    _, drivers = _drivers_list_for_sync()
+    fleet = []
+    for d in drivers:
+        if d.get("name", "").strip() or d.get("plate", "").strip():
+            fleet.append({
+                "id": d.get("id", ""),
                 "name": d.get("name", ""),
                 "empid": d.get("empid", ""),
                 "iqama": d.get("iqama", ""),
                 "plate": d.get("plate", ""),
                 "car": d.get("car", ""),
                 "phone": d.get("phone", ""),
-            }
-            for d in drivers
-            if d.get("name", "").strip()
-        ]
-        fleet_path = os.path.join(app.root_path, "static", "fleet_data.json")
-        with open(fleet_path, "w", encoding="utf-8") as f:
-            json.dump(fleet, f, ensure_ascii=False, indent=2)
-        logger.info("fleet_data.json rebuilt: %d records", len(fleet))
-    except Exception:
-        logger.exception("_rebuild_fleet_json failed")
+                "drivercard": d.get("drivercard", ""),
+                "job": d.get("job", ""),
+                "empNotes": d.get("empNotes", ""),
+                "model": d.get("model", ""),
+                "pallets": d.get("pallets", ""),
+                "load": d.get("load", ""),
+                "vserial": d.get("vserial", ""),
+                "inspect": d.get("inspect", ""),
+                "license": d.get("license", ""),
+                "opcard": d.get("opcard", ""),
+                "notes": d.get("notes", "")
+            })
+    response = jsonify(fleet)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return response
 
 
 def _normalize_plate_py(plate):
