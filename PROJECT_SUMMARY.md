@@ -12,10 +12,10 @@
 - شريط جانبي للتنقل بين الصفحات والتحكم في النظام.
 
 ## التقنيات المستخدمة:
-- **Backend**: Python 3 – Flask
+- **Backend**: Python 3.11 – Flask
 - **Frontend**: HTML – CSS – JavaScript
-- **Database**: SQLite
-- **Auth**: Google OAuth – Master Password
+- **Database**: PostgreSQL (إنتاج) / SQLite (محلي)
+- **Auth**: Master Password (متغيرات بيئة)
 - **Automation**: VBA – Excel Integration
 - **Deployment**: GitHub + Render Hosting
 - **Communication**: WhatsApp API – Email SMTP

@@ -36,7 +36,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models.database import init_db, db_connection, get_db, DB_PATH, DATABASE_URL
 load_dotenv()
 
 # Configure logging
@@ -55,6 +54,19 @@ except PermissionError:
     # Fallback to /tmp for read-only deployment environments (like Render/Heroku)
     TEMPLATE_DIR = "/tmp/user_templates"
     os.makedirs(TEMPLATE_DIR, exist_ok=True)
+
+# ── Database configuration ────────────────────────────────────────────────────
+# Production (ArabCord/Render) provides a PostgreSQL DATABASE_URL → use it (persistent).
+# Locally / when unset → use a SQLite file at a PERSISTENT path (never /tmp, which is wiped).
+DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
+USE_POSTGRES = bool(DATABASE_URL) and psycopg2 is not None
+if DATABASE_URL and psycopg2 is None:
+    logger.warning("DATABASE_URL is set but psycopg2 is not installed — falling back to SQLite.")
+
+# SQLite path (used only when no PostgreSQL). Configurable, persistent by default.
+DB_PATH = os.environ.get(
+    "SQLITE_PATH", os.path.join(os.path.dirname(__file__), "database.sqlite")
+)
 
 LOGO_PATH = os.path.join(os.path.dirname(__file__), "static", "excel_logo.png")
 
@@ -84,7 +96,6 @@ if not _secret:
     )
 app.secret_key = _secret
 
-init_db(app)
 # CORS: the app serves its own same-origin frontend, so cross-origin is disabled by
 # default. Set ALLOWED_ORIGINS (comma-separated) only if external clients are needed.
 _allowed_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
@@ -209,6 +220,274 @@ mail = Mail(app)
 # OAuth configuration removed
 
 
+def _translate_sql(sql):
+    """Translate SQLite-style '?' placeholders to PostgreSQL-style '%s'."""
+    return sql.replace("?", "%s")
+
+
+class _PgCursor:
+    """Cursor wrapper so PostgreSQL behaves like sqlite3 (rows are dict-like)."""
+
+    def __init__(self, cur):
+        self._cur = cur
+
+    def execute(self, sql, params=()):
+        self._cur.execute(_translate_sql(sql), params)
+        return self
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+    @property
+    def lastrowid(self):
+        return None  # PostgreSQL: use 'RETURNING id' instead
+
+    def __getattr__(self, name):
+        return getattr(self._cur, name)
+
+
+class _PgConn:
+    """Connection wrapper exposing the same surface the app uses on sqlite3."""
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def cursor(self):
+        return _PgCursor(self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
+
+    def execute(self, sql, params=()):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
+def get_db():
+    """Open a database connection (PostgreSQL in production, else SQLite). Rows are dict-like."""
+    if USE_POSTGRES:
+        return _PgConn(psycopg2.connect(DATABASE_URL))
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")  # Better concurrency
+    return conn
+
+
+@contextmanager
+def db_connection():
+    """Context manager that guarantees DB connection cleanup."""
+    conn = get_db()
+    try:
+        yield conn
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _pk_clause():
+    """Portable auto-increment primary key clause."""
+    return "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+
+def _persistent_secret_key():
+    """A SECRET_KEY that survives restarts AND redeploys so users are NOT logged out.
+    Precedence: env SECRET_KEY (best) → a key stored once in the (persistent) database →
+    an ephemeral key only if the DB is unreachable. Because the DB persists across deploys
+    (your data does), the stored key is stable forever after the first generation."""
+    env = (os.environ.get("SECRET_KEY") or "").strip()
+    if env:
+        return env
+    try:
+        with db_connection() as db:
+            db.execute("CREATE TABLE IF NOT EXISTS app_secret (id INTEGER PRIMARY KEY, data TEXT NOT NULL)")
+            row = db.execute("SELECT data FROM app_secret WHERE id = 1").fetchone()
+            if row and row["data"]:
+                return row["data"]
+            key = secrets.token_hex(32)
+            db.execute("INSERT INTO app_secret (id, data) VALUES (1, ?)", (key,))
+            db.commit()
+            logger.info("Stored a persistent SECRET_KEY in the database (sessions now survive redeploys).")
+            return key
+    except Exception as e:
+        logger.warning("Persistent SECRET_KEY unavailable (%s) — falling back to an ephemeral key.", e)
+        return app.secret_key
+
+
+def _drivers_table_columns(db):
+    """Return the set of column names on the drivers table (portable)."""
+    if USE_POSTGRES:
+        rows = db.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'drivers'"
+        ).fetchall()
+        return {r["column_name"] for r in rows}
+    rows = db.execute("PRAGMA table_info(drivers)").fetchall()
+    return {r["name"] for r in rows}
+
+
+def _is_header_row(d):
+    """True for the junk header rows present in drivers_data.js (must not be seeded)."""
+    name = (d.get("name") or "").strip()
+    if not name:
+        return True
+    return ("اسم السائق" in name) or ("Employee Name" in name) or ("ID Number" in name)
+
+
+def init_db():
+    """Create tables if missing and seed drivers ONCE. Never destructive (no data loss)."""
+    with app.app_context():
+        with db_connection() as db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS drivers ("
+                "id %s, name TEXT NOT NULL, empid TEXT, plate TEXT, "
+                "car TEXT, iqama TEXT, phone TEXT, drivercard TEXT)" % _pk_clause()
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS washing_schedule (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS employees (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS schedule_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS records_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS incidents_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS gps_devices_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Shared login accounts (created from the locked Settings tab; main site id=1 only).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS app_users (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Dated version snapshots of each data tab (auto-saved on every change; restore from Settings).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS data_snapshots (id %s, tab TEXT, ts TEXT, data TEXT, mode INTEGER)" % _pk_clause()
+            )
+            # Workstation-only blob stores (id=2 sandbox). Additive & never seeded, so the
+            # /importantworkstation namespace starts EMPTY and persists what the user types.
+            # The MAIN site (/) never reads or writes these.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS drivers_ws (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS oils_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS purchase_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS workshop_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Vehicle handover/receipt submissions (append log of signed forms).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS handover_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Per-branch driver rosters (id = branch id). الدمام keeps its own SQL `drivers`
+            # table; other branches store their drivers here and start EMPTY.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS drivers_branch (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Per-branch login accounts (username + hashed code → branch id). GLOBAL (id=1).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS branch_accounts (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Automatic document-expiry alert settings (recipients/hour/window/enabled). GLOBAL (id=1).
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS alert_settings (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Document archive — uploaded vehicle/employee docs (image/PDF base64). Per-branch blob.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS documents_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Learned driver registry — per-branch memory of each driver's personal data
+            # (بطاقة السائق expiry / الوظيفة / الجوال / الرقم الوظيفي / ملاحظات) keyed by national-id
+            # (iqama), harvested from what the admin types into the weekly schedule. Lets a
+            # driver's card-expiry auto-fill + colour on every future selection. Additive only.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS driver_registry (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Learned vehicle registry — per-branch memory of each vehicle's technical spec
+            # (الطبالي/الحمولة/الرقم التسلسلي/تواريخ الفحص والرخصة وبطاقة التشغيل/الملاحظات) keyed by
+            # normalized plate, harvested the same way as driver_registry above. Additive only.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS vehicle_registry (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Drivers whose vehicle authorization was cancelled (from the Absher sync) —
+            # shown under the weekly schedule. Per-branch blob.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS deauthorized_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # One-level backup of the drivers roster taken before each Absher sync apply.
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS drivers_backup (id INTEGER PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            # Tiny key/value flags for the workstation (e.g. "did we auto-seed example data?").
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)"
+            )
+            db.commit()
+
+            # Safe migration: add drivercard to older tables that lack it.
+            if "drivercard" not in _drivers_table_columns(db):
+                db.execute("ALTER TABLE drivers ADD COLUMN drivercard TEXT")
+                db.commit()
+                logger.info("Database Migration: Added drivercard column to drivers table")
+
+            # Seed drivers ONCE, only when the table is completely empty.
+            # We never DELETE existing rows — that previously wiped user-added drivers on every restart.
+            count = db.execute("SELECT COUNT(*) AS cnt FROM drivers").fetchone()["cnt"]
+            if count == 0:
+                js_path = os.path.join(app.root_path, "drivers_data.js")
+                if os.path.exists(js_path):
+                    try:
+                        with open(js_path, "r", encoding="utf-8") as f:
+                            content = f.read().replace("const driversData = ", "").strip()
+                            if content.endswith(";"):
+                                content = content[:-1]
+                            data = json.loads(content)
+                        seeded = 0
+                        for d in data:
+                            if _is_header_row(d):
+                                continue
+                            db.execute(
+                                "INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) "
+                                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                (
+                                    d.get("name", ""), d.get("empid", ""), d.get("plate", ""),
+                                    d.get("car", ""), d.get("iqama", ""), d.get("phone", ""),
+                                    d.get("drivercard", ""),
+                                ),
+                            )
+                            seeded += 1
+                        db.commit()
+                        logger.info("Database seeded once with %d drivers from drivers_data.js", seeded)
+                    except Exception as e:
+                        db.rollback()
+                        logger.error("Error seeding DB: %s", e)
+
+            db.commit()
+    logger.info("Database initialized successfully.")
+
+init_db()
 
 # Lock in a stable session key from the persistent DB (unless SECRET_KEY is set in the env),
 # so deploys/restarts no longer log everyone out. Runs once at import, before serving requests.
