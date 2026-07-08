@@ -1662,6 +1662,12 @@ window.FleetData = (function () {
         return records().find(function (d) { return String(d.iqama || '').replace(/\D/g, '') === t; }) || null;
     }
 
+    function byEmpid(empid) {
+        const t = String(empid == null ? '' : empid).replace(/\D/g, '');
+        if (!t) return null;
+        return records().find(function (d) { return String(d.empid || '').replace(/\D/g, '') === t; }) || null;
+    }
+
     /** Populate a <datalist> (or <select>) with all driver names. */
     async function fillDatalist(elOrId) {
         await load();
