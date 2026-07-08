@@ -135,18 +135,25 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)')
             db.commit()
 
+            # Postgres folds unquoted identifiers to lowercase (an ADD COLUMN empNotes really
+            # creates "empnotes"), while SQLite's PRAGMA table_info preserves whatever case the
+            # column was created with. Compare case-insensitively on both sides so a mixed-case
+            # name like empNotes is correctly recognized as already existing on every restart —
+            # otherwise this migration re-attempts the ALTER on Postgres every single boot and
+            # crashes the whole app with a DuplicateColumn error once the column is there.
             existing_cols = _drivers_table_columns(db)
-            if 'drivercard' not in existing_cols:
+            existing_cols_lower = {c.lower() for c in existing_cols}
+            if 'drivercard' not in existing_cols_lower:
                 db.execute('ALTER TABLE drivers ADD COLUMN drivercard TEXT')
                 db.commit()
                 logger.info('Database Migration: Added drivercard column to drivers table')
-                
+
             new_cols = [
-                'job', 'empNotes', 'model', 'pallets', 'load', 
+                'job', 'empNotes', 'model', 'pallets', 'load',
                 'vserial', 'inspect', 'license', 'opcard', 'notes'
             ]
             for col in new_cols:
-                if col not in existing_cols:
+                if col.lower() not in existing_cols_lower:
                     db.execute(f'ALTER TABLE drivers ADD COLUMN {col} TEXT')
                     db.commit()
                     logger.info(f'Database Migration: Added {col} column to drivers table')
