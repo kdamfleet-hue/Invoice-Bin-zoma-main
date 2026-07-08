@@ -159,6 +159,7 @@
             <span class="emp-count" id="empCount"></span>
             <span style="flex:1"></span>
             <button class="btn-primary" onclick="addEmployeeRow()">+ إضافة صف</button>
+            <button class="btn-primary" style="background-color: #9b59b6;" onclick="openPasteModal()">📋 لصق من إكسل</button>
             <button class="btn-submit-gold" onclick="exportToExcel()">📥 تصدير Excel</button>
             <button class="btn-submit-orange" onclick="shareEmployees()">📤 مشاركة / تصدير</button>
             <button class="btn-outline" onclick="saveToServer()">💾 حفظ على الخادم</button>
@@ -688,6 +689,63 @@
                 pdfElement: document.getElementById('employeesTable'),
                 pdfOrientation: 'landscape'
             });
+        }
+    </script>
+
+    <!-- Modal for Pasting Excel Data -->
+    <div class="modal-backdrop" id="pasteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="modal-content-custom" style="background: var(--surface, #fff); padding: 2rem; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: var(--brand-navy, #0c2340);">لصق بيانات الإكسل</h2>
+            <p style="color: var(--text-secondary, #5a6a7a); margin-bottom: 1rem;">قم بنسخ الخلايا من ملف الإكسل والصقها في المربع أدناه (اضغط Ctrl+V):</p>
+            <textarea id="pasteArea" rows="8" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border, #d9d9d9); background: var(--surface-hover, #f1f5f9); color: var(--text-primary, #1a2b49); font-family: inherit; margin-bottom: 1rem; resize: vertical;" placeholder="الصق البيانات هنا..."></textarea>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn-outline" onclick="closePasteModal()">إلغاء</button>
+                <button class="btn-primary" onclick="processPasteArea()">إضافة البيانات</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openPasteModal() {
+            document.getElementById('pasteModal').style.display = 'flex';
+            document.getElementById('pasteArea').value = '';
+            setTimeout(() => document.getElementById('pasteArea').focus(), 100);
+        }
+        function closePasteModal() {
+            document.getElementById('pasteModal').style.display = 'none';
+        }
+        function processPasteArea() {
+            const pastedData = document.getElementById('pasteArea').value;
+            if (!pastedData.trim()) {
+                if (window.showToast) showToast('لم يتم إدخال بيانات', 'error');
+                return;
+            }
+            const rows = pastedData.split(/\r?\n/);
+            const tbody = document.getElementById('employeesBody');
+            let added = 0;
+
+            for (let i = 0; i < rows.length; i++) {
+                const rowStr = rows[i].replace(/\r$/, '');
+                if (!rowStr.trim()) continue;
+                const cells = rowStr.split('\t');
+                
+                addEmployeeRow(false); // Add new empty row
+                const targetTr = tbody.lastElementChild;
+                
+                for (let j = 0; j < cells.length; j++) {
+                    if (j >= TOTAL_COLS) break;
+                    const targetInput = targetTr.querySelector(`input[data-col="${j}"]`);
+                    if (targetInput) targetInput.value = cells[j].trim();
+                }
+                added++;
+            }
+            if (added > 0) {
+                persistLocal();
+                if (typeof autoSaveServer === 'function') autoSaveServer();
+                updateCount();
+                if (window.showToast) showToast(`تم إضافة ${added} صفوف بنجاح`, 'success');
+                closePasteModal();
+            }
         }
     </script>
 </body>
