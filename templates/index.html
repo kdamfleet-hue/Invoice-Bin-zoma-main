@@ -243,7 +243,8 @@
         <!-- 3. رقم اللوحة -->
         <div class="card card-blue glass-surface">
             <label for="plateNum">رقم اللوحة</label>
-            <input type="text" id="plateNum" placeholder="مثال: ا ب ج 1234">
+            <input type="text" id="plateNum" list="platesList" placeholder="مثال: 1234 أو ا ب ج 1234" onchange="autofillByPlate()">
+            <datalist id="platesList"></datalist>
         </div>
 
                 <!-- 4. نوع الطلب -->
@@ -520,9 +521,9 @@
         function autofillDriver() {
             const val = document.getElementById('driverName').value;
             let driver = driversData.find(d => d._merged === val || d.name === val);
-            // Fallback to the shared FleetData engine (by name) if not found locally
+            // Fallback to the shared FleetData engine (by name, iqama, empid)
             if (!driver && window.FleetData) {
-                const rec = FleetData.byName(val);
+                const rec = FleetData.byName(val) || FleetData.byIqama(val) || FleetData.byEmpid(val);
                 if (rec) driver = rec;
             }
             if (driver) {
@@ -535,10 +536,50 @@
             }
         }
 
-        window.addEventListener('load', () => { 
+        // Auto-fill driver name + car type when a plate number is entered
+        function autofillByPlate() {
+            const val = document.getElementById('plateNum').value.trim();
+            if (!val) return;
+            let rec = null;
+            // try FleetData first
+            if (window.FleetData) rec = FleetData.byPlate(val);
+            // fallback: search local driversData
+            if (!rec) rec = driversData.find(d => {
+                const norm = window.normalizePlate ? normalizePlate(d.plate || '') : (d.plate || '');
+                const input = window.normalizePlate ? normalizePlate(val) : val;
+                return norm && norm === input;
+            }) || null;
+            if (rec) {
+                if (!document.getElementById('driverName').value.trim())
+                    document.getElementById('driverName').value = clean(rec.name);
+                document.getElementById('carType').value = clean(rec.car);
+                document.getElementById('plateNum').value = clean(rec.plate);
+                if (!document.getElementById('iqamaNum').value.trim())
+                    document.getElementById('iqamaNum').value = clean(rec.iqama);
+                window._selectedDriverPhone = clean(rec.phone);
+                saveInvoiceForm();
+                if (window.showToast) showToast('تم استيراد بيانات المركبة والسائق تلقائياً', 'success');
+            }
+        }
+
+        window.addEventListener('load', async () => { 
             if (!loadInvoiceForm()) {
                 document.getElementById('invoiceDate').valueAsDate = new Date(); 
             }
+            // Populate plates datalist for plate autofill
+            try {
+                await FleetData.load();
+                const plList = document.getElementById('platesList');
+                if (plList) {
+                    let opts = '';
+                    FleetData.records().forEach(d => {
+                        const p = (d.plate || '').trim();
+                        const n = (d.name || '').trim();
+                        if (p) opts += `<option value="${window.escapeHtml ? escapeHtml(p) : p}">${window.escapeHtml ? escapeHtml(n) : n}</option>`;
+                    });
+                    plList.innerHTML = opts;
+                }
+            } catch (e) {}
         });
         
         function saveInvoiceForm() {
