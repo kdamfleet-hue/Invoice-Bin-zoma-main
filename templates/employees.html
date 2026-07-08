@@ -162,6 +162,7 @@
             <button class="btn-submit-gold" onclick="exportToExcel()">📥 تصدير Excel</button>
             <button class="btn-submit-orange" onclick="shareEmployees()">📤 مشاركة / تصدير</button>
             <button class="btn-outline" onclick="saveToServer()">💾 حفظ على الخادم</button>
+            <button class="btn-outline" style="border-color:rgba(96,165,250,.5);color:#60a5fa;" onclick="updateVehiclesFromFleet()">🔄 تحديث المركبات</button>
         </div>
         <p class="emp-hint">العرض المختصر يُظهر الأعمدة الأساسية فقط (بدون تمرير جانبي). اضغط «عرض كامل» لكل الأعمدة الـ46، واستخدم البحث للوصول لأي موظف بسرعة. عمود «م» والترويسة يبقيان ثابتين أثناء التمرير.</p>
 
@@ -212,6 +213,8 @@
 
         // Column indexes used by autofill (within the 46-col row)
         const COL_EMPID = 0, COL_IQAMA = 1, COL_NAME = 2, COL_PLATE = 9, COL_CAR = 36, COL_PHONE = 7;
+        // COL_CAR=36 الماركة | COL_MODEL_TYPE=37 الطراز | COL_MODEL_YEAR=38 الموديل
+        const COL_CAR_TYPE = 37, COL_MODEL_YEAR = 38;
         // Key columns shown in the compact view (no horizontal scrolling needed)
         const KEY_COLS = new Set([0, 1, 2, 6, 7, 9, 10, 36, 37, 38]);
 
@@ -484,6 +487,57 @@
             setIfEmpty(COL_CAR, rec.car);
             setIfEmpty(COL_PHONE, rec.phone);
             persistLocal();
+        }
+
+        // ── تحديث بيانات المركبات لكل الموظفين من أسطول الفرع ──────────────────
+        // يمر على كل صف ويبحث عن السائق بالاسم أو الإقامة في FleetData،
+        // ثم يُحدّث: رقم اللوحة (9) + الماركة (36) + الطراز (37) + الموديل (38).
+        // لا يمسح بيانات موجودة أبداً — فقط يملأ الفارغ أو يصحح القديم إذا اختلف.
+        async function updateVehiclesFromFleet() {
+            if (!window.FleetData) { if (window.showToast) showToast('بيانات الأسطول غير متاحة', 'error'); return; }
+            await FleetData.load();
+            const rows = document.querySelectorAll('#employeesBody tr');
+            let updated = 0;
+
+            rows.forEach(tr => {
+                const nameInp  = tr.querySelector('input[data-col="2"]');
+                const iqamaInp = tr.querySelector('input[data-col="1"]');
+                if (!nameInp && !iqamaInp) return;
+
+                // البحث بالإقامة أولاً (أدق)، ثم بالاسم
+                let rec = null;
+                if (iqamaInp && iqamaInp.value.trim()) rec = FleetData.byIqama(iqamaInp.value);
+                if (!rec && nameInp && nameInp.value.trim()) rec = FleetData.byName(nameInp.value);
+                if (!rec) return;
+
+                // دالة لتحديث حقل (حتى لو كان ممتلئاً، لأننا نريد تحديث وليس فقط ملء)
+                const setVal = (col, val) => {
+                    if (!val || val === 'None') return false;
+                    const inp = tr.querySelector(`input[data-col="${col}"]`);
+                    if (inp && inp.value !== val) { inp.value = val; return true; }
+                    return false;
+                };
+
+                // استخراج الماركة والطراز والموديل من حقل car (مثل: "ايسوزو صندوق 2023")
+                const carStr = rec.car || '';
+                const yearMatch = carStr.match(/\b(19|20)\d{2}\b/);
+                const year = yearMatch ? yearMatch[0] : '';
+                const typeStr = carStr.replace(year, '').trim();
+
+                let rowChanged = false;
+                if (setVal(COL_PLATE, rec.plate)) rowChanged = true;
+                if (setVal(COL_CAR, typeStr || carStr)) rowChanged = true;
+                if (setVal(COL_CAR_TYPE, typeStr || carStr)) rowChanged = true;
+                if (year && setVal(COL_MODEL_YEAR, year)) rowChanged = true;
+                if (rowChanged) updated++;
+            });
+
+            if (updated > 0) {
+                persistLocal();
+                if (window.showToast) showToast(`✅ تم تحديث بيانات المركبة لـ ${updated} موظف`, 'success');
+            } else {
+                if (window.showToast) showToast('البيانات محدّثة بالفعل أو لا يوجد تطابق ✓', 'info');
+            }
         }
 
         // Smart paste (Excel/Sheets tab-separated). escapeHtml is applied at render time;
