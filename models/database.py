@@ -130,6 +130,7 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS documents_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS driver_registry (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS vehicle_registry (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS hr_employees (id %s, empid TEXT, iqama TEXT, name TEXT, plate TEXT, phone TEXT, job TEXT, details TEXT)' % _pk_clause())
             db.execute('CREATE TABLE IF NOT EXISTS deauthorized_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS drivers_backup (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)')
@@ -150,7 +151,8 @@ def init_db(app=None):
 
             new_cols = [
                 'job', 'empNotes', 'model', 'pallets', 'load',
-                'vserial', 'inspect', 'license', 'opcard', 'notes'
+                'vserial', 'inspect', 'license', 'opcard', 'notes',
+                'fuel_card', 'medical_exp', 'contract_exp'
             ]
             for col in new_cols:
                 if col.lower() not in existing_cols_lower:

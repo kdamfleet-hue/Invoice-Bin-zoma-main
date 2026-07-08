@@ -1467,19 +1467,45 @@ def washing_data():
 @app.route("/api/employees", methods=["GET", "POST"])
 @login_required
 def employees_data():
-    """Persist the branch employees grid (array of 46-column string rows). Sandboxed for workstation."""
+    """Persist the branch employees grid using the hybrid SQL hr_employees table."""
     if request.method == "POST":
         try:
             rows = (request.json or {}).get("rows", [])
+            with db_connection() as db:
+                db.execute("DELETE FROM hr_employees")
+                for row in rows:
+                    if not isinstance(row, list):
+                        continue
+                    if len(row) < 46:
+                        row += [''] * (46 - len(row))
+                    empid = str(row[0] or '').strip()
+                    iqama = str(row[1] or '').strip()
+                    name = str(row[2] or '').strip()
+                    plate = str(row[9] or '').strip()
+                    phone = str(row[7] or '').strip()
+                    job = str(row[6] or '').strip()
+                    import json
+                    details_json = json.dumps(row)
+                    db.execute("INSERT INTO hr_employees (empid, iqama, name, plate, phone, job, details) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                               (empid, iqama, name, plate, phone, job, details_json))
+                db.commit()
             blob_set("employees", rows)
-            _audit_add("تحديث", "بيانات الموظفين", len(rows) if isinstance(rows, list) else None)
+            _audit_add("تحديث", "بيانات الموظفين (SQL)", len(rows) if isinstance(rows, list) else None)
             return jsonify({"success": True})
         except Exception:
             logger.exception("employees_data POST error")
             return jsonify({"success": False, "error": "تعذّر حفظ بيانات الموظفين."}), 500
     try:
-        data = blob_get("employees")
-        return jsonify({"success": True, "rows": data if data is not None else []})
+        with db_connection() as db:
+            db_rows = db.execute("SELECT details FROM hr_employees").fetchall()
+            import json
+            data = [json.loads(r["details"]) for r in db_rows if r["details"]]
+            
+        if not data:
+            fallback = blob_get("employees")
+            data = fallback if fallback is not None else []
+            
+        return jsonify({"success": True, "rows": data})
     except Exception:
         logger.exception("employees_data GET error")
         return jsonify({"success": False, "error": "تعذّر جلب بيانات الموظفين."}), 500
@@ -3633,7 +3659,7 @@ def add_driver():
     data = request.json or {}
     fields = ['name', 'empid', 'plate', 'car', 'iqama', 'phone', 'drivercard',
               'job', 'empNotes', 'model', 'pallets', 'load', 'vserial', 
-              'inspect', 'license', 'opcard', 'notes']
+              'inspect', 'license', 'opcard', 'notes', 'fuel_card', 'medical_exp', 'contract_exp']
     
     vals = {f: data.get(f, "").strip() for f in fields}
     
@@ -3649,6 +3675,17 @@ def add_driver():
         lst.append(row)
         blob_set(tbl, lst)
         return jsonify({"success": True, **row})
+        
+    with db_connection() as conn:
+        c = conn.cursor()
+        cols = ", ".join(fields)
+        placeholders = ", ".join(["?"] * len(fields))
+        c.execute(f"INSERT INTO drivers ({cols}) VALUES ({placeholders})", tuple(vals[f] for f in fields))
+        conn.commit()
+        new_id = c.lastrowid
+        
+    logger.info("Driver added: %s (id=%s)", vals['name'], new_id)
+    return jsonify({"success": True, "id": new_id, **vals})
         
     with db_connection() as conn:
         c = conn.cursor()
@@ -3759,7 +3796,7 @@ def update_driver(driver_id):
     data = request.json or {}
     fields = ['name', 'empid', 'plate', 'car', 'iqama', 'phone', 'drivercard',
               'job', 'empNotes', 'model', 'pallets', 'load', 'vserial', 
-              'inspect', 'license', 'opcard', 'notes']
+              'inspect', 'license', 'opcard', 'notes', 'fuel_card', 'medical_exp', 'contract_exp']
               
     vals = {f: data.get(f, "").strip() for f in fields}
 
@@ -3786,6 +3823,26 @@ def update_driver(driver_id):
             )
         
         return jsonify({"success": True, "id": driver_id, **vals})
+
+    with db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT name, plate FROM drivers WHERE id=?", (driver_id,))
+        row = c.fetchone()
+        if row:
+            old_name, old_plate = row["name"], row["plate"]
+
+        set_clause = ", ".join([f"{f}=?" for f in fields])
+        c.execute(f"UPDATE drivers SET {set_clause} WHERE id=?", tuple(vals[f] for f in fields) + (driver_id,))
+        conn.commit()
+
+    if old_name != vals['name'] or old_plate != vals['plate']:
+        _sync_all_tabs_from_drivers(
+            old_name=old_name, old_plate=old_plate,
+            new_name=vals['name'], new_plate=vals['plate'], new_car=vals['car']
+        )
+
+    logger.info("Driver updated: id=%s name=%s plate=%s", driver_id, vals['name'], vals['plate'])
+    return jsonify({"success": True, "id": driver_id, **vals})
 
     with db_connection() as conn:
         c = conn.cursor()
@@ -5078,18 +5135,16 @@ def api_registry_data():
         # 1. Fetch Drivers (Base)
         _, drivers = _drivers_list_for_sync()
         
-        # 2. Fetch Employees
-        employees_blob = blob_get("employees")
-        emp_rows = employees_blob if isinstance(employees_blob, list) else (employees_blob.get("rows") if isinstance(employees_blob, dict) else [])
+        # 2. Fetch Employees (from SQL hr_employees table instead of JSON blob)
         emp_names = set()
         emp_iqamas = set()
-        for r in (emp_rows or []):
-            if isinstance(r, list) and len(r) > 2:
-                emp_iqamas.add(absher_sync.norm_id(r[1]))
-                emp_names.add(str(r[2]).strip())
-            elif isinstance(r, dict):
-                emp_iqamas.add(absher_sync.norm_id(r.get("iqama") or r.get("الإقامة - البطاقة") or r.get("الإقامة")))
-                emp_names.add(str(r.get("name") or r.get("اسم العامل")).strip())
+        with db_connection() as db:
+            hr_rows = db.execute("SELECT iqama, name FROM hr_employees").fetchall()
+            for r in hr_rows:
+                if r["iqama"]:
+                    emp_iqamas.add(absher_sync.norm_id(r["iqama"]))
+                if r["name"]:
+                    emp_names.add(str(r["name"]).strip())
                 
         # 3. Fetch Washing
         washing = blob_get("washing_schedule")

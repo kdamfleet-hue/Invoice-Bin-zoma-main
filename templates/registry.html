@@ -179,20 +179,41 @@
                 </div>
             </div>
 
-            <div style="overflow-x:auto;">
-                <table class="bz-table" id="registryTable">
+            <div style="overflow-x:auto; max-height: 70vh; border-radius:8px; border:1px solid var(--border); box-shadow:var(--shadow-sm);">
+                <table class="bz-table" id="registryTable" style="min-width: 2500px;">
                     <thead>
                         <tr>
+                            <th colspan="10" style="text-align:center; background:var(--brand-primary); color:white; border-left:1px solid rgba(255,255,255,0.2);">👤 بيانات الموظف</th>
+                            <th colspan="11" style="text-align:center; background:var(--brand-orange); color:white; border-left:1px solid rgba(255,255,255,0.2);">🚚 بيانات المركبة</th>
+                            <th rowspan="2" style="text-align:center; background:var(--brand-navy); min-width:150px;">ترابط البيانات</th>
+                            <th rowspan="2" style="text-align:center; background:var(--brand-navy);">إجراءات</th>
+                        </tr>
+                        <tr>
                             <th>الاسم</th>
+                            <th>الرقم الوظيفي</th>
                             <th>الإقامة</th>
+                            <th>الوظيفة</th>
+                            <th>بطاقة السائق</th>
+                            <th>الفحص الطبي</th>
+                            <th>انتهاء العقد</th>
+                            <th>الجوال</th>
+                            <th>الملاحظات</th>
+                            <th style="border-left:1px solid var(--border);"></th>
                             <th>اللوحة</th>
-                            <th>المركبة</th>
-                            <th>ترابط البيانات (Integrity)</th>
-                            <th style="text-align:center;">إجراءات</th>
+                            <th>الموديل</th>
+                            <th>النوع</th>
+                            <th>الطبالي</th>
+                            <th>الحمولة</th>
+                            <th>التسلسلي</th>
+                            <th>الفحص الدوري</th>
+                            <th>رخصة السير</th>
+                            <th>التشغيل</th>
+                            <th>بطاقة الوقود</th>
+                            <th style="border-left:1px solid var(--border);">ملاحظات</th>
                         </tr>
                     </thead>
                     <tbody id="registryBody">
-                        <tr><td colspan="6" style="text-align:center;padding:2rem;">جاري تحميل البيانات... ⏳</td></tr>
+                        <tr><td colspan="23" style="text-align:center;padding:2rem;">جاري تحميل البيانات... ⏳</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -212,6 +233,8 @@
                     <div class="form-group"><label>رقم الإقامة</label><input type="text" id="editIqama"></div>
                     <div class="form-group"><label>الوظيفة</label><input type="text" id="editJob"></div>
                     <div class="form-group"><label>تاريخ انتهاء بطاقة السائق</label><input type="date" id="editDrivercard"></div>
+                    <div class="form-group"><label>تاريخ الفحص الطبي (السائق)</label><input type="date" id="editMedicalExp"></div>
+                    <div class="form-group"><label>تاريخ انتهاء العقد</label><input type="date" id="editContractExp"></div>
                     <div class="form-group"><label>رقم الجوال</label><input type="text" id="editPhone"></div>
                     <div class="form-group"><label>الملاحظات</label><input type="text" id="editEmpNotes"></div>
                 </div>
@@ -226,6 +249,7 @@
                     <div class="form-group"><label>تاريخ انتهاء الفحص الدوري</label><input type="date" id="editInspect"></div>
                     <div class="form-group"><label>تاريخ انتهاء رخصة السير</label><input type="date" id="editLicense"></div>
                     <div class="form-group"><label>تاريخ انتهاء بطاقة التشغيل</label><input type="date" id="editOpcard"></div>
+                    <div class="form-group"><label>بطاقة الوقود (فيول كارد)</label><input type="text" id="editFuelCard"></div>
                     <div class="form-group"><label>الملاحظات</label><input type="text" id="editNotes"></div>
                 </div>
             </div>
@@ -281,12 +305,29 @@
 
                 html += `
                     <tr>
-                        <td style="font-weight:bold;color:var(--brand-navy)">${escapeHtml(d.name || '---')}</td>
+                        <td style="font-weight:bold;color:var(--brand-navy); white-space:nowrap;">${escapeHtml(d.name || '---')}</td>
+                        <td>${escapeHtml(d.empid || '---')}</td>
                         <td>${escapeHtml(d.iqama || '---')}</td>
-                        <td style="direction:ltr;text-align:right;">${escapeHtml(d.plate || '---')}</td>
+                        <td>${escapeHtml(d.job || '---')}</td>
+                        <td>${escapeHtml(d.drivercard || '---')}</td>
+                        <td>${escapeHtml(d.medical_exp || '---')}</td>
+                        <td>${escapeHtml(d.contract_exp || '---')}</td>
+                        <td>${escapeHtml(d.phone || '---')}</td>
+                        <td>${escapeHtml(d.empNotes || '---')}</td>
+                        <td style="border-left:1px solid var(--border);"></td>
+                        <td style="direction:ltr;text-align:right; font-weight:bold; white-space:nowrap;">${escapeHtml(d.plate || '---')}</td>
+                        <td>${escapeHtml(d.model || '---')}</td>
                         <td>${escapeHtml(d.car || '---')}</td>
-                        <td><div style="display:flex;flex-wrap:wrap;gap:4px;">${badgeWash} ${badgeSched} ${badgeEmp} ${badgeOils} ${badgePurch} ${badgeWs} ${badgeHand} ${badgeInc} ${badgeRec}</div></td>
-                        <td class="action-btns" style="text-align:center;">
+                        <td>${escapeHtml(d.pallets || '---')}</td>
+                        <td>${escapeHtml(d.load || '---')}</td>
+                        <td>${escapeHtml(d.vserial || '---')}</td>
+                        <td>${escapeHtml(d.inspect || '---')}</td>
+                        <td>${escapeHtml(d.license || '---')}</td>
+                        <td>${escapeHtml(d.opcard || '---')}</td>
+                        <td>${escapeHtml(d.fuel_card || '---')}</td>
+                        <td style="border-left:1px solid var(--border);">${escapeHtml(d.notes || '---')}</td>
+                        <td style="min-width:150px;"><div style="display:flex;flex-wrap:wrap;gap:4px;">${badgeWash} ${badgeSched} ${badgeEmp} ${badgeOils} ${badgePurch} ${badgeWs} ${badgeHand} ${badgeInc} ${badgeRec}</div></td>
+                        <td class="action-btns" style="text-align:center; white-space:nowrap;">
                             <button class="btn-outline" onclick='openModal(${idx})'>✏️ تعديل</button>
                             <button class="btn-outline" style="border-color:#ef4444;color:#ef4444;" onclick='deleteDriver(${d.id})'>🗑️</button>
                         </td>
@@ -295,7 +336,7 @@
             });
 
             if (visibleCount === 0) {
-                html = `<tr><td colspan="6" style="text-align:center;padding:2rem;">لم يتم العثور على نتائج.</td></tr>`;
+                html = `<tr><td colspan="23" style="text-align:center;padding:2rem;">لم يتم العثور على نتائج.</td></tr>`;
             }
             tbody.innerHTML = html;
         }
@@ -336,10 +377,13 @@
                 document.getElementById('editPallets').value = d.pallets || '';
                 document.getElementById('editLoad').value = d.load || '';
                 document.getElementById('editVserial').value = d.vserial || '';
-                document.getElementById('editInspect').value = d.inspect || '';
-                document.getElementById('editLicense').value = d.license || '';
-                document.getElementById('editOpcard').value = d.opcard || '';
-                document.getElementById('editNotes').value = d.notes || '';
+                document.getElementById('editInspect').value = d ? (d.inspect || '') : '';
+                document.getElementById('editLicense').value = d ? (d.license || '') : '';
+                document.getElementById('editOpcard').value = d ? (d.opcard || '') : '';
+                document.getElementById('editFuelCard').value = d ? (d.fuel_card || '') : '';
+                document.getElementById('editMedicalExp').value = d ? (d.medical_exp || '') : '';
+                document.getElementById('editContractExp').value = d ? (d.contract_exp || '') : '';
+                document.getElementById('editNotes').value = d ? (d.notes || '') : '';
             }
             document.getElementById('editModal').classList.add('active');
         }
@@ -364,10 +408,13 @@
                 pallets: document.getElementById('editPallets').value,
                 load: document.getElementById('editLoad').value,
                 vserial: document.getElementById('editVserial').value,
-                inspect: document.getElementById('editInspect').value,
-                license: document.getElementById('editLicense').value,
-                opcard: document.getElementById('editOpcard').value,
-                notes: document.getElementById('editNotes').value
+                inspect: document.getElementById('editInspect').value.trim(),
+                license: document.getElementById('editLicense').value.trim(),
+                opcard: document.getElementById('editOpcard').value.trim(),
+                fuel_card: document.getElementById('editFuelCard').value.trim(),
+                medical_exp: document.getElementById('editMedicalExp').value.trim(),
+                contract_exp: document.getElementById('editContractExp').value.trim(),
+                notes: document.getElementById('editNotes').value.trim()
             };
 
             if (!payload.name.trim()) {
