@@ -3686,17 +3686,6 @@ def add_driver():
         
     logger.info("Driver added: %s (id=%s)", vals['name'], new_id)
     return jsonify({"success": True, "id": new_id, **vals})
-        
-    with db_connection() as conn:
-        c = conn.cursor()
-        cols = ", ".join(fields)
-        placeholders = ", ".join(["?"] * len(fields))
-        c.execute(f"INSERT INTO drivers ({cols}) VALUES ({placeholders})", tuple(vals[f] for f in fields))
-        conn.commit()
-        new_id = c.lastrowid
-        
-    logger.info("Driver added: %s (id=%s)", vals['name'], new_id)
-    return jsonify({"success": True, "id": new_id, **vals})
     with db_connection() as conn:
         c = conn.cursor()
         if USE_POSTGRES:
@@ -3823,26 +3812,6 @@ def update_driver(driver_id):
             )
         
         return jsonify({"success": True, "id": driver_id, **vals})
-
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT name, plate FROM drivers WHERE id=?", (driver_id,))
-        row = c.fetchone()
-        if row:
-            old_name, old_plate = row["name"], row["plate"]
-
-        set_clause = ", ".join([f"{f}=?" for f in fields])
-        c.execute(f"UPDATE drivers SET {set_clause} WHERE id=?", tuple(vals[f] for f in fields) + (driver_id,))
-        conn.commit()
-
-    if old_name != vals['name'] or old_plate != vals['plate']:
-        _sync_all_tabs_from_drivers(
-            old_name=old_name, old_plate=old_plate,
-            new_name=vals['name'], new_plate=vals['plate'], new_car=vals['car']
-        )
-
-    logger.info("Driver updated: id=%s name=%s plate=%s", driver_id, vals['name'], vals['plate'])
-    return jsonify({"success": True, "id": driver_id, **vals})
 
     with db_connection() as conn:
         c = conn.cursor()

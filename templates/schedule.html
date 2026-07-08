@@ -267,6 +267,8 @@
       <span class="hint" id="saveHint">يُحفظ تلقائياً</span>
       <button class="btn-primary" onclick="addRow('main')">➕ إضافة سائق</button>
       <button class="btn-submit-gold" onclick="exportExcel()">📥 تصدير Excel</button>
+      <button class="btn-submit-gold" onclick="document.getElementById('excelImport').click()">📤 استيراد Excel</button>
+      <input type="file" id="excelImport" accept=".xlsx" style="display:none;" onchange="importExcel(event)">
       <button class="btn-submit-orange" onclick="shareSchedule()">📤 مشاركة / تصدير</button>
       <button class="btn-outline" onclick="openWaAll()">📲 إرسال للجميع عبر واتساب</button>
       <button class="btn-outline" onclick="openFleetModal()">🚚 استدعاء مركبة</button>
@@ -1402,6 +1404,75 @@
     function scheduleFileName() {
       const dt = (state.date || '').replace(/[^0-9-]/g, '') || 'الجدول';
       return `الجدول_الاسبوعي_${dt}.xlsx`;
+    }
+
+    async function importExcel(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!window.ExcelJS) {
+        if (window.showToast) showToast('مكتبة الإكسل غير متوفرة', 'error');
+        return;
+      }
+      try {
+        const wb = new ExcelJS.Workbook();
+        const arrayBuffer = await file.arrayBuffer();
+        await wb.xlsx.load(arrayBuffer);
+        const ws = wb.worksheets[0];
+        if (!ws) throw new Error("لا توجد أوراق عمل في الملف");
+        
+        let currentSection = 'main';
+        const newMain = [];
+        const newSpare = [];
+        
+        ws.eachRow((row, rowNumber) => {
+          const firstCell = row.getCell(1).value;
+          if (typeof firstCell === 'string') {
+            if (firstCell.includes('المركبات الاسبير') || firstCell.includes('المعطلة')) {
+              currentSection = 'spare';
+            } else if (firstCell.includes('المركبات الأساسية') || firstCell.includes('الجدول الأسبوعي')) {
+              currentSection = 'main';
+            }
+          }
+          
+          const idx = row.getCell(1).value;
+          // Row is considered data if first column is a number (index)
+          if (idx && (typeof idx === 'number' || !isNaN(parseInt(idx)))) {
+            let hasData = false;
+            const obj = {};
+            EXPORT_COLS.forEach((c, i) => {
+              let v = row.getCell(i + 2).value;
+              if (v && v instanceof Date) {
+                const y = v.getFullYear();
+                const m = String(v.getMonth()+1).padStart(2,'0');
+                const d = String(v.getDate()).padStart(2,'0');
+                v = `${y}-${m}-${d}`;
+              } else if (v && typeof v === 'object' && v.result) {
+                v = v.result;
+              } else if (v && typeof v === 'object' && v.text) {
+                v = v.text;
+              }
+              v = String(v || '').trim();
+              if (v && v !== '—') hasData = true;
+              if (v === '—') v = '';
+              obj[c.key] = v;
+            });
+            if (hasData) {
+              if (currentSection === 'spare') newSpare.push(obj);
+              else newMain.push(obj);
+            }
+          }
+        });
+        
+        state.main = newMain;
+        state.spare = newSpare;
+        renderAll();
+        scheduleSave();
+        if (window.showToast) showToast('تم استيراد بيانات الإكسل بنجاح', 'success');
+      } catch(err) {
+        console.error(err);
+        if (window.showToast) showToast('حدث خطأ أثناء قراءة الملف: ' + err.message, 'error');
+      }
+      e.target.value = ''; // Reset input
     }
 
     async function exportExcel() {
