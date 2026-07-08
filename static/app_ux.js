@@ -1668,11 +1668,21 @@ window.FleetData = (function () {
         const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
         if (!el) return;
         const tag = el.tagName.toLowerCase();
-        el.innerHTML = (tag === 'select' ? '<option value=""></option>' : '') +
-            records().map(function (d) {
-                const label = window.escapeHtml(d.name);
-                return '<option value="' + label + '"></option>';
-            }).join('');
+        let opts = (tag === 'select' ? '<option value=""></option>' : '');
+        const added = new Set();
+        records().forEach(function (d) {
+            const n = window.escapeHtml((d.name || '').trim());
+            const p = window.escapeHtml((d.plate || '').trim());
+            if (n && !added.has(n)) {
+                opts += '<option value="' + n + '">' + p + '</option>';
+                added.add(n);
+            }
+            if (p && !added.has(p)) {
+                opts += '<option value="' + p + '">' + n + '</option>';
+                added.add(p);
+            }
+        });
+        el.innerHTML = opts;
     }
 
     /**
@@ -2482,3 +2492,53 @@ function injectHelpTour() {
         ]);
     }
 }
+
+// --- Global Table Auto-fill from FleetData ---
+document.addEventListener('change', async function(e) {
+    if (e.target.tagName !== 'INPUT') return;
+    if (!e.target.closest('table')) return;
+    
+    if (!window.FleetData) return;
+    try { await window.FleetData.load(); } catch(err){}
+
+    const val = e.target.value.trim();
+    if (!val || val.length < 3) return;
+
+    let rec = window.FleetData.byPlate(val) || window.FleetData.byName(val);
+    if (!rec && val.length >= 4) {
+        rec = window.FleetData.all().find(d => (d.plate && d.plate.includes(val)) || (d.name && d.name.includes(val)));
+    }
+
+    if (!rec) return;
+
+    const tr = e.target.closest('tr');
+    if (!tr) return;
+
+    const table = tr.closest('table');
+    let ths = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+    if (ths.length === 0) {
+        const prev = tr.previousElementSibling;
+        if (prev) ths = Array.from(prev.querySelectorAll('td')).map(td => td.textContent.trim());
+    }
+
+    const tds = Array.from(tr.querySelectorAll('td'));
+
+    tds.forEach((td, i) => {
+        const input = td.querySelector('input');
+        if (!input || input === e.target) return;
+        
+        const header = (ths[i] || '').toLowerCase();
+        
+        if ((header.includes('لوحة') || header.includes('لوحه')) && !input.value) {
+            input.value = rec.plate || '';
+        } else if ((header.includes('اسم') || header.includes('سائق') || header.includes('مستخدم')) && !input.value) {
+            input.value = rec.name || '';
+        } else if ((header.includes('مركبة') || header.includes('نوع') || header.includes('سيارة')) && !input.value) {
+            input.value = rec.car || '';
+        } else if ((header.includes('إقامة') || header.includes('اقامة')) && !input.value) {
+            input.value = rec.iqama || '';
+        } else if ((header.includes('وظيفي') || header.includes('رقم')) && !input.value && header.includes('وظيفي')) {
+            input.value = rec.empid || '';
+        }
+    });
+});
