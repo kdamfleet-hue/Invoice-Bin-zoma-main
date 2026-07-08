@@ -4971,9 +4971,6 @@ def registry_page():
     return render_template("registry.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
-@app.route("/api/registry_data", methods=["GET"])
-@login_required
-
 @app.route("/api/registry_import", methods=["POST"])
 @login_required
 def api_registry_import():
@@ -5064,6 +5061,8 @@ def api_registry_import():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route("/api/registry_data", methods=["GET"])
+@login_required
 def api_registry_data():
     try:
         # 1. Fetch Drivers (Base)
