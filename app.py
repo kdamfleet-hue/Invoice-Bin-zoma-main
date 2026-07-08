@@ -4973,6 +4973,97 @@ def registry_page():
 
 @app.route("/api/registry_data", methods=["GET"])
 @login_required
+
+@app.route("/api/registry_import", methods=["POST"])
+@login_required
+def api_registry_import():
+    if not session.get("is_admin"): return jsonify({"success": False, "error": "forbidden"}), 403
+    f = request.files.get("file")
+    if not f: return jsonify({"success": False, "error": "No file"}), 400
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(f, data_only=True)
+        sheet = wb.active
+        headers = [str(c.value).strip() if c.value else "" for c in sheet[1]]
+        
+        # Map headers to DB columns
+        col_map = {
+            "plate": ["لوحة", "اللوحة", "رقم اللوحة", "plate"],
+            "iqama": ["اقامة", "إقامة", "هوية", "iqama"],
+            "name": ["اسم", "السائق", "name"],
+            "job": ["وظيفة", "الوظيفة", "المهنة", "job"],
+            "empNotes": ["ملاحظات الموظف", "ملاحظات", "notes"],
+            "model": ["موديل", "الموديل", "model"],
+            "car": ["مركبة", "نوع المركبة", "car"],
+            "pallets": ["طبالي", "الطبالي", "pallets"],
+            "load": ["حمولة", "الحمولة", "load"],
+            "vserial": ["تسلسلي", "الرقم التسلسلي", "serial"],
+            "inspect": ["فحص", "الفحص", "inspect"],
+            "license": ["سير", "رخصة السير", "license"],
+            "opcard": ["تشغيل", "بطاقة التشغيل", "opcard"],
+            "notes": ["ملاحظات", "notes"],
+            "phone": ["جوال", "هاتف", "phone"],
+            "drivercard": ["بطاقة السائق"]
+        }
+        
+        h_idx = {}
+        for db_col, aliases in col_map.items():
+            for i, h in enumerate(headers):
+                if any(a in h for a in aliases):
+                    h_idx[db_col] = i
+                    break
+        
+        if "plate" not in h_idx and "iqama" not in h_idx:
+            return jsonify({"success": False, "error": "يجب أن يحتوي الملف على عمود (رقم اللوحة) أو (الإقامة)"}), 400
+            
+        updates = 0
+        adds = 0
+        
+        with db_connection() as conn:
+            c = conn.cursor()
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                data = {}
+                for db_col, idx in h_idx.items():
+                    val = row[idx]
+                    if val is None: val = ""
+                    if hasattr(val, "strftime"): val = val.strftime("%Y-%m-%d")
+                    data[db_col] = str(val).strip()
+                
+                plate = data.get("plate", "")
+                iqama = data.get("iqama", "")
+                if not plate and not iqama: continue
+                
+                if iqama:
+                    c.execute("SELECT id FROM drivers WHERE iqama = ?", (iqama,))
+                else:
+                    c.execute("SELECT id FROM drivers WHERE plate LIKE ?", (f"%{plate}%",))
+                
+                existing = c.fetchone()
+                if existing:
+                    sets = []
+                    params = []
+                    for k, v in data.items():
+                        if v: # Only update if excel cell is not empty
+                            sets.append(f"{k} = ?")
+                            params.append(v)
+                    if sets:
+                        params.append(existing['id'])
+                        c.execute(f"UPDATE drivers SET {', '.join(sets)} WHERE id = ?", params)
+                        updates += 1
+                else:
+                    cols = list(data.keys())
+                    vals = list(data.values())
+                    if "name" not in cols:
+                        cols.append("name")
+                        vals.append("غير معروف")
+                    placeholders = ",".join(["?"] * len(cols))
+                    c.execute(f"INSERT INTO drivers ({','.join(cols)}) VALUES ({placeholders})", vals)
+                    adds += 1
+            conn.commit()
+        return jsonify({"success": True, "updates": updates, "adds": adds})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 def api_registry_data():
     try:
         # 1. Fetch Drivers (Base)

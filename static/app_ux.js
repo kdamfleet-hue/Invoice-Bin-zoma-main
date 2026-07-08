@@ -1635,7 +1635,7 @@ window.FleetData = (function () {
         // Workstation is a blank slate: no preloaded fleet registry → no autofill/suggestions
         // from the real data. The user enters everything manually (saved to the server).
         if (window.BZ_WS) { _cache = []; return _cache; }
-        _promise = fetch('/static/fleet_data.json')
+        _promise = fetch('/api/fleet_data')
             .then(function (r) { return r.ok ? r.json() : []; })
             .then(function (rows) { _cache = Array.isArray(rows) ? rows : []; return _cache; })
             .catch(function () { _cache = []; return _cache; });
@@ -2566,3 +2566,195 @@ document.addEventListener('change', async function(e) {
         }
     });
 });
+
+
+/* ============================================================
+   BIN ZOMAH ERP - ADVANCED FEATURES (Timeline, Alerts, Spotlight)
+   ============================================================ */
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Setup Spotlight Search
+    const searchInput = document.getElementById('bzTopSearch');
+    if (searchInput) {
+        // Create Dropdown Container
+        const dropdown = document.createElement('div');
+        dropdown.id = 'bzSpotlightDropdown';
+        dropdown.style.cssText = `
+            position: absolute; top: 50px; left: 0; right: 0;
+            background: var(--d-card); border: 1px solid var(--gold); border-radius: 8px;
+            box-shadow: var(--shadow); z-index: 10000; display: none; max-height: 400px; overflow-y: auto;
+        `;
+        searchInput.parentElement.style.position = 'relative';
+        searchInput.parentElement.appendChild(dropdown);
+
+        searchInput.addEventListener('input', async (e) => {
+            const q = e.target.value.trim().toLowerCase();
+            if (!q) { dropdown.style.display = 'none'; return; }
+            
+            const fleet = await window.FleetData.load();
+            const results = fleet.filter(d => 
+                (d.name && d.name.toLowerCase().includes(q)) || 
+                (d.plate && d.plate.toLowerCase().includes(q)) || 
+                (d.iqama && d.iqama.includes(q))
+            ).slice(0, 10);
+            
+            if (results.length === 0) {
+                dropdown.innerHTML = '<div style="padding:10px;text-align:center;color:var(--d-muted);">لا توجد نتائج تطابق بحثك</div>';
+            } else {
+                dropdown.innerHTML = results.map(d => `
+                    <div class="spotlight-item" style="padding:10px; border-bottom:1px solid var(--d-border); cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
+                         onclick="openTimeline(${d.id || `'${d.plate}'`})">
+                        <div>
+                            <div style="color:var(--gold); font-weight:bold;">${d.name || '---'}</div>
+                            <div style="font-size:0.8rem; color:var(--d-muted);">${d.car || ''} - ${d.iqama || ''}</div>
+                        </div>
+                        <div style="direction:ltr; background:var(--d-bg); padding:2px 6px; border-radius:4px; font-size:0.9rem;">
+                            ${d.plate || '---'}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            dropdown.style.display = 'block';
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.parentElement.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+    }
+
+    // 2. Setup Smart Alerts Modal
+    const bell = document.getElementById('bzBell');
+    if (bell) {
+        bell.href = 'javascript:void(0)';
+        bell.addEventListener('click', openAlertsModal);
+    }
+});
+
+function calculateDaysLeft(dateStr) {
+    if (!dateStr) return null;
+    const exp = new Date(dateStr);
+    if (isNaN(exp)) return null;
+    const now = new Date();
+    const diffTime = exp - now;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+async function openAlertsModal() {
+    if(window.showToast) window.showToast('جاري فحص التواريخ...', 'info');
+    const fleet = await window.FleetData.load();
+    let html = '';
+    let alertsCount = 0;
+    
+    fleet.forEach(d => {
+        const fields = [
+            { key: 'inspect', label: 'الفحص الدوري' },
+            { key: 'license', label: 'رخصة السير' },
+            { key: 'opcard', label: 'بطاقة التشغيل' },
+            { key: 'iqama', label: 'الإقامة' },
+            { key: 'drivercard', label: 'بطاقة السائق' }
+        ];
+        
+        let localAlerts = [];
+        fields.forEach(f => {
+            const days = calculateDaysLeft(d[f.key]);
+            if (days !== null && days <= 30) {
+                const color = days < 0 ? 'var(--red)' : (days <= 7 ? 'var(--amber)' : 'var(--yellow)');
+                const txt = days < 0 ? `منتهي منذ ${Math.abs(days)} يوم` : `ينتهي خلال ${days} يوم`;
+                localAlerts.push(`<div style="color:${color}; font-size:0.9rem;">⚠️ <b>${f.label}:</b> ${d[f.key]} (${txt})</div>`);
+                alertsCount++;
+            }
+        });
+        
+        if (localAlerts.length > 0) {
+            html += `
+            <div style="background:var(--d-bg); padding:10px; border-radius:6px; margin-bottom:10px; border-right:4px solid var(--red);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <strong style="color:var(--gold)">${d.name}</strong>
+                    <span style="direction:ltr;">${d.plate}</span>
+                </div>
+                ${localAlerts.join('')}
+            </div>`;
+        }
+    });
+
+    if (alertsCount === 0) {
+        html = '<div style="text-align:center; padding:30px; color:var(--green); font-size:1.2rem;">✅ جميع الرخص والوثائق سارية المفعول (لا توجد انتهاءات قريبة).</div>';
+    }
+
+    const modalHtml = `
+    <div id="alertsModal" class="modal active">
+        <div class="modal-content" style="max-width:600px; max-height:80vh; display:flex; flex-direction:column;">
+            <div class="modal-header">
+                <h3>🔔 رادار التنبيهات الذكي</h3>
+            </div>
+            <div style="flex:1; overflow-y:auto; padding:15px;">
+                <p style="color:var(--d-muted); margin-bottom:15px; font-size:0.9rem;">يعرض هذا الرادار تلقائياً أي وثيقة انتهت أو ستنتهي خلال 30 يوماً لجميع الأسطول.</p>
+                ${html}
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline" onclick="document.getElementById('alertsModal').remove()">إغلاق</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+async function openTimeline(identifier) {
+    // Hide spotlight
+    const dp = document.getElementById('bzSpotlightDropdown');
+    if (dp) dp.style.display = 'none';
+    
+    if(window.showToast) window.showToast('جاري استدعاء سجل المركبة...', 'info');
+    const fleet = await window.FleetData.load();
+    const d = fleet.find(x => x.id == identifier || x.plate == identifier);
+    if (!d) return;
+
+    // Build timeline events based on integration logic
+    let events = [];
+    events.push({ date: 'الآن', title: 'السجل الشامل', desc: 'مسجل في السجل الأساسي' });
+    
+    const html = `
+    <div id="timelineModal" class="modal active">
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+                <h3>السجل الزمني للمركبة</h3>
+            </div>
+            <div style="padding:15px; text-align:center; border-bottom:1px solid var(--d-border);">
+                <h2 style="color:var(--gold); margin:0;">${d.name}</h2>
+                <div style="direction:ltr; font-size:1.2rem; margin:5px 0;">${d.plate}</div>
+                <div style="color:var(--d-muted);">${d.car || '---'}</div>
+            </div>
+            <div style="padding:15px;">
+                <div style="display:flex; flex-direction:column; gap:15px; position:relative; padding-right:20px; border-right:2px solid var(--gold);">
+                    <div style="position:relative;">
+                        <div style="position:absolute; right:-27px; top:2px; background:var(--d-bg); border:2px solid var(--gold); border-radius:50%; width:12px; height:12px;"></div>
+                        <div style="color:var(--d-muted); font-size:0.8rem;">تاريخ الفحص الدوري</div>
+                        <div style="font-weight:bold; color:var(--text);">${d.inspect || 'غير مسجل'}</div>
+                    </div>
+                    <div style="position:relative;">
+                        <div style="position:absolute; right:-27px; top:2px; background:var(--d-bg); border:2px solid var(--blue); border-radius:50%; width:12px; height:12px;"></div>
+                        <div style="color:var(--d-muted); font-size:0.8rem;">تاريخ رخصة السير</div>
+                        <div style="font-weight:bold; color:var(--text);">${d.license || 'غير مسجل'}</div>
+                    </div>
+                    <div style="position:relative;">
+                        <div style="position:absolute; right:-27px; top:2px; background:var(--d-bg); border:2px solid var(--green); border-radius:50%; width:12px; height:12px;"></div>
+                        <div style="color:var(--d-muted); font-size:0.8rem;">تاريخ بطاقة التشغيل</div>
+                        <div style="font-weight:bold; color:var(--text);">${d.opcard || 'غير مسجل'}</div>
+                    </div>
+                    <div style="position:relative;">
+                        <div style="position:absolute; right:-27px; top:2px; background:var(--d-bg); border:2px solid var(--purple); border-radius:50%; width:12px; height:12px;"></div>
+                        <div style="color:var(--d-muted); font-size:0.8rem;">انتهاء الإقامة</div>
+                        <div style="font-weight:bold; color:var(--text);">${d.iqama || 'غير مسجل'}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline" onclick="document.getElementById('timelineModal').remove()">إغلاق</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}

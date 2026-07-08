@@ -312,7 +312,7 @@
         }
 
         // Modal Logic
-                function openModal(idx) {
+        function openModal(idx) {
             const fields = ['editId', 'editEmpid', 'editName', 'editIqama', 'editJob', 'editDrivercard', 'editPhone', 'editEmpNotes',
                             'editPlate', 'editModel', 'editCar', 'editPallets', 'editLoad', 'editVserial', 'editInspect', 'editLicense', 'editOpcard', 'editNotes'];
             if (idx === null) {
@@ -321,7 +321,7 @@
             } else {
                 const d = allData[idx];
                 document.getElementById('modalTitle').innerText = 'تعديل بيانات السائق/المركبة';
-                document.getElementById('editId').value = d.id;
+                document.getElementById('editId').value = d.id || '';
                 document.getElementById('editEmpid').value = d.empid || '';
                 document.getElementById('editName').value = d.name || '';
                 document.getElementById('editIqama').value = d.iqama || '';
@@ -342,24 +342,13 @@
                 document.getElementById('editNotes').value = d.notes || '';
             }
             document.getElementById('editModal').classList.add('active');
-        } else {
-                const d = allData[idx];
-                document.getElementById('modalTitle').innerText = 'تعديل بيانات السائق';
-                document.getElementById('editId').value = d.id;
-                document.getElementById('editName').value = d.name || '';
-                document.getElementById('editIqama').value = d.iqama || '';
-                document.getElementById('editPlate').value = d.plate || '';
-                document.getElementById('editCar').value = d.car || '';
-                document.getElementById('editPhone').value = d.phone || '';
-            }
-            document.getElementById('editModal').classList.add('active');
         }
 
         function closeModal() {
             document.getElementById('editModal').classList.remove('active');
         }
 
-                async function saveDriver() {
+        async function saveDriver() {
             const payload = {
                 id: document.getElementById('editId').value,
                 empid: document.getElementById('editEmpid').value,
@@ -381,13 +370,15 @@
                 notes: document.getElementById('editNotes').value
             };
 
-            if (!payload.name) {
+            if (!payload.name.trim()) {
                 if(window.showToast) showToast('الاسم مطلوب', 'error');
                 return;
             }
 
             const method = payload.id ? 'PUT' : 'POST';
             const url = payload.id ? `/api/drivers/${payload.id}` : '/api/drivers';
+
+            if(window.showToast) showToast('جاري الحفظ...', 'info');
 
             try {
                 const res = await fetch(url, {
@@ -397,40 +388,11 @@
                 });
                 const d = await res.json();
                 if (d.success) {
-                    if(window.showToast) showToast('تم الحفظ بنجاح!', 'success');
+                    if(window.showToast) showToast('✅ تم الحفظ بنجاح!', 'success');
                     closeModal();
                     loadRegistry();
                 } else {
                     if(window.showToast) showToast('فشل في الحفظ', 'error');
-                }
-            } catch(e) {
-                if(window.showToast) showToast('خطأ في الاتصال', 'error');
-            }
-        };
-            
-            if (!payload.name.trim()) {
-                if(window.showToast) showToast('يرجى إدخال اسم السائق', 'error');
-                return;
-            }
-
-            const isNew = !id;
-            const url = isNew ? '/api/drivers' : `/api/drivers/${id}`;
-            const method = isNew ? 'POST' : 'PUT';
-
-            if(window.showToast) showToast('جاري الحفظ وتحديث التبويبات... ⏳', 'info');
-            try {
-                const res = await fetch(url, {
-                    method: method,
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (data.success || data.id) {
-                    if(window.showToast) showToast('✅ تم الحفظ وتحديث الجداول بنجاح', 'success');
-                    closeModal();
-                    loadRegistry(); // Reload all
-                } else {
-                    if(window.showToast) showToast(data.error || 'فشل الحفظ', 'error');
                 }
             } catch(e) {
                 if(window.showToast) showToast('خطأ في الاتصال', 'error');
@@ -471,6 +433,28 @@
             }
         }
 
+        
+        async function importExcel(input) {
+            if (!input.files[0]) return;
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+            
+            if(window.showToast) showToast('جاري استيراد البيانات من ملف الإكسل... ⏳', 'info');
+            try {
+                const res = await fetch('/api/registry_import', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    if(window.showToast) showToast(`✅ تم الاستيراد بنجاح! تم تحديث ${data.updates} وإضافة ${data.adds}.`, 'success');
+                    loadRegistry();
+                } else {
+                    if(window.showToast) showToast(data.error || 'فشل الاستيراد', 'error');
+                }
+            } catch(e) {
+                if(window.showToast) showToast('خطأ في الاتصال', 'error');
+            }
+            input.value = '';
+        }
+    
         // Utils
         function escapeHtml(unsafe) {
             return (unsafe || '').replace(/[&<"']/g, function(m) {
