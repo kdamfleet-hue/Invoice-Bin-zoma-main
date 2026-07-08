@@ -1,0 +1,94 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Bin Zoma Fleet API",
+    "description": "API documentation for the Fleet Management System (Production)",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Production Server"
+    }
+  ],
+  "paths": {
+    "/api/fleet_data": {
+      "get": {
+        "summary": "Get all fleet data",
+        "description": "Retrieves the master list of all drivers and vehicles.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Driver" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/drivers": {
+      "post": {
+        "summary": "Add or update a driver",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Driver" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Driver saved successfully" }
+        }
+      }
+    },
+    "/api/sync_all_from_drivers": {
+      "post": {
+        "summary": "Smart Sync",
+        "description": "Synchronizes names and plates across all tabs based on the master drivers registry. Cannot be undone.",
+        "responses": {
+          "200": { "description": "Sync completed successfully" }
+        }
+      }
+    },
+    "/api/schedule_data": {
+      "get": {
+        "summary": "Get Weekly Schedule",
+        "responses": {
+          "200": { "description": "Returns main, spare, and vacation schedules" }
+        }
+      }
+    },
+    "/api/system_metrics": {
+      "get": {
+        "summary": "Get System Health Metrics",
+        "description": "Returns CPU, RAM, DB size, and uptime.",
+        "responses": {
+          "200": { "description": "System metrics" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Driver": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "empid": { "type": "string" },
+          "iqama": { "type": "string" },
+          "phone": { "type": "string" },
+          "plate": { "type": "string" },
+          "car": { "type": "string" },
+          "job": { "type": "string" }
+        }
+      }
+    }
+  }
+}

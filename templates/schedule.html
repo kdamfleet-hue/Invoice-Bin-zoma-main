@@ -207,12 +207,44 @@
     .wa-all-info strong { font-size:.92rem; }
 
     @media print {
-      .sched-premium { background:#fff; color:#000; border:none; box-shadow:none; }
-      .sched-toolbar, .sp-tabs { display:none !important; }
-      .sp-panel { display:block !important; }
-      /* hide the bulk-select column + button from printed/PDF output of «جميع مركبات الفرع» */
-      #vehBulkDel, #vehSelAll, .vehChk { display:none !important; }
-      #spPanel-vehicles .sched th:first-child, #spPanel-vehicles .sched td:first-child { display:none !important; }
+      /* ── Company header appears only on print ── */
+      .print-only-header { display: block !important; }
+      /* ── Reset body/page ── */
+      body { background: #fff !important; margin: 0; padding: 0; }
+      .bz-topbar, .bz-nav, .bz-actions, .bz-dock { display: none !important; }
+      .bz-shell { padding: 0 !important; margin: 0 !important; }
+      .sched-premium {
+        background: #fff !important; color: #000 !important;
+        border: none !important; box-shadow: none !important;
+        padding: 10px !important; margin: 0 !important;
+      }
+      /* ── Hide UI controls ── */
+      .sched-toolbar, .sp-tabs, .col-act,
+      #vehBulkDel, #vehSelAll, .vehChk, .row-del, .row-notify,
+      button, .sp-alert, .exp-legend { display: none !important; }
+      /* ── Show all sections (don't hide non-active tabs) ── */
+      .sp-panel { display: block !important; page-break-inside: avoid; margin-bottom: 18px; }
+      #spPanel-vehicles .sched th:first-child, #spPanel-vehicles .sched td:first-child { display: none !important; }
+      /* ── Table styling for print ── */
+      .sched-table-wrap { overflow: visible !important; max-height: none !important; }
+      table.sched { width: 100% !important; border-collapse: collapse !important; font-size: 8.5pt; }
+      table.sched th, table.sched td {
+        border: 1px solid #888 !important; padding: 3px 5px !important;
+        background: #fff !important; color: #000 !important;
+      }
+      table.sched thead th { background: #1a1a1a !important; color: #fff !important; font-weight: bold; }
+      table.sched tbody tr:nth-child(even) td { background: #f5f5f5 !important; }
+      table.sched input, table.sched select { border: none !important; background: transparent !important; color: #000 !important; font-size: 8pt !important; width: 100%; padding: 0; }
+      /* ── Stat cards ── */
+      .sp-stats { display: none !important; }
+      /* ── Print brand strip ── */
+      .sp-brandstrip { background: #fff !important; border: 2px solid #c5a059 !important; border-radius: 4px !important; }
+      .sp-brandstrip * { color: #000 !important; }
+      /* ── Section titles ── */
+      .sec-title { border-top: 2px solid #c5a059 !important; margin-top: 10px; padding-top: 6px; }
+      .sec-title h2 { color: #000 !important; font-size: 11pt !important; }
+      /* ── Sign block ── */
+      .sign-block { border-top: 1px solid #888 !important; margin-top: 14px !important; }
     }
     @media (max-width:768px) {
       .sched-premium { padding:14px; }
@@ -265,14 +297,23 @@
       <div class="sched-date">📅 تاريخ الجدول: <input type="date" id="schedDate"></div>
       <span class="spacer"></span>
       <span class="hint" id="saveHint">يُحفظ تلقائياً</span>
-      <button class="btn-primary" onclick="addRow('main')">➕ إضافة سائق</button>
-      <button class="btn-submit-gold" onclick="exportExcel()">📥 تصدير Excel</button>
-      <button class="btn-submit-gold" onclick="document.getElementById('excelImport').click()">📤 استيراد Excel</button>
+      <button class="btn-primary" onclick="addRow('main')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> إضافة سائق</button>
+      <button class="btn-submit-gold" onclick="exportExcel()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> تصدير Excel</button>
+      <button class="btn-submit-gold" onclick="document.getElementById('excelImport').click()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> استيراد Excel</button>
       <input type="file" id="excelImport" accept=".xlsx" style="display:none;" onchange="importExcel(event)">
-      <button class="btn-submit-orange" onclick="shareSchedule()">📤 مشاركة / تصدير</button>
-      <button class="btn-outline" onclick="openWaAll()">📲 إرسال للجميع عبر واتساب</button>
-      <button class="btn-outline" onclick="openFleetModal()">🚚 استدعاء مركبة</button>
-      <button class="btn-outline" onclick="window.print()">🖨️ طباعة</button>
+      <button class="btn-submit-orange" onclick="shareSchedule()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> مشاركة</button>
+      <button class="btn-outline" onclick="sendScheduleSummaryWa()" title="إرسال ملخص الجدول كاملاً عبر واتساب" style="background:rgba(37,211,102,.12);border-color:rgba(37,211,102,.4);color:#21c766;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> ملخص واتساب</button>
+      <button class="btn-outline" onclick="openWaAll()" title="إرسال رسالة لكل سائق فردياً">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> إرسال للجميع</button>
+      <button class="btn-outline" onclick="openFleetModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> استدعاء مركبة</button>
+      <button class="btn-outline" onclick="window.print()" title="طباعة / تصدير PDF">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> طباعة</button>
     </div>
 
     <!-- STAT CARDS (wired to real computed values in updateSummary / refreshStats) -->
@@ -1472,6 +1513,58 @@
         console.error(err);
         if (window.showToast) showToast('تعذّر التصدير: ' + err.message, 'error');
       }
+    }
+
+    // ===== WhatsApp Full Schedule Summary (single message with all sections) =====
+    function sendScheduleSummaryWa() {
+      const title = state.title || 'الجدول الأسبوعي';
+      const date  = document.getElementById('schedDate')?.value || '';
+      const dateStr = date ? ` — ${date}` : '';
+
+      const rowLine = r => {
+        const name  = (r.name  || '').trim();
+        const plate = (r.plate || '').trim();
+        const vtype = (r.vtype || '').trim();
+        if (!name && !plate) return null;
+        return `• ${name || '---'} | ${plate || '---'}${vtype ? ' | ' + vtype : ''}`;
+      };
+
+      const mainRows = state.main.map(rowLine).filter(Boolean);
+      const spareRows = state.spare.map(r => {
+        const name = (r.name || '').trim();
+        const plate = (r.plate || '').trim();
+        if (!name && !plate) return null;
+        return `• ${name || '---'} | ${plate || '---'}`;
+      }).filter(Boolean);
+      const vacRows = state.vacation.map(r => {
+        const name = (r.name || '').trim();
+        if (!name) return null;
+        return `• ${name}`;
+      }).filter(Boolean);
+
+      let msg = [
+        `🚛 *${title}*${dateStr}`,
+        `🏢 شركة بن زومة — فرع الدمام`,
+        ``,
+        `📋 *الجدول الرئيسي* (${mainRows.length} سائق)`,
+        `—————————————`,
+        ...mainRows,
+      ];
+
+      if (spareRows.length) {
+        msg.push(``, `🛠️ *الاسبير والمعطلة* (${spareRows.length})`);
+        msg.push(`—————————————`, ...spareRows);
+      }
+      if (vacRows.length) {
+        msg.push(``, `🌴 *في إجازة* (${vacRows.length})`);
+        msg.push(`—————————————`, ...vacRows);
+      }
+
+      msg.push(``, `✅ إجمالي السائقين العاملين: *${mainRows.length}*`);
+      msg.push(`📊 قسم الحركة — ${new Date().toLocaleDateString('ar-SA')}`);
+
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(msg.join('\n'))}`;
+      window.open(waUrl, '_blank');
     }
 
     // ===== Share / export (Excel + PDF via email / WhatsApp) =====

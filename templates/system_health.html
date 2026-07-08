@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مراقبة النظام | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=28) }}">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #111318; color: #f0ede6; font-family: 'Tajawal', sans-serif; margin: 0; }
+        .sh-shell { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        
+        .sh-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; border-bottom: 1px solid #2e3340; padding-bottom: 1rem; }
+        .sh-header h1 { margin: 0; color: #c5a059; font-size: 1.8rem; display: flex; align-items: center; gap: 10px; }
+        .sh-status { padding: 6px 14px; background: rgba(34,197,94,.15); color: #22c55e; border: 1px solid rgba(34,197,94,.4); border-radius: 20px; font-weight: 700; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px; }
+        
+        .sh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        
+        .sh-card { background: #1c1f26; border: 1px solid #2e3340; border-radius: 12px; padding: 1.5rem; position: relative; overflow: hidden; }
+        .sh-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #c5a059; }
+        .sh-card-title { font-size: 0.9rem; color: #8a8d96; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+        .sh-card-value { font-size: 2.2rem; font-weight: 800; color: #e0c489; line-height: 1; }
+        .sh-card-sub { font-size: 0.8rem; color: #8a8d96; margin-top: 5px; }
+        
+        .sh-bar-bg { background: #22262f; height: 8px; border-radius: 4px; margin-top: 15px; overflow: hidden; }
+        .sh-bar-fill { background: linear-gradient(90deg, #c5a059, #e0c489); height: 100%; width: 0%; transition: width 0.5s ease; }
+        
+        .sh-chart-container { background: #1c1f26; border: 1px solid #2e3340; border-radius: 12px; padding: 1.5rem; margin-top: 2rem; height: 300px; }
+        
+        .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+        <div class="bz-brand">
+            <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+            <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>مراقبة النظام — الإنتاج</span></div>
+        </div>
+        <nav class="bz-nav">
+            <a href="/">الفاتورة</a>
+            <a href="/dashboard">لوحة التحكم</a>
+            <a href="/system_health" class="active">مراقبة النظام</a>
+            <a href="/api/docs" target="_blank">توثيق API</a>
+        </nav>
+        <div class="bz-actions"><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <div class="sh-shell">
+        <div class="sh-header">
+            <h1>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                مراقبة الأداء والموارد (Production)
+            </h1>
+            <div class="sh-status"><span class="pulse"></span> النظام متصل ومستقر</div>
+        </div>
+
+        <div class="sh-grid">
+            <div class="sh-card">
+                <div class="sh-card-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg> استهلاك المعالج (CPU)</div>
+                <div class="sh-card-value" id="cpuVal">--%</div>
+                <div class="sh-bar-bg"><div class="sh-bar-fill" id="cpuBar"></div></div>
+            </div>
+
+            <div class="sh-card">
+                <div class="sh-card-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg> الذاكرة العشوائية (RAM)</div>
+                <div class="sh-card-value" id="ramVal">--%</div>
+                <div class="sh-card-sub" id="ramSub">-- GB / -- GB</div>
+                <div class="sh-bar-bg"><div class="sh-bar-fill" id="ramBar"></div></div>
+            </div>
+
+            <div class="sh-card">
+                <div class="sh-card-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> حجم قاعدة البيانات</div>
+                <div class="sh-card-value" id="dbVal">-- MB</div>
+                <div class="sh-card-sub" id="platformVal">البنية التحتية</div>
+            </div>
+
+            <div class="sh-card">
+                <div class="sh-card-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> وقت التشغيل (Uptime)</div>
+                <div class="sh-card-value" id="upVal">-- ساعة</div>
+                <div class="sh-card-sub" id="connVal">-- اتصال نشط بقاعدة البيانات</div>
+            </div>
+        </div>
+
+        <div class="sh-chart-container">
+            <canvas id="metricsChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Setup Chart
+        const ctx = document.getElementById('metricsChart').getContext('2d');
+        const metricsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'CPU %', data: [], borderColor: '#c5a059', backgroundColor: 'rgba(197,160,89,0.1)', borderWidth: 2, fill: true, tension: 0.4 },
+                    { label: 'RAM %', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 2, fill: true, tension: 0.4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                color: '#8a8d96',
+                scales: {
+                    x: { grid: { color: '#2e3340' }, ticks: { color: '#8a8d96' } },
+                    y: { min: 0, max: 100, grid: { color: '#2e3340' }, ticks: { color: '#8a8d96' } }
+                },
+                plugins: { legend: { labels: { color: '#f0ede6' } } }
+            }
+        });
+
+        async function fetchMetrics() {
+            try {
+                const r = await fetch('/api/system_metrics');
+                const j = await r.json();
+                if(j.success) {
+                    const m = j.metrics;
+                    
+                    document.getElementById('cpuVal').textContent = m.cpu + '%';
+                    document.getElementById('cpuBar').style.width = m.cpu + '%';
+                    
+                    document.getElementById('ramVal').textContent = m.ram_percent + '%';
+                    document.getElementById('ramBar').style.width = m.ram_percent + '%';
+                    document.getElementById('ramSub').textContent = `${m.ram_used_gb} GB / ${m.ram_total_gb} GB`;
+                    
+                    document.getElementById('dbVal').textContent = m.db_size_mb + ' MB';
+                    document.getElementById('platformVal').textContent = m.platform;
+                    
+                    document.getElementById('upVal').textContent = m.uptime_hours + ' h';
+                    document.getElementById('connVal').textContent = m.active_connections + ' اتصال DB نشط';
+
+                    // Update Chart
+                    const now = new Date().toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+                    if(metricsChart.data.labels.length > 20) {
+                        metricsChart.data.labels.shift();
+                        metricsChart.data.datasets[0].data.shift();
+                        metricsChart.data.datasets[1].data.shift();
+                    }
+                    metricsChart.data.labels.push(now);
+                    metricsChart.data.datasets[0].data.push(m.cpu);
+                    metricsChart.data.datasets[1].data.push(m.ram_percent);
+                    metricsChart.update();
+                }
+            } catch(e) { console.error('Error fetching metrics', e); }
+        }
+
+        fetchMetrics();
+        setInterval(fetchMetrics, 3000); // refresh every 3 seconds
+    </script>
+</body>
+</html>

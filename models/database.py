@@ -134,6 +134,14 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS deauthorized_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS drivers_backup (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)')
+            
+            # --- Query Optimization Indices ---
+            db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_plate ON drivers(plate)')
+            db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_empid ON drivers(empid)')
+            db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_iqama ON drivers(iqama)')
+            db.execute('CREATE INDEX IF NOT EXISTS idx_hr_empid ON hr_employees(empid)')
+            db.execute('CREATE INDEX IF NOT EXISTS idx_hr_iqama ON hr_employees(iqama)')
+            
             db.commit()
 
             # Postgres folds unquoted identifiers to lowercase (an ADD COLUMN empNotes really

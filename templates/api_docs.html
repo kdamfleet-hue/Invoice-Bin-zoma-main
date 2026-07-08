@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bin Zoma Fleet API Docs</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.18.2/swagger-ui.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #f8fafc; font-family: 'Tajawal', sans-serif; }
+    .topbar { background: #1a1a1a; padding: 15px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #c5a059; }
+    .topbar img { height: 40px; }
+    .topbar h1 { color: #c5a059; margin: 0; font-size: 1.5rem; }
+    .topbar a { color: #f0ede6; text-decoration: none; font-size: 0.9rem; border: 1px solid #c5a059; padding: 6px 14px; border-radius: 6px; transition: background 0.2s; }
+    .topbar a:hover { background: #c5a059; color: #1a1a1a; }
+    #swagger-ui { margin-top: 20px; }
+    
+    /* Customize Swagger to look a bit more "Bin Zoma" */
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui .info .title { color: #1a1a1a; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="Logo">
+      <h1>توثيق API المركزي</h1>
+    </div>
+    <a href="/system_health">العودة للمراقبة</a>
+  </div>
+  <div id="swagger-ui"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.18.2/swagger-ui-bundle.js"></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: "{{ url_for('static', filename='swagger.json', v=28) }}",
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [ SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset ],
+        layout: "BaseLayout"
+      });
+    };
+  </script>
+</body>
+</html>

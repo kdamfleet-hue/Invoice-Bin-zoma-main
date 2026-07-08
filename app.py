@@ -1,5 +1,6 @@
 import os
 import io
+import psutil
 import logging
 import shutil
 import secrets
@@ -5189,6 +5190,67 @@ def api_registry_data():
     except Exception as e:
         logger.exception("api_registry_data failed")
         return jsonify({"success": False, "error": str(e)}), 500
+
+# =====================================================================
+# SYSTEM MONITORING & API DOCS
+# =====================================================================
+
+@app.route("/system_health")
+def system_health():
+    return render_template("system_health.html")
+
+@app.route("/api/system_metrics", methods=["GET"])
+def api_system_metrics():
+    try:
+        # CPU
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        # RAM
+        mem = psutil.virtual_memory()
+        # DB Size
+        db_size_mb = 0
+        if not USE_POSTGRES:
+            if os.path.exists(DB_PATH):
+                db_size_mb = round(os.path.getsize(DB_PATH) / (1024 * 1024), 2)
+        else:
+            with db_connection() as db:
+                db.execute("SELECT pg_database_size(current_database())")
+                row = db.fetchone()
+                if row and row[0]:
+                    db_size_mb = round(row[0] / (1024 * 1024), 2)
+        
+        # Sessions count (rough estimation from file system if sqlite/flask session, or from postgres)
+        sessions_count = 0
+        if USE_POSTGRES:
+            with db_connection() as db:
+                # Count distinct user ids if stored in db, or just use a placeholder
+                try:
+                    db.execute("SELECT count(*) FROM pg_stat_activity")
+                    row = db.fetchone()
+                    if row:
+                        sessions_count = row[0]
+                except:
+                    pass
+
+        return jsonify({
+            "success": True,
+            "metrics": {
+                "cpu": cpu_percent,
+                "ram_percent": mem.percent,
+                "ram_used_gb": round(mem.used / (1024**3), 2),
+                "ram_total_gb": round(mem.total / (1024**3), 2),
+                "db_size_mb": db_size_mb,
+                "active_connections": sessions_count,
+                "uptime_hours": round((time.time() - psutil.boot_time()) / 3600, 1),
+                "platform": "Cloud Hosting" if USE_POSTGRES else "Local/SQLite"
+            }
+        })
+    except Exception as e:
+        logger.exception("Failed to get system metrics")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/docs")
+def api_docs():
+    return render_template("api_docs.html")
 
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 _start_alert_scheduler()
