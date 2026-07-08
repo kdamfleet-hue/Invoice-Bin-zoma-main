@@ -2769,3 +2769,118 @@ async function openTimeline(identifier) {
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
 }
+
+// ==========================================================================
+// CINEMATIC UI CONTROLLER (Particles, Cursor Glow, Observers)
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Cursor Glow
+    const cursorGlow = document.createElement('div');
+    cursorGlow.id = 'cursor-glow';
+    document.body.appendChild(cursorGlow);
+    
+    document.addEventListener('mousemove', function(e) {
+        cursorGlow.style.left = e.clientX + 'px';
+        cursorGlow.style.top = e.clientY + 'px';
+    });
+
+    // 2. Scroll Reveal & CountUp Observer
+    if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Reveal animation
+                    if (entry.target.classList.contains('reveal')) {
+                        entry.target.classList.add('active');
+                    }
+                    
+                    // CountUp animation
+                    if (entry.target.classList.contains('count-up') && !entry.target.dataset.counted) {
+                        const finalVal = parseFloat(entry.target.innerText.replace(/,/g, '')) || 0;
+                        animateCountUp(entry.target, finalVal);
+                        entry.target.dataset.counted = 'true';
+                    }
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.reveal, .count-up').forEach(el => observer.observe(el));
+    }
+
+    // 3. Ember Particles (Canvas)
+    const canvas = document.createElement('canvas');
+    canvas.id = 'ember-particles';
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    
+    let width, height, particles = [];
+    
+    function resizeCanvas() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+    
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    
+    class Particle {
+        constructor() {
+            this.x = Math.random() * width;
+            this.y = Math.random() * height;
+            this.size = Math.random() * 2.5 + 0.5;
+            this.speedY = Math.random() * 0.5 + 0.1;
+            this.speedX = (Math.random() - 0.5) * 0.3;
+            this.opacity = Math.random();
+            this.fadeSpeed = Math.random() * 0.02 + 0.005;
+        }
+        update() {
+            this.y -= this.speedY;
+            this.x += this.speedX;
+            this.opacity -= this.fadeSpeed;
+            if (this.opacity <= 0 || this.y < 0) {
+                this.y = height + 10;
+                this.x = Math.random() * width;
+                this.opacity = Math.random() * 0.8 + 0.2;
+            }
+        }
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(197, 160, 89, ${this.opacity})`;
+            ctx.fill();
+        }
+    }
+    
+    function initParticles() {
+        particles = [];
+        const numParticles = window.innerWidth < 768 ? 20 : 50;
+        for (let i = 0; i < numParticles; i++) particles.push(new Particle());
+    }
+    
+    function animateParticles() {
+        ctx.clearRect(0, 0, width, height);
+        particles.forEach(p => { p.update(); p.draw(); });
+        requestAnimationFrame(animateParticles);
+    }
+    
+    initParticles();
+    animateParticles();
+});
+
+function animateCountUp(el, endVal) {
+    let startTimestamp = null;
+    const duration = 1500;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        // easeOutQuart
+        const ease = 1 - Math.pow(1 - progress, 4);
+        const currentVal = (endVal * ease).toFixed(endVal % 1 !== 0 ? 1 : 0);
+        el.innerText = currentVal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        }
+    };
+    window.requestAnimationFrame(step);
+}
+

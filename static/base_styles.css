@@ -1098,3 +1098,83 @@ body.light-mode .bz-topbar, body.light-mode .bz-sidebar {
 .bz-tour-skip { background: transparent; color: var(--text-muted, #888); }
 @media (max-width: 560px) { .bz-tour-pop { width: calc(100vw - 24px); left: 12px !important; } }
 @media print { .bz-tour { display: none !important; } }
+
+/* ==========================================================================
+   CINEMATIC UI (Ember Particles, Cursor Glow, Scroll Reveal, Tracking Chain)
+   ========================================================================== */
+
+/* 1. Ember Particles Canvas */
+#ember-particles {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.6;
+}
+
+/* 2. Cursor Glow */
+#cursor-glow {
+    position: fixed;
+    top: 0; left: 0;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle closest-side, rgba(197, 160, 89, 0.15), transparent);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 9999;
+    mix-blend-mode: screen;
+    transition: opacity 0.3s;
+    opacity: 0;
+}
+body.dark-mode #cursor-glow { opacity: 1; }
+
+/* 3. Scroll Reveal */
+.reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 4. Animated Tracking Chain (for index.html and related) */
+.tc-dot {
+    position: absolute;
+    top: 50%;
+    left: 100%; /* Start from right since direction is rtl */
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    transform: translate(50%, -50%);
+    box-shadow: 0 0 10px var(--accent);
+    animation: moveDot 3s infinite linear;
+}
+@keyframes moveDot {
+    0% { left: 100%; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { left: 0%; opacity: 0; }
+}
+
+/* 5. BZ Seal Rotating Glow (applied to brand image) */
+.bz-brand { position: relative; }
+.bz-brand::before {
+    content: '';
+    position: absolute;
+    top: -2px; left: -2px; right: -2px; bottom: -2px;
+    border-radius: 10px;
+    background: conic-gradient(from 0deg, transparent, transparent, var(--brand-gold), transparent, transparent);
+    animation: bzSpin 4s linear infinite;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.5s;
+}
+.bz-brand:hover::before { opacity: 1; }
+
+@keyframes bzSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
