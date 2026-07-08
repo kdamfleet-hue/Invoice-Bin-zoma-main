@@ -458,6 +458,11 @@
     let DRIVER_REG = {};   // learned per-driver memory: iqama(digits) → {empid,phone,job,drivercard,empNotes}
     let VEH_REG = {};      // learned per-vehicle memory: normalizePlate(plate) → {model,vtype,pallets,load,vserial,inspect,license,opcard,notes}
     let saveTimer = null;
+    // True only once GET /api/schedule_data has actually responded OK in this session. While
+    // false, scheduleSave() refuses to POST — otherwise a page that silently fell back to a
+    // stale/empty localStorage snapshot (server down, network error) would overwrite real
+    // server data with that stale snapshot on the very next edit.
+    let serverLoadOk = false;
 
     function blankRow() { const o = {}; COLS.forEach(c => o[c.key] = ''); o.empNotes = ''; return o; }
 
@@ -504,7 +509,10 @@
       let data = null;
       try {
         const r = await fetch('/api/schedule_data');
-        if (r.ok) { const j = await r.json(); if (j.success && j.data) data = j.data; }
+        if (r.ok) {
+          serverLoadOk = true;
+          const j = await r.json(); if (j.success && j.data) data = j.data;
+        }
       } catch (e) {}
       // WS: skip localStorage & static-file fallbacks so an empty server response stays EMPTY
       if (!data && !WS) {
@@ -763,7 +771,9 @@
       // empid/phone when the master is blank. Anything still unknown is cleared (no stale carry).
       const reg = DRIVER_REG[recIqama] || {};
       const setEmp = (k, val) => { row[k] = (val == null ? '' : String(val)); };
-      setEmp('name', rec.name);
+      // rec.name can be blank (a plate-only fleet record with no driver name yet) — never let
+      // that clobber a name the admin already typed into this row.
+      if (rec.name) setEmp('name', rec.name);
       setEmp('iqama', rec.iqama);
       setEmp('empid', rec.empid || reg.empid || '');
       setEmp('phone', rec.phone || reg.phone || '');
@@ -1105,13 +1115,21 @@
     // ---- persistence ----
     function scheduleSave() {
       localStorage.setItem(LS_KEY, JSON.stringify(state));
-      const hint = document.getElementById('saveHint'); hint.textContent = 'جارٍ الحفظ…';
+      const hint = document.getElementById('saveHint');
+      // The initial GET never succeeded this session — we can't tell if this state reflects a
+      // real (possibly newer) server copy or a stale local fallback, so refuse to overwrite the
+      // server and tell the user plainly instead of silently claiming a local save.
+      if (!serverLoadOk) {
+        hint.textContent = '⚠️ تعذّر الاتصال بالخادم — أعد تحميل الصفحة قبل المتابعة (لم يُحفظ على الخادم)';
+        return;
+      }
+      hint.textContent = 'جارٍ الحفظ…';
       clearTimeout(saveTimer);
       saveTimer = setTimeout(async () => {
         try {
           const r = await fetch('/api/schedule_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) });
-          hint.textContent = r.ok ? '✓ تم الحفظ' : 'محفوظ محلياً';
-        } catch (e) { hint.textContent = 'محفوظ محلياً'; }
+          hint.textContent = r.ok ? '✓ تم الحفظ' : 'تعذّر الحفظ على الخادم';
+        } catch (e) { hint.textContent = 'تعذّر الحفظ على الخادم'; }
       }, 700);
     }
 
@@ -1501,7 +1519,10 @@
         renderAll();
         saveState();
         closeFleetModal();
-        showToast('✅ تم إضافة السائق للجدول', 'success');
+        // rec.name can be blank (a plate-only fleet record) — flag it instead of a silent success,
+        // so a nameless row never gets mistaken for a driver whose name vanished.
+        if (rec.name) showToast('✅ تم إضافة السائق للجدول', 'success');
+        else showToast('⚠️ تمت الإضافة بدون اسم سائق — يرجى تعبئته يدوياً', 'error');
       } else {
         showToast('لم يتم العثور على السائق', 'error');
       }
@@ -1563,7 +1584,10 @@
       state.main.push(row);
       renderAll();
       saveState();
-      showToast('✅ تم نقل المركبة للجدول', 'success');
+      // name can be blank (a plate-only fleet record) — flag it instead of a silent success,
+      // so a nameless row never gets mistaken for a driver whose name vanished.
+      if (name) showToast('✅ تم نقل المركبة للجدول', 'success');
+      else showToast('⚠️ تمت الإضافة بدون اسم سائق — يرجى تعبئته يدوياً', 'error');
     }
 
     // Call renderUnscheduled when FleetData finishes loading

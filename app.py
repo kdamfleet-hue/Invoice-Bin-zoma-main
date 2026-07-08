@@ -2438,6 +2438,8 @@ def alerts_center_update():
                     akey = str(row.get("plate") or "").strip(); ok = bool(akey) and akey == str(body.get("plate") or "").strip()
                 if not ok:
                     return jsonify({"success": False, "error": "تغيّرت بيانات الصف — أعد تحميل الصفحة."}), 409
+                if store_key in ("name", "plate") and not value:
+                    return jsonify({"success": False, "error": "هذا الحقل لا يمكن تفريغه."}), 400
                 row[store_key] = value
                 blob_set("schedule_data", sd)
             try:
@@ -2479,6 +2481,8 @@ def alerts_center_update():
                 if store_idx is None:  # target_field == "name": whichever of COLS[2]/[3] is
                     # actually populated on the CURRENT row — decided server-side, not client-supplied.
                     store_idx = 2 if (row[2] if len(row) > 2 else "") or not (row[3] if len(row) > 3 else "") else 3
+                if target_field in ("name", "plate") and not value:
+                    return jsonify({"success": False, "error": "هذا الحقل لا يمكن تفريغه."}), 400
                 if len(row) <= store_idx:
                     row.extend([""] * (store_idx + 1 - len(row)))
                 row[store_idx] = value
@@ -3961,61 +3965,67 @@ def _do_sync_all_from_drivers():
     sched_updated = 0
 
     # ―― تحديث جدول الغسيل ――
-    washing = blob_get("washing_schedule")
-    if not isinstance(washing, list):
-        washing = []
+    try:
+        washing = blob_get("washing_schedule")
+        if not isinstance(washing, list):
+            washing = []
 
-    # صحّح الموجود واحذف الملغية
-    valid_washing = []
-    for v in washing:
-        np = _normalize_plate_py(v.get("plate", ""))
-        rec = plate_map.get(np)
-        if rec:
-            if rec.get("name", "").strip() and rec["name"] != v.get("driver"):
-                v["driver"] = rec["name"]
-                washing_updated += 1
-            if rec.get("car", "").strip() and rec["car"] != v.get("type"):
-                v["type"] = rec["car"]
-                washing_updated += 1
-            valid_washing.append(v)
-        else:
-            # لوحة ليست في قاعدة البيانات → احتفظ بها (قد تكون مدخلة يدوياً)
-            valid_washing.append(v)
+        # صحّح الموجود واحذف الملغية
+        valid_washing = []
+        for v in washing:
+            np = _normalize_plate_py(v.get("plate", ""))
+            rec = plate_map.get(np)
+            if rec:
+                if (rec.get("name") or "").strip() and rec["name"] != v.get("driver"):
+                    v["driver"] = rec["name"]
+                    washing_updated += 1
+                if (rec.get("car") or "").strip() and rec["car"] != v.get("type"):
+                    v["type"] = rec["car"]
+                    washing_updated += 1
+                valid_washing.append(v)
+            else:
+                # لوحة ليست في قاعدة البيانات → احتفظ بها (قد تكون مدخلة يدوياً)
+                valid_washing.append(v)
 
-    # أضف المركبات الناقصة
-    existing_plates = {_normalize_plate_py(v.get("plate", "")) for v in valid_washing}
-    max_id = max((v.get("id") or 0 for v in valid_washing), default=0)
-    for np, d in plate_map.items():
-        if np and np not in existing_plates and d.get("name", "").strip():
-            max_id += 1
-            valid_washing.append({
-                "id": max_id,
-                "plate": d.get("plate", ""),
-                "type": d.get("car", ""),
-                "driver": d.get("name", ""),
-                "m": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            })
-            washing_added += 1
+        # أضف المركبات الناقصة
+        existing_plates = {_normalize_plate_py(v.get("plate", "")) for v in valid_washing}
+        max_id = max((v.get("id") or 0 for v in valid_washing), default=0)
+        for np, d in plate_map.items():
+            if np and np not in existing_plates and (d.get("name") or "").strip():
+                max_id += 1
+                valid_washing.append({
+                    "id": max_id,
+                    "plate": d.get("plate", ""),
+                    "type": d.get("car", ""),
+                    "driver": d.get("name", ""),
+                    "m": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                })
+                washing_added += 1
 
-    blob_set("washing_schedule", valid_washing)
+        blob_set("washing_schedule", valid_washing)
+    except Exception:
+        logger.exception("sync_all_from_drivers: washing_schedule update failed")
 
     # ―― تحديث الجدول الأسبوعي ――
-    sd = blob_get("schedule_data")
-    if isinstance(sd, dict):
-        for section in ("main", "spare", "vacation"):
-            for row in (sd.get(section) or []):
-                if not isinstance(row, dict):
-                    continue
-                np = _normalize_plate_py(row.get("plate", ""))
-                rec = plate_map.get(np)
-                if rec:
-                    if rec.get("name", "").strip() and rec["name"] != row.get("name"):
-                        row["name"] = rec["name"]
-                        sched_updated += 1
-                    if rec.get("car", "").strip() and rec["car"] != row.get("vtype"):
-                        row["vtype"] = rec["car"]
-                        sched_updated += 1
-        blob_set("schedule_data", sd)
+    try:
+        sd = blob_get("schedule_data")
+        if isinstance(sd, dict):
+            for section in ("main", "spare", "vacation"):
+                for row in (sd.get(section) or []):
+                    if not isinstance(row, dict):
+                        continue
+                    np = _normalize_plate_py(row.get("plate", ""))
+                    rec = plate_map.get(np)
+                    if rec:
+                        if (rec.get("name") or "").strip() and rec["name"] != row.get("name"):
+                            row["name"] = rec["name"]
+                            sched_updated += 1
+                        if (rec.get("car") or "").strip() and rec["car"] != row.get("vtype"):
+                            row["vtype"] = rec["car"]
+                            sched_updated += 1
+            blob_set("schedule_data", sd)
+    except Exception:
+        logger.exception("sync_all_from_drivers: schedule_data update failed")
 
     # إعادة بناء fleet_data.json
     _rebuild_fleet_json()
