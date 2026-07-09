@@ -39,7 +39,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models.database import init_db, db_connection, get_db, DB_PATH, DATABASE_URL
+from models.database import init_db, db_connection, get_db, DB_PATH, DATABASE_URL, USE_POSTGRES
 load_dotenv()
 
 # Configure logging
@@ -218,14 +218,6 @@ app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
 mail = Mail(app)
 
 # OAuth configuration removed
-
-
-
-# Lock in a stable session key from the persistent DB (unless SECRET_KEY is set in the env),
-# so deploys/restarts no longer log everyone out. Runs once at import, before serving requests.
-if not (os.environ.get("SECRET_KEY") or "").strip():
-    app.secret_key = _persistent_secret_key()
-    app.config["SECRET_KEY"] = app.secret_key
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -486,6 +478,32 @@ def _global_blob_set(table, data_obj):
         else:
             c.execute("INSERT INTO %s (id, data) VALUES (1, ?)" % table, (data_str,))
         conn.commit()
+
+
+def _persistent_secret_key():
+    """A stable session-signing key stored in the DB (survives restarts/redeploys), used
+    only when SECRET_KEY isn't set in the environment — so deploys no longer log everyone
+    out. Generated once, on first need, then reused forever after."""
+    try:
+        data = _global_blob_get("app_secret_key")
+        key = data.get("key") if isinstance(data, dict) else None
+        if key:
+            return key
+    except Exception:
+        logger.exception("Failed to read persistent secret key — falling back to a new one")
+    new_key = secrets.token_hex(32)
+    try:
+        _global_blob_set("app_secret_key", {"key": new_key})
+    except Exception:
+        logger.exception("Failed to persist secret key — sessions will reset on restart")
+    return new_key
+
+
+# Lock in a stable session key from the persistent DB (unless SECRET_KEY is set in the env),
+# so deploys/restarts no longer log everyone out. Runs once at import, before serving requests.
+if not (os.environ.get("SECRET_KEY") or "").strip():
+    app.secret_key = _persistent_secret_key()
+    app.config["SECRET_KEY"] = app.secret_key
 
 
 # ── Shared login accounts (created from the locked Settings tab) ──────────────
@@ -3751,42 +3769,17 @@ def add_driver():
         c = conn.cursor()
         cols = ", ".join(fields)
         placeholders = ", ".join(["?"] * len(fields))
-        c.execute(f"INSERT INTO drivers ({cols}) VALUES ({placeholders})", tuple(vals[f] for f in fields))
-        conn.commit()
-        new_id = c.lastrowid
-        
-    logger.info("Driver added: %s (id=%s)", vals['name'], new_id)
-    return jsonify({"success": True, "id": new_id, **vals})
-    with db_connection() as conn:
-        c = conn.cursor()
         if USE_POSTGRES:
-            c.execute(
-                "INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
-                (name, empid, plate, car, iqama, phone, drivercard),
-            )
+            c.execute(f"INSERT INTO drivers ({cols}) VALUES ({placeholders}) RETURNING id", tuple(vals[f] for f in fields))
             new_id = c.fetchone()["id"]
             conn.commit()
         else:
-            c.execute(
-                "INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (name, empid, plate, car, iqama, phone, drivercard),
-            )
+            c.execute(f"INSERT INTO drivers ({cols}) VALUES ({placeholders})", tuple(vals[f] for f in fields))
             conn.commit()
             new_id = c.lastrowid
-    logger.info("Driver added: %s (id=%s)", name, new_id)
-    return jsonify(
-        {
-            "success": True,
-            "id": new_id,
-            "name": name,
-            "plate": plate,
-            "car": car,
-            "iqama": iqama,
-            "phone": phone,
-            "drivercard": drivercard,
-        }
-    )
+
+    logger.info("Driver added: %s (id=%s)", vals['name'], new_id)
+    return jsonify({"success": True, "id": new_id, **vals})
 
 
 @app.route("/api/drivers/<int:driver_id>", methods=["DELETE"])
@@ -5284,19 +5277,19 @@ def api_system_metrics():
                 db_size_mb = round(os.path.getsize(DB_PATH) / (1024 * 1024), 2)
         else:
             with db_connection() as db:
-                db.execute("SELECT pg_database_size(current_database())")
-                row = db.fetchone()
+                cur = db.execute("SELECT pg_database_size(current_database())")
+                row = cur.fetchone()
                 if row and row[0]:
                     db_size_mb = round(row[0] / (1024 * 1024), 2)
-        
+
         # Sessions count (rough estimation from file system if sqlite/flask session, or from postgres)
         sessions_count = 0
         if USE_POSTGRES:
             with db_connection() as db:
                 # Count distinct user ids if stored in db, or just use a placeholder
                 try:
-                    db.execute("SELECT count(*) FROM pg_stat_activity")
-                    row = db.fetchone()
+                    cur = db.execute("SELECT count(*) FROM pg_stat_activity")
+                    row = cur.fetchone()
                     if row:
                         sessions_count = row[0]
                 except:

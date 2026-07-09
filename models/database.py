@@ -118,6 +118,7 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS incidents_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS gps_devices_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS app_users (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS app_secret_key (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS data_snapshots (id %s, tab TEXT, ts TEXT, data TEXT, mode INTEGER)' % _pk_clause())
             db.execute('CREATE TABLE IF NOT EXISTS drivers_ws (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS oils_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
