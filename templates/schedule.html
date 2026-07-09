@@ -186,6 +186,17 @@
     .sched-premium .row-notify:hover { background:#16a34a; color:#fff; }
     .sched-premium .row-del { background:rgba(192,57,43,.18); color:#FF8A80; border:none; width:26px; height:26px; border-radius:6px; cursor:pointer; font-weight:800; }
     .sched-premium .row-del:hover { background:#dc2626; color:#fff; }
+    .sched-premium .row-custody { background:rgba(197,160,89,.20); color:var(--brand-gold,#c5a059); border:none; width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:.85rem; line-height:1; }
+    .sched-premium .row-custody:hover { background:var(--brand-gold,#c5a059); color:#1a1a1a; }
+    /* Custody-transfer modal */
+    #custodyModal .modal-content-custom { max-width:440px; }
+    .custody-current { background:var(--bg,#141414); border:1px solid var(--border,#2e2e2e); border-radius:10px; padding:14px; text-align:center; margin-bottom:1rem; }
+    .custody-current .cc-plate { font-size:1.3rem; font-weight:800; color:#fff; }
+    .custody-current .cc-driver { font-size:.9rem; color:var(--text-secondary,#9ca3af); margin-top:2px; }
+    .custody-field { margin-bottom:1rem; }
+    .custody-field label { display:block; font-size:.85rem; color:var(--text-secondary,#9ca3af); margin-bottom:6px; }
+    .custody-field input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border,#3a3a3a); background:var(--surface-hover,#262626); color:var(--text-primary,#e5e7eb); font-family:inherit; font-size:.95rem; box-sizing:border-box; }
+    .custody-field input:focus { outline:none; border-color:var(--brand-gold,#c5a059); }
 
     /* ── LEGEND ──────────────────────────────────────────────── */
     .sched-premium .exp-legend { display:flex; gap:1rem; flex-wrap:wrap; font-size:.8rem; color:var(--p-muted); margin:.4rem 0 .2rem; }
@@ -467,6 +478,36 @@
 
   <datalist id="driverNames"></datalist>
 
+  <!-- Custody-transfer modal: reassign a vehicle's row to a different driver, with an
+       auditable note. Vehicle data (plate/model/etc) stays fixed — only the driver box
+       changes, reusing the exact same protection autofillRow() already guarantees. -->
+  <div class="modal-backdrop" id="custodyModal">
+    <div class="modal-content-custom">
+      <div class="modal-header-custom">
+        <h2>🔄 نقل عهدة المركبة</h2>
+        <button class="close-btn" onclick="closeCustodyModal()">✕</button>
+      </div>
+      <div class="modal-body-custom">
+        <div class="custody-current">
+          <div class="cc-plate" id="custodyPlate">—</div>
+          <div class="cc-driver" id="custodyOldDriver">—</div>
+        </div>
+        <div class="custody-field">
+          <label>السائق المستلم الجديد</label>
+          <input type="text" id="custodyNewDriver" list="driverNames" placeholder="اكتب أو اختر اسم السائق">
+        </div>
+        <div class="custody-field">
+          <label>ملاحظات النقل (اختياري)</label>
+          <input type="text" id="custodyNote" placeholder="مثال: تسليم بموجب تفويض إدارة الحركة">
+        </div>
+        <div style="display:flex;gap:.75rem;justify-content:flex-end;">
+          <button class="btn-outline" onclick="closeCustodyModal()">إلغاء</button>
+          <button class="btn-primary" onclick="confirmCustodyTransfer()">✍️ تأكيد واعتماد النقل</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ===== Column model — two groups: employee data (7) + vehicle data (10) =====
     const EMP_COLS = [
@@ -612,7 +653,7 @@
           }
           html += `<td class="${cls}"${dataAttr}><input type="text" value="${v}" data-sec="${section}" data-i="${idx}" data-k="${c.key}"${listAttr}></td>`;
         });
-        html += `<td class="col-act"><div class="col-act-wrap"><button class="row-notify" title="إشعار السائق عبر واتساب" onclick="notifyDriver('${section}',${idx})">📲</button><button class="row-del" title="حذف" onclick="deleteRow('${section}',${idx})">✕</button></div></td>`;
+        html += `<td class="col-act"><div class="col-act-wrap"><button class="row-custody" title="نقل عهدة المركبة لسائق آخر" onclick="openCustodyModal('${section}',${idx})">🔄</button><button class="row-notify" title="إشعار السائق عبر واتساب" onclick="notifyDriver('${section}',${idx})">📲</button><button class="row-del" title="حذف" onclick="deleteRow('${section}',${idx})">✕</button></div></td>`;
         tr.innerHTML = html;
         tb.appendChild(tr);
       });
@@ -847,6 +888,51 @@
       if (diff < 0) return 'منتهٍ';
       if (diff <= 90) return diff + 'ي';
       return '';
+    }
+
+    // ---- custody transfer: reassign a row's vehicle to a different driver ----
+    let _custodyTarget = null;
+    function openCustodyModal(section, idx) {
+      const r = state[section][idx]; if (!r) return;
+      _custodyTarget = { section, idx };
+      document.getElementById('custodyPlate').textContent = r.plate || 'بدون لوحة';
+      document.getElementById('custodyOldDriver').textContent = 'السائق الحالي: ' + (r.name || 'بدون سائق');
+      document.getElementById('custodyNewDriver').value = '';
+      document.getElementById('custodyNote').value = '';
+      document.getElementById('custodyModal').classList.add('show');
+      setTimeout(() => document.getElementById('custodyNewDriver').focus(), 100);
+    }
+    function closeCustodyModal() {
+      document.getElementById('custodyModal').classList.remove('show');
+      _custodyTarget = null;
+    }
+    async function confirmCustodyTransfer() {
+      if (!_custodyTarget) return;
+      const { section, idx } = _custodyTarget;
+      const r = state[section][idx];
+      if (!r) { closeCustodyModal(); return; }
+      const newName = document.getElementById('custodyNewDriver').value.trim();
+      const note = document.getElementById('custodyNote').value.trim();
+      if (!newName) { if (window.showToast) showToast('يرجى اختيار اسم السائق المستلم', 'error'); return; }
+      const oldName = r.name || '';
+      const plate = r.plate || '';
+      // Clear the OLD driver's identifying fields first so, if the new name has no
+      // FleetData/registry match, none of the previous driver's iqama/phone/job linger
+      // on the new name. autofillRow() then re-fills everything it can actually resolve.
+      r.name = newName;
+      r.iqama = ''; r.empid = ''; r.phone = ''; r.job = ''; r.drivercard = ''; r.empNotes = '';
+      autofillRow(section, idx, 'name');
+      renderBody('body' + cap(section), state[section], section);
+      updateSummary();
+      scheduleSave();
+      closeCustodyModal();
+      try {
+        await fetch('/api/vehicle_custody_transfer', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plate: plate, oldDriver: oldName, newDriver: newName, note: note })
+        });
+      } catch (e) { /* best-effort audit trail only — the transfer itself already saved above */ }
+      if (window.showToast) showToast('✅ تم توثيق نقل العهدة وتحديث الجدول', 'success');
     }
 
     // ---- notify a driver of their info via WhatsApp ----

@@ -2605,6 +2605,31 @@ def fuel_data():
         return jsonify({"success": False, "entries": []})
 
 
+# ── Vehicle custody transfer (نقل عهدة) — the actual row reassignment already
+# happens client-side via the normal POST /api/schedule_data save; this endpoint only
+# records a distinctly-labeled audit entry so the handover shows up clearly in
+# سجل التدقيق instead of blending into a generic "تعديل" entry.
+@app.route("/api/vehicle_custody_transfer", methods=["POST"])
+@login_required
+def vehicle_custody_transfer():
+    try:
+        body = request.json or {}
+        plate = str(body.get("plate") or "").strip()
+        old_driver = str(body.get("oldDriver") or "").strip()
+        new_driver = str(body.get("newDriver") or "").strip()
+        note = str(body.get("note") or "").strip()
+        if not new_driver:
+            return jsonify({"success": False, "error": "اسم السائق المستلم مطلوب."}), 400
+        detail = f"{plate or 'بدون لوحة'}: {old_driver or 'بدون سائق'} ← {new_driver}"
+        if note:
+            detail += f" — {note}"
+        _audit_add("نقل عهدة", "الجدول الأسبوعي", None, detail)
+        return jsonify({"success": True})
+    except Exception:
+        logger.exception("vehicle_custody_transfer error")
+        return jsonify({"success": False, "error": "تعذّر توثيق نقل العهدة."}), 500
+
+
 @app.route("/api/purchase_data", methods=["GET", "POST"])
 @login_required
 def purchase_data():
