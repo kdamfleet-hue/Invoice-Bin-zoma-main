@@ -925,9 +925,7 @@ def gps_devices():
 @app.route("/invoice")
 @login_required
 def invoice():
-    # The invoice IS the homepage — alias /invoice to it (single source, no duplicate template).
-    # This tab DOES show the "نظام الفواتير الذكي" heading (the homepage hides it).
-    return render_template("index.html", google_user=session.get("google_user"), b64_en=load_logo(), show_invoice_title=True)
+    return render_template("invoice.html", google_user=session.get("google_user"), b64_en=load_logo(), show_invoice_title=True)
 
 
 @app.route("/fleet_dashboard")
