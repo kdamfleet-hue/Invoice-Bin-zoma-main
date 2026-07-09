@@ -307,14 +307,17 @@
             if (el) el.textContent = `الموظفون: ${vis}${vis !== all ? ' / ' + all : ''}`;
         }
 
-        function addEmployeeRow(save = true) {
+        // skipCount lets bulk callers (paste of many rows) defer the O(n) recount to a
+        // single call at the end, instead of rescanning the whole table after every row.
+        function addEmployeeRow(save = true, skipCount = false) {
             const tbody = document.getElementById('employeesBody');
             const tr = document.createElement('tr');
             const idx = tbody.children.length + 1;
             tr.innerHTML = buildRowHtml(idx, []);
             tbody.appendChild(tr);
             if (save) { persistLocal(); autoSaveServer(); } // WS-only server autosave
-            updateCount();
+            if (!skipCount) updateCount();
+            return tr;
         }
 
         async function deleteRow(btn) {
@@ -559,6 +562,10 @@
             e.preventDefault();
 
             const startTr = target.closest('tr');
+            // Track rows in a local array (extended in-place as new rows are added) instead
+            // of re-querying tbody.querySelectorAll('tr') on every iteration — with a few
+            // hundred employee rows that repeated full-table rescan is what made a real
+            // paste visibly freeze the tab.
             const allTrs = Array.from(tbody.querySelectorAll('tr'));
             let startRowIdx = allTrs.indexOf(startTr);
             const startColIdx = Number(target.dataset.col) || 0;
@@ -568,20 +575,22 @@
                 if (!rowStr.trim() && i === rows.length - 1) continue;
 
                 const cells = rowStr.split('\t');
-                let targetTr = tbody.querySelectorAll('tr')[startRowIdx + i];
+                let targetTr = allTrs[startRowIdx + i];
                 if (!targetTr) {
-                    addEmployeeRow(false);
-                    targetTr = tbody.querySelectorAll('tr')[startRowIdx + i];
+                    targetTr = addEmployeeRow(false, true); // skip per-row recount
+                    allTrs.push(targetTr);
                 }
-                if (!targetTr) continue;
 
+                // One DOM query for all of this row's inputs, then index by column — instead
+                // of a separate input[data-col="X"] query per pasted cell.
+                const inputs = targetTr.querySelectorAll('input');
                 for (let j = 0; j < cells.length; j++) {
                     const col = startColIdx + j;
                     if (col >= TOTAL_COLS) break;
-                    const targetInput = targetTr.querySelector(`input[data-col="${col}"]`);
-                    if (targetInput) targetInput.value = cells[j].trim();
+                    if (inputs[col]) inputs[col].value = cells[j].trim();
                 }
             }
+            updateCount();
             persistLocal();
             autoSaveServer(); // WS-only server autosave
         });
@@ -721,28 +730,28 @@
                 return;
             }
             const rows = pastedData.split(/\r?\n/);
-            const tbody = document.getElementById('employeesBody');
             let added = 0;
 
             for (let i = 0; i < rows.length; i++) {
                 const rowStr = rows[i].replace(/\r$/, '');
                 if (!rowStr.trim()) continue;
                 const cells = rowStr.split('\t');
-                
-                addEmployeeRow(false); // Add new empty row
-                const targetTr = tbody.lastElementChild;
-                
+
+                // skip the per-row recount + read this row's inputs in one query — with a
+                // real Excel-sized paste (dozens to hundreds of rows), doing either per row
+                // is what made this visibly freeze the tab.
+                const targetTr = addEmployeeRow(false, true);
+                const inputs = targetTr.querySelectorAll('input');
                 for (let j = 0; j < cells.length; j++) {
                     if (j >= TOTAL_COLS) break;
-                    const targetInput = targetTr.querySelector(`input[data-col="${j}"]`);
-                    if (targetInput) targetInput.value = cells[j].trim();
+                    if (inputs[j]) inputs[j].value = cells[j].trim();
                 }
                 added++;
             }
             if (added > 0) {
+                updateCount();
                 persistLocal();
                 if (typeof autoSaveServer === 'function') autoSaveServer();
-                updateCount();
                 if (window.showToast) showToast(`تم إضافة ${added} صفوف بنجاح`, 'success');
                 closePasteModal();
             }
