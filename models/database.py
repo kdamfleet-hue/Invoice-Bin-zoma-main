@@ -121,6 +121,7 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS data_snapshots (id %s, tab TEXT, ts TEXT, data TEXT, mode INTEGER)' % _pk_clause())
             db.execute('CREATE TABLE IF NOT EXISTS drivers_ws (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS oils_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS fuel_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS purchase_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS workshop_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS handover_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')

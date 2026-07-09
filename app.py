@@ -306,7 +306,7 @@ KIOSK_USER     = os.environ.get("KIOSK_USER",     "jam")
 KIOSK_PASSWORD = os.environ.get("KIOSK_PASSWORD", "Jam-123123")
 WS_TABS = {
     "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard",
-    "schedule": "schedule", "oils": "oils", "purchase": "purchase",
+    "schedule": "schedule", "oils": "oils", "purchase": "purchase", "fuel": "fuel",
     "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
     "incidents": "incidents", "handover": "handover",
     "tracking": "tracking", "employees": "employees", "gps_sync": "gps_sync",
@@ -363,6 +363,7 @@ SNAP_TAB_BY_ROUTE = {
     "/schedule": "schedule_data", "/washing": "washing_schedule", "/employees": "employees",
     "/records": "records_data", "/incidents": "incidents_data", "/oils": "oils_data",
     "/purchase": "purchase_data", "/workshop": "workshop_data", "/gps_devices": "gps_devices_data",
+    "/fuel": "fuel_data",
 }
 
 
@@ -428,12 +429,14 @@ def blob_set(table, data_obj):
 
 # ── Dated version snapshots (auto-saved per data tab; restored from Settings) ──
 SNAPSHOT_TABLES = {"schedule_data", "washing_schedule", "records_data", "employees",
-                   "incidents_data", "gps_devices_data", "oils_data", "purchase_data", "workshop_data"}
+                   "incidents_data", "gps_devices_data", "oils_data", "purchase_data", "workshop_data",
+                   "fuel_data"}
 SNAP_KEEP = 30
 SNAP_LABELS = {
     "schedule_data": "الجدول الأسبوعي", "washing_schedule": "الغسيل", "records_data": "التوثيق",
     "employees": "الموظفون", "incidents_data": "الحوادث والمخالفات", "gps_devices_data": "أجهزة التتبع",
     "oils_data": "الزيوت والفلاتر", "purchase_data": "طلبات الشراء", "workshop_data": "الورشة",
+    "fuel_data": "تموين المحروقات",
 }
 
 
@@ -931,6 +934,14 @@ def oils():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("oils.html", google_user=google_user, b64_en=b64_en)
+
+
+@app.route("/fuel")
+@login_required
+def fuel():
+    google_user = session.get("google_user")
+    b64_en = load_logo()
+    return render_template("fuel.html", google_user=google_user, b64_en=b64_en)
 
 
 @app.route("/purchase")
@@ -2569,6 +2580,29 @@ def oils_data():
     except Exception:
         logger.exception("oils_data GET error")
         return jsonify({"success": False, "data": None})
+
+
+# ── Fuel/diesel supply tracking (تموين المحروقات) — fully server-synced on every
+# branch and the workstation sandbox alike (unlike oils/purchase/workshop above,
+# this tab has no legacy hardcoded-row/localStorage-only history to preserve).
+@app.route("/api/fuel_data", methods=["GET", "POST"])
+@login_required
+def fuel_data():
+    if request.method == "POST":
+        try:
+            entries = (request.json or {}).get("entries", [])
+            blob_set("fuel_data", entries)
+            _audit_add("تحديث", "تموين المحروقات", len(entries) if isinstance(entries, list) else None)
+            return jsonify({"success": True})
+        except Exception:
+            logger.exception("fuel_data POST error")
+            return jsonify({"success": False, "error": "تعذّر حفظ بيانات التموين."}), 500
+    try:
+        data = blob_get("fuel_data")
+        return jsonify({"success": True, "entries": data if isinstance(data, list) else []})
+    except Exception:
+        logger.exception("fuel_data GET error")
+        return jsonify({"success": False, "entries": []})
 
 
 @app.route("/api/purchase_data", methods=["GET", "POST"])

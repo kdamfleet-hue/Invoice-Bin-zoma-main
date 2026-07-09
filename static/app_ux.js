@@ -785,6 +785,7 @@ function injectGlobalNavLinks() {
     }
     addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
     addLink('/documents', '📂 أرشيف الوثائق', 'a[href$="/records"]');
+    addLink('/fuel', '⛽ تموين المحروقات', 'a[href$="/oils"]');
     addLink('/handover', '🚗 تسليم واستلام مركبة', 'a[href$="/"]');
     addLink('/insights', '🧠 التحليلات الذكية', 'a[href$="/cameras"]');
     addLink('/platform', '🚀 المنصة', 'a[href$="/insights"]');

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تموين المحروقات | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=30) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=30) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
+        .fuel-table-wrap { overflow-x: auto; }
+        #fuelTable { border-collapse: collapse; width: 100%; table-layout: auto; }
+        #fuelTable thead { position: sticky; top: 0; z-index: 5; }
+        #fuelTable thead th {
+            background: var(--brand-navy, #0C2340);
+            color: #fff; padding: 12px 8px; font-size: 0.8rem; font-weight: 700;
+            text-align: center; white-space: normal; word-break: keep-all;
+            overflow-wrap: normal; hyphens: none; line-height: 1.3;
+            border-bottom: 2px solid var(--accent, #c9a227);
+        }
+        #fuelTable td, #fuelTable th { overflow: visible; }
+        #fuelTable tbody td {
+            padding: 6px 8px; font-size: 0.85rem; text-align: center;
+            border: 1px solid var(--border);
+        }
+        #fuelTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
+        #fuelTable input {
+            width: 100%; border: none; background: transparent; color: var(--text-primary);
+            font-family: inherit; font-size: 0.85rem; text-align: center; outline: none;
+            padding: 4px; border-radius: 4px; transition: var(--trans);
+        }
+        #fuelTable input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
+        #fuelTable td.cell-plate input { font-weight: 700; font-family: monospace; color: var(--brand-gold, #c5a059); }
+        #fuelTable td.cell-computed { font-weight: 800; background: rgba(197,160,89,.10); color: var(--brand-gold-soft, #e0c489); white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .fuel-row-del { background: rgba(220,38,38,0.15); color: #f87171; border: none; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; line-height: 1; transition: background 0.15s; }
+        .fuel-row-del:hover { background: #dc2626; color: #fff; }
+        .search-bar { width: 100%; max-width: 500px; margin: 0 auto 1.5rem; }
+        .search-bar input { width: 100%; padding: 12px 20px; border-radius: 50px; font-size: 1rem; }
+        @media (max-width: 768px) { .bz-stats { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/fuel" class="active">⛽ تموين المحروقات</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <datalist id="fuelDriversList"></datalist>
+    <datalist id="fuelPlatesList"></datalist>
+
+    <div class="bz-shell">
+
+    <h2 class="bz-section-title">⛽ تموين المحروقات — فرع الدمام</h2>
+    <p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">سجل تعبئة الديزل/الوقود لكل مركبة — المصروفات، الكمية، المسافة، والاستهلاك</p>
+
+    <div class="bz-stats">
+        <div class="bz-stat"><div class="num" id="statFills">0</div><div class="label">عمليات التموين</div></div>
+        <div class="bz-stat"><div class="num" id="statLiters">0</div><div class="label">إجمالي اللترات</div></div>
+        <div class="bz-stat"><div class="num" id="statCost">0</div><div class="label">إجمالي المصروفات (ر.س)</div></div>
+        <div class="bz-stat"><div class="num" id="statAvgConsumption">—</div><div class="label">متوسط الاستهلاك (ل/١٠٠كم)</div></div>
+    </div>
+
+    <div class="search-bar">
+        <input type="text" id="fuelSearch" placeholder="ابحث بالاسم أو رقم اللوحة..." oninput="renderFuelTable()">
+    </div>
+
+    <div class="card" id="fuelPrintArea">
+    <div class="table-wrapper fuel-table-wrap">
+        <table id="fuelTable" class="bz-fit">
+            <colgroup>
+                <col style="width:3%"><col style="width:8%"><col style="width:9%"><col style="width:11%">
+                <col style="width:9%"><col style="width:8%"><col style="width:8%"><col style="width:8%">
+                <col style="width:7%"><col style="width:9%"><col style="width:8%"><col style="width:9%"><col style="width:3%">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>التاريخ</th>
+                    <th>رقم اللوحة</th>
+                    <th>اسم السائق</th>
+                    <th>نوع المركبة</th>
+                    <th>قراءة سابقة (كم)</th>
+                    <th>قراءة حالية (كم)</th>
+                    <th>المسافة المقطوعة (كم)</th>
+                    <th>كمية الصرف (لتر)</th>
+                    <th>استهلاك الوقود (ل/١٠٠كم)</th>
+                    <th>المصروفات (ر.س)</th>
+                    <th>ملاحظات</th>
+                    <th class="pdf-exclude">حذف</th>
+                </tr>
+            </thead>
+            <tbody id="fuelBody"></tbody>
+        </table>
+    </div>
+    </div>
+
+    <div class="actions-bar pdf-exclude" style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+        <button class="btn-primary" onclick="addFuelRow()">➕ إضافة عملية تموين</button>
+        <button class="btn-submit-gold" onclick="exportFuelExcel()">📥 تصدير Excel</button>
+        <button class="btn-submit-orange" onclick="shareFuel()">📤 مشاركة / تصدير</button>
+        <button class="btn-primary" onclick="saveFuelState()">💾 حفظ التغييرات</button>
+    </div>
+
+    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة — فرع الدمام</footer>
+
+    </div><!-- /bz-shell -->
+
+<script>
+    let fuelEntries = [];
+    const FUEL_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+    function num(v) { const n = parseFloat(v); return isNaN(n) ? null : n; }
+
+    function computeDistance(e) {
+        const prev = num(e.prevOdo), cur = num(e.curOdo);
+        if (prev == null || cur == null || cur <= prev) return null;
+        return cur - prev;
+    }
+    function computeConsumption(e) {
+        const dist = computeDistance(e);
+        const liters = num(e.liters);
+        if (!dist || liters == null || liters <= 0) return null;
+        return (liters / dist) * 100; // liters per 100km
+    }
+
+    function init() {
+        if (window.FleetData) {
+            FleetData.fillDatalist('fuelDriversList').catch(() => {});
+            FleetData.load().then(() => {
+                const seen = new Set();
+                const pl = document.getElementById('fuelPlatesList');
+                if (pl) {
+                    pl.innerHTML = FleetData.records().map(d => {
+                        const p = (d.plate || '').trim();
+                        if (!p || p === 'None' || seen.has(p)) return '';
+                        seen.add(p);
+                        return '<option value="' + escapeHtml(p) + '"></option>';
+                    }).join('');
+                }
+            });
+        }
+        fetch('/api/fuel_data')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && Array.isArray(data.entries) && data.entries.length) {
+                    fuelEntries = data.entries;
+                } else if (!FUEL_WS) {
+                    const saved = localStorage.getItem('fuel_data_v1');
+                    if (saved) { try { fuelEntries = JSON.parse(saved); } catch (e) { fuelEntries = []; } }
+                }
+                renderFuelTable();
+                updateFuelStats();
+            })
+            .catch(() => {
+                if (!FUEL_WS) {
+                    const saved = localStorage.getItem('fuel_data_v1');
+                    if (saved) { try { fuelEntries = JSON.parse(saved); } catch (e) { fuelEntries = []; } }
+                }
+                renderFuelTable();
+                updateFuelStats();
+            });
+    }
+
+    function addFuelRow() {
+        const newId = fuelEntries.length > 0 ? Math.max(...fuelEntries.map(e => e.id || 0)) + 1 : 1;
+        fuelEntries.push({ id: newId, date: new Date().toISOString().slice(0, 10), plate: '', driver: '', vtype: '', prevOdo: '', curOdo: '', liters: '', cost: '', notes: '' });
+        renderFuelTable();
+        updateFuelStats();
+        saveFuelState(false);
+    }
+
+    async function deleteFuelRow(idx) {
+        if (!(await window.bzConfirm('هل تريد حذف عملية التموين هذه؟'))) return;
+        fuelEntries.splice(idx, 1);
+        renderFuelTable();
+        updateFuelStats();
+        saveFuelState(false);
+    }
+
+    function updateFuelField(idx, field, val) {
+        const e = fuelEntries[idx];
+        if (!e) return;
+        e[field] = val;
+        if (field === 'plate' && val.trim() && window.FleetData) {
+            const rec = FleetData.byPlate(val.trim());
+            if (rec) {
+                if (rec.car && rec.car !== 'None') e.vtype = rec.car;
+                if (rec.name && rec.name !== 'None' && !e.driver) e.driver = rec.name;
+            }
+        }
+        renderFuelTable(document.getElementById('fuelSearch').value, /*preserveFocus*/idx, field);
+        updateFuelStats();
+        saveFuelState(false);
+    }
+
+    function renderFuelTable(filter, focusIdx, focusField) {
+        const q = (filter != null ? filter : (document.getElementById('fuelSearch').value || '')).toLowerCase();
+        const tbody = document.getElementById('fuelBody');
+        let html = '';
+        fuelEntries.forEach((e, idx) => {
+            if (q && !(e.plate || '').toLowerCase().includes(q) && !(e.driver || '').toLowerCase().includes(q)) return;
+            const dist = computeDistance(e);
+            const cons = computeConsumption(e);
+            html += `<tr>
+                <td>${idx + 1}</td>
+                <td><input type="date" value="${escapeHtml(e.date || '')}" onchange="updateFuelField(${idx},'date',this.value)"></td>
+                <td class="cell-plate"><input type="text" list="fuelPlatesList" value="${escapeHtml(e.plate || '')}" onchange="updateFuelField(${idx},'plate',this.value)"></td>
+                <td><input type="text" list="fuelDriversList" value="${escapeHtml(e.driver || '')}" onchange="updateFuelField(${idx},'driver',this.value)"></td>
+                <td><input type="text" value="${escapeHtml(e.vtype || '')}" onchange="updateFuelField(${idx},'vtype',this.value)"></td>
+                <td><input type="number" step="1" value="${escapeHtml(e.prevOdo || '')}" onchange="updateFuelField(${idx},'prevOdo',this.value)"></td>
+                <td><input type="number" step="1" value="${escapeHtml(e.curOdo || '')}" onchange="updateFuelField(${idx},'curOdo',this.value)"></td>
+                <td class="cell-computed">${dist != null ? dist.toLocaleString('en-US') : '—'}</td>
+                <td><input type="number" step="0.1" value="${escapeHtml(e.liters || '')}" onchange="updateFuelField(${idx},'liters',this.value)"></td>
+                <td class="cell-computed">${cons != null ? cons.toFixed(1) : '—'}</td>
+                <td><input type="number" step="0.01" value="${escapeHtml(e.cost || '')}" onchange="updateFuelField(${idx},'cost',this.value)"></td>
+                <td><input type="text" value="${escapeHtml(e.notes || '')}" onchange="updateFuelField(${idx},'notes',this.value)"></td>
+                <td class="pdf-exclude"><button class="fuel-row-del" onclick="deleteFuelRow(${idx})" title="حذف">✕</button></td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    }
+
+    function updateFuelStats() {
+        const fills = fuelEntries.length;
+        let totalLiters = 0, totalCost = 0, consSum = 0, consCount = 0;
+        fuelEntries.forEach(e => {
+            const liters = num(e.liters), cost = num(e.cost), cons = computeConsumption(e);
+            if (liters != null) totalLiters += liters;
+            if (cost != null) totalCost += cost;
+            if (cons != null) { consSum += cons; consCount++; }
+        });
+        document.getElementById('statFills').textContent = fills;
+        document.getElementById('statLiters').textContent = totalLiters.toLocaleString('en-US');
+        document.getElementById('statCost').textContent = totalCost.toLocaleString('en-US');
+        document.getElementById('statAvgConsumption').textContent = consCount ? (consSum / consCount).toFixed(1) : '—';
+    }
+
+    function saveFuelState(showMsg = true) {
+        if (!FUEL_WS) localStorage.setItem('fuel_data_v1', JSON.stringify(fuelEntries));
+        fetch('/api/fuel_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entries: fuelEntries })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (showMsg) {
+                    if (data.success) showToast('تم حفظ التغييرات بنجاح ✅', 'success');
+                    else showToast('تم الحفظ محلياً فقط. فشل الحفظ في السيرفر', 'error');
+                }
+            })
+            .catch(() => { if (showMsg) showToast('حدث خطأ في الاتصال، تم الحفظ محلياً فقط', 'error'); });
+    }
+
+    const FUEL_FILENAME = 'تموين_المحروقات_الدمام.xlsx';
+
+    async function buildFuelBlob() {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'BIN ZOMAH INTL.';
+        const sheet = workbook.addWorksheet('تموين المحروقات', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 2 }] });
+
+        const navy = 'FF0C2340', gold = 'FFC9A227', zebra = 'FFF5F7FA', borderGray = 'FFD9D9D9';
+        const thin = { style: 'thin', color: { argb: borderGray } };
+        const headers = ['م', 'التاريخ', 'رقم اللوحة', 'اسم السائق', 'نوع المركبة', 'قراءة سابقة', 'قراءة حالية', 'المسافة المقطوعة (كم)', 'كمية الصرف (لتر)', 'استهلاك الوقود (ل/١٠٠كم)', 'المصروفات (ر.س)', 'ملاحظات'];
+
+        const titleRow = sheet.addRow(['تموين المحروقات — شركة بن زومة للتجارة والإنماء — BIN ZOMAH INTL.']);
+        sheet.mergeCells(1, 1, 1, headers.length);
+        const titleCell = titleRow.getCell(1);
+        titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+        titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } };
+        titleRow.height = 30;
+
+        const headerRow = sheet.addRow(headers);
+        headerRow.height = 26;
+        headerRow.eachCell((cell) => {
+            cell.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } };
+            cell.border = { top: thin, left: thin, right: thin, bottom: { style: 'medium', color: { argb: gold } } };
+        });
+
+        fuelEntries.forEach((e, i) => {
+            const dist = computeDistance(e);
+            const cons = computeConsumption(e);
+            const row = sheet.addRow([
+                i + 1, e.date || '', e.plate || '', e.driver || '', e.vtype || '',
+                e.prevOdo || '', e.curOdo || '', dist != null ? dist : '',
+                e.liters || '', cons != null ? cons.toFixed(1) : '', e.cost || '', e.notes || ''
+            ]);
+            row.height = 22;
+            const stripe = (i % 2 === 1);
+            row.eachCell((cell, col) => {
+                cell.font = { name: 'Tajawal', size: 10, color: { argb: 'FF1A1A1A' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.border = { top: thin, left: thin, right: thin, bottom: thin };
+                if (stripe) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra } };
+                if (col === 1) cell.font = { name: 'Tajawal', size: 10, bold: true, color: { argb: 'FF0C2340' } };
+            });
+        });
+
+        sheet.getColumn(1).width = 6;
+        headers.slice(1).forEach((h, idx) => { sheet.getColumn(idx + 2).width = Math.min(30, Math.max(12, h.length + 4)); });
+
+        sheet.pageSetup = { fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, orientation: 'landscape', margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+
+        const footerRowIdx = sheet.rowCount + 1;
+        const footer = sheet.addRow(['أُعدّ بواسطة قسم الحركة — فرع الدمام    |    ' + new Date().toISOString().slice(0, 10)]);
+        sheet.mergeCells(footerRowIdx, 1, footerRowIdx, headers.length);
+        const fCell = footer.getCell(1);
+        fCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: 'FF555555' } };
+        fCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        footer.height = 22;
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        return new Blob([buffer]);
+    }
+
+    async function exportFuelExcel() {
+        try {
+            const blob = await buildFuelBlob();
+            if (window.bzDownload) bzDownload(blob, FUEL_FILENAME);
+            else saveAs(blob, FUEL_FILENAME);
+            showToast('تم تصدير ملف Excel بنجاح', 'success');
+        } catch (e) {
+            showToast('تعذّر تصدير ملف Excel', 'error');
+        }
+    }
+
+    function shareFuel() {
+        if (!window.bzShare) { exportFuelExcel(); return; }
+        bzShare(buildFuelBlob, {
+            filename: FUEL_FILENAME,
+            subject: 'تموين المحروقات — فرع الدمام',
+            waMessage: 'مرفق سجل تموين المحروقات — فرع الدمام',
+            pdfElement: document.getElementById('fuelPrintArea'),
+            pdfOrientation: 'landscape'
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
