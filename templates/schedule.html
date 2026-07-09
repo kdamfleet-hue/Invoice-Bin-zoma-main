@@ -998,9 +998,26 @@
       return out;
     }
 
+    // Animate a stat-card value from its current number to the new one (Latin digits, matching
+    // this page's existing table/date formatting — unlike the homepage's Arabic-Indic KPIs).
+    function animateStatValue(el, newVal) {
+      const target = parseInt(newVal, 10);
+      if (isNaN(target)) { el.textContent = newVal; return; }
+      const start = parseInt(el.textContent, 10) || 0;
+      if (start === target) { el.textContent = String(target); return; }
+      const duration = 500;
+      const t0 = performance.now();
+      (function step(now) {
+        const progress = Math.min((now - t0) / duration, 1);
+        const ease = 1 - Math.pow(1 - progress, 3);
+        el.textContent = String(Math.round(start + (target - start) * ease));
+        if (progress < 1) requestAnimationFrame(step);
+      })(t0);
+    }
+
     function refreshStatsAndAlerts(c, s) {
       const pick = (v, comp) => (v != null && v !== '' ? v : comp);
-      const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      const set = (id, v) => { const el = document.getElementById(id); if (el) animateStatValue(el, v); };
       set('statDrivers', pick(s.drivers, c.drivers));
       set('statDelivery', pick(s.delivery, c.delivery));
       set('statDistributors', pick(s.distributors, c.distributors));
