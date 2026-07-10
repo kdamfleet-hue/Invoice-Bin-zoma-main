@@ -423,16 +423,16 @@ function injectAdminLinks() {
             if (side && !side.querySelector('a[href="' + L.href + '"]')) {
                 var a = document.createElement('a');
                 a.href = L.href;
-                a.innerHTML = '<span class="si"><i data-lucide="' + L.icon + '">' + L.emoji + '</i></span><span class="slab">' + L.text + '</span>';
+                a.innerHTML = '<span class="si">' + L.emoji + '</span><span class="slab">' + L.text + '</span>';
                 if (location.pathname === L.href) a.className = 'active';
-                side.insertBefore(a, side.firstChild);
+                side.appendChild(a); // Append to the bottom to keep Core tabs at the top
             }
             if (top && !top.querySelector('a[href="' + L.href + '"]')) {  // للصفحات بلا shell (احتياطي)
                 var b = document.createElement('a');
                 b.href = L.href;
-                b.textContent = L.emoji + ' ' + L.text;
+                b.innerHTML = '<span class="si">' + L.emoji + '</span><span class="slab">' + L.text + '</span>';
                 if (location.pathname === L.href) b.className = 'active';
-                top.insertBefore(b, top.firstChild);
+                top.appendChild(b);
             }
         });
         if (window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons(); } catch (e) { } }
