@@ -745,8 +745,13 @@ function registerPWA() {
         }
         if (!document.querySelector('meta[name="theme-color"]')) {
             var m = document.createElement('meta');
-            m.name = 'theme-color'; m.content = '#0C2340';
+            m.name = 'theme-color'; m.content = '#1a1a1a';
             document.head.appendChild(m);
+        }
+        if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+            var a = document.createElement('meta');
+            a.name = 'apple-mobile-web-app-capable'; a.content = 'yes';
+            document.head.appendChild(a);
         }
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
