@@ -5357,9 +5357,78 @@ def api_system_metrics():
 def api_docs():
     return render_template("api_docs.html")
 
+# ── SPARE PARTS INVENTORY ───────────────────────────────────────────
+@app.route("/spare_parts")
+@login_required
+def spare_parts_page():
+    return render_template("spare_parts.html")
+
+@app.route("/api/spare_parts", methods=["GET"])
+@login_required
+def get_spare_parts():
+    parts = blob_get("spare_parts")
+    if not isinstance(parts, list):
+        parts = []
+    return jsonify(parts)
+
+@app.route("/api/spare_parts", methods=["POST"])
+@login_required
+def add_spare_part():
+    data = request.json or {}
+    parts = blob_get("spare_parts")
+    if not isinstance(parts, list): parts = []
+    
+    new_id = max((p.get("id", 0) for p in parts), default=0) + 1
+    new_part = {
+        "id": new_id,
+        "name": data.get("name", "").strip(),
+        "part_number": data.get("part_number", "").strip(),
+        "category": data.get("category", "أخرى"),
+        "quantity": int(data.get("quantity", 0)),
+        "unit_price": float(data.get("unit_price", 0.0)),
+        "supplier": data.get("supplier", "").strip(),
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
+    parts.append(new_part)
+    blob_set("spare_parts", parts)
+    return jsonify({"success": True, "part": new_part})
+
+@app.route("/api/spare_parts/<int:part_id>", methods=["PUT"])
+@login_required
+def update_spare_part(part_id):
+    data = request.json or {}
+    parts = blob_get("spare_parts")
+    if not isinstance(parts, list): return jsonify({"success": False}), 404
+    
+    for p in parts:
+        if p.get("id") == part_id:
+            if "name" in data: p["name"] = data["name"].strip()
+            if "part_number" in data: p["part_number"] = data["part_number"].strip()
+            if "category" in data: p["category"] = data["category"]
+            if "quantity" in data: p["quantity"] = int(data["quantity"])
+            if "unit_price" in data: p["unit_price"] = float(data["unit_price"])
+            if "supplier" in data: p["supplier"] = data["supplier"].strip()
+            p["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            blob_set("spare_parts", parts)
+            return jsonify({"success": True, "part": p})
+            
+    return jsonify({"success": False, "error": "Not found"}), 404
+
+@app.route("/api/spare_parts/<int:part_id>", methods=["DELETE"])
+@login_required
+def delete_spare_part(part_id):
+    parts = blob_get("spare_parts")
+    if not isinstance(parts, list): return jsonify({"success": False}), 404
+    
+    new_parts = [p for p in parts if p.get("id") != part_id]
+    if len(new_parts) != len(parts):
+        blob_set("spare_parts", new_parts)
+        return jsonify({"success": True})
+        
+    return jsonify({"success": False, "error": "Not found"}), 404
+
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 _start_alert_scheduler()
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

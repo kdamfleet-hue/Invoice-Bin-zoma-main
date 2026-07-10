@@ -791,6 +791,7 @@ function injectGlobalNavLinks() {
         { href: '/fuel', icon: '⛽', label: 'تموين المحروقات' },
         { href: '/washing', icon: '🚿', label: 'محطة الغسيل' },
         { href: '/purchase', icon: '🛒', label: 'طلبات الشراء' },
+        { href: '/spare_parts', icon: '📦', label: 'مستودع القطع' },
         { href: '/incidents', icon: '🚨', label: 'الحوادث والمخالفات' },
         { href: '/tracking', icon: '🛰️', label: 'نظام التتبع' },
         { href: '/cameras', icon: '📹', label: 'الكاميرات' },

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مستودع قطع الغيار | شركة بن زومة</title>
+    <meta name="description" content="إدارة جرد المخزون ومستودع قطع الغيار - شركة بن زومة للتجارة الدولية والإنماء المحدودة">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .sp-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .sp-stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        .sp-stat-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+        .sp-stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), transparent);
+        }
+        .sp-stat-card .val {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+        .sp-stat-card.alert .val { color: var(--danger); }
+        .sp-stat-card .lbl {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* Qty Badge Styles */
+        .qty-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            min-width: 60px;
+            text-align: center;
+        }
+        .qty-high { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+        .qty-low { background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.3); }
+        .qty-zero { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
+        .price-col {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            color: var(--primary-light);
+            direction: ltr;
+        }
+        
+        .cat-badge {
+            background: var(--surface2);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <header class="bz-topbar">
+        <div class="bz-brand">
+            <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+            <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+        </div>
+        <nav class="bz-nav"></nav>
+        <div class="bz-actions">
+            <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+            <a href="/logout" class="bz-logout">خروج</a>
+        </div>
+    </header>
+
+    <div class="bz-shell">
+        <div class="bz-page-header">
+            <div class="bz-page-title">
+                <div class="icon">📦</div>
+                <h1>مستودع قطع الغيار<span>إدارة وجرد المخزون الفوري لقطع غيار الأسطول</span></h1>
+            </div>
+            <div class="bz-page-actions">
+                <button class="bz-btn-primary" onclick="openPartModal()">
+                    <i data-lucide="plus"></i> إضافة قطعة جديدة
+                </button>
+                <button class="bz-btn-outline" onclick="exportExcel()">
+                    <i data-lucide="download"></i> تصدير Excel
+                </button>
+                <button class="bz-btn-outline" onclick="window.print()">
+                    <i data-lucide="printer"></i> طباعة
+                </button>
+            </div>
+        </div>
+
+        <div class="sp-stats">
+            <div class="sp-stat-card">
+                <div class="val" id="statTotalParts">0</div>
+                <div class="lbl">إجمالي أصناف القطع</div>
+            </div>
+            <div class="sp-stat-card">
+                <div class="val" id="statTotalItems">0</div>
+                <div class="lbl">مجموع القطع المتوفرة</div>
+            </div>
+            <div class="sp-stat-card alert">
+                <div class="val" id="statLowStock">0</div>
+                <div class="lbl">قطع نفذت أو قاربت على النفاذ</div>
+            </div>
+            <div class="sp-stat-card" style="border-bottom: 2px solid var(--primary);">
+                <div class="val" id="statTotalValue" style="direction:ltr;">0 SAR</div>
+                <div class="lbl">القيمة الإجمالية للمخزون</div>
+            </div>
+        </div>
+
+        <div class="bz-card">
+            <div class="bz-card-header">
+                <h2><i data-lucide="package"></i> سجل المخزون</h2>
+                <div style="flex:1; max-width: 300px; position:relative;">
+                    <input type="text" id="searchInput" class="bz-input" placeholder="بحث بالاسم، الرقم، التصنيف..." oninput="filterTable()">
+                    <i data-lucide="search" style="position:absolute; left:12px; top:10px; color:var(--text-muted); width:16px; height:16px;"></i>
+                </div>
+            </div>
+            <div class="bz-table-wrapper">
+                <table class="bz-table" id="partsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>اسم القطعة</th>
+                            <th>رقم القطعة (PN)</th>
+                            <th>التصنيف</th>
+                            <th>الكمية المتوفرة</th>
+                            <th>سعر الوحدة</th>
+                            <th>الإجمالي</th>
+                            <th>المورد</th>
+                            <th>تاريخ التحديث</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partsBody">
+                        <tr><td colspan="10" style="text-align:center; padding:30px;">جارٍ تحميل المخزون...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    <div class="bz-modal" id="partModal">
+        <div class="bz-modal-content" style="max-width: 500px;">
+            <div class="bz-modal-header">
+                <h3 id="modalTitle">إضافة قطعة غيار</h3>
+                <button type="button" class="bz-icon-btn" onclick="closePartModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="bz-modal-body">
+                <form id="partForm" onsubmit="savePart(event)">
+                    <input type="hidden" id="partId">
+                    <div class="bz-form-group">
+                        <label class="bz-label">اسم القطعة *</label>
+                        <input type="text" id="partName" class="bz-input" required placeholder="مثال: فلتر ديزل">
+                    </div>
+                    <div class="bz-form-group">
+                        <label class="bz-label">رقم القطعة (Part No)</label>
+                        <input type="text" id="partNumber" class="bz-input" placeholder="اختياري">
+                    </div>
+                    <div class="bz-form-group">
+                        <label class="bz-label">التصنيف</label>
+                        <select id="partCategory" class="bz-input">
+                            <option value="فلاتر">فلاتر</option>
+                            <option value="زيوت وسوائل">زيوت وسوائل</option>
+                            <option value="ميكانيكا">ميكانيكا</option>
+                            <option value="كهرباء">كهرباء</option>
+                            <option value="أخرى">أخرى</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:12px;">
+                        <div class="bz-form-group" style="flex:1;">
+                            <label class="bz-label">الكمية المتوفرة *</label>
+                            <input type="number" id="partQty" class="bz-input" required min="0" step="1">
+                        </div>
+                        <div class="bz-form-group" style="flex:1;">
+                            <label class="bz-label">سعر الوحدة (ريال)</label>
+                            <input type="number" id="partPrice" class="bz-input" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="bz-form-group">
+                        <label class="bz-label">المورد</label>
+                        <input type="text" id="partSupplier" class="bz-input" placeholder="اسم المحل أو المورد">
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                        <button type="button" class="bz-btn-outline" onclick="closePartModal()">إلغاء</button>
+                        <button type="submit" class="bz-btn-primary">حفظ القطعة</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let partsData = [];
+
+        async function loadParts() {
+            try {
+                const r = await fetch('/api/spare_parts');
+                if(r.ok) {
+                    partsData = await r.json();
+                    renderTable();
+                } else {
+                    if(window.showToast) showToast('خطأ في تحميل البيانات', 'error');
+                }
+            } catch(e) {
+                if(window.showToast) showToast('خطأ في الاتصال', 'error');
+            }
+        }
+
+        function getQtyClass(qty) {
+            if(qty <= 0) return 'qty-zero';
+            if(qty <= 3) return 'qty-low';
+            return 'qty-high';
+        }
+
+        function renderTable() {
+            const q = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filtered = partsData.filter(p => 
+                (p.name||'').toLowerCase().includes(q) ||
+                (p.part_number||'').toLowerCase().includes(q) ||
+                (p.category||'').toLowerCase().includes(q)
+            );
+
+            const tbody = document.getElementById('partsBody');
+            if(!filtered.length) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px;">لا توجد نتائج</td></tr>';
+            } else {
+                tbody.innerHTML = filtered.map((p, i) => {
+                    const price = parseFloat(p.unit_price) || 0;
+                    const qty = parseInt(p.quantity) || 0;
+                    const total = price * qty;
+                    return \`
+                    <tr>
+                        <td style="color:var(--text-muted);">${i+1}</td>
+                        <td style="font-weight:bold; color:var(--primary);">${p.name}</td>
+                        <td style="font-family:monospace; direction:ltr;">${p.part_number || '—'}</td>
+                        <td><span class="cat-badge">${p.category || '—'}</span></td>
+                        <td><span class="qty-badge ${getQtyClass(qty)}">${qty}</span></td>
+                        <td class="price-col">${price.toFixed(2)}</td>
+                        <td class="price-col" style="color:var(--text);">${total.toFixed(2)}</td>
+                        <td>${p.supplier || '—'}</td>
+                        <td style="font-size:0.8rem; color:var(--text-muted); direction:ltr;">${p.last_updated || '—'}</td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <button class="bz-icon-btn" onclick="editPart(${p.id})" title="تعديل" style="color:var(--primary);"><i data-lucide="edit"></i></button>
+                                <button class="bz-icon-btn" onclick="deletePart(${p.id}, '${p.name}')" title="حذف" style="color:var(--danger);"><i data-lucide="trash-2"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                \`}).join('');
+            }
+            if(window.lucide) lucide.createIcons();
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('statTotalParts').textContent = partsData.length;
+            
+            let items = 0;
+            let val = 0;
+            let low = 0;
+            
+            partsData.forEach(p => {
+                const q = parseInt(p.quantity) || 0;
+                const pr = parseFloat(p.unit_price) || 0;
+                items += q;
+                val += (q * pr);
+                if(q <= 3) low++;
+            });
+
+            document.getElementById('statTotalItems').textContent = items;
+            document.getElementById('statLowStock').textContent = low;
+            document.getElementById('statTotalValue').textContent = val.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' SAR';
+        }
+
+        function filterTable() {
+            renderTable();
+        }
+
+        function openPartModal(id = null) {
+            const form = document.getElementById('partForm');
+            form.reset();
+            if(id) {
+                const p = partsData.find(x => x.id === id);
+                if(!p) return;
+                document.getElementById('modalTitle').textContent = 'تعديل قطعة';
+                document.getElementById('partId').value = p.id;
+                document.getElementById('partName').value = p.name;
+                document.getElementById('partNumber').value = p.part_number || '';
+                document.getElementById('partCategory').value = p.category || 'فلاتر';
+                document.getElementById('partQty').value = p.quantity || 0;
+                document.getElementById('partPrice').value = p.unit_price || 0;
+                document.getElementById('partSupplier').value = p.supplier || '';
+            } else {
+                document.getElementById('modalTitle').textContent = 'إضافة قطعة غيار';
+                document.getElementById('partId').value = '';
+            }
+            document.getElementById('partModal').classList.add('show');
+        }
+
+        function closePartModal() {
+            document.getElementById('partModal').classList.remove('show');
+        }
+
+        function editPart(id) { openPartModal(id); }
+
+        async function savePart(e) {
+            e.preventDefault();
+            const id = document.getElementById('partId').value;
+            const data = {
+                name: document.getElementById('partName').value,
+                part_number: document.getElementById('partNumber').value,
+                category: document.getElementById('partCategory').value,
+                quantity: document.getElementById('partQty').value,
+                unit_price: document.getElementById('partPrice').value,
+                supplier: document.getElementById('partSupplier').value
+            };
+
+            const url = '/api/spare_parts' + (id ? \`/\${id}\` : '');
+            
+            try {
+                const r = await fetch(url, {
+                    method: id ? 'PUT' : 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                if(r.ok) {
+                    if(window.showToast) showToast('تم الحفظ بنجاح', 'success');
+                    closePartModal();
+                    loadParts();
+                } else {
+                    if(window.showToast) showToast('خطأ في الحفظ', 'error');
+                }
+            } catch(err) {
+                if(window.showToast) showToast('خطأ في الاتصال', 'error');
+            }
+        }
+
+        async function deletePart(id, name) {
+            if(!confirm(\`هل أنت متأكد من حذف \${name} نهائياً من المخزون؟\`)) return;
+            try {
+                const r = await fetch(\`/api/spare_parts/\${id}\`, {method: 'DELETE'});
+                if(r.ok) {
+                    if(window.showToast) showToast('تم الحذف بنجاح', 'success');
+                    loadParts();
+                }
+            } catch(e) {
+                if(window.showToast) showToast('خطأ في الحذف', 'error');
+            }
+        }
+
+        function exportExcel() {
+            if(window.showToast) showToast('الخاصية قيد التطوير...', 'info');
+        }
+
+        document.addEventListener('DOMContentLoaded', loadParts);
+    </script>
+</body>
+</html>
