@@ -323,7 +323,7 @@ const translations = {
 document.addEventListener('DOMContentLoaded', () => {
     injectGlobalNavLinks();
     applyWorkstationRestrictions();
-    buildEnterpriseShell();
+    // buildEnterpriseShell(); // Disabled based on user request (prefer standalone topbar instead of unified sidebar)
     injectBranchSwitcher();
     injectContactDock();
     injectHeroLogo();
