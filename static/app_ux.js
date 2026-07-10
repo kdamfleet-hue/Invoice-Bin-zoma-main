@@ -778,24 +778,39 @@ function getCookie(name) {
 function injectGlobalNavLinks() {
     const nav = document.querySelector('.bz-topbar .bz-nav');
     if (!nav) return;
-    function addLink(href, text, afterSel) {
-        if (nav.querySelector('a[href$="' + href + '"]')) return; // already present
-        const a = document.createElement('a');
-        a.setAttribute('href', href);
-        a.textContent = text;
-        if (location.pathname === href) a.className = 'active';   // highlight the current tab
-        const after = afterSel ? nav.querySelector(afterSel) : null;
-        if (after && after.nextSibling) nav.insertBefore(a, after.nextSibling);
-        else nav.appendChild(a);
-    }
-    addLink('/incidents', '🚨 الحوادث والمخالفات', 'a[href$="/records"]');
-    addLink('/documents', '📂 أرشيف الوثائق', 'a[href$="/records"]');
-    addLink('/fuel', '⛽ تموين المحروقات', 'a[href$="/oils"]');
-    addLink('/handover', '🚗 تسليم واستلام مركبة', 'a[href$="/"]');
-    addLink('/insights', '🧠 التحليلات الذكية', 'a[href$="/cameras"]');
-    addLink('/platform', '🚀 المنصة', 'a[href$="/insights"]');
-    addLink('/settings', '⚙️ الإعدادات', 'a[href$="/platform"]');
-    // (no separate "الفاتورة" link — the homepage "الرئيسية" IS the invoice; /invoice aliases to it)
+    
+    // Master Array of all pages to ensure perfect consistency across the entire app
+    const masterNav = [
+        { href: '/', icon: '🏠', label: 'الرئيسية' },
+        { href: '/fleet_dashboard', icon: '📊', label: 'لوحة القيادة' },
+        { href: '/schedule', icon: '📋', label: 'الجدول الأسبوعي' },
+        { href: '/employees', icon: '👥', label: 'الموظفين' },
+        { href: '/workshop', icon: '🔧', label: 'صيانة الورشة' },
+        { href: '/purchase', icon: '🛒', label: 'طلبات الشراء' },
+        { href: '/oils', icon: '🛢️', label: 'الزيوت والفلاتر' },
+        { href: '/fuel', icon: '⛽', label: 'تموين المحروقات' },
+        { href: '/washing', icon: '🚿', label: 'جدول الغسيل' },
+        { href: '/handover', icon: '🚗', label: 'تسليم واستلام مركبة' },
+        { href: '/incidents', icon: '🚨', label: 'الحوادث والمخالفات' },
+        { href: '/documents', icon: '📂', label: 'أرشيف الوثائق' },
+        { href: '/records', icon: '📁', label: 'التوثيق والسجلات' },
+        { href: '/search', icon: '🔍', label: 'البحث الشامل' },
+        { href: '/tracking', icon: '🛰️', label: 'نظام التتبع' },
+        { href: '/cameras', icon: '📹', label: 'الكاميرات' },
+        { href: '/gps_sync', icon: '📡', label: 'مزامنة GPS' },
+        { href: '/insights', icon: '🧠', label: 'التحليلات الذكية' },
+        { href: '/platform', icon: '🚀', label: 'المنصة' },
+        { href: '/settings', icon: '⚙️', label: 'الإعدادات' }
+    ];
+
+    let html = '';
+    masterNav.forEach(item => {
+        const activeCls = (location.pathname === item.href) ? ' class="active"' : '';
+        html += `<a href="${item.href}"${activeCls}>${item.icon} ${item.label}</a>`;
+    });
+    
+    // Overwrite the hardcoded nav with the standard master nav
+    nav.innerHTML = html;
 }
 
 // Floating contact dock (WhatsApp + Send-this-table + Email composer), bottom-left, on EVERY tab.
