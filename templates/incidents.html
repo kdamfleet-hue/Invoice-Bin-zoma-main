@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الحوادث والمخالفات | شركة بن زومة</title>
+    <title>سجل الحركة الموحد | شركة بن زومة</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=30) }}">
     <script defer src="{{ url_for('static', filename='app_ux.js', v=30) }}"></script>
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
@@ -76,6 +76,36 @@
         .att-dl { background: rgba(16,185,129,.14); color: #6ee7b7; }
         .att-rm { background: rgba(239,68,68,.14); color: #fca5a5; }
 
+        /* Custom Modal Styles (No Bootstrap) */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050; overflow-x: hidden; overflow-y: auto; outline: 0; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+        .modal.show { display: block; }
+        .modal-dialog { position: relative; width: 90%; max-width: 800px; margin: 3rem auto; pointer-events: none; }
+        .modal-content { position: relative; display: flex; flex-direction: column; width: 100%; pointer-events: auto; background-color: #fff; background-clip: padding-box; border: 1px solid rgba(0,0,0,.2); border-radius: 12px; outline: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); border-top-left-radius: 12px; border-top-right-radius: 12px; }
+        .modal-title { margin-bottom: 0; line-height: 1.5; color: #fff; margin:0; }
+        .modal-body { position: relative; flex: 1 1 auto; padding: 1.5rem; color: #fff; }
+        .modal-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); border-bottom-right-radius: 12px; border-bottom-left-radius: 12px; }
+        .btn-close-white { background: transparent; border: 0; color: #fff; font-size: 1.5rem; cursor: pointer; opacity: 0.8; }
+        .btn-close-white:hover { opacity: 1; }
+        .alert-light { color: #fff; background-color: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; }
+        .list-group { display: flex; flex-direction: column; padding-left: 0; margin-bottom: 0; list-style-position: inside; }
+        .list-group-item { position: relative; display: block; padding: 0.5rem 1rem; color: #fff; text-decoration: none; background-color: transparent; border: 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .list-group-item:last-child { border-bottom: 0; }
+        .d-flex { display: flex !important; }
+        .align-items-center { align-items: center !important; }
+        .gap-3 { gap: 1rem !important; }
+        .fw-bold { font-weight: 700 !important; }
+        .mb-4 { margin-bottom: 1.5rem !important; }
+        .p-4 { padding: 1.5rem !important; }
+        .px-5 { padding-left: 3rem !important; padding-right: 3rem !important; }
+        .py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+        .btn-light { color: #7f1d1d; background-color: #f8f9fa; border-color: #f8f9fa; display: inline-block; font-weight: 700; text-align: center; vertical-align: middle; cursor: pointer; user-select: none; border: 1px solid transparent; border-radius: 8px; transition: color .15s ease-in-out,background-color .15s ease-in-out; }
+        .btn-light:hover { color: #7f1d1d; background-color: #e2e6ea; border-color: #dae0e5; }
+        .border-4 { border-width: 4px !important; border-style: solid; }
+        .border-danger { border-color: #dc3545 !important; }
+        .shadow-lg { box-shadow: 0 1rem 3rem rgba(0,0,0,.175) !important; }
+        .modal-content.border-danger { border-color: #f87171 !important; }
+
         @media (max-width: 768px) { .bz-stats { grid-template-columns: repeat(2, 1fr); } .inc-toolbar select { flex: 1 1 45%; min-width: 0; } }
     </style>
 </head>
@@ -93,7 +123,7 @@
         <a href="/employees">👥 الموظفين</a>
         <a href="/search">🔍 بحث</a>
         <a href="/records">📁 التوثيق</a>
-        <a href="/incidents" class="active">🚨 الحوادث والمخالفات</a>
+        <a href="/incidents" class="active">🚨 سجل الحركة الموحد</a>
         <a href="/gps_sync">📡 مزامنة GPS</a>
         <a href="/tracking">🛰️ التتبع</a>
         <a href="/cameras">📹 الكاميرات</a>
@@ -105,10 +135,50 @@
 
     <div class="bz-shell">
 
-    <h2 class="bz-section-title">🚨 الحوادث والمخالفات — قسم الحركة</h2>
+    <!-- Modal تنبيه هام جداً - حوادث المركبات -->
+    <div class="modal fade" id="importantAccidentModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content border-4 border-danger shadow-lg" style="background: linear-gradient(135deg, #7f1d1d, #991b1b); color: #fee2e2;">
+                <div class="modal-header border-0">
+                    <h3 class="modal-title fw-bold d-flex align-items-center gap-3">
+                        <span style="font-size: 2rem;">⚠️</span>
+                        توجيه إداري هام جداً
+                    </h3>
+                    <button type="button" class="btn-close-white" data-bs-dismiss="modal" aria-label="Close">✖</button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border-0 mb-4" style="background: rgba(255,255,255,0.15);">
+                        <strong>بخصوص حوادث المركبات (لا سمح الله)</strong>
+                    </div>
+                    <ol class="list-group list-group-numbered" style="font-size: 1.1rem; line-height: 2;">
+                        <li class="list-group-item bg-transparent border-0 text-light">يجب إرسال تقرير فوري عن أي حادث.</li>
+                        <li class="list-group-item bg-transparent border-0 text-light">إرفاق صور واضحة للسيارة والحادث من جميع الجهات.</li>
+                        <li class="list-group-item bg-transparent border-0 text-light">ذكر اسم السائق ووصف إصابات السيارة.</li>
+                        <li class="list-group-item bg-transparent border-0 text-light">شرح مفصل + تقرير كامل عن الحادث.</li>
+                        <li class="list-group-item bg-transparent border-0 text-light">توضيح نسبة الخطأ التقريبية.</li>
+                        <li class="list-group-item bg-transparent border-0 text-light">تحديد مكان الإصلاح والمدة المتوقعة وطريقة التكلفة.</li>
+                        <li class="list-group-item bg-transparent border-0 text-light">إرسال أي معلومات إضافية مهمة.</li>
+                        <li class="list-group-item bg-transparent border-0 text-light">يُرسل التقرير مباشرة إلى <strong>المدير العام</strong> + صورة إلى مسؤول السيارات والحركة.</li>
+                        <li class="list-group-item bg-transparent border-0 text-light">يجب التوقيع من المتسبب + مدير الفرع أو مسؤول الحركة.</li>
+                    </ol>
+                </div>
+                <div class="modal-footer border-0 justify-content-between">
+                    <div class="text-light">
+                        <strong>المدير العام</strong><br>
+                        خالد بن زومة
+                    </div>
+                    <button type="button" class="btn btn-light px-5 py-2 fw-bold" data-bs-dismiss="modal">
+                        فهمت وأتعهد بالالتزام
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="bz-section-title">🚨 سجل الحركة الموحد (السجل الزمني) — قسم الحركة</h2>
 
     <div class="inc-intro">
-        <strong>سجل الحوادث والمخالفات الإداري.</strong>
+        <strong>سجل الحركة الموحد.</strong>
         يوثّق كل واقعة (حادث، مخالفة مرورية أو جسيمة، إنذار، تحقيق إداري، استلام وتسليم، صيانة) برقم مرجع وتاريخ ومستوى خطورة ومسؤول وحالة إجراء —
         مع إمكانية <strong>إرفاق المستندات (PDF/صور) داخل النظام</strong> فتبقى محفوظة بشكل دائم. هذا السجل مرجعية رسمية تحمي قسم الحركة عند أي مساءلة.
     </div>
@@ -630,7 +700,32 @@
         });
     }
 
-    window.addEventListener('load', init);
+    window.addEventListener('load', () => {
+        init();
+        if (!localStorage.getItem('hasSeenAccidentModal')) {
+            // Need bootstrap JS for modal. We will use vanilla JS since bootstrap.Modal might not be loaded if not using standard bootstrap layout
+            const modalEl = document.getElementById('importantAccidentModal');
+            if (modalEl) {
+                // If bootstrap is available
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                } else {
+                    // Fallback to simple display block if bootstrap JS is not present
+                    modalEl.style.display = 'block';
+                    modalEl.style.background = 'rgba(0,0,0,0.5)';
+                    modalEl.classList.add('show');
+                    
+                    const closeBtns = modalEl.querySelectorAll('[data-bs-dismiss="modal"]');
+                    closeBtns.forEach(btn => btn.onclick = () => {
+                        modalEl.style.display = 'none';
+                        modalEl.classList.remove('show');
+                    });
+                }
+                localStorage.setItem('hasSeenAccidentModal', 'true');
+            }
+        }
+    });
 </script>
 </body>
 </html>
