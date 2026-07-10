@@ -121,6 +121,13 @@ def add_header(response):
     response.headers["Expires"] = "0"
     return response
 
+@app.route('/sw.js')
+def service_worker():
+    return app.send_static_file('sw.js')
+
+@app.route('/manifest.json')
+def manifest():
+    return app.send_static_file('manifest.json')
 
 # Security Decorator (defined early so it is available to all routes below)
 WS_PREFIX = "/importantworkstation"

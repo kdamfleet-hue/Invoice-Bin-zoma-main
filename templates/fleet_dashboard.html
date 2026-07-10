@@ -1,164 +1,476 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>لوحة التحكم المركزية بالأسطول | شركة بن زومة</title>
-  <meta name="description" content="لوحة القيادة المركزية لإدارة بيانات السائقين والمركبات مع مؤشرات الترابط والمزامنة الذكية">
+  <meta name="description"
+    content="لوحة القيادة المركزية لإدارة بيانات السائقين والمركبات مع مؤشرات الترابط والمزامنة الذكية">
+  <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=30) }}">
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <script defer src="{{ url_for('static', filename='app_ux.js', v=30) }}"></script>
-  <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+  <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch | tojson }}; window.BZ_SNAP_TAB = {{ snap_tab | tojson }};</script>
   <style>
     /* ══════════════════════════════════════════════════════════════════
        FLEET DASHBOARD — Luxury Intelligence Theme
        ══════════════════════════════════════════════════════════════════ */
     :root {
-      --fd-bg:       #111318;
-      --fd-surface:  #1c1f26;
+      --fd-bg: #111318;
+      --fd-surface: #1c1f26;
       --fd-surface2: #22262f;
-      --fd-border:   #2e3340;
-      --fd-gold:     #c5a059;
-      --fd-gold2:    #e0c489;
-      --fd-text:     #f0ede6;
-      --fd-muted:    #8a8d96;
-      --fd-red:      #ef4444;
-      --fd-green:    #22c55e;
-      --fd-orange:   #f97316;
+      --fd-border: #2e3340;
+      --fd-gold: #c5a059;
+      --fd-gold2: #e0c489;
+      --fd-text: #f0ede6;
+      --fd-muted: #8a8d96;
+      --fd-red: #ef4444;
+      --fd-green: #22c55e;
+      --fd-orange: #f97316;
     }
 
-    .fd-shell { background: var(--fd-bg); min-height: 100vh; padding: 0 0 3rem; color: var(--fd-text); font-family: 'Tajawal', sans-serif; }
+    .fd-shell {
+      background: var(--fd-bg);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+      color: var(--fd-text);
+      font-family: 'Tajawal', sans-serif;
+    }
 
     /* ── Header Strip ── */
     .fd-header {
       background: linear-gradient(135deg, #1a1a1a 0%, #252525 50%, #1a1a1a 100%);
       border-bottom: 2px solid var(--fd-gold);
       padding: 18px 28px;
-      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-      position: sticky; top: 64px; z-index: 100;
-      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 64px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, .5);
     }
-    .fd-header-title { display: flex; align-items: center; gap: 14px; }
+
+    .fd-header-title {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
     .fd-header-icon {
-      width: 44px; height: 44px; border-radius: 10px; background: var(--fd-gold);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: var(--fd-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
-    .fd-header-icon svg { color: #1a1a1a; }
-    .fd-header h1 { font-size: 1.25rem; font-weight: 800; color: var(--fd-gold2); margin: 0; letter-spacing: .3px; }
-    .fd-header h1 span { display: block; font-size: .78rem; font-weight: 400; color: var(--fd-muted); margin-top: 2px; }
-    .fd-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .fd-header-icon svg {
+      color: #1a1a1a;
+    }
+
+    .fd-header h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--fd-gold2);
+      margin: 0;
+      letter-spacing: .3px;
+    }
+
+    .fd-header h1 span {
+      display: block;
+      font-size: .78rem;
+      font-weight: 400;
+      color: var(--fd-muted);
+      margin-top: 2px;
+    }
+
+    .fd-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
     /* ── Stat Bar ── */
     .fd-stats {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 14px; padding: 20px 28px 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+      padding: 20px 28px 0;
     }
+
     .fd-stat {
-      background: var(--fd-surface); border: 1px solid var(--fd-border); border-radius: 10px;
-      padding: 14px 16px; text-align: center; position: relative; overflow: hidden;
+      background: var(--fd-surface);
+      border: 1px solid var(--fd-border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
       transition: border-color .2s;
     }
-    .fd-stat::before { content:''; position:absolute; top:0; right:0; left:0; height:2px; background:var(--fd-gold); }
-    .fd-stat:hover { border-color: var(--fd-gold); }
-    .fd-stat .st-val { font-size: 1.8rem; font-weight: 800; color: var(--fd-gold2); line-height: 1; }
-    .fd-stat .st-lbl { font-size: .78rem; color: var(--fd-muted); margin-top: 5px; }
+
+    .fd-stat::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 2px;
+      background: var(--fd-gold);
+    }
+
+    .fd-stat:hover {
+      border-color: var(--fd-gold);
+    }
+
+    .fd-stat .st-val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--fd-gold2);
+      line-height: 1;
+    }
+
+    .fd-stat .st-lbl {
+      font-size: .78rem;
+      color: var(--fd-muted);
+      margin-top: 5px;
+    }
 
     /* ── Section / Card ── */
     .fd-card {
-      margin: 20px 28px 0; background: var(--fd-surface); border: 1px solid var(--fd-border);
-      border-radius: 12px; overflow: hidden;
+      margin: 20px 28px 0;
+      background: var(--fd-surface);
+      border: 1px solid var(--fd-border);
+      border-radius: 12px;
+      overflow: hidden;
     }
+
     .fd-card-head {
       background: linear-gradient(90deg, var(--fd-surface2), var(--fd-surface));
-      border-bottom: 1px solid var(--fd-border); padding: 14px 20px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      border-bottom: 1px solid var(--fd-border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
     }
-    .fd-card-head h2 { font-size: 1rem; font-weight: 700; color: var(--fd-gold2); margin: 0; display: flex; align-items: center; gap: 8px; }
-    .fd-card-body { padding: 0; overflow-x: auto; overflow-y: auto; max-height: 70vh; }
+
+    .fd-card-head h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--fd-gold2);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .fd-card-body {
+      padding: 0;
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 70vh;
+    }
 
     /* ── Driver Table ── */
-    .fd-table { width: 100%; min-width: 1300px; border-collapse: collapse; font-size: .82rem; }
+    .fd-table {
+      width: 100%;
+      min-width: 1300px;
+      border-collapse: collapse;
+      font-size: .82rem;
+    }
+
     .fd-table thead th {
-      background: #1a1a1a; color: var(--fd-gold); font-weight: 700; padding: 10px 10px;
-      border-bottom: 1px solid var(--fd-gold); white-space: nowrap; text-align: right; position: sticky; top: 0;
+      background: #1a1a1a;
+      color: var(--fd-gold);
+      font-weight: 700;
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--fd-gold);
+      white-space: nowrap;
+      text-align: right;
+      position: sticky;
+      top: 0;
     }
+
     .fd-table thead th.grp {
-      background: #111318; color: var(--fd-muted); font-size: .72rem; font-weight: 600;
-      text-align: center; padding: 6px; border-bottom: 1px solid var(--fd-border); letter-spacing: .5px;
+      background: #111318;
+      color: var(--fd-muted);
+      font-size: .72rem;
+      font-weight: 600;
+      text-align: center;
+      padding: 6px;
+      border-bottom: 1px solid var(--fd-border);
+      letter-spacing: .5px;
     }
-    .fd-table thead th.grp.gold { color: var(--fd-gold); border-bottom-color: var(--fd-gold); }
-    .fd-table tbody tr { border-bottom: 1px solid var(--fd-border); transition: background .15s; }
-    .fd-table tbody tr:hover { background: rgba(197,160,89,.07); }
-    .fd-table tbody td { padding: 9px 10px; color: var(--fd-text); vertical-align: middle; }
-    .fd-table tbody td.idx { color: var(--fd-muted); font-size: .75rem; text-align: center; width: 32px; }
-    .fd-table tbody td.name { font-weight: 700; color: var(--fd-gold2); }
-    .fd-table tbody td.plate { font-family: 'Courier New', monospace; direction: ltr; unicode-bidi: plaintext; }
-    .fd-table .empty-row td { text-align: center; padding: 2.5rem; color: var(--fd-muted); }
+
+    .fd-table thead th.grp.gold {
+      color: var(--fd-gold);
+      border-bottom-color: var(--fd-gold);
+    }
+
+    .fd-table tbody tr {
+      border-bottom: 1px solid var(--fd-border);
+      transition: background .15s;
+    }
+
+    .fd-table tbody tr:hover {
+      background: rgba(197, 160, 89, .07);
+    }
+
+    .fd-table tbody td {
+      padding: 9px 10px;
+      color: var(--fd-text);
+      vertical-align: middle;
+    }
+
+    .fd-table tbody td.idx {
+      color: var(--fd-muted);
+      font-size: .75rem;
+      text-align: center;
+      width: 32px;
+    }
+
+    .fd-table tbody td.name {
+      font-weight: 700;
+      color: var(--fd-gold2);
+    }
+
+    .fd-table tbody td.plate {
+      font-family: 'Courier New', monospace;
+      direction: ltr;
+      unicode-bidi: plaintext;
+    }
+
+    .fd-table .empty-row td {
+      text-align: center;
+      padding: 2.5rem;
+      color: var(--fd-muted);
+    }
 
     /* ── Integrity Badges ── */
-    .ib-wrap { display: flex; gap: 4px; flex-wrap: wrap; min-width: 220px; }
-    .ib {
-      display: inline-flex; align-items: center; gap: 3px;
-      padding: 2px 7px; border-radius: 20px; font-size: .68rem; font-weight: 700;
-      white-space: nowrap; transition: all .2s;
+    .ib-wrap {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      min-width: 220px;
     }
-    .ib.found  { background: rgba(34,197,94,.15);  border: 1px solid rgba(34,197,94,.4);  color: #22c55e; }
-    .ib.absent { background: rgba(100,100,120,.08); border: 1px solid rgba(100,100,120,.2); color: var(--fd-muted); opacity: .6; }
-    .ib svg { flex-shrink: 0; }
+
+    .ib {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-size: .68rem;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: all .2s;
+    }
+
+    .ib.found {
+      background: rgba(34, 197, 94, .15);
+      border: 1px solid rgba(34, 197, 94, .4);
+      color: #22c55e;
+    }
+
+    .ib.absent {
+      background: rgba(100, 100, 120, .08);
+      border: 1px solid rgba(100, 100, 120, .2);
+      color: var(--fd-muted);
+      opacity: .6;
+    }
+
+    .ib svg {
+      flex-shrink: 0;
+    }
 
     /* ── Search + Filter ── */
-    .fd-search-bar { padding: 14px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .fd-search-bar input {
-      flex: 1; min-width: 220px; background: var(--fd-surface2); border: 1px solid var(--fd-border);
-      border-radius: 8px; padding: 9px 14px; color: var(--fd-text); font-size: .9rem; font-family: 'Tajawal', sans-serif;
+    .fd-search-bar {
+      padding: 14px 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
     }
-    .fd-search-bar input:focus { border-color: var(--fd-gold); outline: none; }
+
+    .fd-search-bar input {
+      flex: 1;
+      min-width: 220px;
+      background: var(--fd-surface2);
+      border: 1px solid var(--fd-border);
+      border-radius: 8px;
+      padding: 9px 14px;
+      color: var(--fd-text);
+      font-size: .9rem;
+      font-family: 'Tajawal', sans-serif;
+    }
+
+    .fd-search-bar input:focus {
+      border-color: var(--fd-gold);
+      outline: none;
+    }
 
     /* ── Sync Modal ── */
     .fd-sync-modal {
-      position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 4000;
-      display: flex; align-items: center; justify-content: center;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .7);
+      z-index: 4000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .fd-sync-modal.hidden { display: none; }
+
+    .fd-sync-modal.hidden {
+      display: none;
+    }
+
     .fd-sync-box {
-      background: var(--fd-surface); border: 1px solid var(--fd-gold); border-radius: 14px;
-      padding: 28px; width: 90%; max-width: 480px; box-shadow: 0 24px 64px rgba(0,0,0,.7);
+      background: var(--fd-surface);
+      border: 1px solid var(--fd-gold);
+      border-radius: 14px;
+      padding: 28px;
+      width: 90%;
+      max-width: 480px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, .7);
     }
-    .fd-sync-box h3 { color: var(--fd-gold2); margin: 0 0 10px; font-size: 1.15rem; }
-    .fd-sync-box p { color: var(--fd-muted); font-size: .88rem; line-height: 1.7; margin: 0 0 18px; }
-    .fd-sync-progress { background: var(--fd-surface2); border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 14px; }
-    .fd-sync-bar { height: 100%; background: linear-gradient(90deg, var(--fd-gold), var(--fd-gold2)); border-radius: 8px; width: 0%; transition: width .4s ease; }
-    .fd-sync-log { background: rgba(0,0,0,.3); border-radius: 8px; padding: 12px; font-size: .8rem; color: var(--fd-muted); max-height: 140px; overflow-y: auto; font-family: 'Courier New', monospace; direction: ltr; }
+
+    .fd-sync-box h3 {
+      color: var(--fd-gold2);
+      margin: 0 0 10px;
+      font-size: 1.15rem;
+    }
+
+    .fd-sync-box p {
+      color: var(--fd-muted);
+      font-size: .88rem;
+      line-height: 1.7;
+      margin: 0 0 18px;
+    }
+
+    .fd-sync-progress {
+      background: var(--fd-surface2);
+      border-radius: 8px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .fd-sync-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--fd-gold), var(--fd-gold2));
+      border-radius: 8px;
+      width: 0%;
+      transition: width .4s ease;
+    }
+
+    .fd-sync-log {
+      background: rgba(0, 0, 0, .3);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: .8rem;
+      color: var(--fd-muted);
+      max-height: 140px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      direction: ltr;
+    }
 
     /* ── Buttons override for dark theme ── */
     .fd-shell .btn-primary {
-      background: linear-gradient(135deg, var(--fd-gold), var(--fd-gold2)); color: #1a1a1a;
-      border-radius: 8px; padding: 9px 18px; font-size: .88rem; font-weight: 700; border: none; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 7px; transition: filter .2s;
+      background: linear-gradient(135deg, var(--fd-gold), var(--fd-gold2));
+      color: #1a1a1a;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: .88rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: filter .2s;
     }
-    .fd-shell .btn-primary:hover { filter: brightness(1.1); }
+
+    .fd-shell .btn-primary:hover {
+      filter: brightness(1.1);
+    }
+
     .fd-shell .btn-outline {
-      background: transparent; border: 1px solid var(--fd-border); color: var(--fd-text);
-      border-radius: 8px; padding: 9px 18px; font-size: .88rem; font-weight: 600; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 7px; transition: border-color .2s, background .2s;
+      background: transparent;
+      border: 1px solid var(--fd-border);
+      color: var(--fd-text);
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: border-color .2s, background .2s;
     }
-    .fd-shell .btn-outline:hover { border-color: var(--fd-gold); background: rgba(197,160,89,.08); }
+
+    .fd-shell .btn-outline:hover {
+      border-color: var(--fd-gold);
+      background: rgba(197, 160, 89, .08);
+    }
+
     .fd-shell .btn-sync {
-      background: linear-gradient(135deg, #16213e, #0f3460); border: 1px solid rgba(100,180,255,.3);
-      color: #60a5fa; border-radius: 8px; padding: 9px 18px; font-size: .88rem; font-weight: 700; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 7px; transition: all .2s;
+      background: linear-gradient(135deg, #16213e, #0f3460);
+      border: 1px solid rgba(100, 180, 255, .3);
+      color: #60a5fa;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: .88rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: all .2s;
     }
-    .fd-shell .btn-sync:hover { border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,.2); }
+
+    .fd-shell .btn-sync:hover {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, .2);
+    }
+
     .fd-shell .btn-danger-sm {
-      background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3); color: #f87171;
-      border-radius: 6px; padding: 5px 12px; font-size: .8rem; font-weight: 700; cursor: pointer;
+      background: rgba(239, 68, 68, .12);
+      border: 1px solid rgba(239, 68, 68, .3);
+      color: #f87171;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: .8rem;
+      font-weight: 700;
+      cursor: pointer;
     }
-    .fd-shell .btn-danger-sm:hover { background: #ef4444; color: #fff; }
+
+    .fd-shell .btn-danger-sm:hover {
+      background: #ef4444;
+      color: #fff;
+    }
 
     /* ── Toast override ── */
-    .fd-shell .bz-topbar { position: sticky; top: 0; z-index: 200; }
+    .fd-shell .bz-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
   </style>
 </head>
+
 <body>
 
   <!-- Top Navigation (shared component) -->
@@ -179,7 +491,9 @@
     </nav>
     <div class="bz-actions">
       <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
       </button>
       <a href="/logout" class="bz-logout">خروج</a>
     </div>
@@ -191,9 +505,12 @@
     <div class="fd-header">
       <div class="fd-header-title">
         <div class="fd-header-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-            <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="3" width="15" height="13" />
+            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+            <circle cx="5.5" cy="18.5" r="2.5" />
+            <circle cx="18.5" cy="18.5" r="2.5" />
           </svg>
         </div>
         <h1>لوحة التحكم المركزية بالأسطول
@@ -202,15 +519,30 @@
       </div>
       <div class="fd-toolbar">
         <button class="btn-sync" onclick="openSyncModal()" id="syncBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
           مزامنة ذكية
         </button>
         <button class="btn-outline" onclick="exportFleetExcel()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
           تصدير Excel
         </button>
         <button class="btn-outline" onclick="window.print()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
+          </svg>
           طباعة
         </button>
       </div>
@@ -218,38 +550,64 @@
 
     <!-- ── Stat Bar ── -->
     <div class="fd-stats">
-      <div class="fd-stat"><div class="st-val" id="stTotal">—</div><div class="st-lbl">إجمالي السائقين</div></div>
-      <div class="fd-stat"><div class="st-val" id="stActive" style="color:#22c55e">—</div><div class="st-lbl">نشطون (في الجدول)</div></div>
-      <div class="fd-stat"><div class="st-val" id="stAbsent" style="color:#f97316">—</div><div class="st-lbl">غير مجدولين</div></div>
-      <div class="fd-stat"><div class="st-val" id="stExpiring" style="color:#ef4444">—</div><div class="st-lbl">وثائق منتهية أو قريبة</div></div>
-      <div class="fd-stat"><div class="st-val" id="stVehicles">—</div><div class="st-lbl">مركبات مسجلة</div></div>
+      <div class="fd-stat">
+        <div class="st-val" id="stTotal">—</div>
+        <div class="st-lbl">إجمالي السائقين</div>
+      </div>
+      <div class="fd-stat">
+        <div class="st-val" id="stActive" style="color:#22c55e">—</div>
+        <div class="st-lbl">نشطون (في الجدول)</div>
+      </div>
+      <div class="fd-stat">
+        <div class="st-val" id="stAbsent" style="color:#f97316">—</div>
+        <div class="st-lbl">غير مجدولين</div>
+      </div>
+      <div class="fd-stat">
+        <div class="st-val" id="stExpiring" style="color:#ef4444">—</div>
+        <div class="st-lbl">وثائق منتهية أو قريبة</div>
+      </div>
+      <div class="fd-stat">
+        <div class="st-val" id="stVehicles">—</div>
+        <div class="st-lbl">مركبات مسجلة</div>
+      </div>
     </div>
 
     <!-- ── Main Fleet Table ── -->
     <div class="fd-card" style="margin-top:20px;">
       <div class="fd-card-head">
         <h2>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
           سجل الأسطول الكامل
         </h2>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <span class="fd-stat" style="padding:6px 14px;margin:0;border-radius:20px;font-size:.8rem;" id="tableCount">0 سائق</span>
+          <span class="fd-stat" style="padding:6px 14px;margin:0;border-radius:20px;font-size:.8rem;" id="tableCount">0
+            سائق</span>
           <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--fd-muted);cursor:pointer;">
-            <input type="checkbox" id="toggleBadges" checked onchange="rerenderTable()" style="accent-color:var(--fd-gold);"> مؤشرات الترابط
+            <input type="checkbox" id="toggleBadges" checked onchange="rerenderTable()"
+              style="accent-color:var(--fd-gold);"> مؤشرات الترابط
           </label>
         </div>
       </div>
 
       <!-- Search bar -->
       <div class="fd-search-bar">
-        <input type="text" id="fdSearch" placeholder="🔍 بحث بالاسم / اللوحة / الرقم الوظيفي / الإقامة / الجوال..." oninput="filterTable(this.value)">
+        <input type="text" id="fdSearch" placeholder="🔍 بحث بالاسم / اللوحة / الرقم الوظيفي / الإقامة / الجوال..."
+          oninput="filterTable(this.value)">
       </div>
 
       <div class="fd-card-body">
         <table class="fd-table" id="fleetTable">
           <thead id="fleetHead"></thead>
           <tbody id="fleetBody">
-            <tr class="empty-row"><td colspan="20">جارٍ تحميل البيانات…</td></tr>
+            <tr class="empty-row">
+              <td colspan="20">جارٍ تحميل البيانات…</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -261,16 +619,31 @@
   <div class="fd-sync-modal hidden" id="syncModal">
     <div class="fd-sync-box">
       <h3>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-left:6px;color:var(--fd-gold)"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round"
+          style="vertical-align:middle;margin-left:6px;color:var(--fd-gold)">
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
         مزامنة ذكية شاملة
       </h3>
-      <p>ستقوم هذه العملية بضبط ومطابقة الأسماء وأرقام اللوحات في جميع صفحات الموقع (الغسيل، الزيوت، الورشة، المشتريات...) بناءً على سجل السائقين الرئيسي. <strong style="color:var(--fd-gold)">لا يمكن التراجع عنها.</strong></p>
-      <div class="fd-sync-progress"><div class="fd-sync-bar" id="syncBar"></div></div>
+      <p>ستقوم هذه العملية بضبط ومطابقة الأسماء وأرقام اللوحات في جميع صفحات الموقع (الغسيل، الزيوت، الورشة،
+        المشتريات...) بناءً على سجل السائقين الرئيسي. <strong style="color:var(--fd-gold)">لا يمكن التراجع
+          عنها.</strong></p>
+      <div class="fd-sync-progress">
+        <div class="fd-sync-bar" id="syncBar"></div>
+      </div>
       <div class="fd-sync-log" id="syncLog">في انتظار بدء المزامنة...</div>
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
         <button class="btn-outline" onclick="closeSyncModal()">إغلاق</button>
         <button class="btn-primary" id="startSyncBtn" onclick="startSmartSync()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
           بدء المزامنة
         </button>
       </div>
@@ -278,125 +651,125 @@
   </div>
 
   <script>
-  // ═══════════════════════════════════════════════════════════════════
-  //  Fleet Dashboard — Intelligence & Integrity Engine
-  // ═══════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
+    //  Fleet Dashboard — Intelligence & Integrity Engine
+    // ═══════════════════════════════════════════════════════════════════
 
-  const BADGE_SOURCES = [
-    { key: 'schedule',  label: 'الجدول',      api: '/api/schedule_data' },
-    { key: 'washing',   label: 'الغسيل',       api: '/api/washing_data' },
-    { key: 'oils',      label: 'الزيوت',       api: '/api/oils_data' },
-    { key: 'purchase',  label: 'المشتريات',    api: '/api/purchase_data' },
-    { key: 'workshop',  label: 'الورشة',       api: '/api/workshop_data' },
-    { key: 'incidents', label: 'الحوادث',      api: '/api/incidents' },
-    { key: 'records',   label: 'التوثيق',      api: '/api/records' },
-    { key: 'handover',  label: 'العهدة',       api: '/api/handover/list' },
-  ];
+    const BADGE_SOURCES = [
+      { key: 'schedule', label: 'الجدول', api: '/api/schedule_data' },
+      { key: 'washing', label: 'الغسيل', api: '/api/washing_data' },
+      { key: 'oils', label: 'الزيوت', api: '/api/oils_data' },
+      { key: 'purchase', label: 'المشتريات', api: '/api/purchase_data' },
+      { key: 'workshop', label: 'الورشة', api: '/api/workshop_data' },
+      { key: 'incidents', label: 'الحوادث', api: '/api/incidents' },
+      { key: 'records', label: 'التوثيق', api: '/api/records' },
+      { key: 'handover', label: 'العهدة', api: '/api/handover/list' },
+    ];
 
-  let allDrivers = [];
-  let filteredDrivers = [];
-  let presenceMap = {}; // driver name (normalized) → Set of source keys
+    let allDrivers = [];
+    let filteredDrivers = [];
+    let presenceMap = {}; // driver name (normalized) → Set of source keys
 
-  const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
-  // ── Load fleet data ──────────────────────────────────────────────
-  async function loadFleet() {
-    try {
-      const r = await fetch('/api/fleet_data');
-      const j = await r.json();
-      allDrivers = Array.isArray(j) ? j : (j.data || j.drivers || []);
-    } catch (e) {
-      allDrivers = [];
-    }
-  }
-
-  // ── Load all source data to build presence map ──────────────────
-  async function buildPresenceMap() {
-    presenceMap = {};
-
-    // Extract driver names from each source
-    const extractNames = (data, src) => {
-      let names = [];
+    // ── Load fleet data ──────────────────────────────────────────────
+    async function loadFleet() {
       try {
-        const rows = Array.isArray(data) ? data : (data.data || data.rows || data.drivers || data.records || data.incidents || data.handovers || []);
-        rows.forEach(r => {
-          // Try common field names
-          ['name', 'driverName', 'driver_name', 'driver', 'employee', 'سائق', 'الاسم'].forEach(f => {
-            const v = r[f]; if (v) names.push(norm(v));
-          });
-          // Also check nested arrays (like schedule main/spare/vacation)
-          ['main', 'spare', 'vacation'].forEach(sec => {
-            if (Array.isArray(r[sec])) r[sec].forEach(row => { if (row.name) names.push(norm(row.name)); });
-          });
-          // Schedule data format: { title, main:[], spare:[], vacation:[] }
-          if (r.title !== undefined) {
-            ['main', 'spare', 'vacation'].forEach(sec => {
-              if (Array.isArray(data[sec])) data[sec].forEach(row => { if (row.name) names.push(norm(row.name)); });
-            });
-          }
-        });
-        // Handle schedule_data which is a single object {main:[], spare:[], vacation:[]}
-        ['main', 'spare', 'vacation'].forEach(sec => {
-          if (Array.isArray(data[sec])) data[sec].forEach(row => { if (row.name) names.push(norm(row.name)); });
-        });
-      } catch(e) {}
-      return names;
-    };
-
-    await Promise.allSettled(BADGE_SOURCES.map(async src => {
-      try {
-        const r = await fetch(src.api);
-        if (!r.ok) return;
+        const r = await fetch('/api/fleet_data');
         const j = await r.json();
-        const names = extractNames(j, src.key);
-        names.forEach(n => {
-          if (!presenceMap[n]) presenceMap[n] = new Set();
-          presenceMap[n].add(src.key);
-        });
-      } catch(e) {}
-    }));
-  }
+        allDrivers = Array.isArray(j) ? j : (j.data || j.drivers || []);
+      } catch (e) {
+        allDrivers = [];
+      }
+    }
 
-  // ── Render integrity badges ──────────────────────────────────────
-  function renderBadges(driverName) {
-    const showBadges = document.getElementById('toggleBadges')?.checked;
-    if (!showBadges) return '<span style="color:var(--fd-muted);font-size:.75rem;">—</span>';
-    const presence = presenceMap[norm(driverName)] || new Set();
-    return BADGE_SOURCES.map(src => {
-      const found = presence.has(src.key);
-      return `<span class="ib ${found ? 'found' : 'absent'}" title="${found ? 'موجود في ' : 'غير موجود في '} ${src.label}">
+    // ── Load all source data to build presence map ──────────────────
+    async function buildPresenceMap() {
+      presenceMap = {};
+
+      // Extract driver names from each source
+      const extractNames = (data, src) => {
+        let names = [];
+        try {
+          const rows = Array.isArray(data) ? data : (data.data || data.rows || data.drivers || data.records || data.incidents || data.handovers || []);
+          rows.forEach(r => {
+            // Try common field names
+            ['name', 'driverName', 'driver_name', 'driver', 'employee', 'سائق', 'الاسم'].forEach(f => {
+              const v = r[f]; if (v) names.push(norm(v));
+            });
+            // Also check nested arrays (like schedule main/spare/vacation)
+            ['main', 'spare', 'vacation'].forEach(sec => {
+              if (Array.isArray(r[sec])) r[sec].forEach(row => { if (row.name) names.push(norm(row.name)); });
+            });
+            // Schedule data format: { title, main:[], spare:[], vacation:[] }
+            if (r.title !== undefined) {
+              ['main', 'spare', 'vacation'].forEach(sec => {
+                if (Array.isArray(data[sec])) data[sec].forEach(row => { if (row.name) names.push(norm(row.name)); });
+              });
+            }
+          });
+          // Handle schedule_data which is a single object {main:[], spare:[], vacation:[]}
+          ['main', 'spare', 'vacation'].forEach(sec => {
+            if (Array.isArray(data[sec])) data[sec].forEach(row => { if (row.name) names.push(norm(row.name)); });
+          });
+        } catch (e) { }
+        return names;
+      };
+
+      await Promise.allSettled(BADGE_SOURCES.map(async src => {
+        try {
+          const r = await fetch(src.api);
+          if (!r.ok) return;
+          const j = await r.json();
+          const names = extractNames(j, src.key);
+          names.forEach(n => {
+            if (!presenceMap[n]) presenceMap[n] = new Set();
+            presenceMap[n].add(src.key);
+          });
+        } catch (e) { }
+      }));
+    }
+
+    // ── Render integrity badges ──────────────────────────────────────
+    function renderBadges(driverName) {
+      const showBadges = document.getElementById('toggleBadges')?.checked;
+      if (!showBadges) return '<span style="color:var(--fd-muted);font-size:.75rem;">—</span>';
+      const presence = presenceMap[norm(driverName)] || new Set();
+      return BADGE_SOURCES.map(src => {
+        const found = presence.has(src.key);
+        return `<span class="ib ${found ? 'found' : 'absent'}" title="${found ? 'موجود في ' : 'غير موجود في '} ${src.label}">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="${found ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5"><polyline points="${found ? '20 6 9 17 4 12' : '18 6 6 18'}"/>${!found ? '<line x1="6" y1="6" x2="18" y2="18"/>' : ''}</svg>
         ${src.label}
       </span>`;
-    }).join('');
-  }
+      }).join('');
+    }
 
-  // ── Date helpers ────────────────────────────────────────────────
-  function dateDiff(val) {
-    const m = String(val||'').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (!m) return null;
-    const d = new Date(+m[1], +m[2]-1, +m[3]);
-    if (isNaN(d)) return null;
-    const t = new Date(); t.setHours(0,0,0,0);
-    return Math.round((d-t)/86400000);
-  }
-  function dateTd(val) {
-    const d = dateDiff(val);
-    if (!val) return `<td style="color:var(--fd-muted)">—</td>`;
-    if (d === null) return `<td>${val}</td>`;
-    const cls = d < 0 ? 'color:#ef4444;font-weight:700' : d <= 30 ? 'color:#f97316;font-weight:700' : d <= 90 ? 'color:#eab308' : '';
-    const hint = d < 0 ? ' ⚠️' : d <= 30 ? ` (${d}ي)` : d <= 90 ? ` (${d}ي)` : '';
-    return `<td style="${cls}">${val}${hint}</td>`;
-  }
+    // ── Date helpers ────────────────────────────────────────────────
+    function dateDiff(val) {
+      const m = String(val || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!m) return null;
+      const d = new Date(+m[1], +m[2] - 1, +m[3]);
+      if (isNaN(d)) return null;
+      const t = new Date(); t.setHours(0, 0, 0, 0);
+      return Math.round((d - t) / 86400000);
+    }
+    function dateTd(val) {
+      const d = dateDiff(val);
+      if (!val) return `<td style="color:var(--fd-muted)">—</td>`;
+      if (d === null) return `<td>${val}</td>`;
+      const cls = d < 0 ? 'color:#ef4444;font-weight:700' : d <= 30 ? 'color:#f97316;font-weight:700' : d <= 90 ? 'color:#eab308' : '';
+      const hint = d < 0 ? ' ⚠️' : d <= 30 ? ` (${d}ي)` : d <= 90 ? ` (${d}ي)` : '';
+      return `<td style="${cls}">${val}${hint}</td>`;
+    }
 
-  // ── Build table header ───────────────────────────────────────────
-  function buildHead() {
-    const showBadges = document.getElementById('toggleBadges')?.checked;
-    const empCols = ['الرقم الوظيفي','الاسم','رقم الإقامة','الجوال','الوظيفة','بطاقة السائق','الملاحظات'];
-    const vehCols = ['رقم اللوحة','نوع المركبة','الموديل','الطبالي','الحمولة','التسلسلي','انتهاء الفحص','انتهاء الرخصة','انتهاء التشغيل','ملاحظات المركبة'];
-    const totalCols = 1 + empCols.length + vehCols.length + (showBadges ? 1 : 0) + 1;
+    // ── Build table header ───────────────────────────────────────────
+    function buildHead() {
+      const showBadges = document.getElementById('toggleBadges')?.checked;
+      const empCols = ['الرقم الوظيفي', 'الاسم', 'رقم الإقامة', 'الجوال', 'الوظيفة', 'بطاقة السائق', 'الملاحظات'];
+      const vehCols = ['رقم اللوحة', 'نوع المركبة', 'الموديل', 'الطبالي', 'الحمولة', 'التسلسلي', 'انتهاء الفحص', 'انتهاء الرخصة', 'انتهاء التشغيل', 'ملاحظات المركبة'];
+      const totalCols = 1 + empCols.length + vehCols.length + (showBadges ? 1 : 0) + 1;
 
-    let h = `<tr>
+      let h = `<tr>
       <th class="grp" rowspan="1" style="width:36px;">#</th>
       <th class="grp gold" colspan="${empCols.length}">بيانات الموظف</th>
       <th class="grp gold" colspan="${vehCols.length}">بيانات المركبة</th>
@@ -405,199 +778,202 @@
     </tr>
     <tr>
       <th>#</th>
-      ${empCols.map(c=>`<th>${c}</th>`).join('')}
-      ${vehCols.map(c=>`<th>${c}</th>`).join('')}
+      ${empCols.map(c => `<th>${c}</th>`).join('')}
+      ${vehCols.map(c => `<th>${c}</th>`).join('')}
       ${showBadges ? '<th>الظهور في الموقع</th>' : ''}
       <th></th>
     </tr>`;
-    document.getElementById('fleetHead').innerHTML = h;
-  }
-
-  // ── Render table body ────────────────────────────────────────────
-  function renderBody(rows) {
-    const showBadges = document.getElementById('toggleBadges')?.checked;
-    const body = document.getElementById('fleetBody');
-    if (!rows.length) {
-      body.innerHTML = `<tr class="empty-row"><td colspan="20">لا توجد نتائج</td></tr>`;
-      return;
+      document.getElementById('fleetHead').innerHTML = h;
     }
-    body.innerHTML = rows.map((d, i) => `
+
+    // ── Render table body ────────────────────────────────────────────
+    function renderBody(rows) {
+      const showBadges = document.getElementById('toggleBadges')?.checked;
+      const body = document.getElementById('fleetBody');
+      if (!rows.length) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="20">لا توجد نتائج</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows.map((d, i) => `
       <tr data-id="${d.id || i}">
-        <td class="idx">${i+1}</td>
-        <td style="font-size:.78rem;color:var(--fd-muted)">${d.empid||'—'}</td>
-        <td class="name">${d.name||'—'}</td>
-        <td style="font-size:.8rem">${d.iqama||'—'}</td>
-        <td style="font-size:.8rem">${d.phone||'—'}</td>
-        <td>${d.job||'—'}</td>
+        <td class="idx">${i + 1}</td>
+        <td style="font-size:.78rem;color:var(--fd-muted)">${d.empid || '—'}</td>
+        <td class="name">${d.name || '—'}</td>
+        <td style="font-size:.8rem">${d.iqama || '—'}</td>
+        <td style="font-size:.8rem">${d.phone || '—'}</td>
+        <td>${d.job || '—'}</td>
         ${dateTd(d.drivercard)}
-        <td style="color:var(--fd-muted);font-size:.78rem">${d.notes||d.empNotes||'—'}</td>
-        <td class="plate" style="font-weight:700;color:var(--fd-gold2)">${d.plate||'—'}</td>
-        <td>${d.car||'—'}</td>
-        <td>${d.model||'—'}</td>
-        <td>${d.pallets||'—'}</td>
-        <td>${d.load||'—'}</td>
-        <td style="font-size:.75rem">${d.vserial||'—'}</td>
+        <td style="color:var(--fd-muted);font-size:.78rem">${d.notes || d.empNotes || '—'}</td>
+        <td class="plate" style="font-weight:700;color:var(--fd-gold2)">${d.plate || '—'}</td>
+        <td>${d.car || '—'}</td>
+        <td>${d.model || '—'}</td>
+        <td>${d.pallets || '—'}</td>
+        <td>${d.load || '—'}</td>
+        <td style="font-size:.75rem">${d.vserial || '—'}</td>
         ${dateTd(d.inspect)}
         ${dateTd(d.license)}
         ${dateTd(d.opcard)}
-        <td style="color:var(--fd-muted);font-size:.78rem">${d.vnotes||'—'}</td>
+        <td style="color:var(--fd-muted);font-size:.78rem">${d.vnotes || '—'}</td>
         ${showBadges ? `<td><div class="ib-wrap">${renderBadges(d.name)}</div></td>` : ''}
         <td>
-          <button class="btn-danger-sm" onclick="deleteDriver(${d.id||i}, '${(d.name||'').replace(/'/g,'')}')" title="حذف">
+          <button class="btn-danger-sm" onclick="deleteDriver(${d.id || i}, '${(d.name || '').replace(/'/g, '')}')" title="حذف">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </td>
       </tr>`).join('');
-  }
-
-  // ── Filter ───────────────────────────────────────────────────────
-  function filterTable(q) {
-    q = (q||'').trim().toLowerCase();
-    filteredDrivers = q
-      ? allDrivers.filter(d => [d.name,d.empid,d.plate,d.iqama,d.phone,d.car].some(v=>String(v||'').toLowerCase().includes(q)))
-      : [...allDrivers];
-    renderBody(filteredDrivers);
-    document.getElementById('tableCount').textContent = filteredDrivers.length + ' سائق';
-  }
-
-  function rerenderTable() { buildHead(); renderBody(filteredDrivers); }
-
-  // ── Stats ────────────────────────────────────────────────────────
-  function updateStats() {
-    const total = allDrivers.length;
-    const withPlate = allDrivers.filter(d => d.plate).length;
-    // Count expiring: any date field within 90 days
-    let expiring = 0;
-    allDrivers.forEach(d => {
-      ['drivercard','inspect','license','opcard'].forEach(f => {
-        const diff = dateDiff(d[f]);
-        if (diff !== null && diff <= 30) expiring++;
-      });
-    });
-    // Active = those in schedule
-    const schedNames = new Set();
-    Object.values(presenceMap).forEach((srcs, idx) => { /* will set from presenceMap */ });
-    allDrivers.forEach(d => {
-      const presence = presenceMap[norm(d.name)] || new Set();
-      if (presence.has('schedule')) schedNames.add(d.name);
-    });
-    document.getElementById('stTotal').textContent    = total;
-    document.getElementById('stActive').textContent   = schedNames.size;
-    document.getElementById('stAbsent').textContent   = total - schedNames.size;
-    document.getElementById('stExpiring').textContent = expiring;
-    document.getElementById('stVehicles').textContent = withPlate;
-  }
-
-  // ── Delete driver ────────────────────────────────────────────────
-  async function deleteDriver(id, name) {
-    if (!window.bzConfirm) { if (!confirm(`حذف "${name}"؟`)) return; }
-    else if (!(await window.bzConfirm(`هل تريد حذف "${name}" من سجل الأسطول؟`))) return;
-    try {
-      const r = await fetch(`/api/drivers/${id}`, { method: 'DELETE' });
-      if (r.ok) {
-        allDrivers = allDrivers.filter(d => d.id !== id);
-        filterTable(document.getElementById('fdSearch').value);
-        updateStats();
-        if (window.showToast) showToast(`تم حذف "${name}" بنجاح`, 'success');
-      } else {
-        if (window.showToast) showToast('تعذّر الحذف', 'error');
-      }
-    } catch(e) { if (window.showToast) showToast('خطأ في الاتصال', 'error'); }
-  }
-
-  // ── Smart Sync Modal ─────────────────────────────────────────────
-  function openSyncModal() {
-    document.getElementById('syncModal').classList.remove('hidden');
-    document.getElementById('syncBar').style.width = '0%';
-    document.getElementById('syncLog').textContent = 'في انتظار بدء المزامنة...';
-    document.getElementById('startSyncBtn').disabled = false;
-  }
-  function closeSyncModal() {
-    document.getElementById('syncModal').classList.add('hidden');
-  }
-  async function startSmartSync() {
-    const btn = document.getElementById('startSyncBtn');
-    const bar = document.getElementById('syncBar');
-    const log = document.getElementById('syncLog');
-    btn.disabled = true;
-    log.textContent = '⏳ جارٍ إرسال طلب المزامنة...\n';
-    bar.style.width = '20%';
-    try {
-      const r = await fetch('/api/sync_all_from_drivers', { method: 'POST',
-        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-      bar.style.width = '70%';
-      const j = await r.json();
-      bar.style.width = '100%';
-      if (j.success) {
-        log.textContent += `✅ تمت المزامنة بنجاح\n${j.message || ''}\n`;
-        if (j.updated_count !== undefined) log.textContent += `📊 عدد السجلات المحدّثة: ${j.updated_count}\n`;
-        if (window.showToast) showToast('تمت المزامنة الذكية بنجاح', 'success');
-        // Reload fleet data to reflect changes
-        await init();
-      } else {
-        log.textContent += `❌ ${j.error || j.message || 'تعذّرت المزامنة'}\n`;
-        if (window.showToast) showToast(j.error || 'تعذّرت المزامنة', 'error');
-      }
-    } catch(e) {
-      bar.style.width = '100%';
-      log.textContent += `❌ خطأ في الاتصال: ${e.message}\n`;
-      if (window.showToast) showToast('خطأ في الاتصال بالخادم', 'error');
     }
-    btn.disabled = false;
-  }
 
-  // ── Export Excel ─────────────────────────────────────────────────
-  async function exportFleetExcel() {
-    if (window.showToast) showToast('جارٍ إعداد ملف Excel...', 'info');
-    try {
-      // Requires ExcelJS to be loaded — load on demand
-      if (!window.ExcelJS) {
-        await new Promise((res, rej) => {
-          const s = document.createElement('script');
-          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
-          s.onload = res; s.onerror = rej; document.head.appendChild(s);
-        });
-        await new Promise((res, rej) => {
-          const s = document.createElement('script');
-          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js';
-          s.onload = res; s.onerror = rej; document.head.appendChild(s);
-        });
-      }
-      const wb = new ExcelJS.Workbook();
-      wb.creator = 'بن زومة - نظام إدارة الأسطول';
-      const ws = wb.addWorksheet('الأسطول', { views:[{ rightToLeft:true }] });
-      const headers = ['#','الرقم الوظيفي','الاسم','رقم الإقامة','الجوال','الوظيفة','بطاقة السائق','ملاحظات','رقم اللوحة','نوع المركبة','الموديل','الطبالي','الحمولة','التسلسلي','انتهاء الفحص','انتهاء الرخصة','انتهاء التشغيل'];
-      ws.addRow(headers);
-      ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      ws.getRow(1).fill = { type:'pattern', pattern:'solid', fgColor:{ argb: 'FF1A1A1A' } };
-      allDrivers.forEach((d, i) => {
-        ws.addRow([i+1, d.empid||'', d.name||'', d.iqama||'', d.phone||'', d.job||'', d.drivercard||'', d.notes||d.empNotes||'', d.plate||'', d.car||'', d.model||'', d.pallets||'', d.load||'', d.vserial||'', d.inspect||'', d.license||'', d.opcard||'']);
-      });
-      [5,10,18,14,14,10,14,16,12,18,8,8,10,16,14,14,14].forEach((w,i) => { ws.getColumn(i+1).width = w; });
-      const buf = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `fleet_${new Date().toISOString().slice(0,10)}.xlsx`;
-      a.click();
-      if (window.showToast) showToast('تم تصدير بيانات الأسطول', 'success');
-    } catch(e) {
-      if (window.showToast) showToast('تعذّر التصدير: ' + e.message, 'error');
+    // ── Filter ───────────────────────────────────────────────────────
+    function filterTable(q) {
+      q = (q || '').trim().toLowerCase();
+      filteredDrivers = q
+        ? allDrivers.filter(d => [d.name, d.empid, d.plate, d.iqama, d.phone, d.car].some(v => String(v || '').toLowerCase().includes(q)))
+        : [...allDrivers];
+      renderBody(filteredDrivers);
+      document.getElementById('tableCount').textContent = filteredDrivers.length + ' سائق';
     }
-  }
 
-  // ── Init ─────────────────────────────────────────────────────────
-  async function init() {
-    document.getElementById('fleetBody').innerHTML = `<tr class="empty-row"><td colspan="20">جارٍ تحميل البيانات…</td></tr>`;
-    await Promise.all([loadFleet(), buildPresenceMap()]);
-    filteredDrivers = [...allDrivers];
-    buildHead();
-    renderBody(filteredDrivers);
-    updateStats();
-    document.getElementById('tableCount').textContent = filteredDrivers.length + ' سائق';
-  }
+    function rerenderTable() { buildHead(); renderBody(filteredDrivers); }
 
-  document.addEventListener('DOMContentLoaded', init);
+    // ── Stats ────────────────────────────────────────────────────────
+    function updateStats() {
+      const total = allDrivers.length;
+      const withPlate = allDrivers.filter(d => d.plate).length;
+      // Count expiring: any date field within 90 days
+      let expiring = 0;
+      allDrivers.forEach(d => {
+        ['drivercard', 'inspect', 'license', 'opcard'].forEach(f => {
+          const diff = dateDiff(d[f]);
+          if (diff !== null && diff <= 30) expiring++;
+        });
+      });
+      // Active = those in schedule
+      const schedNames = new Set();
+      Object.values(presenceMap).forEach((srcs, idx) => { /* will set from presenceMap */ });
+      allDrivers.forEach(d => {
+        const presence = presenceMap[norm(d.name)] || new Set();
+        if (presence.has('schedule')) schedNames.add(d.name);
+      });
+      document.getElementById('stTotal').textContent = total;
+      document.getElementById('stActive').textContent = schedNames.size;
+      document.getElementById('stAbsent').textContent = total - schedNames.size;
+      document.getElementById('stExpiring').textContent = expiring;
+      document.getElementById('stVehicles').textContent = withPlate;
+    }
+
+    // ── Delete driver ────────────────────────────────────────────────
+    async function deleteDriver(id, name) {
+      if (!window.bzConfirm) { if (!confirm(`حذف "${name}"؟`)) return; }
+      else if (!(await window.bzConfirm(`هل تريد حذف "${name}" من سجل الأسطول؟`))) return;
+      try {
+        const r = await fetch(`/api/drivers/${id}`, { method: 'DELETE' });
+        if (r.ok) {
+          allDrivers = allDrivers.filter(d => d.id !== id);
+          filterTable(document.getElementById('fdSearch').value);
+          updateStats();
+          if (window.showToast) showToast(`تم حذف "${name}" بنجاح`, 'success');
+        } else {
+          if (window.showToast) showToast('تعذّر الحذف', 'error');
+        }
+      } catch (e) { if (window.showToast) showToast('خطأ في الاتصال', 'error'); }
+    }
+
+    // ── Smart Sync Modal ─────────────────────────────────────────────
+    function openSyncModal() {
+      document.getElementById('syncModal').classList.remove('hidden');
+      document.getElementById('syncBar').style.width = '0%';
+      document.getElementById('syncLog').textContent = 'في انتظار بدء المزامنة...';
+      document.getElementById('startSyncBtn').disabled = false;
+    }
+    function closeSyncModal() {
+      document.getElementById('syncModal').classList.add('hidden');
+    }
+    async function startSmartSync() {
+      const btn = document.getElementById('startSyncBtn');
+      const bar = document.getElementById('syncBar');
+      const log = document.getElementById('syncLog');
+      btn.disabled = true;
+      log.textContent = '⏳ جارٍ إرسال طلب المزامنة...\n';
+      bar.style.width = '20%';
+      try {
+        const r = await fetch('/api/sync_all_from_drivers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+        });
+        bar.style.width = '70%';
+        const j = await r.json();
+        bar.style.width = '100%';
+        if (j.success) {
+          log.textContent += `✅ تمت المزامنة بنجاح\n${j.message || ''}\n`;
+          if (j.updated_count !== undefined) log.textContent += `📊 عدد السجلات المحدّثة: ${j.updated_count}\n`;
+          if (window.showToast) showToast('تمت المزامنة الذكية بنجاح', 'success');
+          // Reload fleet data to reflect changes
+          await init();
+        } else {
+          log.textContent += `❌ ${j.error || j.message || 'تعذّرت المزامنة'}\n`;
+          if (window.showToast) showToast(j.error || 'تعذّرت المزامنة', 'error');
+        }
+      } catch (e) {
+        bar.style.width = '100%';
+        log.textContent += `❌ خطأ في الاتصال: ${e.message}\n`;
+        if (window.showToast) showToast('خطأ في الاتصال بالخادم', 'error');
+      }
+      btn.disabled = false;
+    }
+
+    // ── Export Excel ─────────────────────────────────────────────────
+    async function exportFleetExcel() {
+      if (window.showToast) showToast('جارٍ إعداد ملف Excel...', 'info');
+      try {
+        // Requires ExcelJS to be loaded — load on demand
+        if (!window.ExcelJS) {
+          await new Promise((res, rej) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
+            s.onload = res; s.onerror = rej; document.head.appendChild(s);
+          });
+          await new Promise((res, rej) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js';
+            s.onload = res; s.onerror = rej; document.head.appendChild(s);
+          });
+        }
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'بن زومة - نظام إدارة الأسطول';
+        const ws = wb.addWorksheet('الأسطول', { views: [{ rightToLeft: true }] });
+        const headers = ['#', 'الرقم الوظيفي', 'الاسم', 'رقم الإقامة', 'الجوال', 'الوظيفة', 'بطاقة السائق', 'ملاحظات', 'رقم اللوحة', 'نوع المركبة', 'الموديل', 'الطبالي', 'الحمولة', 'التسلسلي', 'انتهاء الفحص', 'انتهاء الرخصة', 'انتهاء التشغيل'];
+        ws.addRow(headers);
+        ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A1A' } };
+        allDrivers.forEach((d, i) => {
+          ws.addRow([i + 1, d.empid || '', d.name || '', d.iqama || '', d.phone || '', d.job || '', d.drivercard || '', d.notes || d.empNotes || '', d.plate || '', d.car || '', d.model || '', d.pallets || '', d.load || '', d.vserial || '', d.inspect || '', d.license || '', d.opcard || '']);
+        });
+        [5, 10, 18, 14, 14, 10, 14, 16, 12, 18, 8, 8, 10, 16, 14, 14, 14].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `fleet_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        a.click();
+        if (window.showToast) showToast('تم تصدير بيانات الأسطول', 'success');
+      } catch (e) {
+        if (window.showToast) showToast('تعذّر التصدير: ' + e.message, 'error');
+      }
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────
+    async function init() {
+      document.getElementById('fleetBody').innerHTML = `<tr class="empty-row"><td colspan="20">جارٍ تحميل البيانات…</td></tr>`;
+      await Promise.all([loadFleet(), buildPresenceMap()]);
+      filteredDrivers = [...allDrivers];
+      buildHead();
+      renderBody(filteredDrivers);
+      updateStats();
+      document.getElementById('tableCount').textContent = filteredDrivers.length + ' سائق';
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
+
 </html>
