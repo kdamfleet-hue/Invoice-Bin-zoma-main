@@ -1827,7 +1827,7 @@
                     const sel = document.getElementById('dispensePart');
                     sel.innerHTML = '<option value="">-- اختر المادة --</option>';
                     availableParts.filter(p => p.quantity > 0).forEach(p => {
-                        sel.innerHTML += \`<option value="\${p.id}">\${p.name} (\${p.category})</option>\`;
+                        sel.innerHTML += `<option value="${p.id}">${p.name} (${p.category})</option>`;
                     });
                 }
             } catch(e) {}
@@ -1841,7 +1841,7 @@
                     const dsel = document.getElementById('dispenseDriver');
                     dsel.innerHTML = '<option value="">-- اختر السائق --</option>';
                     allDrivers.forEach(d => {
-                        dsel.innerHTML += \`<option value="\${d.plate}">\${d.name || ''} - \${d.plate || ''} (\${d.car || ''})</option>\`;
+                        dsel.innerHTML += `<option value="${d.plate}">${d.name || ''} - ${d.plate || ''} (${d.car || ''})</option>`;
                     });
                 }
             } catch(e) {}
@@ -1857,7 +1857,7 @@
             const info = document.getElementById('partStockInfo');
             const qtyInput = document.getElementById('dispenseQty');
             if(part) {
-                info.textContent = \`المتوفر في المستودع: \${part.quantity}\`;
+                info.textContent = `المتوفر في المستودع: ${part.quantity}`;
                 info.style.color = part.quantity <= 3 ? 'var(--danger)' : 'var(--primary)';
                 qtyInput.max = part.quantity;
                 document.getElementById('meterGroup').style.display = 'block';
@@ -1903,20 +1903,20 @@
                     if (part.category.includes('زيو') || part.name.includes('زيت')) {
                         liters = qty.toString();
                     } else {
-                        filtersStr = \`\${qty} \${part.name}\`;
+                        filtersStr = `${qty} ${part.name}`;
                     }
 
                     const tr = document.createElement('tr');
-                    tr.innerHTML = \`
-                        <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">\${rc}</td>
-                        <td class="excel-input" style="width:12%;"><input type="text" value="\${driver.plate}" onchange="autoSaveOils()"></td>
-                        <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="\${driver.name}" onchange="autoSaveOils()"></td>
-                        <td class="excel-input" style="width:14%;"><input type="date" value="\${dateStr}" onchange="autoSaveOils()"></td>
-                        <td class="excel-input" style="width:12%;"><input type="text" value="\${meter || '0'}" onchange="autoSaveOils()"></td>
-                        <td class="excel-input" style="width:12%;"><input type="text" value="\${liters}" onchange="autoSaveOils()"></td>
-                        <td class="excel-input" style="width:30%;"><input type="text" value="\${filtersStr}" onchange="autoSaveOils()"></td>
+                    tr.innerHTML = `
+                        <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">${rc}</td>
+                        <td class="excel-input" style="width:12%;"><input type="text" value="${driver.plate}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="${driver.name}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:14%;"><input type="date" value="${dateStr}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:12%;"><input type="text" value="${meter || '0'}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:12%;"><input type="text" value="${liters}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:30%;"><input type="text" value="${filtersStr}" onchange="autoSaveOils()"></td>
                         <td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
-                    \`;
+                    `;
                     tbody.insertBefore(tr, tbody.firstChild);
                     
                     autoSaveOils();

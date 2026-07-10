@@ -256,7 +256,7 @@
                     const price = parseFloat(p.unit_price) || 0;
                     const qty = parseInt(p.quantity) || 0;
                     const total = price * qty;
-                    return \`
+                    return `
                     <tr>
                         <td style="color:var(--text-muted);">${i+1}</td>
                         <td style="font-weight:bold; color:var(--primary);">${p.name}</td>
@@ -274,7 +274,7 @@
                             </div>
                         </td>
                     </tr>
-                \`}).join('');
+                `}).join('');
             }
             if(window.lucide) lucide.createIcons();
             updateStats();
@@ -343,7 +343,7 @@
                 supplier: document.getElementById('partSupplier').value
             };
 
-            const url = '/api/spare_parts' + (id ? \`/\${id}\` : '');
+            const url = '/api/spare_parts' + (id ? `/${id}` : '');
             
             try {
                 const r = await fetch(url, {
@@ -364,9 +364,9 @@
         }
 
         async function deletePart(id, name) {
-            if(!confirm(\`هل أنت متأكد من حذف \${name} نهائياً من المخزون؟\`)) return;
+            if(!confirm(`هل أنت متأكد من حذف ${name} نهائياً من المخزون؟`)) return;
             try {
-                const r = await fetch(\`/api/spare_parts/\${id}\`, {method: 'DELETE'});
+                const r = await fetch(`/api/spare_parts/${id}`, {method: 'DELETE'});
                 if(r.ok) {
                     if(window.showToast) showToast('تم الحذف بنجاح', 'success');
                     loadParts();
