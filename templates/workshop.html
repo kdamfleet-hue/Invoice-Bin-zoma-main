@@ -153,7 +153,7 @@
         }
 
         @media print {
-            .bz-topbar, .bz-sidebar, .action-bar { display: none !important; }
+            .bz-topbar, .bz-sidebar, .action-bar, .print-hide { display: none !important; }
             .bz-shell { margin: 0 !important; padding: 0 !important; }
             body { background: #fff !important; }
             .report-header { border-radius: 0 !important; border: 1px solid #000; background: #eee !important; color: #000 !important; text-shadow: none !important; }
@@ -260,6 +260,38 @@
             </table>
         </div>
 
+        <div class="parts-section" style="margin-top:1.5rem; background: rgba(30,30,30,0.6); padding:1rem; border-inline: 1px solid rgba(212, 175, 55, 0.15); border-top: 1px solid rgba(212, 175, 55, 0.15);">
+            <h3 style="color:var(--accent); margin-top:0; margin-bottom:1rem; text-align:center; font-size:1.1rem;">قطع الغيار المستهلكة (Spare Parts Used)</h3>
+            
+            <div class="print-hide" style="display:flex; gap:10px; margin-bottom:1rem; flex-wrap:wrap;">
+                <select id="partSelect" style="flex:1; padding:10px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.2); color:white; font-weight:600; outline:none; min-width:200px;">
+                    <option value="">-- جارِ تحميل المخزن --</option>
+                </select>
+                <input type="number" id="partQty" placeholder="الكمية" min="1" value="1" style="width:100px; padding:10px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.2); color:white; font-weight:600; text-align:center; outline:none;">
+                <button type="button" class="btn-primary" onclick="addUsedPart()" id="btnAddPart" style="padding:10px 15px; font-weight:bold;">➕ صرف وإضافة للتقرير</button>
+            </div>
+            
+            <table class="notes-table bz-fit" id="usedPartsTable">
+                <colgroup>
+                    <col style="width:8%;">
+                    <col style="width:60%;">
+                    <col style="width:20%;">
+                    <col style="width:12%;" class="print-hide">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="col-idx">م</th>
+                        <th>رقم القطعة / الاسم</th>
+                        <th>الكمية المستهلكة</th>
+                        <th class="print-hide">إجراء</th>
+                    </tr>
+                </thead>
+                <tbody id="usedPartsBody">
+                    <!-- Dynamic parts rows -->
+                </tbody>
+            </table>
+        </div>
+
         <div class="sig-section">
             <div class="sig-item">
                 <label><div style="direction:ltr;">Technician Signature</div><div style="direction:rtl;">توقيع الفني</div></label>
@@ -279,6 +311,7 @@
     <script>
     const LS_KEY = 'workshop_report_v4';
     let driversData = [];
+    let usedPartsArray = [];
 
     // --- Workstation sandbox (mirror) detection. Local + robust against script timing. ---
     // On MAIN "/" this is false -> original localStorage behavior is used unchanged.
@@ -314,6 +347,10 @@
                 document.getElementById('note_'+i).value = data.notes[i-1].n || '';
                 document.getElementById('sol_'+i).value = data.notes[i-1].s || '';
             }
+        }
+        if (data.usedParts) {
+            usedPartsArray = data.usedParts;
+            renderUsedParts();
         }
     }
 
@@ -380,7 +417,8 @@
             km: document.getElementById('carKm').value,
             sigTech: document.getElementById('sigTech').value,
             sigManager: document.getElementById('sigManager').value,
-            notes: []
+            notes: [],
+            usedParts: usedPartsArray
         };
         for(let i=1; i<=10; i++) {
             data.notes.push({
@@ -423,8 +461,140 @@
         }
     }
 
+    let availableParts = [];
+
+    async function loadAvailableParts() {
+        try {
+            const res = await fetch('/api/spare_parts');
+            if(res.ok) {
+                const j = await res.json();
+                // API returns a plain array of parts
+                availableParts = Array.isArray(j) ? j : (j.parts || []);
+                const sel = document.getElementById('partSelect');
+                sel.innerHTML = '<option value="">-- اختر القطعة --</option>';
+                availableParts.forEach(p => {
+                    const qty = parseInt(p.quantity || 0, 10);
+                    if(qty > 0) {
+                        sel.innerHTML += `<option value="${p.id}">${p.part_number || ''} - ${p.name || ''} (متوفر: ${qty})</option>`;
+                    }
+                });
+            }
+        } catch(e) {}
+    }
+
+    async function addUsedPart() {
+        const sel = document.getElementById('partSelect');
+        const qtyInp = document.getElementById('partQty');
+        const partId = sel.value;
+        const qty = parseInt(qtyInp.value, 10);
+        
+        if(!partId || isNaN(qty) || qty <= 0) {
+            if(window.showToast) showToast('يرجى اختيار القطعة وإدخال كمية صحيحة', 'error');
+            return;
+        }
+        
+        const plate = document.getElementById('carPlate').value;
+        const driver = document.getElementById('driverName').value;
+        
+        const btn = document.getElementById('btnAddPart');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '⏳ جاري الصرف...';
+        btn.disabled = true;
+        
+        try {
+            const res = await fetch('/api/dispense_part', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ part_id: parseInt(partId, 10), quantity: qty, plate: plate, driver: driver })
+            });
+            const j = await res.json();
+            if(j.success) {
+                const partInfo = availableParts.find(p => p.id == partId);
+                usedPartsArray.push({
+                    txnId: j.transaction_id,
+                    partId: partId,
+                    name: partInfo ? ((partInfo.part_number || '') + ' - ' + (partInfo.name || '')) : 'قطعة غيار',
+                    qty: qty
+                });
+                renderUsedParts();
+                saveData(); // Auto save
+                if(window.showToast) showToast('✅ تم الخصم والإضافة بنجاح', 'success');
+                sel.value = '';
+                qtyInp.value = '1';
+                loadAvailableParts(); // refresh quantities
+            } else {
+                if(window.showToast) showToast('❌ فشل: ' + (j.error || ''), 'error');
+            }
+        } catch(e) {
+            if(window.showToast) showToast('❌ خطأ في الاتصال بالمخزن', 'error');
+        } finally {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+        }
+    }
+    
+    async function removeUsedPart(index, skipConfirm = false) {
+        if(!skipConfirm && !confirm('هل أنت متأكد من حذف هذه القطعة واسترجاعها للمخزن؟')) return;
+        
+        const item = usedPartsArray[index];
+        if(!item.txnId) {
+            usedPartsArray.splice(index, 1);
+            if(!skipConfirm) { renderUsedParts(); saveData(); }
+            return;
+        }
+        
+        try {
+            const res = await fetch('/api/refund_part', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ transaction_id: item.txnId })
+            });
+            const j = await res.json();
+            if(j.success) {
+                usedPartsArray.splice(index, 1);
+                if(!skipConfirm) {
+                    renderUsedParts();
+                    saveData();
+                    if(window.showToast) showToast('✅ تم الاسترجاع للمخزن', 'success');
+                    loadAvailableParts();
+                }
+            } else {
+                if(!skipConfirm && window.showToast) showToast('❌ فشل الاسترجاع: ' + (j.error||''), 'error');
+            }
+        } catch(e) {
+            if(!skipConfirm && window.showToast) showToast('❌ خطأ في الاتصال', 'error');
+        }
+    }
+    
+    function renderUsedParts() {
+        const tbody = document.getElementById('usedPartsBody');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        if(usedPartsArray.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--fd-muted);">لم يتم صرف أي قطع للسيارة في هذا التقرير</td></tr>';
+            return;
+        }
+        usedPartsArray.forEach((item, idx) => {
+            tbody.innerHTML += `
+                <tr>
+                    <td class="col-idx">${idx + 1}</td>
+                    <td>${item.name}</td>
+                    <td style="text-align:center; font-weight:bold;">${item.qty}</td>
+                    <td class="print-hide" style="text-align:center;">
+                        <button class="btn-danger" style="padding:4px 8px; font-size:0.8rem;" onclick="removeUsedPart(${idx})">🗑 استرجاع</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
     async function clearAll() {
         if(!(await window.bzConfirm('هل أنت متأكد من مسح جميع البيانات؟'))) return;
+        for (let i = usedPartsArray.length - 1; i >= 0; i--) {
+            await removeUsedPart(i, true);
+        }
+        usedPartsArray = [];
+        renderUsedParts();
         localStorage.removeItem(LS_KEY);
         document.getElementById('driverName').value = '';
         document.getElementById('carType').value = '';
@@ -642,7 +812,51 @@
             // ---- Signatures (rows 19-20) : bold + borders, no color fill ----
             const sigT = document.getElementById('sigTech').value;
             const sigM = document.getElementById('sigManager').value;
-            const sigRowA = 19, sigRowB = 20;
+            let sigRowA = 18;
+            
+            // Render Used Parts if any
+            if(usedPartsArray && usedPartsArray.length > 0) {
+                sigRowA = 18 + usedPartsArray.length + 2; // offset for the parts header and rows
+                
+                const partsHeadRow = ws.getRow(18);
+                partsHeadRow.height = 24;
+                ws.mergeCells(`C18:I18`);
+                const partsHeadCell = ws.getCell('C18');
+                partsHeadCell.value = 'قطع الغيار المستهلكة (Spare Parts Used)';
+                partsHeadCell.font = blackText(12, true);
+                partsHeadCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                partsHeadCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDDDDD' } };
+                partsHeadCell.border = borderAll;
+                ['D','E','F','G','H','I'].forEach(col => ws.getCell(col + '18').border = borderAll);
+
+                usedPartsArray.forEach((p, idx) => {
+                    const rIdx = 19 + idx;
+                    ws.getRow(rIdx).height = 20;
+                    
+                    const cIdx = ws.getCell(`C${rIdx}`);
+                    cIdx.value = idx + 1;
+                    cIdx.font = blackText(12, true);
+                    cIdx.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cIdx.border = borderAll;
+                    
+                    ws.mergeCells(`D${rIdx}:H${rIdx}`);
+                    const cName = ws.getCell(`D${rIdx}`);
+                    cName.value = p.name;
+                    cName.font = blackText(12, false);
+                    cName.alignment = { horizontal: 'right', vertical: 'middle' };
+                    cName.border = borderAll;
+                    
+                    const cQty = ws.getCell(`I${rIdx}`);
+                    cQty.value = `الكمية: ${p.qty}`;
+                    cQty.font = blackText(12, true);
+                    cQty.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cQty.border = borderAll;
+                    
+                    ['E','F','G','H'].forEach(col => ws.getCell(col + rIdx).border = borderAll);
+                });
+            }
+
+            const sigRowB = sigRowA + 1;
             ws.getRow(sigRowA).height = 26;
             ws.getRow(sigRowB).height = 26;
             ws.mergeCells(`C${sigRowA}:I${sigRowA}`);
@@ -663,8 +877,8 @@
                 ws.getCell(col + sigRowB).border = borderAll;
             });
 
-            // ---- Footer (row 22) : light italic gray, informational only ----
-            const footRow = 22;
+            // ---- Footer (row N) : light italic gray, informational only ----
+            const footRow = sigRowA + 3;
             ws.getRow(footRow).height = 20;
             ws.mergeCells(`C${footRow}:I${footRow}`);
             const footCell = ws.getCell(`C${footRow}`);
@@ -729,6 +943,7 @@
 
     window.addEventListener('load', async () => {
         renderTable();
+        await loadAvailableParts();
         await loadData(); // async now (server load in WS); await keeps populate-before-autofill ordering
         await fetchDrivers();
 
