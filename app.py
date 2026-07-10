@@ -5433,6 +5433,8 @@ def dispense_part():
     data = request.json or {}
     part_id = data.get("part_id")
     qty_to_dispense = int(data.get("quantity", 0))
+    driver_plate = data.get("plate", "")
+    driver_name = data.get("driver", "")
     
     if not part_id or qty_to_dispense <= 0:
         return jsonify({"success": False, "error": "Invalid parameters"}), 400
@@ -5449,9 +5451,58 @@ def dispense_part():
             p["quantity"] = current_qty - qty_to_dispense
             p["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             blob_set("spare_parts", parts)
-            return jsonify({"success": True, "part": p})
+            
+            # Log transaction for refund capability
+            txns = blob_get("inventory_transactions")
+            if not isinstance(txns, list): txns = []
+            txn_id = str(int(datetime.now().timestamp() * 1000))
+            txns.append({
+                "id": txn_id,
+                "part_id": part_id,
+                "quantity": qty_to_dispense,
+                "plate": driver_plate,
+                "driver": driver_name,
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            blob_set("inventory_transactions", txns)
+            
+            return jsonify({"success": True, "part": p, "transaction_id": txn_id})
             
     return jsonify({"success": False, "error": "Part not found"}), 404
+
+@app.route("/api/refund_part", methods=["POST"])
+@login_required
+def refund_part():
+    data = request.json or {}
+    txn_id = data.get("transaction_id")
+    if not txn_id:
+        return jsonify({"success": False, "error": "No transaction ID"}), 400
+        
+    txns = blob_get("inventory_transactions")
+    if not isinstance(txns, list): return jsonify({"success": False}), 200
+    
+    target_txn = None
+    for t in txns:
+        if t.get("id") == txn_id:
+            target_txn = t
+            break
+            
+    if not target_txn:
+        return jsonify({"success": False, "error": "Transaction not found"}), 404
+        
+    parts = blob_get("spare_parts")
+    if isinstance(parts, list):
+        for p in parts:
+            if p.get("id") == target_txn.get("part_id"):
+                p["quantity"] = int(p.get("quantity", 0)) + int(target_txn.get("quantity", 0))
+                p["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                blob_set("spare_parts", parts)
+                break
+                
+    txns = [t for t in txns if t.get("id") != txn_id]
+    blob_set("inventory_transactions", txns)
+    
+    return jsonify({"success": True})
 
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 _start_alert_scheduler()

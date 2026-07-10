@@ -1108,8 +1108,18 @@
             });
         }
 
-        function deleteRow(btn) {
+        async function deleteRow(btn) {
             const tr = btn.closest('tr');
+            const txn = tr.getAttribute('data-transaction-id');
+            if (txn) {
+                try {
+                    await fetch('/api/refund_part', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ transaction_id: txn })
+                    });
+                } catch(e) {}
+            }
             tr.remove();
             renumberRows();
             updateTotalLiters();
@@ -1196,6 +1206,7 @@
                     if(inputs.length > 0) {
                         const rowData = [];
                         inputs.forEach(inp => rowData.push(inp.value));
+                        rowData.push(tr.getAttribute('data-transaction-id') || '');
                         rows.push(rowData);
                     }
                 });
@@ -1228,6 +1239,7 @@
                 if(inputs.length > 0) {
                     const rowData = [];
                     inputs.forEach(inp => rowData.push(inp.value));
+                    rowData.push(tr.getAttribute('data-transaction-id') || '');
                     rows.push(rowData);
                 }
             });
@@ -1265,6 +1277,7 @@
                     if(oBody && Array.isArray(data.oils)) {
                         data.oils.forEach((r, idx) => {
                             const tr = document.createElement('tr');
+                            if(r[6]) tr.setAttribute('data-transaction-id', r[6]);
                             tr.innerHTML = ROW_TEMPLATE(idx + 1, r);
                             oBody.appendChild(tr);
                         });
@@ -1295,6 +1308,7 @@
                         tbody.innerHTML = '';
                         rows.forEach((r, idx) => {
                             const tr = document.createElement('tr');
+                            if(r[6]) tr.setAttribute('data-transaction-id', r[6]);
                             tr.innerHTML = ROW_TEMPLATE(idx + 1, r);
                             tbody.appendChild(tr);
                         });
@@ -1887,10 +1901,11 @@
                 const r = await fetch('/api/dispense_part', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ part_id: pid, quantity: qty })
+                    body: JSON.stringify({ part_id: pid, quantity: qty, plate: driver.plate, driver: driver.name })
                 });
 
                 if(r.ok) {
+                    const resData = await r.json();
                     if(window.showToast) showToast('تم الصرف وخصم الكمية من المستودع بنجاح!', 'success');
                     
                     // Add row to oils table automatically!
@@ -1907,6 +1922,9 @@
                     }
 
                     const tr = document.createElement('tr');
+                    if (resData.transaction_id) {
+                        tr.setAttribute('data-transaction-id', resData.transaction_id);
+                    }
                     tr.innerHTML = `
                         <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">${rc}</td>
                         <td class="excel-input" style="width:12%;"><input type="text" value="${driver.plate}" onchange="autoSaveOils()"></td>
@@ -1919,7 +1937,9 @@
                     `;
                     tbody.insertBefore(tr, tbody.firstChild);
                     
-                    autoSaveOils();
+                    renumberRows();
+                    updateTotalLiters();
+                    saveToLocalStorage();
                     closeDispenseModal();
                 } else {
                     const err = await r.json();
