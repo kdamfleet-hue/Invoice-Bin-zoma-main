@@ -780,26 +780,27 @@ function injectGlobalNavLinks() {
     if (!nav) return;
     
     // Master Array of all pages to ensure perfect consistency across the entire app
+    // Ordered logically: Core -> Fleet Ops -> Smart Systems -> HR & Docs -> Settings
     const masterNav = [
         { href: '/', icon: '🏠', label: 'الرئيسية' },
         { href: '/fleet_dashboard', icon: '📊', label: 'لوحة القيادة' },
         { href: '/schedule', icon: '📋', label: 'الجدول الأسبوعي' },
-        { href: '/employees', icon: '👥', label: 'الموظفين' },
+        { href: '/handover', icon: '🚗', label: 'تسليم واستلام' },
         { href: '/workshop', icon: '🔧', label: 'صيانة الورشة' },
-        { href: '/purchase', icon: '🛒', label: 'طلبات الشراء' },
         { href: '/oils', icon: '🛢️', label: 'الزيوت والفلاتر' },
         { href: '/fuel', icon: '⛽', label: 'تموين المحروقات' },
-        { href: '/washing', icon: '🚿', label: 'جدول الغسيل' },
-        { href: '/handover', icon: '🚗', label: 'تسليم واستلام مركبة' },
+        { href: '/washing', icon: '🚿', label: 'محطة الغسيل' },
+        { href: '/purchase', icon: '🛒', label: 'طلبات الشراء' },
         { href: '/incidents', icon: '🚨', label: 'الحوادث والمخالفات' },
-        { href: '/documents', icon: '📂', label: 'أرشيف الوثائق' },
-        { href: '/records', icon: '📁', label: 'التوثيق والسجلات' },
-        { href: '/search', icon: '🔍', label: 'البحث الشامل' },
         { href: '/tracking', icon: '🛰️', label: 'نظام التتبع' },
         { href: '/cameras', icon: '📹', label: 'الكاميرات' },
         { href: '/gps_sync', icon: '📡', label: 'مزامنة GPS' },
         { href: '/insights', icon: '🧠', label: 'التحليلات الذكية' },
-        { href: '/platform', icon: '🚀', label: 'المنصة' },
+        { href: '/employees', icon: '👥', label: 'سجل الموظفين' },
+        { href: '/documents', icon: '📂', label: 'أرشيف الوثائق' },
+        { href: '/records', icon: '📁', label: 'التوثيق والسجلات' },
+        { href: '/search', icon: '🔍', label: 'البحث الشامل' },
+        { href: '/platform', icon: '🚀', label: 'إدارة المنصة' },
         { href: '/settings', icon: '⚙️', label: 'الإعدادات' }
     ];
 
