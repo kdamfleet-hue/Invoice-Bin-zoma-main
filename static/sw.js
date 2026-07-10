@@ -37,8 +37,8 @@ self.addEventListener('activate', (event) => {
 
 // جلب الموارد (Network First + Cache Fallback)
 self.addEventListener('fetch', (event) => {
-  // للطلبات التي تخص الـ API (لا نستخدم الكاش لها)
-  if (event.request.url.includes('/api/')) {
+  // للطلبات التي تخص الـ API أو الطلبات غير GET
+  if (event.request.url.includes('/api/') || event.request.method !== 'GET') {
     event.respondWith(fetch(event.request));
     return;
   }
