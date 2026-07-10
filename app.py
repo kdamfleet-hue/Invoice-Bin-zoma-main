@@ -4115,6 +4115,49 @@ def _do_sync_all_from_drivers():
     except Exception:
         logger.exception("sync_all_from_drivers: schedule_data update failed")
 
+    # ―― تحديث جميع الأنظمة الأخرى ――
+    try:
+        def _sync_misc(blob_key, plate_field="plate", name_fields=None, car_fields=None):
+            if name_fields is None: name_fields = ["name", "driverName", "driver_name", "driver", "employee", "سائق", "الاسم"]
+            if car_fields is None: car_fields = ["car", "vtype", "type", "vehicle_type", "vehicle"]
+            data = blob_get(blob_key)
+            if not data: return 0
+            rows = []
+            if isinstance(data, list): rows = data
+            elif isinstance(data, dict):
+                for k in ["data", "rows", "records", "incidents", "handovers", "drivers"]:
+                    if k in data and isinstance(data[k], list):
+                        rows = data[k]
+                        break
+            updated_count = 0
+            for row in rows:
+                if not isinstance(row, dict): continue
+                np = _normalize_plate_py(row.get(plate_field, ""))
+                rec = plate_map.get(np)
+                if rec:
+                    for nf in name_fields:
+                        if nf in row and rec.get("name") and row[nf] != rec["name"]:
+                            row[nf] = rec["name"]
+                            updated_count += 1
+                    for cf in car_fields:
+                        if cf in row and rec.get("car") and row[cf] != rec["car"]:
+                            row[cf] = rec["car"]
+                            updated_count += 1
+            if updated_count > 0:
+                blob_set(blob_key, data)
+            return updated_count
+        
+        misc_updated = 0
+        misc_updated += _sync_misc("oils_data")
+        misc_updated += _sync_misc("purchase_data")
+        misc_updated += _sync_misc("workshop_data")
+        misc_updated += _sync_misc("incidents")
+        misc_updated += _sync_misc("records")
+        misc_updated += _sync_misc("handovers")
+        logger.info("sync_all_from_drivers: synced %d fields in misc databases", misc_updated)
+    except Exception:
+        logger.exception("sync_all_from_drivers: misc update failed")
+
     # إعادة بناء fleet_data.json
     _rebuild_fleet_json()
 
