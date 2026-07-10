@@ -5427,6 +5427,32 @@ def delete_spare_part(part_id):
         
     return jsonify({"success": False, "error": "Not found"}), 404
 
+@app.route("/api/dispense_part", methods=["POST"])
+@login_required
+def dispense_part():
+    data = request.json or {}
+    part_id = data.get("part_id")
+    qty_to_dispense = int(data.get("quantity", 0))
+    
+    if not part_id or qty_to_dispense <= 0:
+        return jsonify({"success": False, "error": "Invalid parameters"}), 400
+        
+    parts = blob_get("spare_parts")
+    if not isinstance(parts, list): return jsonify({"success": False, "error": "Inventory empty"}), 404
+    
+    for p in parts:
+        if p.get("id") == part_id:
+            current_qty = int(p.get("quantity", 0))
+            if current_qty < qty_to_dispense:
+                return jsonify({"success": False, "error": f"الكمية المطلوبة ({qty_to_dispense}) أكبر من المتوفر ({current_qty})"}), 400
+                
+            p["quantity"] = current_qty - qty_to_dispense
+            p["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            blob_set("spare_parts", parts)
+            return jsonify({"success": True, "part": p})
+            
+    return jsonify({"success": False, "error": "Part not found"}), 404
+
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 _start_alert_scheduler()
 

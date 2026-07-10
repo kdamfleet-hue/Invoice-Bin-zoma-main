@@ -139,6 +139,7 @@
 
     <div class="oils-toolbar">
         <button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد</button>
+        <button class="btn-primary" onclick="openDispenseModal()" style="background:var(--primary); box-shadow:0 0 15px rgba(212,175,55,0.4);">📦 صرف من المخزون</button>
         <button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
         <button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
         <button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
@@ -1757,6 +1758,7 @@
     <div class="oils-toolbar" style="margin: 30px auto;">
         <button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد للزيوت</button>
         <button class="btn-primary" onclick="addFilterRow()">＋ إضافة صف للفلاتر</button>
+        <button class="btn-primary" onclick="openDispenseModal()" style="background:var(--primary); box-shadow:0 0 15px rgba(212,175,55,0.4);">📦 صرف من المخزون</button>
         <button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
         <button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
         <button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
@@ -1768,5 +1770,168 @@
     <footer style="text-align:center;padding:20px;color:var(--text-secondary);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);width:100%">
         أُعدّ بواسطة قسم الحركة — فرع الدمام
     </footer>
+
+    <!-- Dispense Modal -->
+    <div class="bz-modal" id="dispenseModal">
+        <div class="bz-modal-content" style="max-width: 500px;">
+            <div class="bz-modal-header">
+                <h3>📦 صرف مواد من المستودع</h3>
+                <button type="button" class="bz-icon-btn" onclick="closeDispenseModal()">❌</button>
+            </div>
+            <div class="bz-modal-body">
+                <form id="dispenseForm" onsubmit="submitDispense(event)">
+                    <div class="bz-form-group">
+                        <label class="bz-label">السائق / السيارة المستلمة *</label>
+                        <select id="dispenseDriver" class="bz-input" required>
+                            <option value="">-- اختر السائق --</option>
+                        </select>
+                    </div>
+                    <div class="bz-form-group">
+                        <label class="bz-label">المادة / القطعة المطلوبة *</label>
+                        <select id="dispensePart" class="bz-input" required onchange="updateMaxQty()">
+                            <option value="">-- جارٍ جلب المستودع... --</option>
+                        </select>
+                        <div id="partStockInfo" style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;"></div>
+                    </div>
+                    <div class="bz-form-group">
+                        <label class="bz-label">الكمية المصروفة *</label>
+                        <input type="number" id="dispenseQty" class="bz-input" required min="1" step="1" value="1">
+                    </div>
+                    <div class="bz-form-group" style="display:none;" id="meterGroup">
+                        <label class="bz-label">رقم العداد (كيلومتر)</label>
+                        <input type="text" id="dispenseMeter" class="bz-input" placeholder="اختياري">
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                        <button type="button" class="bz-btn-outline" onclick="closeDispenseModal()">إلغاء</button>
+                        <button type="submit" class="bz-btn-primary" id="dispenseSubmitBtn">تأكيد الصرف</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let availableParts = [];
+        let allDrivers = [];
+
+        async function openDispenseModal() {
+            document.getElementById('dispenseModal').classList.add('show');
+            document.getElementById('dispenseForm').reset();
+            document.getElementById('partStockInfo').textContent = '';
+            
+            // Fetch parts
+            try {
+                const r = await fetch('/api/spare_parts');
+                if(r.ok) {
+                    availableParts = await r.json();
+                    const sel = document.getElementById('dispensePart');
+                    sel.innerHTML = '<option value="">-- اختر المادة --</option>';
+                    availableParts.filter(p => p.quantity > 0).forEach(p => {
+                        sel.innerHTML += \`<option value="\${p.id}">\${p.name} (\${p.category})</option>\`;
+                    });
+                }
+            } catch(e) {}
+
+            // Fetch drivers
+            try {
+                const r = await fetch('/api/fleet_data');
+                if(r.ok) {
+                    const data = await r.json();
+                    allDrivers = data.drivers || [];
+                    const dsel = document.getElementById('dispenseDriver');
+                    dsel.innerHTML = '<option value="">-- اختر السائق --</option>';
+                    allDrivers.forEach(d => {
+                        dsel.innerHTML += \`<option value="\${d.plate}">\${d.name || ''} - \${d.plate || ''} (\${d.car || ''})</option>\`;
+                    });
+                }
+            } catch(e) {}
+        }
+
+        function closeDispenseModal() {
+            document.getElementById('dispenseModal').classList.remove('show');
+        }
+
+        function updateMaxQty() {
+            const pid = parseInt(document.getElementById('dispensePart').value);
+            const part = availableParts.find(p => p.id === pid);
+            const info = document.getElementById('partStockInfo');
+            const qtyInput = document.getElementById('dispenseQty');
+            if(part) {
+                info.textContent = \`المتوفر في المستودع: \${part.quantity}\`;
+                info.style.color = part.quantity <= 3 ? 'var(--danger)' : 'var(--primary)';
+                qtyInput.max = part.quantity;
+                document.getElementById('meterGroup').style.display = 'block';
+            } else {
+                info.textContent = '';
+                qtyInput.removeAttribute('max');
+                document.getElementById('meterGroup').style.display = 'none';
+            }
+        }
+
+        async function submitDispense(e) {
+            e.preventDefault();
+            const pid = parseInt(document.getElementById('dispensePart').value);
+            const qty = parseInt(document.getElementById('dispenseQty').value);
+            const plate = document.getElementById('dispenseDriver').value;
+            const meter = document.getElementById('dispenseMeter').value;
+            const btn = document.getElementById('dispenseSubmitBtn');
+            
+            const part = availableParts.find(p => p.id === pid);
+            const driver = allDrivers.find(d => d.plate === plate);
+            if(!part || !driver) return;
+
+            btn.disabled = true;
+            btn.textContent = 'جاري الصرف...';
+
+            try {
+                const r = await fetch('/api/dispense_part', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ part_id: pid, quantity: qty })
+                });
+
+                if(r.ok) {
+                    if(window.showToast) showToast('تم الصرف وخصم الكمية من المستودع بنجاح!', 'success');
+                    
+                    // Add row to oils table automatically!
+                    const tbody = document.getElementById('oilsBody');
+                    const rc = tbody.children.length + 1;
+                    const dateStr = new Date().toISOString().split('T')[0];
+                    
+                    let liters = '0';
+                    let filtersStr = '0';
+                    if (part.category.includes('زيو') || part.name.includes('زيت')) {
+                        liters = qty.toString();
+                    } else {
+                        filtersStr = \`\${qty} \${part.name}\`;
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = \`
+                        <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">\${rc}</td>
+                        <td class="excel-input" style="width:12%;"><input type="text" value="\${driver.plate}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="\${driver.name}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:14%;"><input type="date" value="\${dateStr}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:12%;"><input type="text" value="\${meter || '0'}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:12%;"><input type="text" value="\${liters}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:30%;"><input type="text" value="\${filtersStr}" onchange="autoSaveOils()"></td>
+                        <td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                    \`;
+                    tbody.insertBefore(tr, tbody.firstChild);
+                    
+                    autoSaveOils();
+                    closeDispenseModal();
+                } else {
+                    const err = await r.json();
+                    if(window.showToast) showToast('خطأ: ' + (err.error || 'فشل الصرف'), 'error');
+                }
+            } catch(error) {
+                if(window.showToast) showToast('خطأ في الاتصال بالخادم', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'تأكيد الصرف';
+            }
+        }
+    </script>
 </body>
 </html>
