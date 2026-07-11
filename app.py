@@ -5507,20 +5507,6 @@ def refund_part():
     
     return jsonify({"success": True})
 
-import random
-@app.route('/api/weekly-trips', methods=['GET'])
-def api_weekly_trips():
-    trips_data = [
-        {"id": "TR-1001", "date": "2026-07-11", "driver": "علي أبو زيد", "vehicle": "1234-أ ب ج", "status": "مكتملة"},
-        {"id": "TR-1002", "date": "2026-07-12", "driver": "محمد السعيد", "vehicle": "5678-س ص ع", "status": "جارية"}
-    ]
-    return jsonify(trips_data)
-
-@app.route('/api/add-trip', methods=['POST'])
-def add_trip():
-    data = request.json
-    return jsonify({"status": "success"})
-
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 _start_alert_scheduler()
 
