@@ -1,249 +1,162 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة القيادة المركزية | شركة بن زومة</title>
-    <!-- PWA Settings -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1a1a1a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/static/logo_192.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=35) }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=35) }}"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script>
-        window.BZ_BRANCH_ID = {{ active_branch_id }}; 
-        window.BZ_BRANCH = {{ active_branch|tojson }}; 
-        window.BZ_SNAP_TAB = {{ snap_tab|tojson }};
-    </script>
-    <style>
-        .hub-header {
-            text-align: center;
-            margin: 4rem auto 3rem auto;
-            position: relative;
-            z-index: 2;
-        }
-        .hub-title {
-            font-size: clamp(2.5rem, 6vw, 4rem);
-            color: var(--text-primary);
-            font-weight: 800;
-            margin-bottom: 1rem;
-            letter-spacing: 1px;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
-        .hub-subtitle {
-            font-size: 1.2rem;
-            color: var(--accent);
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
-
-        .hub-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            width: 90%;
-            max-width: 1200px;
-            margin: 0 auto 5rem auto;
-            position: relative;
-            z-index: 2;
-        }
-
-        .hub-card {
-            background: rgba(25, 25, 25, 0.6);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 20px;
-            padding: 2.5rem 2rem;
-            text-align: center;
-            text-decoration: none;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1.5rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hub-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; height: 3px;
-            background: linear-gradient(90deg, transparent, var(--accent), transparent);
-            opacity: 0;
-            transition: opacity 0.4s;
-        }
-
-        .hub-card:hover {
-            transform: translateY(-10px) scale(1.02);
-            background: rgba(30, 30, 30, 0.8);
-            border-color: var(--accent);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4), 0 0 20px rgba(212, 175, 55, 0.1);
-        }
-
-        .hub-card:hover::before {
-            opacity: 1;
-        }
-
-        .hub-icon {
-            width: 70px;
-            height: 70px;
-            background: rgba(212, 175, 55, 0.1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--accent);
-            transition: all 0.4s;
-        }
-
-        .hub-card:hover .hub-icon {
-            background: var(--accent);
-            color: #0f0f0f;
-            transform: rotate(5deg) scale(1.1);
-        }
-
-        .hub-card h3 {
-            color: var(--text-primary);
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin: 0;
-        }
-
-        .hub-card p {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin: 0;
-        }
-
-        /* Stats Section */
-        .stats-wrapper {
-            display: flex;
-            justify-content: center;
-            gap: 3rem;
-            flex-wrap: wrap;
-            margin: 0 auto 4rem;
-            position: relative;
-            z-index: 2;
-        }
-
-        .stat-circle {
-            width: 130px;
-            height: 130px;
-            border-radius: 50%;
-            border: 2px dashed var(--border-strong);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.2);
-            transition: all 0.4s;
-        }
-
-        .stat-circle:hover {
-            border-color: var(--accent);
-            border-style: solid;
-            background: rgba(212, 175, 55, 0.05);
-            transform: scale(1.05);
-        }
-
-        .stat-circle .count-up {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: var(--accent);
-            font-family: 'IBM Plex Sans Arabic', sans-serif;
-            line-height: 1;
-        }
-
-        .stat-circle span {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-top: 0.5rem;
-            font-weight: 600;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام إدارة الأسطول - بن زومة</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+body { font-family: 'Inter', sans-serif; }
+.glass {
+background: rgba(15, 23, 42, 0.85);
+backdrop-filter: blur(32px);
+border: 1px solid rgba(255, 255, 255, 0.1);
+box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.4);
+}
+.nav-link { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+.nav-link:hover, .nav-link.active {
+background: rgba(59, 130, 246, 0.4);
+color: #60a5fa;
+transform: translateX(12px);
+}
+.live-dot { animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+</style>
 </head>
-<body class="bz-lux">
+<body class="bg-zinc-950 text-zinc-100">
 
-    <div class="hub-header reveal">
-        <h1 class="hub-title">نظام إدارة الأسطول</h1>
-        <p class="hub-subtitle">مركز التحكم الشامل • شركة بن زومة (فرع الدمام)</p>
-    </div>
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar فاخر -->
+<div id="sidebar" class="glass w-72 h-full flex flex-col border-l border-white/10 shadow-2xl z-50 transition-all lg:translate-x-0 -translate-x-full">
+<div class="p-8 border-b border-white/10">
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-3xl flex items-center justify-center text-5xl font-bold shadow-inner">BZ</div>
+<div>
+<h1 class="text-3xl font-bold tracking-tight">إدارة الأسطول</h1>
+<p class="text-emerald-400 text-sm flex items-center gap-2"><span class="w-3 h-3 bg-emerald-400 rounded-full live-dot"></span> Live</p>
+</div>
+</div>
+</div>
 
-    <div class="stats-wrapper reveal">
-        <div class="stat-circle">
-            <div class="count-up" data-count="115" data-format="{n}">0</div>
-            <span>موظف وسائق</span>
-        </div>
-        <div class="stat-circle">
-            <div class="count-up" data-count="85" data-format="{n}">0</div>
-            <span>مركبة نشطة</span>
-        </div>
-        <div class="stat-circle">
-            <div class="count-up" data-count="14" data-format="{n}">0</div>
-            <span>تنبيه عاجل</span>
-        </div>
-    </div>
+<nav class="flex-1 p-6 space-y-2 overflow-y-auto">
+<a onclick="navigateTo(0)" class="nav-link active flex items-center gap-4 px-6 py-5 rounded-3xl text-lg"><i class="fas fa-tachometer-alt"></i> لوحة القيادة</a>
+<a onclick="navigateTo(1)" class="nav-link flex items-center gap-4 px-6 py-5 rounded-3xl text-lg"><i class="fas fa-calendar-week"></i> الجدول الأسبوعي</a>
+<a onclick="navigateTo(6)" class="nav-link flex items-center gap-4 px-6 py-5 rounded-3xl text-lg"><i class="fas fa-bell"></i> التنبيهات</a>
+</nav>
+</div>
 
-    <div class="hub-grid">
-        <!-- Dashboard -->
-        <a href="/fleet_dashboard" class="hub-card reveal">
-            <div class="hub-icon"><i data-lucide="layout-dashboard" style="width:36px; height:36px;"></i></div>
-            <h3>لوحة القيادة</h3>
-            <p>مراقبة شاملة لكافة مؤشرات الأداء، الحوادث، التنبيهات، والوثائق المنتهية في شاشة واحدة متكاملة.</p>
-        </a>
+<!-- Main Content -->
+<div class="flex-1 flex flex-col">
+<header class="glass h-20 border-b border-white/10 px-8 flex items-center justify-between">
+<h1 id="page-title" class="text-3xl font-bold">الجدول الأسبوعي</h1>
+</header>
 
-        <!-- Schedule -->
-        <a href="/schedule" class="hub-card reveal" style="transition-delay: 0.1s;">
-            <div class="hub-icon"><i data-lucide="calendar-check-2" style="width:36px; height:36px;"></i></div>
-            <h3>الجدول الأسبوعي</h3>
-            <p>إدارة حركة السائقين والمركبات وتوزيع المهام بديناميكية تامة مع تصدير التقارير.</p>
-        </a>
+<main class="flex-1 overflow-auto p-8">
+<!-- الجدول الأسبوعي الحي -->
+<div class="glass rounded-3xl p-6">
+<div class="flex justify-between mb-6">
+<h2 class="text-2xl font-bold">الرحلات الأسبوعية</h2>
+<button onclick="toggleModal(true)" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl flex items-center gap-3">
+<i class="fas fa-plus"></i> رحلة جديدة
+</button>
+</div>
+<table id="weekly-table" class="w-full text-right">
+<thead class="bg-slate-800">
+<tr>
+<th class="p-4">رقم الرحلة</th>
+<th class="p-4">التاريخ</th>
+<th class="p-4">السائق</th>
+<th class="p-4">المركبة</th>
+<th class="p-4">الحالة</th>
+</tr>
+</thead>
+<tbody id="table-body" class="divide-y divide-slate-700"></tbody>
+</table>
+</div>
+</main>
+</div>
+</div>
 
-        <!-- Registry -->
-        <a href="/employees" class="hub-card reveal" style="transition-delay: 0.2s;">
-            <div class="hub-icon"><i data-lucide="users" style="width:36px; height:36px;"></i></div>
-            <h3>السجل الشامل</h3>
-            <p>قاعدة البيانات المركزية لجميع الموظفين والسائقين وارتباطاتهم بمركبات الأسطول.</p>
-        </a>
+<!-- Modal إضافة رحلة جديدة -->
+<div id="addTripModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+  <div class="glass p-8 rounded-3xl w-96 border border-white/10">
+    <h2 class="text-xl font-bold mb-4">إضافة رحلة جديدة</h2>
+    <form id="tripForm" class="space-y-4">
+      <input type="text" id="driver" placeholder="اسم السائق" class="w-full bg-slate-800 p-3 rounded-xl border border-white/10">
+      <input type="text" id="vehicle" placeholder="رقم لوحة المركبة" class="w-full bg-slate-800 p-3 rounded-xl border border-white/10">
+      <select id="status" class="w-full bg-slate-800 p-3 rounded-xl border border-white/10">
+        <option value="مخططة">مخططة</option>
+        <option value="جارية">جارية</option>
+      </select>
+      <div class="flex gap-2">
+        <button type="button" onclick="toggleModal(false)" class="flex-1 p-3 bg-slate-700 rounded-xl">إلغاء</button>
+        <button type="submit" class="flex-1 p-3 bg-blue-600 rounded-xl">حفظ الرحلة</button>
+      </div>
+    </form>
+  </div>
+</div>
 
-        <!-- Maintenance / Workshop -->
-        <a href="/workshop" class="hub-card reveal" style="transition-delay: 0.3s;">
-            <div class="hub-icon"><i data-lucide="wrench" style="width:36px; height:36px;"></i></div>
-            <h3>صيانة الورشة</h3>
-            <p>متابعة كافة الإصلاحات وطلبات الصيانة، إدارة قطع الغيار والتكاليف بذكاء.</p>
-        </a>
+<script>
+// دالة جلب البيانات من PostgreSQL عبر Flask API
+async function fetchWeeklyTrips() {
+  try {
+    const response = await fetch('/api/weekly-trips');
+    if (!response.ok) throw new Error('خطأ في الاتصال بالخادم');
+    
+    const trips = await response.json();
+    const tbody = document.getElementById('table-body');
+    
+    // رسم الجدول بناءً على البيانات الحقيقية
+    tbody.innerHTML = trips.map(t => `
+      <tr class="hover:bg-slate-700 transition">
+        <td class="p-4">${t.id}</td>
+        <td class="p-4">${t.date}</td>
+        <td class="p-4">${t.driver}</td>
+        <td class="p-4">${t.vehicle}</td>
+        <td class="p-4">
+          <span class="px-4 py-1 rounded-full ${t.status === 'مكتملة' ? 'bg-emerald-500' : 'bg-amber-500'} text-xs">
+            ${t.status}
+          </span>
+        </td>
+      </tr>
+    `).join('');
+  } catch (error) {
+    console.error('فشل في جلب الرحلات:', error);
+  }
+}
 
-        <!-- Oils -->
-        <a href="/oils" class="hub-card reveal" style="transition-delay: 0.4s;">
-            <div class="hub-icon"><i data-lucide="fuel" style="width:36px; height:36px;"></i></div>
-            <h3>تموين المحروقات</h3>
-            <p>مراقبة استهلاك الديزل والزيوت، الجداول الزمنية للتغيير والفلاتر.</p>
-        </a>
+// تحديث حي (Live Update): جلب البيانات الجديدة كل 10 ثوانٍ بصمت
+setInterval(fetchWeeklyTrips, 10000);
 
-        <!-- Smart Invoice -->
-        <a href="/invoice" class="hub-card reveal" style="transition-delay: 0.5s;">
-            <div class="hub-icon"><i data-lucide="receipt" style="width:36px; height:36px;"></i></div>
-            <h3>الفواتير الذكية</h3>
-            <p>منشئ سريع لفواتير الصيانة والخدمات، معزز بنظام السحب التلقائي (Auto-Fill) للبيانات.</p>
-        </a>
-    </div>
+// جلب البيانات فور تحميل الصفحة
+window.onload = () => {
+  fetchWeeklyTrips();
+};
 
-    <script>
-        // Ensure Lucide icons are rendered
-        window.addEventListener('DOMContentLoaded', () => {
-            if(window.lucide) {
-                lucide.createIcons();
-            }
-        });
-    </script>
+function toggleModal(show) {
+  document.getElementById('addTripModal').classList.toggle('hidden', !show);
+}
+
+document.getElementById('tripForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const data = {
+    driver: document.getElementById('driver').value,
+    vehicle: document.getElementById('vehicle').value,
+    status: document.getElementById('status').value
+  };
+
+  await fetch('/api/add-trip', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  });
+  
+  toggleModal(false);
+  fetchWeeklyTrips(); // تحديث الجدول فوراً
+};
+</script>
 </body>
 </html>
