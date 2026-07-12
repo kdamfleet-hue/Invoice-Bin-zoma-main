@@ -4239,9 +4239,9 @@ def _do_sync_all_from_drivers():
         misc_updated += _sync_misc("oils_data")
         misc_updated += _sync_misc("purchase_data")
         misc_updated += _sync_misc("workshop_data")
-        misc_updated += _sync_misc("incidents")
-        misc_updated += _sync_misc("records")
-        misc_updated += _sync_misc("handovers")
+        misc_updated += _sync_misc("incidents_data")
+        misc_updated += _sync_misc("records_data")
+        misc_updated += _sync_misc("handover_data")
         logger.info("sync_all_from_drivers: synced %d fields in misc databases", misc_updated)
     except Exception:
         logger.exception("sync_all_from_drivers: misc update failed")
