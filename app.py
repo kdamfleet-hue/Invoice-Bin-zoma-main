@@ -5605,3 +5605,37 @@ if __name__ == "__main__":
     logger.info("Starting server on port %d (debug=%s)", port, debug)
     app.run(host="0.0.0.0", port=port, debug=debug)
 
+
+
+@app.route('/admin/force_seed')
+def force_seed():
+    try:
+        from models.database import db_connection, _is_header_row, _pk_clause
+        import json, os
+        js_path = os.path.join(os.path.dirname(__file__), 'drivers_data.js')
+        with open(js_path, 'r', encoding='utf-8') as f:
+            content = f.read().replace('const driversData = ', '').strip()
+            if content.endswith(';'): content = content[:-1]
+            data = json.loads(content)
+        seeded = 0
+        with db_connection() as db:
+            for d in data:
+                if _is_header_row(d): continue
+                db.execute(
+                    'INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) '
+                    'VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    (
+                        d.get('name', ''), str(d.get('empid', '')), d.get('plate', ''),
+                        d.get('car', ''), str(d.get('iqama', '')), str(d.get('phone', '')),
+                        d.get('drivercard', '')
+                    )
+                )
+                seeded += 1
+            db.commit()
+        return f'Success! Seeded {seeded} drivers.'
+    except Exception as e:
+        import traceback
+        return f'<pre>Error: {str(e)}
+
+{traceback.format_exc()}</pre>'
+
