@@ -3952,7 +3952,7 @@ def health_check():
 
 @app.route('/update-driver', methods=['POST'])
 @login_required
-def update_driver():
+def update_driver_status():
     if session.get('role') != 'admin':
         return jsonify({"error": "غير مصرح لك"}), 403
     data = request.json
