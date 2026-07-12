@@ -800,6 +800,11 @@
       <a href="/workshop">الورشة</a>
     </nav>
     <div class="bz-actions">
+      <select id="roleSelector" onchange="currentUser.role = this.value; if(window.showToast) showToast('تم التبديل إلى ' + this.value, 'info')" style="background: var(--fd-surface2); color: var(--fd-gold); border: 1px solid var(--fd-border); border-radius: 8px; padding: 5px; margin-left: 10px;">
+        <option value="admin">مدير (Admin)</option>
+        <option value="viewer">مشاهد (Viewer)</option>
+      </select>
+
 
       <div class="fd-bell-wrap">
         <svg class="fd-bell-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -845,7 +850,13 @@
         </h1>
       </div>
       <div class="fd-toolbar">
+        
+        <button class="btn-sync" onclick="syncExcelDammam()" id="syncExcelBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+          مزامنة إكسيل الدمام
+        </button>
         <button class="btn-sync" onclick="openSyncModal()" id="syncBtn">
+
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <polyline points="23 4 23 10 17 10" />
@@ -1157,7 +1168,23 @@
 
     const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+    
+    // ── RBAC System ──────────────────────────────────────────────────
+    const currentUser = {
+        name: "مسؤول النظام",
+        role: "admin" // admin or viewer
+    };
+
+    function canEdit() {
+        if (currentUser.role !== 'admin') {
+            alert("تنبيه: لا تملك صلاحية التعديل. يرجى مراجعة مدير النظام.");
+            return false;
+        }
+        return true;
+    }
+
     // ── Load fleet data ──────────────────────────────────────────────
+
     async function loadFleet() {
       try {
         const r = await fetch('/api/fleet_data');
@@ -1530,6 +1557,7 @@
 
     // ── Delete driver ────────────────────────────────────────────────
     async function deleteDriver(id, name) {
+      if (!canEdit()) return;
       if (!window.bzConfirm) { if (!confirm(`حذف "${name}"؟`)) return; }
       else if (!(await window.bzConfirm(`هل تريد حذف "${name}" من سجل الأسطول؟`))) return;
       try {
@@ -1545,7 +1573,31 @@
       } catch (e) { if (window.showToast) showToast('خطأ في الاتصال', 'error'); }
     }
 
+    
+    // ── Sync Excel Dammam ─────────────────────────────────────────────
+    async function syncExcelDammam() {
+        if (!canEdit()) return;
+        const btn = document.getElementById('syncExcelBtn');
+        btn.innerHTML = '⏳ جارٍ المزامنة...';
+        btn.disabled = true;
+        try {
+            const r = await fetch('/api/sync_excel', { method: 'POST' });
+            const j = await r.json();
+            if (j.success) {
+                if (window.showToast) showToast(`تم التحديث بنجاح: ${j.updated_count} سجل`, 'success');
+                await init();
+            } else {
+                if (window.showToast) showToast(j.error || 'خطأ في المزامنة', 'error');
+            }
+        } catch(e) {
+            if (window.showToast) showToast('خطأ في الاتصال بالخادم', 'error');
+        }
+        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg> مزامنة إكسيل الدمام`;
+        btn.disabled = false;
+    }
+
     // ── Smart Sync Modal ─────────────────────────────────────────────
+
     function openSyncModal() {
       document.getElementById('syncModal').classList.remove('hidden');
       document.getElementById('syncBar').style.width = '0%';
@@ -1662,6 +1714,7 @@
     }
 
     function addLiveTrip(e) {
+      if (!canEdit()) return;
       e.preventDefault();
       const driver = document.getElementById('tripDriver').value;
       const dest = document.getElementById('tripDest').value;

@@ -3937,7 +3937,51 @@ def _rebuild_fleet_json():
     # Deprecated: We now use dynamic endpoint /api/fleet_data
     pass
 
+
+@app.route("/api/sync_excel", methods=["POST"])
+@login_required
+def api_sync_excel():
+    try:
+        import pandas as pd
+        df = pd.read_excel('DB-WORK/dammam_employees_data.xlsx', header=[0, 1])
+        df.columns = [f"{c[0]}_{c[1]}" if 'Unnamed' not in str(c[0]) else str(c[1]) for c in df.columns]
+        
+        updated_count = 0
+        with db_connection() as conn:
+            c = conn.cursor()
+            for index, row in df.iterrows():
+                empid = None
+                name = None
+                iqama = None
+                for col in df.columns:
+                    if 'الرقم الوظيفي' in str(col): empid = str(row[col]).strip()
+                    if 'اسم العامل' in str(col) or 'الاسم' in str(col): name = str(row[col]).strip()
+                    if 'الإقامة' in str(col) or 'البطاقة' in str(col): iqama = str(row[col]).strip()
+                
+                if not name or str(name) == 'nan':
+                    continue
+                
+                if str(empid) == 'nan': empid = None
+                if str(iqama) == 'nan': iqama = None
+
+                c.execute("SELECT id FROM drivers WHERE name=? OR empid=?", (name, empid))
+                res = c.fetchone()
+                if res:
+                    driver_id = res['id']
+                    if iqama:
+                        c.execute("UPDATE drivers SET iqama=? WHERE id=?", (iqama, driver_id))
+                    updated_count += 1
+                else:
+                    c.execute("INSERT INTO drivers (name, empid, iqama) VALUES (?, ?, ?)", (name, empid, iqama))
+                    updated_count += 1
+            conn.commit()
+            
+        return jsonify({"success": True, "message": "تم تحديث البيانات من ملف الإكسيل بنجاح", "updated_count": updated_count})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/api/fleet_data")
+
 @login_required
 def api_fleet_data():
     _, drivers = _drivers_list_for_sync()
