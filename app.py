@@ -5301,9 +5301,12 @@ def api_registry_data():
         # 2. Fetch Employees (from SQL hr_employees table instead of JSON blob)
         emp_names = set()
         emp_iqamas = set()
+        emp_ids = set()
         with db_connection() as db:
-            hr_rows = db.execute("SELECT iqama, name FROM hr_employees").fetchall()
+            hr_rows = db.execute("SELECT empid, iqama, name FROM hr_employees").fetchall()
             for r in hr_rows:
+                if r["empid"]:
+                    emp_ids.add(str(r["empid"]).strip())
                 if r["iqama"]:
                     emp_iqamas.add(absher_sync.norm_id(r["iqama"]))
                 if r["name"]:
@@ -5345,8 +5348,9 @@ def api_registry_data():
             plate_raw = str(d.get("plate", "")).strip()
             iqama_norm = absher_sync.norm_id(d.get("iqama", ""))
             name = str(d.get("name", "")).strip()
+            empid_val = str(d.get("empid", "")).strip()
             
-            in_emp = (iqama_norm in emp_iqamas and bool(iqama_norm)) or (name in emp_names and bool(name))
+            in_emp = (empid_val in emp_ids and bool(empid_val)) or (iqama_norm in emp_iqamas and bool(iqama_norm)) or (name in emp_names and bool(name))
             in_wash = plate_norm in washing_plates and bool(plate_norm)
             in_sched = plate_norm in sched_plates and bool(plate_norm)
             
