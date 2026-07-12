@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول — BIN ZOMAH INTL.</title>
+    <link rel="stylesheet" href="/static/base_styles.css?v=30">
+    <script defer src="/static/app_ux.js?v=30"></script>
+    <script>window.BZ_BRANCH_ID = 1; window.BZ_BRANCH = "\u0627\u0644\u062f\u0645\u0627\u0645"; window.BZ_SNAP_TAB = "";</script>
+    <style>
+        /* ====================================================================
+           LOGIN — page-local presentation only. Brand tokens come from
+           base_styles.css (:root --brand-navy / --brand-gold). Scoped here.
+           ==================================================================== */
+        :root {
+            --bz-navy: var(--brand-navy, #0C2340);
+            --bz-navy-2: var(--brand-navy-2, #16335c);
+            --bz-gold: var(--brand-gold, #c9a227);
+            --bz-gold-soft: var(--brand-gold-soft, #e3c766);
+        }
+        html, body { height: 100%; }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px;
+            box-sizing: border-box;
+            overflow: hidden;
+            font-family: inherit;
+            background:
+                radial-gradient(1200px 600px at 70% -10%, rgba(201,162,39,0.10), transparent 60%),
+                linear-gradient(135deg, var(--bz-navy) 0%, var(--bz-navy-2) 100%);
+        }
+
+        /* Background video + dark scrim so foreground text is always readable */
+        .bz-bg-video {
+            position: fixed; inset: 0;
+            width: 100%; height: 100%;
+            z-index: -100;
+            object-fit: cover;
+            opacity: 0.30;
+        }
+        .bz-scrim {
+            position: fixed; inset: 0;
+            z-index: -90;
+            pointer-events: none;
+            background:
+                radial-gradient(900px 700px at 50% 35%, rgba(12,35,64,0.35), rgba(8,16,32,0.82) 75%),
+                linear-gradient(180deg, rgba(8,16,32,0.55) 0%, rgba(8,16,32,0.78) 100%);
+        }
+
+        /* Language toggle — clearly visible, top corner, reuses global toggle */
+        .bz-lang-toggle {
+            position: fixed;
+            top: 18px;
+            inset-inline-end: 18px;
+            z-index: 50;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(201,162,39,0.55);
+            background: rgba(12,35,64,0.55);
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: background .2s ease, border-color .2s ease, transform .15s ease;
+        }
+        .bz-lang-toggle:hover {
+            background: rgba(201,162,39,0.20);
+            border-color: var(--bz-gold);
+            transform: translateY(-1px);
+        }
+        .bz-lang-toggle .globe { font-size: 1rem; line-height: 1; }
+
+        .login-card {
+            padding: 3rem 2.75rem 1.6rem;
+            border-radius: 24px;
+            text-align: center;
+            max-width: 430px;
+            width: 100%;
+            z-index: 2;
+            position: relative;
+            background: rgba(255,255,255,0.96);
+            border: 1px solid rgba(255,255,255,0.6);
+            box-shadow:
+                0 24px 70px rgba(0,0,0,0.55),
+                inset 0 0 0 1px rgba(255,255,255,0.05);
+        }
+        /* Slim gold accent bar at the top of the card */
+        .login-card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 5px;
+            border-radius: 24px 24px 0 0;
+            background: linear-gradient(90deg, var(--bz-gold) 0%, var(--bz-gold-soft) 50%, var(--bz-gold) 100%);
+        }
+        @media (max-width: 480px) {
+            .login-card { padding: 2.2rem 1.5rem 1.4rem; }
+        }
+
+        /* Crisp logo: capped real size, never upscaled past native res */
+        .login-card .site-logo {
+            max-width: 240px;
+            width: 70%;
+            height: auto;
+            margin: 6px auto 16px;
+            display: block;
+            image-rendering: -webkit-optimize-contrast;
+        }
+        .login-card h2 {
+            margin: 0 0 4px;
+            color: var(--bz-navy);
+            font-size: 1.9rem;
+            font-weight: 800;
+        }
+        .login-card .brand-line {
+            color: var(--bz-navy);
+            font-weight: 900;
+            letter-spacing: 2px;
+            font-size: 0.95rem;
+            margin-bottom: 14px;
+            position: relative;
+            display: inline-block;
+            padding-bottom: 8px;
+        }
+        .login-card .brand-line::after {
+            content: "";
+            position: absolute;
+            left: 50%; bottom: 0;
+            width: 56px; height: 3px;
+            transform: translateX(-50%);
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--bz-gold), var(--bz-gold-soft));
+        }
+        .login-card p.subtitle {
+            color: #475569;
+            margin: 14px 0 2rem;
+            font-size: 1.02rem;
+            line-height: 1.6;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: right;
+        }
+        .login-form label {
+            color: var(--bz-navy);
+            font-weight: 700;
+            margin-top: 12px;
+            font-size: 0.95rem;
+        }
+        .login-form input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 13px 14px;
+            border-radius: 12px;
+            border: 1.5px solid #d6deea;
+            background: #f7f9fc;
+            color: var(--bz-navy);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        .login-form input::placeholder { color: #97a3b6; }
+        .login-form input:focus {
+            outline: none;
+            background: #fff;
+            border-color: var(--bz-gold);
+            box-shadow: 0 0 0 3px rgba(201,162,39,0.18);
+        }
+        .login-form button[type="submit"] {
+            margin-top: 24px;
+            width: 100%;
+            font-size: 1.1rem;
+            font-weight: 800;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            color: #fff;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, var(--bz-navy) 0%, var(--bz-navy-2) 100%);
+            box-shadow: 0 8px 20px rgba(12,35,64,0.35);
+            transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+        }
+        .login-form button[type="submit"]:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.06);
+            box-shadow: 0 10px 26px rgba(12,35,64,0.45);
+        }
+        .login-form button[type="submit"]:active { transform: translateY(0); }
+
+        .login-error {
+            margin-top: 18px;
+            text-align: center;
+            font-weight: 700;
+            color: #b42318;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.30);
+            border-radius: 10px;
+            padding: 11px 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* Support / contact footer inside the card */
+        .login-footer {
+            margin-top: 22px;
+            padding-top: 14px;
+            border-top: 1px solid #e6ebf2;
+            color: #64748b;
+            font-size: 0.82rem;
+            line-height: 1.7;
+        }
+        .login-footer .dept { color: var(--bz-navy); font-weight: 800; }
+        .login-footer a { color: var(--bz-navy); text-decoration: none; font-weight: 700; }
+        .login-footer a:hover { color: var(--bz-gold); }
+    </style>
+</head>
+<body>
+
+    <video autoplay muted loop playsinline class="bz-bg-video">
+        <source src="/static/login_bg.mp4" type="video/mp4">
+    </video>
+    <div class="bz-scrim" aria-hidden="true"></div>
+
+    <!-- Language toggle: reuses the global EN/AR mechanism from app_ux.js if present -->
+    <button type="button" id="loginLangToggle" class="bz-lang-toggle"
+            aria-label="تبديل اللغة / Switch language">
+        <span class="globe" aria-hidden="true">&#127760;</span>
+        <span id="loginLangLabel">EN</span>
+    </button>
+
+    <!-- Intro Video Splash Screen -->
+    <div id="introContainer" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0a0a1a; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+        <video id="introVideo" autoplay muted playsinline style="max-width: 80%; max-height: 80vh; border-radius: 12px;">
+            <source src="/static/login_bg.mp4" type="video/mp4">
+        </video>
+        <button id="skipIntroBtn" style="position: absolute; bottom: 30px; right: 30px; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 10px 24px; border-radius: 20px; cursor: pointer; z-index: 10000; font-family: inherit; font-size: 15px; backdrop-filter: blur(4px); transition: 0.2s;">تخطي ▶</button>
+    </div>
+
+    <script>
+        (function () {
+            const introContainer = document.getElementById('introContainer');
+            const introVideo = document.getElementById('introVideo');
+            const skipBtn = document.getElementById('skipIntroBtn');
+
+            function endIntro() {
+                if (!introContainer) return;
+                introContainer.style.transition = "opacity 0.8s ease";
+                introContainer.style.opacity = "0";
+                setTimeout(() => {
+                    introContainer.style.display = "none";
+                    if (introVideo) introVideo.pause();
+                }, 800);
+            }
+
+            if (introVideo) {
+                introVideo.onended = endIntro;
+                const playPromise = introVideo.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => endIntro());
+                }
+            } else {
+                setTimeout(endIntro, 500);
+            }
+
+            if (skipBtn) {
+                skipBtn.onclick = endIntro;
+                skipBtn.onmouseover = () => skipBtn.style.background = "rgba(255,255,255,0.3)";
+                skipBtn.onmouseout = () => skipBtn.style.background = "rgba(255,255,255,0.15)";
+            }
+
+            // Safety fallback: always dismiss intro after 8 seconds
+            setTimeout(endIntro, 8000);
+        })();
+    </script>
+
+    <div class="login-card glass-surface">
+        <img src="/static/main_logo.png" alt="شركة بن زومة — BIN ZOMAH INTL." class="site-logo">
+        <h2>أهلاً بك</h2>
+        <div class="brand-line">BIN ZOMAH INTL.</div>
+        <p class="subtitle">نظام إدارة الأسطول — فرع الدمام.<br>الرجاء تسجيل الدخول للمتابعة.</p>
+        <form method="POST" action="/login" class="login-form">
+            <label for="username">اسم المستخدم</label>
+            <input id="username" type="text" name="username" placeholder="مثال: Khaled@fleetadmin" autocomplete="username" required>
+
+            <label for="password">كلمة المرور</label>
+            <input id="password" type="password" name="password" placeholder="أدخل كلمة المرور" autocomplete="current-password" required>
+
+            <button type="submit" class="btn-primary">تسجيل الدخول</button>
+
+            
+        </form>
+
+        <div class="login-footer">
+            <span class="dept">قسم الحركة — Movement &amp; Support</span><br>
+            للمساعدة في الدخول، تواصل مع الدعم الفني · BIN ZOMAH INTL. — فرع الدمام
+        </div>
+    </div>
+
+    <script>
+        // Language toggle: prefer the global EN/AR system (app_ux.js); fall back
+        // to a lightweight localStorage + reload so the button always works.
+        (function () {
+            var btn = document.getElementById('loginLangToggle');
+            var label = document.getElementById('loginLangLabel');
+            if (!btn) return;
+
+            function currentLang() {
+                if (typeof window.bzLang === 'function') return window.bzLang();
+                return localStorage.getItem('lang') || 'ar';
+            }
+            function refreshLabel() {
+                if (label) label.textContent = currentLang() === 'ar' ? 'EN' : 'AR';
+            }
+            refreshLabel();
+
+            btn.addEventListener('click', function () {
+                if (typeof window.toggleLanguage === 'function') {
+                    window.toggleLanguage();
+                } else {
+                    var next = currentLang() === 'ar' ? 'en' : 'ar';
+                    localStorage.setItem('lang', next);
+                    document.documentElement.lang = next;
+                    document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr';
+                }
+                refreshLabel();
+            });
+        })();
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"7f05888d7f4f42c189cec9ab4db2e286","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
