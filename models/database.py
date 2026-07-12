@@ -139,10 +139,6 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)')
             
             # --- Query Optimization Indices ---
-            try:
-                db.execute("ALTER TABLE drivers ADD COLUMN status TEXT DEFAULT 'نشط'")
-            except Exception:
-                pass
             db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_plate ON drivers(plate)')
             db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_empid ON drivers(empid)')
             db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_iqama ON drivers(iqama)')
@@ -163,6 +159,11 @@ def init_db(app=None):
                 db.execute('ALTER TABLE drivers ADD COLUMN drivercard TEXT')
                 db.commit()
                 logger.info('Database Migration: Added drivercard column to drivers table')
+                
+            if 'status' not in existing_cols_lower:
+                db.execute("ALTER TABLE drivers ADD COLUMN status TEXT DEFAULT 'نشط'")
+                db.commit()
+                logger.info('Database Migration: Added status column to drivers table')
 
             new_cols = [
                 'job', 'empNotes', 'model', 'pallets', 'load',
