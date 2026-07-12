@@ -490,7 +490,7 @@
   <div class="modal-backdrop" id="custodyModal">
     <div class="modal-content-custom">
       <div class="modal-header-custom">
-        <h2>🔄 نقل عهدة المركبة</h2>
+        <h2>🔄 نقل عهدة المركبة الفعلي</h2>
         <button class="close-btn" onclick="closeCustodyModal()">✕</button>
       </div>
       <div class="modal-body-custom">
@@ -499,8 +499,13 @@
           <div class="cc-driver" id="custodyOldDriver">—</div>
         </div>
         <div class="custody-field">
-          <label>السائق المستلم الجديد</label>
-          <input type="text" id="custodyNewDriver" list="driverNames" placeholder="اكتب أو اختر اسم السائق">
+          <label>السائق المستلم (الجديد)</label>
+          <input type="text" id="custodyNewDriver" list="driverNames" placeholder="اكتب السائق أو اكتب 'الشركة'">
+        </div>
+        <div class="custody-field" style="display:flex; gap:15px; margin-bottom:15px; padding:10px; background:var(--surface-hover,#262626); border-radius:8px;">
+          <label style="margin:0; font-weight:bold; color:#fff;">حالة العهدة:</label>
+          <label style="cursor:pointer; margin:0;"><input type="radio" name="custodyCond" id="condOk" value="سليمة" checked> ✅ سليمة</label>
+          <label style="cursor:pointer; margin:0;"><input type="radio" name="custodyCond" id="condBad" value="بها ملاحظات"> ⚠️ بها ملاحظات</label>
         </div>
         <div class="custody-field">
           <label>ملاحظات النقل (اختياري)</label>
@@ -902,9 +907,10 @@
       const r = state[section][idx]; if (!r) return;
       _custodyTarget = { section, idx };
       document.getElementById('custodyPlate').textContent = r.plate || 'بدون لوحة';
-      document.getElementById('custodyOldDriver').textContent = 'السائق الحالي: ' + (r.name || 'بدون سائق');
+      document.getElementById('custodyOldDriver').textContent = 'المُسلِّم الحالي: ' + (r.name || 'الشركة');
       document.getElementById('custodyNewDriver').value = '';
       document.getElementById('custodyNote').value = '';
+      if(document.getElementById('condOk')) document.getElementById('condOk').checked = true;
       document.getElementById('custodyModal').classList.add('show');
       setTimeout(() => document.getElementById('custodyNewDriver').focus(), 100);
     }
@@ -919,8 +925,13 @@
       if (!r) { closeCustodyModal(); return; }
       const newName = document.getElementById('custodyNewDriver').value.trim();
       const note = document.getElementById('custodyNote').value.trim();
-      if (!newName) { if (window.showToast) showToast('يرجى اختيار اسم السائق المستلم', 'error'); return; }
-      const oldName = r.name || '';
+      let condition = 'سليمة';
+      if(document.getElementById('condBad') && document.getElementById('condBad').checked) {
+          condition = 'بها ملاحظات';
+      }
+      
+      if (!newName) { if (window.showToast) showToast('يرجى اختيار السائق المستلم أو "الشركة"', 'error'); return; }
+      const oldName = r.name || 'الشركة';
       const plate = r.plate || '';
       // Clear the OLD driver's identifying fields first so, if the new name has no
       // FleetData/registry match, none of the previous driver's iqama/phone/job linger
@@ -935,7 +946,7 @@
       try {
         await fetch('/api/vehicle_custody_transfer', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plate: plate, oldDriver: oldName, newDriver: newName, note: note })
+          body: JSON.stringify({ plate: plate, oldDriver: oldName, newDriver: newName, note: note, condition: condition })
         });
       } catch (e) { /* best-effort audit trail only — the transfer itself already saved above */ }
       if (window.showToast) showToast('✅ تم توثيق نقل العهدة وتحديث الجدول', 'success');
