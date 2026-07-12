@@ -3938,6 +3938,18 @@ def _rebuild_fleet_json():
     pass
 
 
+# --- نبض النظام (Health Check) ---
+@app.route('/health', methods=['GET'])
+def health_check():
+    import psutil
+    cpu_usage = psutil.cpu_percent(interval=1)
+    memory_usage = psutil.virtual_memory().percent
+    return jsonify({
+        "status": "online",
+        "system_health": "good" if memory_usage < 90 else "warning",
+        "resources": {"cpu": f"{cpu_usage}%", "memory": f"{memory_usage}%"}
+    }), 200
+
 @app.route("/api/sync_excel", methods=["POST"])
 @login_required
 def api_sync_excel():
@@ -3945,6 +3957,13 @@ def api_sync_excel():
         import pandas as pd
         df = pd.read_excel('DB-WORK/dammam_employees_data.xlsx', header=[0, 1])
         df.columns = [f"{c[0]}_{c[1]}" if 'Unnamed' not in str(c[0]) else str(c[1]) for c in df.columns]
+        
+        # --- مصفاة البيانات (Data Cleaner) ---
+        df = df.dropna(how='all') # حذف الصفوف الفارغة
+        for col in df.columns:
+            if 'تاريخ انتهاء الاقامة' in str(col):
+                df[col] = pd.to_datetime(df[col], errors='coerce').dt.strftime('%Y-%m-%d')
+        df = df.fillna("-")
         
         updated_count = 0
         with db_connection() as conn:
