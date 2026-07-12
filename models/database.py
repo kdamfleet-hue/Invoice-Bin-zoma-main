@@ -108,7 +108,7 @@ def init_db(app=None):
             db.execute(
                 'CREATE TABLE IF NOT EXISTS drivers ('
                 'id %s, name TEXT NOT NULL, empid TEXT, plate TEXT, '
-                'car TEXT, iqama TEXT, phone TEXT, drivercard TEXT, status TEXT DEFAULT ''نشط'')' % _pk_clause()
+                "car TEXT, iqama TEXT, phone TEXT, drivercard TEXT, status TEXT DEFAULT 'نشط')" % _pk_clause()
             )
             db.execute('CREATE TABLE IF NOT EXISTS washing_schedule (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS employees (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
