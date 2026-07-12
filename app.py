@@ -3950,6 +3950,28 @@ def health_check():
         "resources": {"cpu": f"{cpu_usage}%", "memory": f"{memory_usage}%"}
     }), 200
 
+@app.route('/update-driver', methods=['POST'])
+@login_required
+def update_driver():
+    if session.get('role') != 'admin':
+        return jsonify({"error": "غير مصرح لك"}), 403
+    data = request.json
+    driver_id = data.get('id')
+    status = data.get('status')
+    if driver_id:
+        try:
+            with db_connection() as conn:
+                c = conn.cursor()
+                if USE_POSTGRES:
+                    c.execute("UPDATE drivers SET status = %s WHERE id = %s", (status, driver_id))
+                else:
+                    c.execute("UPDATE drivers SET status = ? WHERE id = ?", (status, driver_id))
+                conn.commit()
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    return jsonify({"error": "Invalid data"}), 400
+
 @app.route("/api/sync_excel", methods=["POST"])
 @login_required
 def api_sync_excel():

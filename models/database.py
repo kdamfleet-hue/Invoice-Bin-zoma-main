@@ -108,7 +108,7 @@ def init_db(app=None):
             db.execute(
                 'CREATE TABLE IF NOT EXISTS drivers ('
                 'id %s, name TEXT NOT NULL, empid TEXT, plate TEXT, '
-                'car TEXT, iqama TEXT, phone TEXT, drivercard TEXT)' % _pk_clause()
+                'car TEXT, iqama TEXT, phone TEXT, drivercard TEXT, status TEXT DEFAULT ''نشط'')' % _pk_clause()
             )
             db.execute('CREATE TABLE IF NOT EXISTS washing_schedule (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS employees (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
@@ -139,6 +139,10 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)')
             
             # --- Query Optimization Indices ---
+            try:
+                db.execute("ALTER TABLE drivers ADD COLUMN status TEXT DEFAULT 'نشط'")
+            except Exception:
+                pass
             db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_plate ON drivers(plate)')
             db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_empid ON drivers(empid)')
             db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_iqama ON drivers(iqama)')
