@@ -5635,7 +5635,4 @@ def force_seed():
         return f'Success! Seeded {seeded} drivers.'
     except Exception as e:
         import traceback
-        return f'<pre>Error: {str(e)}
-
-{traceback.format_exc()}</pre>'
-
+        return f'''<pre>Error: {str(e)}\n\n{traceback.format_exc()}</pre>'''
