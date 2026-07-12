@@ -39,6 +39,9 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from flask_caching import Cache
+from flask_talisman import Talisman
+
 from models.database import init_db, db_connection, get_db, DB_PATH, DATABASE_URL, USE_POSTGRES
 load_dotenv()
 
@@ -76,6 +79,14 @@ EMAIL_LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAHgAAABQCAIAAABd+SbeAAAGl0lEQVR42u3abW
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Initialize Security Headers
+# content_security_policy=None to allow existing inline scripts to continue working
+Talisman(app, content_security_policy=None)
+
+# Initialize Caching
+cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
+cache.init_app(app)
 
 # Initialize Rate Limiter
 limiter = Limiter(
