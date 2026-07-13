@@ -5771,5 +5771,4 @@ def seed_from_template():
     }
 
     blob_set("schedule_data", sd)
-    db.session.commit()
     return "تم سحب البيانات من ملف الإكسل وإدخالها في الموقع بنجاح!"
