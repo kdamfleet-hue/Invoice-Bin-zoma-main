@@ -5642,3 +5642,86 @@ def force_seed():
     except Exception as e:
         import traceback
         return f'''<pre>Error: {str(e)}\n\n{traceback.format_exc()}</pre>'''
+
+
+@app.route("/api/export_schedule_exact", methods=["POST"])
+@login_required
+def export_schedule_exact():
+    try:
+        data = request.json or {}
+        template_path = os.path.join(app.root_path, "weekly_schedule_template.xlsx")
+        
+        if not os.path.exists(template_path):
+            return jsonify({"success": False, "error": "قالب التصدير غير موجود"}), 500
+
+        wb = openpyxl.load_workbook(template_path)
+        
+        def safe_set(sheet, row, col, val):
+            cell = sheet.cell(row=row, column=col)
+            # Cannot check MC directly without importing, just try/except
+            try:
+                cell.value = val
+            except AttributeError:
+                pass # Merged cell
+
+        # --- Active Vehicles (المركبات النشطة) ---
+        ws_main = wb["المركبات النشطة"]
+        main_data = data.get("main", [])
+        for idx, rd in enumerate(main_data):
+            r = 5 + idx
+            safe_set(ws_main, r, 1, idx + 1)
+            safe_set(ws_main, r, 2, rd.get("empid", ""))
+            safe_set(ws_main, r, 3, rd.get("name", ""))
+            safe_set(ws_main, r, 4, rd.get("iqama", ""))
+            safe_set(ws_main, r, 5, rd.get("job", ""))
+            safe_set(ws_main, r, 6, rd.get("plate", ""))
+            safe_set(ws_main, r, 7, rd.get("model", ""))
+            safe_set(ws_main, r, 8, rd.get("vtype", ""))
+            safe_set(ws_main, r, 9, rd.get("pallets", ""))
+        
+        # Delete unused rows from main to keep it clean (start from 5 to 120 maybe)
+        # But wait, there's "بيانات_الربط" depending on row numbers! So maybe don't delete rows, just leave them blank, or the formulas will break.
+        # It's better to just write the data.
+
+        # --- Spare and Broken (الأسبير والمعطلة) ---
+        if "الأسبير والمعطلة" in wb.sheetnames:
+            ws_spare = wb["الأسبير والمعطلة"]
+            spare_data = data.get("spare", [])
+            for idx, rd in enumerate(spare_data):
+                r = 4 + idx
+                safe_set(ws_spare, r, 1, idx + 1)
+                safe_set(ws_spare, r, 2, rd.get("status", "اسبير"))
+                safe_set(ws_spare, r, 3, rd.get("plate", ""))
+                safe_set(ws_spare, r, 4, rd.get("model", ""))
+                safe_set(ws_spare, r, 5, rd.get("vtype", ""))
+                safe_set(ws_spare, r, 6, rd.get("pallets", ""))
+                safe_set(ws_spare, r, 7, rd.get("load", ""))
+                safe_set(ws_spare, r, 8, rd.get("vserial", ""))
+                safe_set(ws_spare, r, 9, rd.get("inspect", ""))
+
+        # --- Vacation (السائقون في إجازة) ---
+        if "السائقون في إجازة" in wb.sheetnames:
+            ws_vac = wb["السائقون في إجازة"]
+            vac_data = data.get("vacation", [])
+            for idx, rd in enumerate(vac_data):
+                r = 4 + idx
+                safe_set(ws_vac, r, 1, idx + 1)
+                safe_set(ws_vac, r, 2, rd.get("empid", ""))
+                safe_set(ws_vac, r, 3, rd.get("name", ""))
+                safe_set(ws_vac, r, 4, rd.get("iqama", ""))
+                safe_set(ws_vac, r, 5, rd.get("job", ""))
+                safe_set(ws_vac, r, 6, rd.get("drivercard", ""))
+                safe_set(ws_vac, r, 8, rd.get("phone", ""))
+                safe_set(ws_vac, r, 9, rd.get("empNotes", ""))
+
+        import io, base64
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        b64 = base64.b64encode(output.read()).decode("utf-8")
+        return jsonify({"success": True, "file_b64": b64})
+    except Exception as e:
+        import traceback
+        logger.exception("export_schedule_exact error")
+        return jsonify({"success": False, "error": str(e)}), 500
+

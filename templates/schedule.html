@@ -1640,9 +1640,31 @@
 
     async function exportExcel() {
       try {
-        const blob = await buildScheduleBlob();
-        saveAs(blob, scheduleFileName());
-        if (window.showToast) showToast('تم تصدير الجدول الأسبوعي', 'success');
+        if (window.showToast) showToast('جاري التصدير...', 'info');
+        const res = await fetch('/api/export_schedule_exact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state)
+        });
+        const d = await res.json();
+        if (d.success && d.file_b64) {
+          const bs = atob(d.file_b64);
+          const ab = new ArrayBuffer(bs.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < bs.length; i++) ia[i] = bs.charCodeAt(i);
+          const blob = new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = scheduleFileName();
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          
+          if (window.showToast) showToast('تم تصدير الجدول بنجاح', 'success');
+        } else {
+          throw new Error(d.error || 'Unknown error');
+        }
       } catch (err) {
         console.error(err);
         if (window.showToast) showToast('تعذّر التصدير: ' + err.message, 'error');
