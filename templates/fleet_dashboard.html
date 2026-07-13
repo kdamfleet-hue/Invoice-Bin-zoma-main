@@ -12,66 +12,8 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <script defer src="{{ url_for('static', filename='app_ux.js', v=30) }}">
-function openEditModal(driverId) {
-    if (typeof currentUser !== 'undefined' && currentUser.role !== 'admin') {
-        alert("عذراً، هذه الخاصية للمدراء فقط.");
-        return;
-    }
-    document.getElementById('editDriverId').value = driverId;
-    document.getElementById('editModal').style.display = 'block';
-}
-function closeEditModal() {
-    document.getElementById('editModal').style.display = 'none';
-}
-function saveDriverChanges() {
-    const id = document.getElementById('editDriverId').value;
-    const status = document.getElementById('editStatus').value;
-    fetch('/update-driver', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({id: id, status: status})
-    }).then(res => res.json()).then(data => {
-        if(data.success) {
-            closeEditModal();
-            location.reload();
-        } else {
-            alert(data.error || 'حدث خطأ');
-        }
-    });
-}
-
-</script>
-  <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch | tojson }}; window.BZ_SNAP_TAB = {{ snap_tab | tojson }};
-function openEditModal(driverId) {
-    if (typeof currentUser !== 'undefined' && currentUser.role !== 'admin') {
-        alert("عذراً، هذه الخاصية للمدراء فقط.");
-        return;
-    }
-    document.getElementById('editDriverId').value = driverId;
-    document.getElementById('editModal').style.display = 'block';
-}
-function closeEditModal() {
-    document.getElementById('editModal').style.display = 'none';
-}
-function saveDriverChanges() {
-    const id = document.getElementById('editDriverId').value;
-    const status = document.getElementById('editStatus').value;
-    fetch('/update-driver', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({id: id, status: status})
-    }).then(res => res.json()).then(data => {
-        if(data.success) {
-            closeEditModal();
-            location.reload();
-        } else {
-            alert(data.error || 'حدث خطأ');
-        }
-    });
-}
-
-</script>
+  <script defer src="{{ url_for('static', filename='app_ux.js', v=30) }}"></script>
+  <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch | tojson }}; window.BZ_SNAP_TAB = {{ snap_tab | tojson }};</script>
   <style>
     /* ══════════════════════════════════════════════════════════════════
        FLEET DASHBOARD — Luxury Intelligence Theme
@@ -241,22 +183,23 @@ function saveDriverChanges() {
     }
 
     /* ── Driver Table ── */
-    
+
     .table-wrapper {
-        width: 100%;
-        overflow-x: auto;
-        margin-top: 20px;
-        background: #1a1a2e;
-        border-radius: 8px;
-        padding: 10px;
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 20px;
+      background: #1a1a2e;
+      border-radius: 8px;
+      padding: 10px;
     }
+
     .btn-edit {
-        background: transparent;
-        border: none;
-        color: #4CAF50;
-        cursor: pointer;
-        font-size: 1.2rem;
-        margin-left: 5px;
+      background: transparent;
+      border: none;
+      color: #4CAF50;
+      cursor: pointer;
+      font-size: 1.2rem;
+      margin-left: 5px;
     }
 
     .fd-table {
@@ -559,6 +502,7 @@ function saveDriverChanges() {
       border-bottom: 2px solid var(--fd-border);
       margin-bottom: 0;
     }
+
     .fd-tab {
       padding: 10px 22px;
       border-radius: 10px 10px 0 0;
@@ -576,15 +520,26 @@ function saveDriverChanges() {
       position: relative;
       bottom: -2px;
     }
-    .fd-tab:hover { color: var(--fd-gold); background: rgba(197,160,89,.06); }
+
+    .fd-tab:hover {
+      color: var(--fd-gold);
+      background: rgba(197, 160, 89, .06);
+    }
+
     .fd-tab.active {
       color: var(--fd-gold2);
       background: var(--fd-surface);
       border-color: var(--fd-border);
       border-bottom-color: var(--fd-surface);
     }
-    .fd-tab-panel { display: none; }
-    .fd-tab-panel.active { display: block; }
+
+    .fd-tab-panel {
+      display: none;
+    }
+
+    .fd-tab-panel.active {
+      display: block;
+    }
 
     /* ══════════════════════════════════════════════
        DASHBOARD TAB STYLES
@@ -595,6 +550,7 @@ function saveDriverChanges() {
       gap: 16px;
       padding: 24px 28px 0;
     }
+
     .fd-kpi {
       background: var(--fd-surface);
       border: 1px solid var(--fd-border);
@@ -604,23 +560,35 @@ function saveDriverChanges() {
       overflow: hidden;
       transition: transform .2s, box-shadow .2s;
     }
-    .fd-kpi:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.4); }
+
+    .fd-kpi:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .4);
+    }
+
     .fd-kpi::after {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0;
+      top: 0;
+      left: 0;
+      right: 0;
       height: 3px;
       background: var(--kpi-accent, var(--fd-gold));
       border-radius: 14px 14px 0 0;
     }
+
     .fd-kpi .kpi-icon {
-      width: 46px; height: 46px;
+      width: 46px;
+      height: 46px;
       border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 1.3rem;
-      background: var(--kpi-icon-bg, rgba(197,160,89,.12));
+      background: var(--kpi-icon-bg, rgba(197, 160, 89, .12));
       margin-bottom: 12px;
     }
+
     .fd-kpi .kpi-val {
       font-size: 2.2rem;
       font-weight: 900;
@@ -628,25 +596,59 @@ function saveDriverChanges() {
       line-height: 1;
       font-variant-numeric: tabular-nums;
     }
+
     .fd-kpi .kpi-label {
       font-size: .78rem;
       color: var(--fd-muted);
       margin-top: 6px;
       font-weight: 600;
     }
+
     .fd-kpi .kpi-trend {
-      display: inline-flex; align-items: center; gap: 4px;
-      font-size: .7rem; font-weight: 800;
-      padding: 2px 8px; border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: .7rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 999px;
       margin-top: 8px;
     }
-    .fd-kpi .kpi-trend.ok { background: rgba(34,197,94,.15); color: #22c55e; }
-    .fd-kpi .kpi-trend.warn { background: rgba(249,115,22,.15); color: #f97316; }
-    .fd-kpi .kpi-trend.danger { background: rgba(239,68,68,.15); color: #ef4444; }
-    .fd-kpi.kpi-green { --kpi-accent: #22c55e; --kpi-icon-bg: rgba(34,197,94,.12); }
-    .fd-kpi.kpi-red { --kpi-accent: #ef4444; --kpi-icon-bg: rgba(239,68,68,.12); }
-    .fd-kpi.kpi-blue { --kpi-accent: #3b82f6; --kpi-icon-bg: rgba(59,130,246,.12); }
-    .fd-kpi.kpi-orange { --kpi-accent: #f97316; --kpi-icon-bg: rgba(249,115,22,.12); }
+
+    .fd-kpi .kpi-trend.ok {
+      background: rgba(34, 197, 94, .15);
+      color: #22c55e;
+    }
+
+    .fd-kpi .kpi-trend.warn {
+      background: rgba(249, 115, 22, .15);
+      color: #f97316;
+    }
+
+    .fd-kpi .kpi-trend.danger {
+      background: rgba(239, 68, 68, .15);
+      color: #ef4444;
+    }
+
+    .fd-kpi.kpi-green {
+      --kpi-accent: #22c55e;
+      --kpi-icon-bg: rgba(34, 197, 94, .12);
+    }
+
+    .fd-kpi.kpi-red {
+      --kpi-accent: #ef4444;
+      --kpi-icon-bg: rgba(239, 68, 68, .12);
+    }
+
+    .fd-kpi.kpi-blue {
+      --kpi-accent: #3b82f6;
+      --kpi-icon-bg: rgba(59, 130, 246, .12);
+    }
+
+    .fd-kpi.kpi-orange {
+      --kpi-accent: #f97316;
+      --kpi-icon-bg: rgba(249, 115, 22, .12);
+    }
 
     .fd-charts-row {
       display: grid;
@@ -654,22 +656,31 @@ function saveDriverChanges() {
       gap: 20px;
       padding: 20px 28px 0;
     }
+
     .fd-charts-row-3 {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 20px;
       padding: 20px 28px 0;
     }
+
     @media (max-width: 1100px) {
-      .fd-charts-row { grid-template-columns: 1fr; }
-      .fd-charts-row-3 { grid-template-columns: 1fr; }
+      .fd-charts-row {
+        grid-template-columns: 1fr;
+      }
+
+      .fd-charts-row-3 {
+        grid-template-columns: 1fr;
+      }
     }
+
     .fd-chart-card {
       background: var(--fd-surface);
       border: 1px solid var(--fd-border);
       border-radius: 14px;
       padding: 20px;
     }
+
     .fd-chart-card h3 {
       font-size: .95rem;
       font-weight: 800;
@@ -679,22 +690,41 @@ function saveDriverChanges() {
       align-items: center;
       gap: 8px;
     }
-    .fd-activity-list { list-style: none; padding: 0; margin: 0; }
+
+    .fd-activity-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
     .fd-activity-list li {
-      display: flex; align-items: center; gap: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       padding: 9px 0;
       border-bottom: 1px solid var(--fd-border);
       font-size: .84rem;
       color: var(--fd-text);
     }
-    .fd-activity-list li:last-child { border-bottom: none; }
-    .fd-activity-dot {
-      width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+
+    .fd-activity-list li:last-child {
+      border-bottom: none;
     }
-    .fd-section-pad { padding: 20px 28px 28px; }
+
+    .fd-activity-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .fd-section-pad {
+      padding: 20px 28px 28px;
+    }
+
     .fd-alert-strip {
-      background: rgba(239,68,68,.08);
-      border: 1px solid rgba(239,68,68,.25);
+      background: rgba(239, 68, 68, .08);
+      border: 1px solid rgba(239, 68, 68, .25);
       border-radius: 12px;
       padding: 14px 18px;
       margin: 20px 28px 0;
@@ -702,12 +732,38 @@ function saveDriverChanges() {
       align-items: flex-start;
       gap: 12px;
     }
-    .fd-alert-strip .icon { font-size: 1.4rem; flex-shrink: 0; }
-    .fd-alert-strip h4 { margin: 0 0 4px; font-size: .9rem; color: #f87171; font-weight: 800; }
-    .fd-alert-strip p { margin: 0; font-size: .8rem; color: var(--fd-muted); line-height: 1.6; }
-    .fd-alert-items { list-style: none; padding: 0; margin: 6px 0 0; }
-    .fd-alert-items li { font-size: .8rem; color: #fca5a5; padding: 2px 0; }
-  
+
+    .fd-alert-strip .icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .fd-alert-strip h4 {
+      margin: 0 0 4px;
+      font-size: .9rem;
+      color: #f87171;
+      font-weight: 800;
+    }
+
+    .fd-alert-strip p {
+      margin: 0;
+      font-size: .8rem;
+      color: var(--fd-muted);
+      line-height: 1.6;
+    }
+
+    .fd-alert-items {
+      list-style: none;
+      padding: 0;
+      margin: 6px 0 0;
+    }
+
+    .fd-alert-items li {
+      font-size: .8rem;
+      color: #fca5a5;
+      padding: 2px 0;
+    }
+
     /* ── Notifications & Bell ── */
     .fd-bell-wrap {
       position: relative;
@@ -717,13 +773,16 @@ function saveDriverChanges() {
       cursor: pointer;
       margin-left: 10px;
     }
+
     .fd-bell-icon {
       color: var(--fd-gold);
       transition: transform 0.2s;
     }
+
     .fd-bell-wrap:hover .fd-bell-icon {
       transform: scale(1.1) rotate(5deg);
     }
+
     .fd-bell-badge {
       position: absolute;
       top: -4px;
@@ -737,6 +796,7 @@ function saveDriverChanges() {
       line-height: 1;
       border: 2px solid var(--fd-bg);
     }
+
     .fd-notifications {
       position: absolute;
       top: 100%;
@@ -746,15 +806,17 @@ function saveDriverChanges() {
       background: var(--fd-surface);
       border: 1px solid var(--fd-border);
       border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
       display: none;
       flex-direction: column;
       z-index: 1000;
       overflow: hidden;
     }
+
     .fd-bell-wrap:hover .fd-notifications {
       display: flex;
     }
+
     .fd-noti-header {
       background: var(--fd-surface2);
       padding: 12px 16px;
@@ -765,6 +827,7 @@ function saveDriverChanges() {
       justify-content: space-between;
       align-items: center;
     }
+
     .fd-noti-body {
       max-height: 300px;
       overflow-y: auto;
@@ -772,6 +835,7 @@ function saveDriverChanges() {
       margin: 0;
       list-style: none;
     }
+
     .fd-noti-item {
       padding: 12px 16px;
       border-bottom: 1px solid var(--fd-border);
@@ -781,12 +845,19 @@ function saveDriverChanges() {
       gap: 10px;
       transition: background 0.2s;
     }
+
     .fd-noti-item:hover {
       background: rgba(197, 160, 89, 0.05);
     }
-    .fd-noti-item.urgent { border-right: 3px solid var(--fd-red); }
-    .fd-noti-item.warn { border-right: 3px solid var(--fd-orange); }
-    
+
+    .fd-noti-item.urgent {
+      border-right: 3px solid var(--fd-red);
+    }
+
+    .fd-noti-item.warn {
+      border-right: 3px solid var(--fd-orange);
+    }
+
     /* ── Weekly Schedule Luxurious Tab ── */
     .lux-sched-container {
       display: grid;
@@ -794,13 +865,15 @@ function saveDriverChanges() {
       gap: 20px;
       padding: 24px 28px;
     }
+
     .lux-form-card {
       background: linear-gradient(145deg, var(--fd-surface), #1a1c22);
       border: 1px solid var(--fd-border);
       border-radius: 16px;
       padding: 24px;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.4);
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.4);
     }
+
     .lux-form-card h3 {
       color: var(--fd-gold2);
       margin-top: 0;
@@ -810,6 +883,7 @@ function saveDriverChanges() {
       align-items: center;
       gap: 8px;
     }
+
     .lux-input {
       width: 100%;
       background: var(--fd-surface2);
@@ -822,16 +896,25 @@ function saveDriverChanges() {
       transition: border-color 0.3s;
       box-sizing: border-box;
     }
-    .lux-input:focus { border-color: var(--fd-gold); outline: none; }
-    
+
+    .lux-input:focus {
+      border-color: var(--fd-gold);
+      outline: none;
+    }
+
     .lux-table-wrap {
       background: var(--fd-surface);
       border: 1px solid var(--fd-border);
       border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
-    .lux-table { width: 100%; border-collapse: collapse; }
+
+    .lux-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
     .lux-table th {
       background: linear-gradient(90deg, #111318, #1a1c22);
       color: var(--fd-gold);
@@ -840,27 +923,37 @@ function saveDriverChanges() {
       font-weight: 800;
       border-bottom: 2px solid var(--fd-gold);
     }
+
     .lux-table td {
       padding: 14px 16px;
       border-bottom: 1px solid var(--fd-border);
       font-size: 0.85rem;
     }
-    .lux-table tr:hover { background: rgba(197, 160, 89, 0.08); }
+
+    .lux-table tr:hover {
+      background: rgba(197, 160, 89, 0.08);
+    }
+
     .status-badge {
       padding: 4px 10px;
       border-radius: 20px;
       font-size: 0.7rem;
       font-weight: 700;
     }
-    .status-live { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid #22c55e; }
 
+    .status-live {
+      background: rgba(34, 197, 94, 0.15);
+      color: #22c55e;
+      border: 1px solid #22c55e;
+    }
   </style>
 </head>
 
 <body>
 
   <!-- Alert Sound -->
-  <audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3" preload="auto"></audio>
+  <audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3"
+    preload="auto"></audio>
 
 
   <!-- Top Navigation (shared component) -->
@@ -880,14 +973,17 @@ function saveDriverChanges() {
       <a href="/workshop">الورشة</a>
     </nav>
     <div class="bz-actions">
-      <select id="roleSelector" onchange="currentUser.role = this.value; if(window.showToast) showToast('تم التبديل إلى ' + this.value, 'info')" style="background: var(--fd-surface2); color: var(--fd-gold); border: 1px solid var(--fd-border); border-radius: 8px; padding: 5px; margin-left: 10px;">
+      <select id="roleSelector"
+        onchange="currentUser.role = this.value; if(window.showToast) showToast('تم التبديل إلى ' + this.value, 'info')"
+        style="background: var(--fd-surface2); color: var(--fd-gold); border: 1px solid var(--fd-border); border-radius: 8px; padding: 5px; margin-left: 10px;">
         <option value="admin">مدير (Admin)</option>
         <option value="viewer">مشاهد (Viewer)</option>
       </select>
 
 
       <div class="fd-bell-wrap">
-        <svg class="fd-bell-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="fd-bell-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
@@ -897,7 +993,9 @@ function saveDriverChanges() {
             تنبيهات ذكية <span style="font-size:0.7rem;color:var(--fd-muted)" id="liveStatus">🟢 متصل</span>
           </div>
           <ul class="fd-noti-body" id="notiBody">
-            <li class="fd-noti-item"><div style="color:var(--fd-muted)">لا توجد تنبيهات حالياً</div></li>
+            <li class="fd-noti-item">
+              <div style="color:var(--fd-muted)">لا توجد تنبيهات حالياً</div>
+            </li>
           </ul>
         </div>
       </div>
@@ -930,9 +1028,15 @@ function saveDriverChanges() {
         </h1>
       </div>
       <div class="fd-toolbar">
-        
+
         <button class="btn-sync" onclick="syncExcelDammam()" id="syncExcelBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <polyline points="9 15 12 18 15 15" />
+          </svg>
           مزامنة إكسيل الدمام
         </button>
         <button class="btn-sync" onclick="openSyncModal()" id="syncBtn">
@@ -974,7 +1078,7 @@ function saveDriverChanges() {
       <button class="fd-tab" onclick="switchFdTab('tab-fleet', this)" id="btn-tab-fleet">
         🚛 سجل الأسطول
       </button>
-    
+
       <button class="fd-tab" onclick="switchFdTab('tab-weekly', this)" id="btn-tab-weekly">
         📅 الجدول الأسبوعي (حي)
       </button>
@@ -1060,7 +1164,9 @@ function saveDriverChanges() {
         <div class="fd-chart-card">
           <h3>🚨 أقرب انتهاءات</h3>
           <ul class="fd-activity-list" id="fdExpiryList">
-            <li><div class="fd-activity-dot" style="background:var(--fd-muted)"></div>جارٍ التحميل...</li>
+            <li>
+              <div class="fd-activity-dot" style="background:var(--fd-muted)"></div>جارٍ التحميل...
+            </li>
           </ul>
         </div>
       </div>
@@ -1103,48 +1209,50 @@ function saveDriverChanges() {
         </div>
       </div>
 
-    <!-- ── Main Fleet Table ── -->
-    <div class="fd-card" style="margin-top:20px;">
-      <div class="fd-card-head">
-        <h2>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-          سجل الأسطول الكامل
-        </h2>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <span class="fd-stat" style="padding:6px 14px;margin:0;border-radius:20px;font-size:.8rem;" id="tableCount">0
-            سائق</span>
-          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--fd-muted);cursor:pointer;">
-            <input type="checkbox" id="toggleBadges" checked onchange="rerenderTable()"
-              style="accent-color:var(--fd-gold);"> مؤشرات الترابط
-          </label>
+      <!-- ── Main Fleet Table ── -->
+      <div class="fd-card" style="margin-top:20px;">
+        <div class="fd-card-head">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            سجل الأسطول الكامل
+          </h2>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span class="fd-stat" style="padding:6px 14px;margin:0;border-radius:20px;font-size:.8rem;"
+              id="tableCount">0
+              سائق</span>
+            <label
+              style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--fd-muted);cursor:pointer;">
+              <input type="checkbox" id="toggleBadges" checked onchange="rerenderTable()"
+                style="accent-color:var(--fd-gold);"> مؤشرات الترابط
+            </label>
+          </div>
+        </div>
+
+        <!-- Search bar -->
+        <div class="fd-search-bar">
+          <input type="text" id="fdSearch" placeholder="🔍 بحث بالاسم / اللوحة / الرقم الوظيفي / الإقامة / الجوال..."
+            oninput="filterTable(this.value)">
+        </div>
+
+        <div class="fd-card-body">
+          <div class="table-wrapper">
+            <table class="fd-table" id="fleetTable">
+              <thead id="fleetHead"></thead>
+              <tbody id="fleetBody">
+                <tr class="empty-row">
+                  <td colspan="20">جارٍ تحميل البيانات…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
-      <!-- Search bar -->
-      <div class="fd-search-bar">
-        <input type="text" id="fdSearch" placeholder="🔍 بحث بالاسم / اللوحة / الرقم الوظيفي / الإقامة / الجوال..."
-          oninput="filterTable(this.value)">
-      </div>
-
-      <div class="fd-card-body">
-        <div class="table-wrapper">
-        <table class="fd-table" id="fleetTable">
-          <thead id="fleetHead"></thead>
-          <tbody id="fleetBody">
-            <tr class="empty-row">
-              <td colspan="20">جارٍ تحميل البيانات…</td>
-            </tr>
-          </tbody>
-        </table>
-        </div>
-      </div>
-    </div>
 
     </div><!-- /tab-fleet -->
 
@@ -1154,7 +1262,11 @@ function saveDriverChanges() {
         <!-- Input Form -->
         <div class="lux-form-card">
           <h3>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
             إضافة رحلة / مهمة جديدة
           </h3>
           <form id="tripForm" onsubmit="addLiveTrip(event)">
@@ -1166,10 +1278,11 @@ function saveDriverChanges() {
               <option value="في الطريق">في الطريق</option>
               <option value="مكتمل">مكتمل</option>
             </select>
-            <button type="submit" class="btn-primary" style="width:100%;justify-content:center;margin-top:10px;">إضافة للجدول الحي</button>
+            <button type="submit" class="btn-primary" style="width:100%;justify-content:center;margin-top:10px;">إضافة
+              للجدول الحي</button>
           </form>
         </div>
-        
+
         <!-- Live Table -->
         <div class="lux-table-wrap">
           <table class="lux-table" id="liveSchedTable">
@@ -1250,19 +1363,19 @@ function saveDriverChanges() {
 
     const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
-    
+
     // ── RBAC System ──────────────────────────────────────────────────
     const currentUser = {
-        name: "مسؤول النظام",
-        role: "admin" // admin or viewer
+      name: "مسؤول النظام",
+      role: "admin" // admin or viewer
     };
 
     function canEdit() {
-        if (currentUser.role !== 'admin') {
-            alert("تنبيه: لا تملك صلاحية التعديل. يرجى مراجعة مدير النظام.");
-            return false;
-        }
-        return true;
+      if (currentUser.role !== 'admin') {
+        alert("تنبيه: لا تملك صلاحية التعديل. يرجى مراجعة مدير النظام.");
+        return false;
+      }
+      return true;
     }
 
     // ── Load fleet data ──────────────────────────────────────────────
@@ -1409,7 +1522,8 @@ function saveDriverChanges() {
         ${dateTd(d.opcard)}
         <td style="color:var(--fd-muted);font-size:.78rem">${d.vnotes || '—'}</td>
         ${showBadges ? `<td><div class="ib-wrap">${renderBadges(d.name)}</div></td>` : ''}
-        <td>
+        <td style="display: flex; gap: 8px;">
+          <button class="btn-edit" onclick="openEditModal(${d.id || i})" title="تعديل الحالة">✏️</button>
           <button class="btn-danger-sm" onclick="deleteDriver(${d.id || i}, '${(d.name || '').replace(/'/g, '')}')" title="حذف">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
@@ -1459,7 +1573,7 @@ function saveDriverChanges() {
       }).length;
 
       // Update hidden spans (legacy)
-      ['stTotal','stActive','stAbsent','stExpiring','stVehicles'].forEach(id => {
+      ['stTotal', 'stActive', 'stAbsent', 'stExpiring', 'stVehicles'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = id === 'stTotal' ? total : id === 'stActive' ? schedNames.size :
           id === 'stAbsent' ? (total - schedNames.size) : id === 'stExpiring' ? expiring : withPlate;
@@ -1474,7 +1588,7 @@ function saveDriverChanges() {
 
       // Update KPI cards
       setKpi('kpiTotal', total, `${schedNames.size} في الجدول`, schedNames.size > 0 ? 'ok' : 'warn');
-      setKpi('kpiActive', schedNames.size, `${Math.round(schedNames.size/Math.max(total,1)*100)}% من الأسطول`, schedNames.size > 0 ? 'ok' : 'warn');
+      setKpi('kpiActive', schedNames.size, `${Math.round(schedNames.size / Math.max(total, 1) * 100)}% من الأسطول`, schedNames.size > 0 ? 'ok' : 'warn');
       setKpi('kpiVehicles', withPlate, `${total - withPlate} بدون لوحة`, withPlate > 0 ? 'ok' : 'warn');
       setKpi('kpiExpiring', expiring, expiring === 0 ? 'لا توجد مشاكل ✓' : `${expiring} وثيقة تحتاج مراجعة`, expiring === 0 ? 'ok' : expiring < 5 ? 'warn' : 'danger');
       setKpi('kpiLinked', fullyLinked, `من أصل ${total} سائق`, fullyLinked === total ? 'ok' : 'warn');
@@ -1529,7 +1643,7 @@ function saveDriverChanges() {
 
       const C = window.Chart;
       const gold = '#c5a059', gold2 = '#e0c489', green = '#22c55e', red = '#ef4444',
-            orange = '#f97316', blue = '#3b82f6', muted = 'rgba(255,255,255,.08)';
+        orange = '#f97316', blue = '#3b82f6', muted = 'rgba(255,255,255,.08)';
 
       const destroyChart = key => { if (fdCharts[key]) { fdCharts[key].destroy(); delete fdCharts[key]; } };
 
@@ -1586,7 +1700,7 @@ function saveDriverChanges() {
       ].map(l => `<div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:3px;background:${l.color};display:inline-block"></span> ${l.label}: <strong>${l.val}</strong></div>`).join('');
 
       // — Document status bar chart —
-      const expired = allDrivers.reduce((cnt, d) => cnt + ['drivercard','inspect','license','opcard'].filter(f => { const dd = dateDiff(d[f]); return dd !== null && dd < 0; }).length, 0);
+      const expired = allDrivers.reduce((cnt, d) => cnt + ['drivercard', 'inspect', 'license', 'opcard'].filter(f => { const dd = dateDiff(d[f]); return dd !== null && dd < 0; }).length, 0);
       const warnDocs = expiring - expired;
       const okDocs = allDrivers.length * 4 - expiring;
       destroyChart('docs');
@@ -1655,27 +1769,27 @@ function saveDriverChanges() {
       } catch (e) { if (window.showToast) showToast('خطأ في الاتصال', 'error'); }
     }
 
-    
+
     // ── Sync Excel Dammam ─────────────────────────────────────────────
     async function syncExcelDammam() {
-        if (!canEdit()) return;
-        const btn = document.getElementById('syncExcelBtn');
-        btn.innerHTML = '⏳ جارٍ المزامنة...';
-        btn.disabled = true;
-        try {
-            const r = await fetch('/api/sync_excel', { method: 'POST' });
-            const j = await r.json();
-            if (j.success) {
-                if (window.showToast) showToast(`تم التحديث بنجاح: ${j.updated_count} سجل`, 'success');
-                await init();
-            } else {
-                if (window.showToast) showToast(j.error || 'خطأ في المزامنة', 'error');
-            }
-        } catch(e) {
-            if (window.showToast) showToast('خطأ في الاتصال بالخادم', 'error');
+      if (!canEdit()) return;
+      const btn = document.getElementById('syncExcelBtn');
+      btn.innerHTML = '⏳ جارٍ المزامنة...';
+      btn.disabled = true;
+      try {
+        const r = await fetch('/api/sync_excel', { method: 'POST' });
+        const j = await r.json();
+        if (j.success) {
+          if (window.showToast) showToast(`تم التحديث بنجاح: ${j.updated_count} سجل`, 'success');
+          await init();
+        } else {
+          if (window.showToast) showToast(j.error || 'خطأ في المزامنة', 'error');
         }
-        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg> مزامنة إكسيل الدمام`;
-        btn.disabled = false;
+      } catch (e) {
+        if (window.showToast) showToast('خطأ في الاتصال بالخادم', 'error');
+      }
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg> مزامنة إكسيل الدمام`;
+      btn.disabled = false;
     }
 
     // ── Smart Sync Modal ─────────────────────────────────────────────
@@ -1773,7 +1887,7 @@ function saveDriverChanges() {
       document.getElementById('tableCount').textContent = filteredDrivers.length + ' سائق';
     }
 
-    
+
     // ── Live Updates & Smart Alerts ────────────────────────────────
     let lastAlertsCount = 0;
     let liveTrips = [
@@ -1805,8 +1919,8 @@ function saveDriverChanges() {
       liveTrips.unshift({ driver, dest, date, status });
       renderLiveTrips();
       e.target.reset();
-      if(window.showToast) showToast('تمت الإضافة للجدول الحي بنجاح', 'success');
-      
+      if (window.showToast) showToast('تمت الإضافة للجدول الحي بنجاح', 'success');
+
       // Trigger a smart alert for the new trip
       triggerSmartAlert('تمت إضافة رحلة جديدة للسائق ' + driver, 'info');
     }
@@ -1817,39 +1931,39 @@ function saveDriverChanges() {
       li.className = `fd-noti-item ${type === 'urgent' ? 'urgent' : 'warn'}`;
       li.innerHTML = `<div><strong>${type === 'urgent' ? 'عاجل' : 'تنبيه'}:</strong> ${msg}</div>`;
       notiBody.prepend(li);
-      
+
       let count = parseInt(document.getElementById('bellBadge').textContent) || 0;
       count++;
       document.getElementById('bellBadge').textContent = count;
-      
+
       // Play sound
       const audio = document.getElementById('alertSound');
-      if(audio) {
-         audio.play().catch(e => console.log("Audio play blocked by browser:", e));
+      if (audio) {
+        audio.play().catch(e => console.log("Audio play blocked by browser:", e));
       }
     }
 
     // Replace the end of updateStats to handle smart alerts logic properly
     const origUpdateStats = updateStats;
-    updateStats = function() {
+    updateStats = function () {
       origUpdateStats();
-      
+
       // Build Smart Alerts
       const notiBody = document.getElementById('notiBody');
       let alertsHTML = '';
       let alertCount = 0;
-      
+
       // 1. Expiring Docs Alerts
       const expiringList = allDrivers.reduce((acc, d) => {
         ['drivercard', 'inspect', 'license', 'opcard'].forEach(f => {
           const dd = dateDiff(d[f]);
           if (dd !== null && dd <= 30) {
-             acc.push({ name: d.name, doc: f, days: dd });
+            acc.push({ name: d.name, doc: f, days: dd });
           }
         });
         return acc;
       }, []);
-      
+
       expiringList.slice(0, 5).forEach(e => {
         const isUrgent = e.days < 0;
         alertsHTML += `<li class="fd-noti-item ${isUrgent ? 'urgent' : 'warn'}">
@@ -1858,28 +1972,28 @@ function saveDriverChanges() {
         </li>`;
         alertCount++;
       });
-      
+
       // 2. Mock Maintenance Alert (Randomly appears)
       if (Math.random() > 0.8) {
-         alertsHTML += `<li class="fd-noti-item urgent">
+        alertsHTML += `<li class="fd-noti-item urgent">
           <div><strong>🔧 تنبيه صيانة عاجل</strong><br>
           <span style="color:var(--fd-muted)">المركبة تحتاج صيانة دورية فورية</span></div>
         </li>`;
-         alertCount++;
+        alertCount++;
       }
-      
+
       if (alertsHTML) {
-         notiBody.innerHTML = alertsHTML;
+        notiBody.innerHTML = alertsHTML;
       } else {
-         notiBody.innerHTML = '<li class="fd-noti-item"><div style="color:var(--fd-muted)">لا توجد تنبيهات حالياً</div></li>';
+        notiBody.innerHTML = '<li class="fd-noti-item"><div style="color:var(--fd-muted)">لا توجد تنبيهات حالياً</div></li>';
       }
-      
+
       document.getElementById('bellBadge').textContent = alertCount;
-      
+
       if (alertCount > lastAlertsCount) {
-         const audio = document.getElementById('alertSound');
-         if(audio) audio.play().catch(e=>console.log(e));
-         if(window.showToast) showToast('تنبيهات ذكية جديدة!', 'warning');
+        const audio = document.getElementById('alertSound');
+        if (audio) audio.play().catch(e => console.log(e));
+        if (window.showToast) showToast('تنبيهات ذكية جديدة!', 'warning');
       }
       lastAlertsCount = alertCount;
     };
@@ -1889,63 +2003,69 @@ function saveDriverChanges() {
       // Simulate live update by re-fetching fleet and updating UI seamlessly
       document.getElementById('liveStatus').textContent = '⚡ يتحدث...';
       try {
-          await loadFleet();
-          filterTable(document.getElementById('fdSearch') ? document.getElementById('fdSearch').value : '');
-          updateStats();
-          setTimeout(() => document.getElementById('liveStatus').textContent = '🟢 متصل', 1000);
-      } catch(e) {
-          document.getElementById('liveStatus').textContent = '🔴 غير متصل';
+        await loadFleet();
+        filterTable(document.getElementById('fdSearch') ? document.getElementById('fdSearch').value : '');
+        updateStats();
+        setTimeout(() => document.getElementById('liveStatus').textContent = '🟢 متصل', 1000);
+      } catch (e) {
+        document.getElementById('liveStatus').textContent = '🔴 غير متصل';
       }
     }, 5000);
 
 
     document.addEventListener('DOMContentLoaded', () => { init(); renderLiveTrips(); });
-  
-function openEditModal(driverId) {
-    if (typeof currentUser !== 'undefined' && currentUser.role !== 'admin') {
+
+    function openEditModal(driverId) {
+      if (typeof currentUser !== 'undefined' && currentUser.role !== 'admin') {
         alert("عذراً، هذه الخاصية للمدراء فقط.");
         return;
+      }
+      document.getElementById('editDriverId').value = driverId;
+      document.getElementById('editModal').style.display = 'block';
     }
-    document.getElementById('editDriverId').value = driverId;
-    document.getElementById('editModal').style.display = 'block';
-}
-function closeEditModal() {
-    document.getElementById('editModal').style.display = 'none';
-}
-function saveDriverChanges() {
-    const id = document.getElementById('editDriverId').value;
-    const status = document.getElementById('editStatus').value;
-    fetch('/update-driver', {
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
+    function saveDriverChanges() {
+      const id = document.getElementById('editDriverId').value;
+      const status = document.getElementById('editStatus').value;
+      fetch('/update-driver', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({id: id, status: status})
-    }).then(res => res.json()).then(data => {
-        if(data.success) {
-            closeEditModal();
-            location.reload();
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, status: status })
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          closeEditModal();
+          location.reload();
         } else {
-            alert(data.error || 'حدث خطأ');
+          alert(data.error || 'حدث خطأ');
         }
-    });
-}
+      });
+    }
 
-</script>
+  </script>
 
-<!-- Edit Modal -->
-<div id="editModal" class="modal" style="display:none; position:fixed; top:20%; left:30%; background:#252545; padding:20px; border-radius:10px; z-index:1000; color:white; min-width: 300px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-    <h3 style="margin-top:0; border-bottom:1px solid #444; padding-bottom:10px; color:var(--fd-gold)">تعديل حالة السائق</h3>
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal"
+    style="display:none; position:fixed; top:20%; left:30%; background:#252545; padding:20px; border-radius:10px; z-index:1000; color:white; min-width: 300px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+    <h3 style="margin-top:0; border-bottom:1px solid #444; padding-bottom:10px; color:var(--fd-gold)">تعديل حالة السائق
+    </h3>
     <input type="hidden" id="editDriverId">
     <label style="display:block; margin-bottom: 10px;">الحالة:</label>
-    <select id="editStatus" style="width:100%; padding: 8px; border-radius: 4px; background: #1a1a2e; color: white; border: 1px solid #444; margin-bottom: 20px;">
-        <option value="في الطريق">في الطريق</option>
-        <option value="مجدول">مجدول</option>
-        <option value="نشط">نشط</option>
+    <select id="editStatus"
+      style="width:100%; padding: 8px; border-radius: 4px; background: #1a1a2e; color: white; border: 1px solid #444; margin-bottom: 20px;">
+      <option value="في الطريق">في الطريق</option>
+      <option value="مجدول">مجدول</option>
+      <option value="نشط">نشط</option>
     </select>
     <div style="display:flex; justify-content: space-between;">
-        <button onclick="saveDriverChanges()" style="background: var(--fd-gold); color: black; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">حفظ التغييرات</button>
-        <button onclick="closeEditModal()" style="background: #444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">إغلاق</button>
+      <button onclick="saveDriverChanges()"
+        style="background: var(--fd-gold); color: black; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">حفظ
+        التغييرات</button>
+      <button onclick="closeEditModal()"
+        style="background: #444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">إغلاق</button>
     </div>
-</div>
+  </div>
 
 </body>
 
