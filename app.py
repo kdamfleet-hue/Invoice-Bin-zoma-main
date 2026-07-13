@@ -250,13 +250,14 @@ def login():
             return redirect(url_for("workshop"))
 
         master_user = os.environ.get("ADMIN_USERNAME", "admin")
+        master_pass = os.environ.get("MASTER_PASSWORD", "123456")
 
         # 1) Master/HQ admin (constant-time)  2) a per-branch account (locked to its branch)
         # 3) a general shared account.
         authed_name = None
         is_admin = False
         branch_id = None
-        if username == master_user and verify_master_password(password):
+        if hmac.compare_digest(username, master_user) and hmac.compare_digest(password, master_pass):
             authed_name = username
             is_admin = True
         else:
@@ -780,8 +781,9 @@ def handover():
 @login_required
 def settings():
     # Locked admin tab: re-enter the MASTER_PASSWORD to open, then manage shared accounts.
+    master_pass = os.environ.get("MASTER_PASSWORD", "123456")
     if request.method == "POST" and "password" in request.form:
-        if verify_master_password(request.form.get("password", "")):
+        if master_pass and hmac.compare_digest(request.form.get("password", ""), master_pass):
             session["settings_unlocked"] = True
             return redirect(url_for("settings"))
         return render_template("tab_lock.html", next="/settings", action="/settings",
