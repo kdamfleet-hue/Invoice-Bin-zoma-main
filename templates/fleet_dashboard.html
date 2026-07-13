@@ -1998,19 +1998,23 @@
       lastAlertsCount = alertCount;
     };
 
-    // Live Data Polling (every 5 seconds)
+    let lastFleetHash = "";
     setInterval(async () => {
       // Simulate live update by re-fetching fleet and updating UI seamlessly
       document.getElementById('liveStatus').textContent = '⚡ يتحدث...';
       try {
         await loadFleet();
-        filterTable(document.getElementById('fdSearch') ? document.getElementById('fdSearch').value : '');
-        updateStats();
+        const currentHash = JSON.stringify(allDrivers);
+        if (currentHash !== lastFleetHash) {
+          lastFleetHash = currentHash;
+          filterTable(document.getElementById('fdSearch') ? document.getElementById('fdSearch').value : '');
+          updateStats();
+        }
         setTimeout(() => document.getElementById('liveStatus').textContent = '🟢 متصل', 1000);
       } catch (e) {
         document.getElementById('liveStatus').textContent = '🔴 غير متصل';
       }
-    }, 5000);
+    }, 30000);
 
 
     document.addEventListener('DOMContentLoaded', () => { init(); renderLiveTrips(); });
