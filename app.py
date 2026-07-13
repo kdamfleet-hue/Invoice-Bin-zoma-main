@@ -5671,6 +5671,16 @@ def export_schedule_exact():
             safe_set(ws_main, r, 9, rd.get("pallets", ""))
             safe_set(ws_main, r, 10, rd.get("load", ""))
             safe_set(ws_main, r, 11, rd.get("vserial", ""))
+            safe_set(ws_main, r, 12, rd.get("inspect", ""))
+            # Col 13 is formula (rem_days1)
+            safe_set(ws_main, r, 14, rd.get("license", ""))
+            # Col 15 is formula (rem_days2)
+            safe_set(ws_main, r, 16, rd.get("drivercard", ""))
+            # Col 17 is formula (rem_days3)
+            safe_set(ws_main, r, 18, rd.get("opcard", ""))
+            # Col 19 is formula (rem_days4)
+            safe_set(ws_main, r, 20, rd.get("empNotes", ""))
+            safe_set(ws_main, r, 21, rd.get("phone", ""))
 
         # --- Spare and Broken (الأسبير والمعطلة) ---
         if "الأسبير والمعطلة" in wb.sheetnames:
@@ -5689,6 +5699,10 @@ def export_schedule_exact():
                 safe_set(ws_spare, r, 9, rd.get("inspect", ""))
                 # Col 10 is the formula for remaining days
                 safe_set(ws_spare, r, 11, rd.get("license", ""))
+                # Col 12 is the formula for remaining days
+                safe_set(ws_spare, r, 13, rd.get("opcard", ""))
+                # Col 14 is the formula for remaining days
+                safe_set(ws_spare, r, 15, rd.get("empNotes", ""))
 
         # --- Vacation (السائقون في إجازة) ---
         if "السائقون في إجازة" in wb.sheetnames:
