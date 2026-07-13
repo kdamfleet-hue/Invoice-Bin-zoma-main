@@ -535,33 +535,49 @@
 
   <script>
     // ===== Column model — two groups: employee data (7) + vehicle data (10) =====
-    const EMP_COLS = [
+    const MAIN_COLS = [
       { key: 'empid',      label: 'الرقم الوظيفي',            w: 6 },
-      { key: 'name',       label: 'اسم السائق',               w: 12 },
+      { key: 'name',       label: 'اسم السائق',               w: 14 },
       { key: 'iqama',      label: 'رقم الإقامة',              w: 7 },
-      { key: 'job',        label: 'الوظيفة',                  w: 5 },
-      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق', w: 7, date: true },
-      { key: 'phone',      label: 'رقم الجوال',               w: 7 },
-      { key: 'empNotes',   label: 'الملاحظات',                w: 8 },
-    ];
-    const VEH_COLS = [
+      { key: 'job',        label: 'الوظيفة',                  w: 6 },
       { key: 'plate',      label: 'رقم اللوحة',               w: 7 },
       { key: 'model',      label: 'الموديل',                  w: 6 },
-      { key: 'vtype',      label: 'نوع المركبة',              w: 7 },
-      { key: 'pallets',    label: 'عدد الطبالي',              w: 7 },
+      { key: 'vtype',      label: 'نوع المركبة',              w: 8 },
+      { key: 'pallets',    label: 'عدد الطبالي',              w: 6 },
+      { key: 'load',       label: 'الحمولة',                  w: 6 },
+      { key: 'vserial',    label: 'الرقم التسلسلي',           w: 7 }
+    ];
+
+    const SPARE_COLS = [
+      { key: 'status',     label: 'الحالة',                   w: 7 },
+      { key: 'plate',      label: 'رقم اللوحة',               w: 7 },
+      { key: 'model',      label: 'الموديل',                  w: 6 },
+      { key: 'vtype',      label: 'نوع المركبة',              w: 8 },
+      { key: 'pallets',    label: 'عدد الطبالي',              w: 6 },
       { key: 'load',       label: 'الحمولة',                  w: 6 },
       { key: 'vserial',    label: 'الرقم التسلسلي',           w: 7 },
-      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 7, date: true },
-      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   w: 7, date: true },
-      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', w: 7, date: true },
-      { key: 'notes',      label: 'الملاحظات',                w: 8 },
+      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 8, date: true },
+      { key: 'rem_days1',  label: 'الأيام المتبقية',          w: 7, readonly: true },
+      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   w: 8, date: true }
     ];
-    // full ordered column list (employee group then vehicle group)
-    const COLS = [...EMP_COLS, ...VEH_COLS];
-    const DATE_KEYS = COLS.filter(c => c.date).map(c => c.key);
-    const LS_KEY = 'bz_schedule_v1';
-    // which column set each table renders: vacation = employee group only (vehicle is cancelled on leave)
-    function colsFor(section) { return section === 'vacation' ? EMP_COLS : COLS; }
+
+    const VAC_COLS = [
+      { key: 'empid',      label: 'الرقم الوظيفي',            w: 6 },
+      { key: 'name',       label: 'اسم السائق',               w: 14 },
+      { key: 'iqama',      label: 'رقم الإقامة',              w: 8 },
+      { key: 'job',        label: 'الوظيفة',                  w: 6 },
+      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق', w: 9, date: true },
+      { key: 'rem_days2',  label: 'الأيام المتبقية',          w: 7, readonly: true },
+      { key: 'phone',      label: 'رقم الجوال',               w: 8 },
+      { key: 'empNotes',   label: 'الملاحظات',                w: 10 }
+    ];
+
+    function colsFor(section) {
+      if (section === 'main') return MAIN_COLS;
+      if (section === 'spare') return SPARE_COLS;
+      if (section === 'vacation') return VAC_COLS;
+      return MAIN_COLS;
+    }
 
     let state = { title: '', date: '', main: [], spare: [], vacation: [], summary: {} };
     let DRIVER_REG = {};   // learned per-driver memory: iqama(digits) → {empid,phone,job,drivercard,empNotes}
@@ -592,17 +608,14 @@
     function buildHead(id, section) {
       const thead = document.getElementById(id);
       const cols = colsFor(section);
-      const hasVeh = cols.length > EMP_COLS.length;
-      // group header row
-      let g = '<tr class="grp-row"><th class="col-idx" rowspan="2">م</th>';
-      g += `<th class="grp grp-emp" colspan="${EMP_COLS.length}">بيانات الموظف</th>`;
-      if (hasVeh) g += `<th class="grp grp-veh" colspan="${VEH_COLS.length}">بيانات المركبات</th>`;
-      g += '<th class="col-act" rowspan="2">⚙</th></tr>';
-      // column header row — wrap each WORD in .nb so single Arabic words (الموديل/الحمولة)
-      // never break mid-word, while multi-word phrases still wrap cleanly at the spaces.
+      
       const nbLabel = s => escapeHtml(s).split(' ').map(w => `<span class="nb">${w}</span>`).join(' ');
-      const h = '<tr>' + cols.map(c => `<th>${nbLabel(c.label)}</th>`).join('') + '</tr>';
-      thead.innerHTML = g + h;
+      
+      let h = '<tr><th class="col-idx">م</th>';
+      h += cols.map(c => `<th>${nbLabel(c.label)}</th>`).join('');
+      h += '<th class="col-act">⚙</th></tr>';
+      
+      thead.innerHTML = h;
 
       const table = thead.closest('table');
       const old = table.querySelector('colgroup'); if (old) old.remove();

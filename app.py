@@ -5658,7 +5658,6 @@ def export_schedule_exact():
         
         def safe_set(sheet, row, col, val):
             cell = sheet.cell(row=row, column=col)
-            # Cannot check MC directly without importing, just try/except
             try:
                 cell.value = val
             except AttributeError:
@@ -5678,10 +5677,8 @@ def export_schedule_exact():
             safe_set(ws_main, r, 7, rd.get("model", ""))
             safe_set(ws_main, r, 8, rd.get("vtype", ""))
             safe_set(ws_main, r, 9, rd.get("pallets", ""))
-        
-        # Delete unused rows from main to keep it clean (start from 5 to 120 maybe)
-        # But wait, there's "بيانات_الربط" depending on row numbers! So maybe don't delete rows, just leave them blank, or the formulas will break.
-        # It's better to just write the data.
+            safe_set(ws_main, r, 10, rd.get("load", ""))
+            safe_set(ws_main, r, 11, rd.get("vserial", ""))
 
         # --- Spare and Broken (الأسبير والمعطلة) ---
         if "الأسبير والمعطلة" in wb.sheetnames:
@@ -5698,6 +5695,8 @@ def export_schedule_exact():
                 safe_set(ws_spare, r, 7, rd.get("load", ""))
                 safe_set(ws_spare, r, 8, rd.get("vserial", ""))
                 safe_set(ws_spare, r, 9, rd.get("inspect", ""))
+                # Col 10 is the formula for remaining days
+                safe_set(ws_spare, r, 11, rd.get("license", ""))
 
         # --- Vacation (السائقون في إجازة) ---
         if "السائقون في إجازة" in wb.sheetnames:
@@ -5711,6 +5710,7 @@ def export_schedule_exact():
                 safe_set(ws_vac, r, 4, rd.get("iqama", ""))
                 safe_set(ws_vac, r, 5, rd.get("job", ""))
                 safe_set(ws_vac, r, 6, rd.get("drivercard", ""))
+                # Col 7 is the formula
                 safe_set(ws_vac, r, 8, rd.get("phone", ""))
                 safe_set(ws_vac, r, 9, rd.get("empNotes", ""))
 
