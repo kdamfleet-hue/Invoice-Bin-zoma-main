@@ -31,8 +31,6 @@ except ImportError:  # psycopg2 only required when DATABASE_URL (PostgreSQL) is 
     psycopg2 = None
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -90,12 +88,6 @@ cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 cache.init_app(app)
 
 # Initialize Rate Limiter
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per hour"],
-    storage_uri="memory://"
-)
 _secret = os.environ.get("SECRET_KEY")
 if not _secret:
     # No hardcoded fallback key (that would let anyone forge sessions).
@@ -236,7 +228,6 @@ mail = Mail(app)
 
 
 @app.route("/login", methods=["GET", "POST"])
-@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if session.get("authenticated"):
         if session.get("kiosk"):
@@ -4266,7 +4257,6 @@ def _do_sync_all_from_drivers():
 
 @app.route("/api/sync_all_from_drivers", methods=["POST"])
 @login_required
-@limiter.limit("10 per minute")
 def api_sync_all_from_drivers():
     """يمزامن جميع التبويبات (غسيل + أسبوعي) مع أحدث بيانات السائقين.
     يحذف المركبات التي لا سائق لها (plate تبيّن أنها ليست في قاعدة البيانات)، ويضيف الناقصة،
