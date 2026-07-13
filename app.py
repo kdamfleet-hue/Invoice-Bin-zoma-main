@@ -82,7 +82,8 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Initialize Security Headers
 # content_security_policy=None to allow existing inline scripts to continue working
-Talisman(app, content_security_policy=None)
+# force_https=False to prevent 302 redirects on internal health checks (Render/Railway)
+Talisman(app, content_security_policy=None, force_https=False)
 
 # Initialize Caching
 cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
