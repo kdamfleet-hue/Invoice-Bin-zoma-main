@@ -334,7 +334,26 @@
     </div>
 
     <!-- STAT CARDS (wired to real computed values in updateSummary / refreshStats) -->
-    <div class="sp-stats">
+    
+
+    <!-- TABS — every existing table stays reachable and editable -->
+    <div class="sp-tabs">
+      <button class="sp-tab active" id="tabBtnDashboard" onclick="switchSchedTab('dashboard',this)">📊 لوحة المعلومات</button>
+      <button class="sp-tab" id="tabBtnMain" onclick="switchSchedTab('main',this)">🚚 المركبات النشطة <span class="sp-chip" id="chipMain">0</span></button>
+      <button class="sp-tab" id="tabBtnSpare" onclick="switchSchedTab('spare',this)">🔧 الأسبير والمعطلة <span class="sp-chip red" id="chipSpare">0</span></button>
+      <button class="sp-tab" id="tabBtnVac" onclick="switchSchedTab('vacation',this)">🏖️ السائقون في إجازة <span class="sp-chip" id="chipVac">0</span></button>
+      
+      <!-- Hidden legacy tabs to prevent JS errors if they are referenced -->
+      <button class="sp-tab" id="tabBtnUnscheduled" onclick="switchSchedTab('unscheduled',this)" style="display:none;">⚠️ غير المجدولة <span class="sp-chip red" id="chipUnscheduled">0</span></button>
+      <button class="sp-tab" id="tabBtnExp" onclick="switchSchedTab('expired',this)" style="display:none;">🔴 تنبيهات الانتهاء <span class="sp-chip red" id="chipExp">0</span></button>
+      <button class="sp-tab" id="tabBtnVeh" onclick="switchSchedTab('vehicles',this)" style="display:none;">🚗 جميع مركبات الفرع <span class="sp-chip" id="chipVeh">0</span></button>
+    </div>
+
+    
+    <!-- TAB: DASHBOARD -->
+    <div class="sp-panel active" id="spPanel-dashboard">
+      <div class="sec-title"><h2>📊 لوحة المعلومات (Dashboard)</h2></div>
+      <div class="sp-stats">
       <div class="sp-stat">       <div class="ico">👷</div><div class="val" id="statDrivers">0</div><div class="lbl">عدد السائقين</div></div>
       <div class="sp-stat blue">  <div class="ico">🔵</div><div class="val" id="statDelivery">0</div><div class="lbl">الموصلين</div></div>
       <div class="sp-stat green"> <div class="ico">🟢</div><div class="val" id="statDistributors">0</div><div class="lbl">الموزعين</div></div>
@@ -347,19 +366,14 @@
 
     <!-- ALERT BAR -->
     <div class="sp-alert hidden" id="schedAlertBar">⚠️ <span id="schedAlertMsg"></span></div>
-
-    <!-- TABS — every existing table stays reachable and editable -->
-    <div class="sp-tabs">
-      <button class="sp-tab active" id="tabBtnMain" onclick="switchSchedTab('main',this)">🚛 الجدول الرئيسي <span class="sp-chip" id="chipMain">0</span></button>
-      <button class="sp-tab" id="tabBtnSpare" onclick="switchSchedTab('spare',this)">🛠️ الاسبير والمعطلة <span class="sp-chip red" id="chipSpare">0</span></button>
-      <button class="sp-tab" id="tabBtnVac" onclick="switchSchedTab('vacation',this)">🌴 الإجازات <span class="sp-chip" id="chipVac">0</span></button>
-      <button class="sp-tab" id="tabBtnUnscheduled" onclick="switchSchedTab('unscheduled',this)">⚠️ غير المجدولة <span class="sp-chip red" id="chipUnscheduled">0</span></button>
-      <button class="sp-tab" id="tabBtnExp" onclick="switchSchedTab('expired',this)">🔴 تنبيهات الانتهاء <span class="sp-chip red" id="chipExp">0</span></button>
-      <button class="sp-tab" id="tabBtnVeh" onclick="switchSchedTab('vehicles',this)">🚗 جميع مركبات الفرع <span class="sp-chip" id="chipVeh">0</span></button>
+      <div style="margin-top:20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+        <p class="hint" style="font-size: 14px;">تم تجميع الإحصائيات والتنبيهات في لوحة المعلومات بناءً على طلبك ولمطابقة ملف Excel المرفق.</p>
+        <p class="hint" style="margin-top: 10px;">يمكنك عرض الوثائق التي ستنتهي عبر إشعار "تنبيهات الانتهاء" بالأعلى إن وُجدت.</p>
+      </div>
     </div>
 
     <!-- TAB: MAIN -->
-    <div class="sp-panel active" id="spPanel-main">
+    <div class="sp-panel" id="spPanel-main">
       <div class="sec-title"><h2>📋 الجدول الرئيسي</h2></div>
       <div class="exp-legend">
         <span><i style="background:rgba(192,57,43,.5);border:1px solid #FF8A80;"></i> تاريخ منتهٍ</span>
