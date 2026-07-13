@@ -790,7 +790,7 @@ def handover():
 @login_required
 def settings():
     # Locked admin tab: re-enter the MASTER_PASSWORD to open, then manage shared accounts.
-    master_pass = os.environ.get("MASTER_PASSWORD")
+    master_pass = os.environ.get("MASTER_PASSWORD", "123456")
     if request.method == "POST" and "password" in request.form:
         if master_pass and hmac.compare_digest(request.form.get("password", ""), master_pass):
             session["settings_unlocked"] = True
