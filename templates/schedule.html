@@ -370,27 +370,27 @@
         </div>
       </div>
 
-      <!-- KPIs row -->
+      <!-- KPIs row (editable) -->
       <div style="display:flex; justify-content: space-between; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 20px;">
          <div style="flex:1; margin:0 5px; text-align:center;">
            <div style="background:#5B9BD5; color:white; padding:5px; font-weight:bold; border:1px solid #000; white-space:nowrap;">إجمالي عدد السائقين</div>
-           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#5B9BD5; padding:10px; background:#fff;" id="excelTotalDrivers">0</div>
+           <input type="number" id="excelTotalDrivers" value="0" data-kpi="drivers" onchange="saveDashKpi(this)" style="width:100%; border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#5B9BD5; padding:10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
          </div>
          <div style="flex:1; margin:0 5px; text-align:center;">
            <div style="background:#E2EFDA; color:black; padding:5px; font-weight:bold; border:1px solid #000; white-space:nowrap;">عدد الموصلين</div>
-           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#548235; padding:10px; background:#fff;" id="excelDelivery">0</div>
+           <input type="number" id="excelDelivery" value="0" data-kpi="delivery" onchange="saveDashKpi(this)" style="width:100%; border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#548235; padding:10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
          </div>
          <div style="flex:1; margin:0 5px; text-align:center;">
            <div style="background:#C00000; color:white; padding:5px; font-weight:bold; border:1px solid #000; white-space:nowrap;">عدد الموزعين</div>
-           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#C00000; padding:10px; background:#fff;" id="excelDistributors">0</div>
+           <input type="number" id="excelDistributors" value="0" data-kpi="distributors" onchange="saveDashKpi(this)" style="width:100%; border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#C00000; padding:10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
          </div>
          <div style="flex:1; margin:0 5px; text-align:center;">
            <div style="background:#E4DFEC; color:black; padding:5px; font-weight:bold; border:1px solid #000; white-space:nowrap;">سائقون في إجازة</div>
-           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#7030A0; padding:10px; background:#fff;" id="excelVacation">0</div>
+           <input type="number" id="excelVacation" value="0" data-kpi="vacation" onchange="saveDashKpi(this)" style="width:100%; border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#7030A0; padding:10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
          </div>
          <div style="flex:1; margin:0 5px; text-align:center;">
            <div style="background:#ED7D31; color:white; padding:5px; font-weight:bold; border:1px solid #000; white-space:nowrap;">مركبات أسير/معطلة</div>
-           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#ED7D31; padding:10px; background:#fff;" id="excelSpare">0</div>
+           <input type="number" id="excelSpare" value="0" data-kpi="spare" onchange="saveDashKpi(this)" style="width:100%; border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#ED7D31; padding:10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
          </div>
       </div>
 
@@ -1155,16 +1155,29 @@
     let excelPieChart = null;
     let excelBarChart = null;
 
+    // Save a dashboard KPI input to state.summary when user edits it
+    function saveDashKpi(el) {
+      const key = el.dataset.kpi;
+      if (!key) return;
+      if (!state.summary) state.summary = {};
+      state.summary[key] = el.value;
+      scheduleSave();
+      renderExcelCharts();
+    }
+
     function renderExcelCharts() {
        const m = state.main || [];
+       const s = state.summary || {};
        
-       let deliveryCount = 0;
-       let distCount = 0;
-       m.forEach(r => {
-          const j = (r.job || '').trim();
-          if (j === 'موصل') deliveryCount++;
-          else if (j === 'موزع') distCount++;
-       });
+       // Use schedule data if available, otherwise use the editable KPI values
+       let deliveryCount = m.filter(r => (r.job || '').trim() === 'موصل').length;
+       let distCount = m.filter(r => (r.job || '').trim() === 'موزع').length;
+       
+       // If schedule is empty, use the saved/editable KPI values for the pie chart
+       if (deliveryCount === 0 && distCount === 0) {
+         deliveryCount = parseInt(document.getElementById('excelDelivery').value) || 0;
+         distCount = parseInt(document.getElementById('excelDistributors').value) || 0;
+       }
        
        if (excelPieChart) {
            excelPieChart.data.datasets[0].data = [distCount, deliveryCount];
@@ -1183,12 +1196,16 @@
                    },
                    options: {
                        responsive: true,
-                       plugins: { legend: { position: 'bottom' } }
+                       plugins: {
+                         legend: { position: 'bottom', labels: { color: '#000' } },
+                         tooltip: { enabled: true }
+                       }
                    }
                });
            }
        }
        
+       // Build vehicle type counts from schedule data
        const vTypes = {};
        m.forEach(r => {
            let t = (r.vtype || '').trim();
@@ -1200,6 +1217,14 @@
            if (!t) return;
            vTypes[t] = (vTypes[t] || 0) + 1;
        });
+       
+       // If no schedule data, use saved vehicleTypes from state.summary
+       if (Object.keys(vTypes).length === 0 && s.vehicleTypes) {
+         try {
+           const saved = typeof s.vehicleTypes === 'string' ? JSON.parse(s.vehicleTypes) : s.vehicleTypes;
+           Object.entries(saved).forEach(([k, v]) => { vTypes[k] = v; });
+         } catch(e) {}
+       }
        
        const sortedTypes = Object.entries(vTypes).sort((a,b) => b[1] - a[1]);
        const labels = sortedTypes.map(x => x[0]);
@@ -1224,9 +1249,11 @@
                    },
                    options: {
                        responsive: true,
-                       plugins: { legend: { display: false } },
+                       maintainAspectRatio: false,
+                       plugins: { legend: { display: true, labels: { color: '#000' } } },
                        scales: {
-                           y: { beginAtZero: true }
+                           y: { beginAtZero: true, ticks: { stepSize: 1, color: '#000' } },
+                           x: { ticks: { color: '#000' } }
                        }
                    }
                });
@@ -1248,24 +1275,34 @@
 
     function refreshStatsAndAlerts(c, s) {
       const pick = (v, comp) => (v != null && v !== '' ? v : comp);
-      const set = (id, v) => { const el = document.getElementById(id); if (el) animateStatValue(el, v); };
+      const setInput = (id, v) => {
+        const el = document.getElementById(id);
+        if (el && el.tagName === 'INPUT') { el.value = v; }
+        else if (el) { el.textContent = v; }
+      };
       
-      set('excelTotalDrivers', pick(s.drivers, c.drivers));
-      set('excelDelivery', pick(s.delivery, c.delivery));
-      set('excelDistributors', pick(s.distributors, c.distributors));
-      set('excelVacation', state.vacation.length);
-      set('excelSpare', state.spare.length);
+      // Set KPI input values — prefer saved summary value, fallback to computed
+      setInput('excelTotalDrivers', pick(s.drivers, c.drivers));
+      setInput('excelDelivery', pick(s.delivery, c.delivery));
+      setInput('excelDistributors', pick(s.distributors, c.distributors));
+      setInput('excelVacation', pick(s.vacation, c.vacation));
+      setInput('excelSpare', pick(s.spare, state.spare.length));
       
-      set('chipMain', state.main.length);
-      set('chipSpare', state.spare.length);
-      set('chipVac', state.vacation.length);
+      // Tab chips
+      const setChip = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      setChip('chipMain', state.main.length);
+      setChip('chipSpare', state.spare.length);
+      setChip('chipVac', state.vacation.length);
       
       const exp = expiringList();
-      set('chipExp', exp.length);
+      setChip('chipExp', exp.length);
       
-      document.getElementById('excelTodayDate').textContent = new Date().toISOString().split('T')[0];
+      // Dates
+      const todayEl = document.getElementById('excelTodayDate');
+      if (todayEl) todayEl.textContent = new Date().toISOString().split('T')[0];
       const schedDate = document.getElementById('schedDate') ? document.getElementById('schedDate').value : '';
-      document.getElementById('excelLastUpdate').textContent = schedDate || new Date().toISOString().split('T')[0];
+      const lastEl = document.getElementById('excelLastUpdate');
+      if (lastEl) lastEl.textContent = schedDate || new Date().toISOString().split('T')[0];
       
       renderExpiredTab(exp);
       renderExcelCharts();
