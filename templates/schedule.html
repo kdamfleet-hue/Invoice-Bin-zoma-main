@@ -16,6 +16,7 @@
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     /* ════════════════════════════════════════════════════════════════════
        PREMIUM DARK NAVY + GOLD RESKIN — scoped to .sched-premium.
@@ -351,24 +352,95 @@
 
     
     <!-- TAB: DASHBOARD -->
-    <div class="sp-panel active" id="spPanel-dashboard">
-      <div class="sec-title"><h2>📊 لوحة المعلومات (Dashboard)</h2></div>
-      <div class="sp-stats">
-      <div class="sp-stat">       <div class="ico">👷</div><div class="val" id="statDrivers">0</div><div class="lbl">عدد السائقين</div></div>
-      <div class="sp-stat blue">  <div class="ico">🔵</div><div class="val" id="statDelivery">0</div><div class="lbl">الموصلين</div></div>
-      <div class="sp-stat green"> <div class="ico">🟢</div><div class="val" id="statDistributors">0</div><div class="lbl">الموزعين</div></div>
-      <div class="sp-stat orange"><div class="ico">🚚</div><div class="val" id="statLorries">0</div><div class="lbl">اللواري</div></div>
-      <div class="sp-stat">       <div class="ico">🚐</div><div class="val" id="statDinas">0</div><div class="lbl">الدينات</div></div>
-      <div class="sp-stat brown"> <div class="ico">🏖️</div><div class="val" id="statVacation">0</div><div class="lbl">في إجازة</div></div>
-      <div class="sp-stat red">   <div class="ico">⚠️</div><div class="val" id="statExpiring">0</div><div class="lbl">وثائق منتهية / قريبة</div></div>
-      <div class="sp-stat orange"><div class="ico">🛠️</div><div class="val" id="statSpare">0</div><div class="lbl">اسبير / معطلة</div></div>
-    </div>
+    <div class="sp-panel active" id="spPanel-dashboard" style="background:#fff; color:#000; padding:20px; font-family:Arial, sans-serif; border-radius:12px;">
+      <!-- Title row -->
+      <div style="background:#1F4E79; color:white; text-align:center; padding:10px; font-weight:bold; font-size:24px; border: 1px solid #000; margin-bottom: 2px;">
+        لوحة معلومات أسطول المركبات - فرع الدمام
+      </div>
+      
+      <!-- Date row -->
+      <div style="display:flex; justify-content:space-between; margin-bottom: 15px; font-weight:bold; font-size: 14px;">
+        <div style="width: 50%; display:flex; justify-content:flex-end; padding-right:10px;">
+          <span>تاريخ اليوم:</span>
+          <span style="margin-right:20px;" id="excelTodayDate">2026-07-14</span>
+        </div>
+        <div style="width: 50%; display:flex; justify-content:flex-end; padding-right:10px;">
+          <span>تاريخ آخر تحديث:</span>
+          <span style="margin-right:20px;" id="excelLastUpdate">2026-06-21</span>
+        </div>
+      </div>
 
-    <!-- ALERT BAR -->
-    <div class="sp-alert hidden" id="schedAlertBar">⚠️ <span id="schedAlertMsg"></span></div>
-      <div style="margin-top:20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
-        <p class="hint" style="font-size: 14px;">تم تجميع الإحصائيات والتنبيهات في لوحة المعلومات بناءً على طلبك ولمطابقة ملف Excel المرفق.</p>
-        <p class="hint" style="margin-top: 10px;">يمكنك عرض الوثائق التي ستنتهي عبر إشعار "تنبيهات الانتهاء" بالأعلى إن وُجدت.</p>
+      <!-- KPIs row -->
+      <div style="display:flex; justify-content: space-between; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 20px;">
+         <div style="flex:1; margin:0 5px; text-align:center;">
+           <div style="background:#5B9BD5; color:white; padding:5px; font-weight:bold; border:1px solid #000;">إجمالي عدد السائقين</div>
+           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#5B9BD5; padding:10px;" id="excelTotalDrivers">0</div>
+         </div>
+         <div style="flex:1; margin:0 5px; text-align:center;">
+           <div style="background:#E2EFDA; color:black; padding:5px; font-weight:bold; border:1px solid #000;">عدد الموصلين</div>
+           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#548235; padding:10px;" id="excelDelivery">0</div>
+         </div>
+         <div style="flex:1; margin:0 5px; text-align:center;">
+           <div style="background:#C00000; color:white; padding:5px; font-weight:bold; border:1px solid #000;">عدد الموزعين</div>
+           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#C00000; padding:10px;" id="excelDistributors">0</div>
+         </div>
+         <div style="flex:1; margin:0 5px; text-align:center;">
+           <div style="background:#E4DFEC; color:black; padding:5px; font-weight:bold; border:1px solid #000;">سائقون في إجازة</div>
+           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#7030A0; padding:10px;" id="excelVacation">0</div>
+         </div>
+         <div style="flex:1; margin:0 5px; text-align:center;">
+           <div style="background:#ED7D31; color:white; padding:5px; font-weight:bold; border:1px solid #000;">مركبات أسير/معطلة</div>
+           <div style="border:1px solid #000; border-top:none; font-size:32px; font-weight:bold; color:#ED7D31; padding:10px;" id="excelSpare">0</div>
+         </div>
+      </div>
+
+      <!-- Main Layout: 2 Columns -->
+      <div style="display:flex; flex-wrap:wrap;">
+         <!-- Left Column (Charts & Vehicle types table) -->
+         <div style="flex:1; min-width:350px; padding-left: 20px;">
+            <!-- Pie Chart -->
+            <div style="border:1px solid #ccc; padding:10px; border-radius:8px; margin-bottom: 20px; text-align:center;">
+               <div style="font-weight:bold; margin-bottom:10px; font-size:16px;">توزيع السائقين: موصل / موزع</div>
+               <canvas id="pieChartDrivers" width="200" height="200" style="max-height:250px; margin: 0 auto;"></canvas>
+            </div>
+            
+            <!-- Bar Chart & Table -->
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+               <div style="flex:2; border:1px solid #ccc; padding:10px; border-radius:8px; text-align:center;">
+                 <div style="font-weight:bold; margin-bottom:10px; font-size:16px; color:black;">عدد المركبات حسب النوع</div>
+                 <canvas id="barChartVehicles" style="max-height: 250px; width:100%;"></canvas>
+               </div>
+               <div style="flex:1; margin-right:15px;">
+                 <table style="width:100%; border-collapse:collapse; border:2px solid #000; font-size:14px; text-align:center;">
+                   <tbody id="excelVehicleTable"></tbody>
+                 </table>
+                 <div style="font-size:10px; color:gray; text-align:left; margin-top:5px; font-style:italic;">إعداد / إدارة قسم الحركة</div>
+               </div>
+            </div>
+         </div>
+         
+         <!-- Right Column (Expiring Documents Table) -->
+         <div style="flex:1; min-width:400px;">
+            <div style="background:#C00000; color:white; padding:8px; font-weight:bold; text-align:center; border:2px solid #000; border-bottom:none;">
+               ⚠️ المستندات التي تنتهي خلال 30 يومًا أو منتهية
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse; border:2px solid #000; font-size:13px; text-align:center;">
+                 <thead>
+                    <tr style="background:#D9D9D9; font-weight:bold; border-bottom:2px solid #000;">
+                       <th style="border:1px solid #000; padding:5px;">م</th>
+                       <th style="border:1px solid #000; padding:5px;">الاسم</th>
+                       <th style="border:1px solid #000; padding:5px;">رقم اللوحة</th>
+                       <th style="border:1px solid #000; padding:5px;">نوع المستند</th>
+                       <th style="border:1px solid #000; padding:5px;">تاريخ الانتهاء</th>
+                       <th style="border:1px solid #000; padding:5px;">الأيام المتبقية</th>
+                    </tr>
+                 </thead>
+                 <tbody id="excelExpiringBody">
+                 </tbody>
+              </table>
+            </div>
+         </div>
       </div>
     </div>
 
@@ -1074,56 +1146,170 @@
       })(t0);
     }
 
+    let excelPieChart = null;
+    let excelBarChart = null;
+
+    function renderExcelCharts() {
+       const m = state.main || [];
+       
+       let deliveryCount = 0;
+       let distCount = 0;
+       m.forEach(r => {
+          const j = (r.job || '').trim();
+          if (j === 'موصل') deliveryCount++;
+          else if (j === 'موزع') distCount++;
+       });
+       
+       if (excelPieChart) {
+           excelPieChart.data.datasets[0].data = [distCount, deliveryCount];
+           excelPieChart.update();
+       } else {
+           const ctxPie = document.getElementById('pieChartDrivers');
+           if (ctxPie) {
+               excelPieChart = new Chart(ctxPie, {
+                   type: 'pie',
+                   data: {
+                       labels: ['موزع', 'موصل'],
+                       datasets: [{
+                           data: [distCount, deliveryCount],
+                           backgroundColor: ['#C0504D', '#4F81BD']
+                       }]
+                   },
+                   options: {
+                       responsive: true,
+                       plugins: { legend: { position: 'bottom' } }
+                   }
+               });
+           }
+       }
+       
+       const vTypes = {};
+       m.forEach(r => {
+           let t = (r.vtype || '').trim();
+           if (!t) return;
+           vTypes[t] = (vTypes[t] || 0) + 1;
+       });
+       (state.spare || []).forEach(r => {
+           let t = (r.vtype || '').trim();
+           if (!t) return;
+           vTypes[t] = (vTypes[t] || 0) + 1;
+       });
+       
+       const sortedTypes = Object.entries(vTypes).sort((a,b) => b[1] - a[1]);
+       const labels = sortedTypes.map(x => x[0]);
+       const data = sortedTypes.map(x => x[1]);
+       
+       if (excelBarChart) {
+           excelBarChart.data.labels = labels;
+           excelBarChart.data.datasets[0].data = data;
+           excelBarChart.update();
+       } else {
+           const ctxBar = document.getElementById('barChartVehicles');
+           if (ctxBar) {
+               excelBarChart = new Chart(ctxBar, {
+                   type: 'bar',
+                   data: {
+                       labels: labels,
+                       datasets: [{
+                           label: 'Series1',
+                           data: data,
+                           backgroundColor: '#4F81BD'
+                       }]
+                   },
+                   options: {
+                       responsive: true,
+                       plugins: { legend: { display: false } },
+                       scales: {
+                           y: { beginAtZero: true }
+                       }
+                   }
+               });
+           }
+       }
+       
+       const vtBody = document.getElementById('excelVehicleTable');
+       if (vtBody) {
+           let html = '';
+           sortedTypes.forEach(x => {
+               html += `<tr>
+                 <td style="border:1px solid #000; padding:4px; width:40px; background:#D9E1F2; font-weight:bold;">${x[1]}</td>
+                 <td style="border:1px solid #000; padding:4px; font-weight:bold;">${x[0]}</td>
+               </tr>`;
+           });
+           vtBody.innerHTML = html;
+       }
+    }
+
     function refreshStatsAndAlerts(c, s) {
       const pick = (v, comp) => (v != null && v !== '' ? v : comp);
       const set = (id, v) => { const el = document.getElementById(id); if (el) animateStatValue(el, v); };
-      set('statDrivers', pick(s.drivers, c.drivers));
-      set('statDelivery', pick(s.delivery, c.delivery));
-      set('statDistributors', pick(s.distributors, c.distributors));
-      set('statLorries', pick(s.lorries, c.lorries));
-      set('statDinas', pick(s.dinas, c.dinas));
-      set('statVacation', c.vacation);
-      set('statSpare', state.spare.length);
-      const exp = expiringList();
-      set('statExpiring', exp.length);
-      // tab chips
+      
+      set('excelTotalDrivers', pick(s.drivers, c.drivers));
+      set('excelDelivery', pick(s.delivery, c.delivery));
+      set('excelDistributors', pick(s.distributors, c.distributors));
+      set('excelVacation', state.vacation.length);
+      set('excelSpare', state.spare.length);
+      
       set('chipMain', state.main.length);
       set('chipSpare', state.spare.length);
       set('chipVac', state.vacation.length);
+      
+      const exp = expiringList();
       set('chipExp', exp.length);
-      // alert bar
-      const bar = document.getElementById('schedAlertBar');
-      if (bar) {
-        if (exp.length > 0) {
-          bar.classList.remove('hidden');
-          document.getElementById('schedAlertMsg').textContent =
-            `يوجد ${exp.length} وثيقة منتهية أو تنتهي خلال 90 يوماً — يرجى المراجعة`;
-        } else { bar.classList.add('hidden'); }
-      }
+      
+      document.getElementById('excelTodayDate').textContent = new Date().toISOString().split('T')[0];
+      const schedDate = document.getElementById('schedDate') ? document.getElementById('schedDate').value : '';
+      document.getElementById('excelLastUpdate').textContent = schedDate || new Date().toISOString().split('T')[0];
+      
       renderExpiredTab(exp);
+      renderExcelCharts();
     }
 
     function renderExpiredTab(exp) {
-      const tb = document.getElementById('bodyExp');
-      if (!tb) return;
-      tb.innerHTML = '';
-      exp.forEach(r => {
-        const cls = r.days < 0 ? 'exp-bad' : r.days <= 30 ? 'exp-warn' : 'exp-soon';
-        const status = r.days < 0 ? '🔴 منتهٍ' : r.days <= 30 ? '🟠 عاجل' : '🟡 قريب';
-        const daysTxt = r.days < 0 ? `منتهٍ منذ ${Math.abs(r.days)} يوم` : `${r.days} يوم`;
+      const tbOld = document.getElementById('bodyExp');
+      if (tbOld) {
+        tbOld.innerHTML = '';
+        exp.forEach(r => {
+          const cls = r.days < 0 ? 'exp-bad' : r.days <= 30 ? 'exp-warn' : 'exp-soon';
+          const status = r.days < 0 ? '🔴 منتهٍ' : r.days <= 30 ? '🟠 عاجل' : '🟡 قريب';
+          const daysTxt = r.days < 0 ? `منتهٍ منذ ${Math.abs(r.days)} يوم` : `${r.days} يوم`;
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            `<td style="padding:8px 10px;font-weight:700;">${escapeHtml(r.name)}</td>` +
+            `<td style="padding:8px 10px;">${escapeHtml(r.empid)}</td>` +
+            `<td style="padding:8px 10px;"><span style="background:rgba(197,160,89,.16);color:#e0c489;border-radius:8px;padding:3px 10px;font-weight:700;">${escapeHtml(r.plate)}</span></td>` +
+            `<td style="padding:8px 10px;font-weight:600;">${escapeHtml(r.doc)}</td>` +
+            `<td class="${cls}" style="padding:8px 10px;font-weight:800;">${escapeHtml(r.date)}</td>` +
+            `<td style="padding:8px 10px;">${status}</td>` +
+            `<td style="padding:8px 10px;font-weight:700;color:var(--p-gold2);">${daysTxt}</td>`;
+          tbOld.appendChild(tr);
+        });
+        if (!exp.length) {
+          tbOld.innerHTML = `<tr><td colspan="7" style="padding:16px;color:var(--p-muted);">لا توجد وثائق منتهية أو قريبة من الانتهاء خلال 90 يوماً ✅</td></tr>`;
+        }
+      }
+      
+      const tbNew = document.getElementById('excelExpiringBody');
+      if (!tbNew) return;
+      tbNew.innerHTML = '';
+      exp.forEach((r, i) => {
+        let daysColor = '';
+        if (r.days < 0) daysColor = 'background:#FFC7CE; color:#9C0006; font-weight:bold;';
+        else if (r.days <= 30) daysColor = 'background:#FFC7CE; color:#9C0006; font-weight:bold;';
+        else daysColor = 'background:#FFEB9C; color:#9C6500; font-weight:bold;';
+        
         const tr = document.createElement('tr');
         tr.innerHTML =
-          `<td style="padding:8px 10px;font-weight:700;">${escapeHtml(r.name)}</td>` +
-          `<td style="padding:8px 10px;">${escapeHtml(r.empid)}</td>` +
-          `<td style="padding:8px 10px;"><span style="background:rgba(197,160,89,.16);color:#e0c489;border-radius:8px;padding:3px 10px;font-weight:700;">${escapeHtml(r.plate)}</span></td>` +
-          `<td style="padding:8px 10px;font-weight:600;">${escapeHtml(r.doc)}</td>` +
-          `<td class="${cls}" style="padding:8px 10px;font-weight:800;">${escapeHtml(r.date)}</td>` +
-          `<td style="padding:8px 10px;">${status}</td>` +
-          `<td style="padding:8px 10px;font-weight:700;color:var(--p-gold2);">${daysTxt}</td>`;
-        tb.appendChild(tr);
+          `<td style="border:1px solid #000; padding:4px;">${i + 1}</td>` +
+          `<td style="border:1px solid #000; padding:4px;">${escapeHtml(r.name)}</td>` +
+          `<td style="border:1px solid #000; padding:4px; direction:ltr;">${escapeHtml(r.plate)}</td>` +
+          `<td style="border:1px solid #000; padding:4px;">${escapeHtml(r.doc)}</td>` +
+          `<td style="border:1px solid #000; padding:4px; direction:ltr;">${escapeHtml(r.date)}</td>` +
+          `<td style="border:1px solid #000; padding:4px; ${daysColor}">${r.days}</td>`;
+        tbNew.appendChild(tr);
       });
       if (!exp.length) {
-        tb.innerHTML = `<tr><td colspan="7" style="padding:16px;color:var(--p-muted);">لا توجد وثائق منتهية أو قريبة من الانتهاء خلال 90 يوماً ✅</td></tr>`;
+        tbNew.innerHTML = `<tr><td colspan="6" style="border:1px solid #000; padding:10px; color:green; font-weight:bold;">لا يوجد مستندات منتهية أو قريبة</td></tr>`;
       }
     }
 
