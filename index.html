@@ -1947,6 +1947,98 @@ function saveDriverChanges() {
     </div>
 </div>
 
+<script>
+let weeklyUpdateData = {};
+
+async function loadWeeklyUpdate() {
+    try {
+        const res = await fetch('/api/weekly_update');
+        const data = await res.json();
+        if (data.success) {
+            weeklyUpdateData = data.data;
+            const selector = document.getElementById('weeklySheetSelector');
+            selector.innerHTML = '';
+            data.sheets.forEach(sheet => {
+                const opt = document.createElement('option');
+                opt.value = sheet;
+                opt.textContent = sheet;
+                selector.appendChild(opt);
+            });
+            if (data.sheets.length > 0) {
+                renderWeeklySheet();
+            }
+        } else {
+            alert('خطأ في تحميل البيانات: ' + data.error);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderWeeklySheet() {
+    const sheetName = document.getElementById('weeklySheetSelector').value;
+    const sheetData = weeklyUpdateData[sheetName];
+    if (!sheetData) return;
+    
+    const thead = document.getElementById('weeklyUpdateHead');
+    const tbody = document.getElementById('weeklyUpdateBody');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+    
+    if (sheetData.length === 0) return;
+    
+    sheetData.forEach((row, rowIndex) => {
+        const tr = document.createElement('tr');
+        row.forEach((cell, colIndex) => {
+            const el = document.createElement(rowIndex === 0 || rowIndex === 1 ? 'th' : 'td');
+            el.textContent = cell !== null && cell !== undefined ? cell : "";
+            el.contentEditable = true;
+            el.style.border = '1px solid var(--fd-border)';
+            el.style.padding = '8px';
+            el.style.minWidth = '100px';
+            if (rowIndex === 0 || rowIndex === 1) {
+                el.style.background = '#1a1a1a';
+                el.style.color = 'var(--fd-gold)';
+            }
+            el.onblur = (e) => {
+                weeklyUpdateData[sheetName][rowIndex][colIndex] = e.target.textContent;
+            };
+            tr.appendChild(el);
+        });
+        if (rowIndex === 0 || rowIndex === 1) {
+            thead.appendChild(tr);
+        } else {
+            tbody.appendChild(tr);
+        }
+    });
+}
+
+async function saveWeeklyUpdate() {
+    const btn = event.target;
+    btn.textContent = 'جاري الحفظ...';
+    try {
+        const res = await fetch('/api/weekly_update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({data: weeklyUpdateData})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('تم حفظ التعديلات في ملف الإكسل بنجاح!');
+        } else {
+            alert('خطأ في الحفظ: ' + data.error);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('حدث خطأ في الاتصال بالخادم');
+    }
+    btn.textContent = 'حفظ التعديلات';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadWeeklyUpdate();
+});
+</script>
 </body>
 
 </html>

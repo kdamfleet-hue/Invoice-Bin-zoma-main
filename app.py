@@ -5772,3 +5772,43 @@ def seed_from_template():
 
     blob_set("schedule_data", sd)
     return "تم سحب البيانات من ملف الإكسل وإدخالها في الموقع بنجاح!"
+
+@app.route('/api/weekly_update', methods=['GET', 'POST'])
+def weekly_update_api():
+    file_path = 'تحديث الاسبوعي - فرع الدمام (محدث).xlsx'
+    
+    if request.method == 'GET':
+        if not os.path.exists(file_path):
+            return jsonify({"error": "File not found"}), 404
+        try:
+            import pandas as pd
+            import numpy as np
+            xlsx = pd.ExcelFile(file_path)
+            data = {}
+            for sheet in xlsx.sheet_names:
+                df = pd.read_excel(xlsx, sheet_name=sheet, header=None)
+                df = df.replace({np.nan: ""})
+                # Convert timestamps to string if any
+                for col in df.columns:
+                    if pd.api.types.is_datetime64_any_dtype(df[col]):
+                        df[col] = df[col].dt.strftime('%Y-%m-%d')
+                data[sheet] = df.values.tolist()
+            return jsonify({"success": True, "data": data, "sheets": xlsx.sheet_names})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+            
+    if request.method == 'POST':
+        try:
+            import pandas as pd
+            data = request.json.get('data', {})
+            if not data:
+                return jsonify({"error": "No data provided"}), 400
+                
+            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                for sheet_name, grid_data in data.items():
+                    df = pd.DataFrame(grid_data)
+                    df.to_excel(writer, sheet_name=sheet_name, index=False, header=False)
+                    
+            return jsonify({"success": True, "message": "تم حفظ التعديلات بنجاح"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
