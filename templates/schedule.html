@@ -403,7 +403,7 @@
                ⚠️ المستندات التي تنتهي خلال 30 يومًا أو منتهية
             </div>
             <div style="overflow-x:auto;">
-              <table style="width:100%; border-collapse:collapse; font-size:13.5px; text-align:center; background:#fff;">
+              <table style="width:100%; min-width:0; border-collapse:collapse; font-size:13.5px; text-align:center; background:#fff;">
                  <thead>
                     <tr style="background:#4F81BD; font-weight:bold;">
                        <th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">م</th>
@@ -418,6 +418,7 @@
                  </tbody>
               </table>
             </div>
+            <div style="font-size:10.5px; color:#888; text-align:center; padding:6px 4px; background:#fafbfc;">🔒 محسوبة تلقائياً — للتعديل غيّر التواريخ في تبويب «المركبات النشطة»</div>
          </div>
 
          <!-- Left Column in RTL (Charts & Vehicle types table) -->
@@ -439,9 +440,10 @@
                  </div>
                </div>
                <div style="flex: 1 1 140px; min-width: 0; display:flex; flex-direction:column; justify-content:flex-start;">
-                 <table style="width:100%; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:center; background:#fff;">
+                 <table style="width:100%; min-width:0; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:center; background:#fff;">
                    <tbody id="excelVehicleTable"></tbody>
                  </table>
+                 <div style="font-size:10px; color:#888; text-align:center; margin-top:6px;">🔒 محسوبة تلقائياً</div>
                  <div style="font-size:10px; color:gray; text-align:left; margin-top:8px; font-style:italic;">إعداد / إدارة قسم الحركة</div>
                </div>
             </div>
@@ -1274,11 +1276,14 @@
        
        const vtBody = document.getElementById('excelVehicleTable');
        if (vtBody) {
+           // Read-only: this table is a live tally of state.main/state.spare vehicle types,
+           // not stored data — edit vehicles in "المركبات النشطة" instead, this recalculates
+           // from there automatically (and is what actually gets included in Excel export).
            let html = '';
            sortedTypes.forEach(x => {
                html += `<tr>
-                 <td contenteditable="true" style="border:1px solid #dde3ee; padding:8px 6px; width:44px; background:#D9E1F2; font-weight:bold; color:#000; outline:none;">${x[1]}</td>
-                 <td contenteditable="true" style="border:1px solid #dde3ee; padding:8px 6px; font-weight:bold; color:#000; outline:none;">${x[0]}</td>
+                 <td style="border:1px solid #dde3ee; padding:8px 6px; width:44px; background:#D9E1F2; font-weight:bold; color:#000;">${x[1]}</td>
+                 <td style="border:1px solid #dde3ee; padding:8px 6px; font-weight:bold; color:#000;">${x[0]}</td>
                </tr>`;
            });
            vtBody.innerHTML = html;
@@ -1376,15 +1381,19 @@
         else if (r.days <= 30) daysColor = 'background:#FFC7CE; color:#9C0006; font-weight:bold;';
         else daysColor = 'background:#FFEB9C; color:#9C6500; font-weight:bold;';
         
+        // Read-only: this list is a live top-of-list computed from state.main's own date fields
+        // (drivercard/inspect/license/opcard), not stored data — edit the dates on the driver's
+        // row in "المركبات النشطة" instead, this recalculates from there automatically (and is
+        // what actually gets included in Excel export).
         const tr = document.createElement('tr');
         if (i % 2 === 1) tr.style.background = '#f7f9fc';
         tr.innerHTML =
           `<td style="border:1px solid #dde3ee; padding:8px 6px; color:#000;">${i + 1}</td>` +
-          `<td contenteditable="true" style="border:1px solid #dde3ee; padding:8px 6px; color:#000; outline:none;">${escapeHtml(r.name)}</td>` +
-          `<td contenteditable="true" style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000; outline:none;">${escapeHtml(r.plate)}</td>` +
-          `<td contenteditable="true" style="border:1px solid #dde3ee; padding:8px 6px; color:#000; outline:none;">${escapeHtml(r.doc)}</td>` +
-          `<td contenteditable="true" style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000; outline:none;">${escapeHtml(r.date)}</td>` +
-          `<td contenteditable="true" style="border:1px solid #dde3ee; padding:8px 6px; ${daysColor} outline:none;">${r.days}</td>`;
+          `<td style="border:1px solid #dde3ee; padding:8px 6px; color:#000;">${escapeHtml(r.name)}</td>` +
+          `<td style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000;">${escapeHtml(r.plate)}</td>` +
+          `<td style="border:1px solid #dde3ee; padding:8px 6px; color:#000;">${escapeHtml(r.doc)}</td>` +
+          `<td style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000;">${escapeHtml(r.date)}</td>` +
+          `<td style="border:1px solid #dde3ee; padding:8px 6px; ${daysColor}">${r.days}</td>`;
         tbNew.appendChild(tr);
       });
     }
