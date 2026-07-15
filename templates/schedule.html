@@ -16,7 +16,6 @@
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     /* ════════════════════════════════════════════════════════════════════
        PREMIUM DARK NAVY + GOLD RESKIN — scoped to .sched-premium.
@@ -399,8 +398,9 @@
 
          <!-- Right Column in RTL (Expiring Documents Table) -->
          <div style="flex:1 1 420px; min-width:0; border-radius:10px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.12);">
-            <div style="background:#C62828; color:white; padding:12px; font-weight:bold; text-align:center; font-size:15px;">
-               ⚠️ المستندات التي تنتهي خلال 30 يومًا أو منتهية
+            <div style="background:#C62828; color:white; padding:12px; font-weight:bold; text-align:center; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px;">
+               <span>⚠️ المستندات التي تنتهي خلال 30 يومًا أو منتهية</span>
+               <button type="button" onclick="recalcExpiring()" title="إعادة الحساب من تبويب المركبات النشطة" style="background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;">🔄</button>
             </div>
             <div style="overflow-x:auto;">
               <table style="width:100%; min-width:0; border-collapse:collapse; font-size:13.5px; text-align:center; background:#fff;">
@@ -418,34 +418,31 @@
                  </tbody>
               </table>
             </div>
-            <div style="font-size:10.5px; color:#888; text-align:center; padding:6px 4px; background:#fafbfc;">🔒 محسوبة تلقائياً — للتعديل غيّر التواريخ في تبويب «المركبات النشطة»</div>
          </div>
 
-         <!-- Left Column in RTL (Charts & Vehicle types table) -->
+         <!-- Left Column in RTL (summary tables, exactly like the Excel sheet) -->
          <div style="flex:1 1 380px; min-width:0; display:flex; flex-direction:column; gap:20px;">
-            <!-- Pie Chart -->
-            <div style="border-radius:10px; padding:16px; text-align:center; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.12);">
-               <div style="font-weight:bold; margin-bottom:12px; font-size:16px; color:#000;">توزيع السائقين: موصل / موزع</div>
-               <div style="position: relative; height: 210px; width: 100%; display: flex; justify-content: center;">
-                 <canvas id="pieChartDrivers" style="max-height:210px;"></canvas>
+            <!-- موصل / موزع -->
+            <div style="border-radius:10px; padding:16px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.12);">
+               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                 <div style="font-weight:bold; font-size:16px; color:#000;">توزيع السائقين: موصل / موزع</div>
+                 <button type="button" onclick="recalcJobSplit()" title="إعادة الحساب من تبويب المركبات النشطة" style="background:#eef1f6; border:1px solid #dde3ee; color:#444; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;">🔄</button>
                </div>
+               <table style="width:100%; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:right; background:#fff;">
+                 <tbody id="excelJobSplitTable"></tbody>
+               </table>
             </div>
 
-            <!-- Bar Chart & Table -->
-            <div style="display:flex; flex-wrap:wrap; align-items:stretch; border-radius:10px; padding:16px; background:#fff; gap: 18px; box-shadow:0 2px 10px rgba(0,0,0,.12);">
-               <div style="flex: 2 1 220px; min-width: 0; text-align:center; display:flex; flex-direction:column;">
-                 <div style="font-weight:bold; margin-bottom:12px; font-size:16px; color:#000;">عدد المركبات حسب النوع</div>
-                 <div style="position: relative; flex-grow: 1; min-height: 200px; width: 100%;">
-                   <canvas id="barChartVehicles"></canvas>
-                 </div>
+            <!-- عدد المركبات حسب النوع -->
+            <div style="border-radius:10px; padding:16px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.12);">
+               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                 <div style="font-weight:bold; font-size:16px; color:#000;">عدد المركبات حسب النوع</div>
+                 <button type="button" onclick="recalcVehicleTypes()" title="إعادة الحساب من تبويب المركبات النشطة" style="background:#eef1f6; border:1px solid #dde3ee; color:#444; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;">🔄</button>
                </div>
-               <div style="flex: 1 1 140px; min-width: 0; display:flex; flex-direction:column; justify-content:flex-start;">
-                 <table style="width:100%; min-width:0; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:center; background:#fff;">
-                   <tbody id="excelVehicleTable"></tbody>
-                 </table>
-                 <div style="font-size:10px; color:#888; text-align:center; margin-top:6px;">🔒 محسوبة تلقائياً</div>
-                 <div style="font-size:10px; color:gray; text-align:left; margin-top:8px; font-style:italic;">إعداد / إدارة قسم الحركة</div>
-               </div>
+               <table style="width:100%; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:right; background:#fff;">
+                 <tbody id="excelVehicleTable"></tbody>
+               </table>
+               <div style="font-size:10px; color:gray; text-align:left; margin-top:8px; font-style:italic;">إعداد / إدارة قسم الحركة</div>
             </div>
          </div>
 
@@ -1159,9 +1156,6 @@
       })(t0);
     }
 
-    let excelPieChart = null;
-    let excelBarChart = null;
-
     // Save a dashboard KPI input to state.summary when user edits it
     function saveDashKpi(el) {
       const key = el.dataset.kpi;
@@ -1169,125 +1163,136 @@
       if (!state.summary) state.summary = {};
       state.summary[key] = el.value;
       scheduleSave();
-      renderExcelCharts();
+      renderExcelSummaryTables();
     }
 
-    function renderExcelCharts() {
-       const m = state.main || [];
-       const s = state.summary || {};
-       
-       // Use schedule data if available, otherwise use the editable KPI values
-       let deliveryCount = m.filter(r => (r.job || '').trim() === 'موصل').length;
-       let distCount = m.filter(r => (r.job || '').trim() === 'موزع').length;
-       
-       // If schedule is empty, use the saved/editable KPI values for the pie chart
-       if (deliveryCount === 0 && distCount === 0) {
-         deliveryCount = parseInt(document.getElementById('excelDelivery').value) || 0;
-         distCount = parseInt(document.getElementById('excelDistributors').value) || 0;
-       }
-       
-       if (excelPieChart) {
-           excelPieChart.data.datasets[0].data = [distCount, deliveryCount];
-           excelPieChart.update();
-       } else {
-           const ctxPie = document.getElementById('pieChartDrivers');
-           if (ctxPie) {
-               excelPieChart = new Chart(ctxPie, {
-                   type: 'pie',
-                   data: {
-                       labels: ['موزع', 'موصل'],
-                       datasets: [{
-                           data: [distCount, deliveryCount],
-                           backgroundColor: ['#C0504D', '#4F81BD']
-                       }]
-                   },
-                   options: {
-                       responsive: true,
-                       plugins: {
-                         legend: { position: 'bottom', labels: { color: '#000' } },
-                         tooltip: { enabled: true }
-                       }
-                   }
-               });
-           }
-       }
-       
-       // Build vehicle type counts from the active fleet only (matches the Excel
-       // dashboard's "عدد المركبات حسب النوع" table, which excludes spare/broken vehicles)
-       const vTypes = {};
-       m.forEach(r => {
-           let t = (r.vtype || '').trim();
-           if (!t) return;
-           vTypes[t] = (vTypes[t] || 0) + 1;
-       });
+    // Both dashboard summary tables (موصل/موزع split, vehicle types) behave like real Excel
+    // cells: they start out computed from state.main, but once the user types over a cell that
+    // edit sticks (state.summary.jobSplit / vehicleTypes) exactly like typing over a formula
+    // cell in Excel — it no longer updates itself. The 🔄 button re-derives it from state.main.
+    function computedJobSplit() {
+      const m = state.main || [];
+      let delivery = m.filter(r => (r.job || '').trim() === 'موصل').length;
+      let dist = m.filter(r => (r.job || '').trim() === 'موزع').length;
+      if (!delivery && !dist) {
+        delivery = parseInt(document.getElementById('excelDelivery').value) || 0;
+        dist = parseInt(document.getElementById('excelDistributors').value) || 0;
+      }
+      return { 'موصل': delivery, 'موزع': dist };
+    }
+    function computedVehicleTypes() {
+      const vTypes = {};
+      (state.main || []).forEach(r => {
+        const t = (r.vtype || '').trim();
+        if (t) vTypes[t] = (vTypes[t] || 0) + 1;
+      });
+      if (!Object.keys(vTypes).length) {
+        // Default Excel dummy data (used only when there's no fleet data at all yet)
+        vTypes['ايسوزو دينا'] = 4;
+        vTypes['ايسوزو لوري'] = 13;
+        vTypes['متسوبيشي دينا'] = 8;
+        vTypes['متسوبيشي لوري'] = 3;
+        vTypes['هينو  دينا'] = 1;
+      }
+      return vTypes;
+    }
 
-       // If no schedule data, use saved vehicleTypes from state.summary OR default dummy data from Excel
-       if (Object.keys(vTypes).length === 0) {
-         if (s.vehicleTypes) {
-           try {
-             const saved = typeof s.vehicleTypes === 'string' ? JSON.parse(s.vehicleTypes) : s.vehicleTypes;
-             Object.entries(saved).forEach(([k, v]) => { vTypes[k] = v; });
-           } catch(e) {}
-         }
-         
-         if (Object.keys(vTypes).length === 0) {
-           // Default Excel dummy data
-           vTypes['ايسوزو دينا'] = 4;
-           vTypes['ايسوزو لوري'] = 13;
-           vTypes['متسوبيشي دينا'] = 8;
-           vTypes['متسوبيشي لوري'] = 3;
-           vTypes['هينو  دينا'] = 1;
-         }
+    function renderExcelSummaryTables() {
+       const s = state.summary || {};
+
+       if (!s.jobSplit) s.jobSplit = computedJobSplit();
+       const jsBody = document.getElementById('excelJobSplitTable');
+       if (jsBody) {
+         jsBody.innerHTML = Object.entries(s.jobSplit).map(([label, val]) => `
+           <tr>
+             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid #dde3ee; padding:8px 10px; background:#DBE5F1; font-weight:bold; color:#000; outline:none;">${escapeHtml(label)}</td>
+             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid #dde3ee; padding:8px 10px; background:#DBE5F1; font-weight:bold; color:#000; width:70px; outline:none;">${val}</td>
+           </tr>`).join('');
        }
-       
-       const sortedTypes = Object.entries(vTypes).sort((a,b) => b[1] - a[1]);
-       const labels = sortedTypes.map(x => x[0]);
-       const data = sortedTypes.map(x => x[1]);
-       
-       if (excelBarChart) {
-           excelBarChart.data.labels = labels;
-           excelBarChart.data.datasets[0].data = data;
-           excelBarChart.update();
-       } else {
-           const ctxBar = document.getElementById('barChartVehicles');
-           if (ctxBar) {
-               excelBarChart = new Chart(ctxBar, {
-                   type: 'bar',
-                   data: {
-                       labels: labels,
-                       datasets: [{
-                           label: 'Series1',
-                           data: data,
-                           backgroundColor: '#4F81BD'
-                       }]
-                   },
-                   options: {
-                       responsive: true,
-                       maintainAspectRatio: false,
-                       plugins: { legend: { display: true, labels: { color: '#000' } } },
-                       scales: {
-                           y: { beginAtZero: true, ticks: { stepSize: 1, color: '#000' } },
-                           x: { ticks: { color: '#000' } }
-                       }
-                   }
-               });
-           }
-       }
-       
+
+       if (!s.vehicleTypes || !Object.keys(s.vehicleTypes).length) s.vehicleTypes = computedVehicleTypes();
+       const sortedTypes = Object.entries(s.vehicleTypes).sort((a, b) => b[1] - a[1]);
        const vtBody = document.getElementById('excelVehicleTable');
        if (vtBody) {
-           // Read-only: this table is a live tally of state.main/state.spare vehicle types,
-           // not stored data — edit vehicles in "المركبات النشطة" instead, this recalculates
-           // from there automatically (and is what actually gets included in Excel export).
-           let html = '';
-           sortedTypes.forEach(x => {
-               html += `<tr>
-                 <td style="border:1px solid #dde3ee; padding:8px 6px; width:44px; background:#D9E1F2; font-weight:bold; color:#000;">${x[1]}</td>
-                 <td style="border:1px solid #dde3ee; padding:8px 6px; font-weight:bold; color:#000;">${x[0]}</td>
-               </tr>`;
-           });
-           vtBody.innerHTML = html;
+         vtBody.innerHTML = sortedTypes.map(([type, count]) => `
+           <tr>
+             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid #dde3ee; padding:8px 10px; width:44px; background:#D9E1F2; font-weight:bold; color:#000; outline:none;">${count}</td>
+             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid #dde3ee; padding:8px 10px; font-weight:bold; color:#000; outline:none;">${escapeHtml(type)}</td>
+           </tr>`).join('');
        }
+
+       state.summary = s;
+    }
+
+    // Rebuild state.summary.jobSplit / vehicleTypes straight from whatever's currently
+    // shown on screen (works regardless of row order, no index bookkeeping needed).
+    function onJobSplitEdit() {
+      const body = document.getElementById('excelJobSplitTable');
+      if (!body) return;
+      const obj = {};
+      Array.from(body.querySelectorAll('tr')).forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        const label = (tds[0]?.textContent || '').trim();
+        const val = parseInt((tds[1]?.textContent || '').trim(), 10) || 0;
+        if (label) obj[label] = val;
+      });
+      if (!state.summary) state.summary = {};
+      state.summary.jobSplit = obj;
+      scheduleSave();
+    }
+    function onVehicleTypeEdit() {
+      const body = document.getElementById('excelVehicleTable');
+      if (!body) return;
+      const obj = {};
+      Array.from(body.querySelectorAll('tr')).forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        const count = parseInt((tds[0]?.textContent || '').trim(), 10) || 0;
+        const type = (tds[1]?.textContent || '').trim();
+        if (type) obj[type] = count;
+      });
+      if (!state.summary) state.summary = {};
+      state.summary.vehicleTypes = obj;
+      scheduleSave();
+    }
+    function recalcJobSplit() {
+      if (!state.summary) state.summary = {};
+      state.summary.jobSplit = computedJobSplit();
+      renderExcelSummaryTables();
+      scheduleSave();
+      if (window.showToast) showToast('تم إعادة الحساب من الجدول الرئيسي', 'success');
+    }
+    function recalcVehicleTypes() {
+      if (!state.summary) state.summary = {};
+      state.summary.vehicleTypes = computedVehicleTypes();
+      renderExcelSummaryTables();
+      scheduleSave();
+      if (window.showToast) showToast('تم إعادة الحساب من الجدول الرئيسي', 'success');
+    }
+    // Same pattern for the expiry-alert list: sticks once edited, 🔄 re-derives from dates
+    // on the "المركبات النشطة" rows.
+    function onExpiringEdit() {
+      const body = document.getElementById('excelExpiringBody');
+      if (!body) return;
+      const rows = Array.from(body.querySelectorAll('tr')).map(tr => {
+        const tds = tr.querySelectorAll('td');
+        return {
+          name: (tds[1]?.textContent || '').trim(),
+          plate: (tds[2]?.textContent || '').trim(),
+          doc: (tds[3]?.textContent || '').trim(),
+          date: (tds[4]?.textContent || '').trim(),
+          days: parseInt((tds[5]?.textContent || '').trim(), 10) || 0,
+        };
+      });
+      if (!state.summary) state.summary = {};
+      state.summary.expiringOverride = rows;
+      scheduleSave();
+    }
+    function recalcExpiring() {
+      if (!state.summary) state.summary = {};
+      delete state.summary.expiringOverride;
+      updateSummary();
+      scheduleSave();
+      if (window.showToast) showToast('تم إعادة الحساب من الجدول الرئيسي', 'success');
     }
 
     function refreshStatsAndAlerts(c, s) {
@@ -1328,7 +1333,7 @@
       if (lastEl) lastEl.textContent = schedDate || new Date().toISOString().split('T')[0];
 
       renderExpiredTab(exp, expiringList(false));
-      renderExcelCharts();
+      renderExcelSummaryTables();
     }
 
     function renderExpiredTab(exp, expMainOnly) {
@@ -1359,9 +1364,10 @@
       if (!tbNew) return;
       tbNew.innerHTML = '';
 
-      // The exact-Excel-replica table only tracks the active/assigned fleet (main), matching
-      // the source workbook's own "⚠ المستندات التي تنتهي" list.
-      let displayExp = expMainOnly || [];
+      // Sticks once edited — exactly like typing over a formula cell in Excel — via
+      // state.summary.expiringOverride (cleared by the 🔄 button, see recalcExpiring()).
+      const s = state.summary || {};
+      let displayExp = (s.expiringOverride && s.expiringOverride.length) ? s.expiringOverride : (expMainOnly || []);
       if (!displayExp.length) {
         // Dummy data exactly matching the reference Excel file (تحديث الاسبوعي 2026-7-14)
         displayExp = [
@@ -1374,26 +1380,22 @@
           { name: 'علي محمد ابوزيد محمد', plate: 'ا ر ع 2240', doc: 'رخصة السير', date: '2026-09-07', days: 55 }
         ];
       }
-      
+
       displayExp.forEach((r, i) => {
         let daysColor = '';
         if (r.days < 0) daysColor = 'background:#FFC7CE; color:#9C0006; font-weight:bold;';
         else if (r.days <= 30) daysColor = 'background:#FFC7CE; color:#9C0006; font-weight:bold;';
         else daysColor = 'background:#FFEB9C; color:#9C6500; font-weight:bold;';
-        
-        // Read-only: this list is a live top-of-list computed from state.main's own date fields
-        // (drivercard/inspect/license/opcard), not stored data — edit the dates on the driver's
-        // row in "المركبات النشطة" instead, this recalculates from there automatically (and is
-        // what actually gets included in Excel export).
+
         const tr = document.createElement('tr');
         if (i % 2 === 1) tr.style.background = '#f7f9fc';
         tr.innerHTML =
           `<td style="border:1px solid #dde3ee; padding:8px 6px; color:#000;">${i + 1}</td>` +
-          `<td style="border:1px solid #dde3ee; padding:8px 6px; color:#000;">${escapeHtml(r.name)}</td>` +
-          `<td style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000;">${escapeHtml(r.plate)}</td>` +
-          `<td style="border:1px solid #dde3ee; padding:8px 6px; color:#000;">${escapeHtml(r.doc)}</td>` +
-          `<td style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000;">${escapeHtml(r.date)}</td>` +
-          `<td style="border:1px solid #dde3ee; padding:8px 6px; ${daysColor}">${r.days}</td>`;
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; color:#000; outline:none;">${escapeHtml(r.name)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000; outline:none;">${escapeHtml(r.plate)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; color:#000; outline:none;">${escapeHtml(r.doc)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000; outline:none;">${escapeHtml(r.date)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; ${daysColor} outline:none;">${r.days}</td>`;
         tbNew.appendChild(tr);
       });
     }
@@ -1940,10 +1942,27 @@
     async function exportExcel() {
       try {
         if (window.showToast) showToast('جاري التصدير...', 'info');
+        const s = state.summary || {};
+        // Send the *effective* dashboard values (override if the user edited it, otherwise
+        // whatever's currently computed/shown on screen) so the exported "لوحة المعلومات"
+        // sheet matches exactly what's visible on the site, not just the main/spare/vacation
+        // row data.
+        const dashboard = {
+          kpis: {
+            drivers: document.getElementById('excelTotalDrivers')?.value || '',
+            delivery: document.getElementById('excelDelivery')?.value || '',
+            distributors: document.getElementById('excelDistributors')?.value || '',
+            vacation: document.getElementById('excelVacation')?.value || '',
+            spare: document.getElementById('excelSpare')?.value || '',
+          },
+          jobSplit: s.jobSplit || computedJobSplit(),
+          vehicleTypes: s.vehicleTypes || computedVehicleTypes(),
+          expiring: (s.expiringOverride && s.expiringOverride.length) ? s.expiringOverride : expiringList(false),
+        };
         const res = await fetch('/api/export_schedule_exact', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(state)
+          body: JSON.stringify(Object.assign({}, state, { dashboard }))
         });
         const d = await res.json();
         if (d.success && d.file_b64) {

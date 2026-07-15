@@ -5655,6 +5655,13 @@ def export_schedule_exact():
             except AttributeError:
                 pass # Merged cell
 
+        def safe_set_num(sheet, row, col, val):
+            try:
+                val = int(val)
+            except (TypeError, ValueError):
+                pass
+            safe_set(sheet, row, col, val)
+
         # --- Active Vehicles (المركبات النشطة) ---
         ws_main = wb["المركبات النشطة"]
         main_data = data.get("main", [])
@@ -5719,6 +5726,49 @@ def export_schedule_exact():
                 # Col 7 is the formula
                 safe_set(ws_vac, r, 8, rd.get("phone", ""))
                 safe_set(ws_vac, r, 9, rd.get("empNotes", ""))
+
+        # --- Dashboard (لوحة المعلومات) — KPIs, expiry alert list, and the two summary
+        # tables, matching whatever's currently shown/edited on the site's dashboard tab.
+        # G5 (vacation KPI) is left untouched: it's a live COUNTA() formula in the template.
+        if "لوحة المعلومات" in wb.sheetnames:
+            ws_dash = wb["لوحة المعلومات"]
+            dash = data.get("dashboard", {})
+
+            if data.get("date"):
+                safe_set(ws_dash, 2, 2, data.get("date"))
+
+            kpis = dash.get("kpis", {})
+            safe_set_num(ws_dash, 5, 1, kpis.get("drivers", ""))
+            safe_set_num(ws_dash, 5, 3, kpis.get("delivery", ""))
+            safe_set_num(ws_dash, 5, 5, kpis.get("distributors", ""))
+            safe_set_num(ws_dash, 5, 9, kpis.get("spare", ""))
+
+            expiring = dash.get("expiring", [])[:7]
+            for idx, rd in enumerate(expiring):
+                r = 9 + idx
+                safe_set(ws_dash, r, 1, idx + 1)
+                safe_set(ws_dash, r, 2, rd.get("name", ""))
+                safe_set(ws_dash, r, 3, rd.get("plate", ""))
+                safe_set(ws_dash, r, 4, rd.get("doc", ""))
+                safe_set(ws_dash, r, 5, rd.get("date", ""))
+                safe_set_num(ws_dash, r, 6, rd.get("days", ""))
+
+            job_split = dash.get("jobSplit", {})
+            for idx, (label, val) in enumerate(list(job_split.items())[:2]):
+                r = 19 + idx
+                safe_set(ws_dash, r, 1, label)
+                safe_set_num(ws_dash, r, 2, val)
+
+            def vt_sort_key(kv):
+                try:
+                    return -int(kv[1])
+                except (TypeError, ValueError):
+                    return 0
+            vehicle_types = sorted(dash.get("vehicleTypes", {}).items(), key=vt_sort_key)[:5]
+            for idx, (label, val) in enumerate(vehicle_types):
+                r = 21 + idx
+                safe_set(ws_dash, r, 1, label)
+                safe_set_num(ws_dash, r, 2, val)
 
         import io, base64
         output = io.BytesIO()
