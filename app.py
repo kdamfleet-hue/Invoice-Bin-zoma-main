@@ -22,6 +22,8 @@ import re
 import html
 import absher_sync          # محرّك مزامنة أبشر (قارئ xlsx بالمكتبة القياسية + الفروقات)
 from datetime import datetime
+import pandas as pd
+import numpy as np
 from functools import wraps
 
 try:
@@ -166,11 +168,7 @@ logger.info("Template Dir: %s", TEMPLATE_DIR)
 logger.info("Database Path: %s", DB_PATH)
 
 
-@app.route("/health")
-def health():
-    return jsonify(
-        {"status": "healthy", "env": "Render" if os.environ.get("RENDER") else "Local"}
-    )
+
 
 
 @app.route("/api/gps")
@@ -3975,7 +3973,7 @@ def update_driver_status():
 @login_required
 def api_sync_excel():
     try:
-        import pandas as pd
+
         df = pd.read_excel('DB-WORK/dammam_employees_data.xlsx', header=[0, 1])
         df.columns = [f"{c[0]}_{c[1]}" if 'Unnamed' not in str(c[0]) else str(c[1]) for c in df.columns]
         
@@ -5831,8 +5829,7 @@ def weekly_update_api():
         if not os.path.exists(file_path):
             return jsonify({"error": "File not found"}), 404
         try:
-            import pandas as pd
-            import numpy as np
+
             xlsx = pd.ExcelFile(file_path)
             data = {}
             for sheet in xlsx.sheet_names:
@@ -5849,7 +5846,7 @@ def weekly_update_api():
             
     if request.method == 'POST':
         try:
-            import pandas as pd
+
             data = request.json.get('data', {})
             if not data:
                 return jsonify({"error": "No data provided"}), 400
