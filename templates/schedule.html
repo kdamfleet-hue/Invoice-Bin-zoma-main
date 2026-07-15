@@ -16,6 +16,7 @@
     <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     /* ════════════════════════════════════════════════════════════════════
        PREMIUM DARK NAVY + GOLD RESKIN — scoped to .sched-premium.
@@ -428,6 +429,9 @@
                  <div style="font-weight:bold; font-size:16px; color:#000;">توزيع السائقين: موصل / موزع</div>
                  <button type="button" onclick="recalcJobSplit()" title="إعادة الحساب من تبويب المركبات النشطة" style="background:#eef1f6; border:1px solid #dde3ee; color:#444; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;">🔄</button>
                </div>
+               <div style="position:relative; height:180px; width:100%; display:flex; justify-content:center; margin-bottom:14px;">
+                 <canvas id="pieChartDrivers" style="max-height:180px;"></canvas>
+               </div>
                <table style="width:100%; min-width:0; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:right; background:#fff;">
                  <tbody id="excelJobSplitTable"></tbody>
                </table>
@@ -438,6 +442,9 @@
                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
                  <div style="font-weight:bold; font-size:16px; color:#000;">عدد المركبات حسب النوع</div>
                  <button type="button" onclick="recalcVehicleTypes()" title="إعادة الحساب من تبويب المركبات النشطة" style="background:#eef1f6; border:1px solid #dde3ee; color:#444; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;">🔄</button>
+               </div>
+               <div style="position:relative; height:200px; width:100%; margin-bottom:14px;">
+                 <canvas id="barChartVehicles"></canvas>
                </div>
                <table style="width:100%; min-width:0; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:right; background:#fff;">
                  <tbody id="excelVehicleTable"></tbody>
@@ -1197,6 +1204,9 @@
       return vTypes;
     }
 
+    let excelPieChart = null;
+    let excelBarChart = null;
+
     function renderExcelSummaryTables() {
        const s = state.summary || {};
 
@@ -1222,6 +1232,56 @@
        }
 
        state.summary = s;
+
+       // Charts mirror the same jobSplit/vehicleTypes data as the editable tables above —
+       // the reference Excel sheet has both a pie chart and a bar chart embedded alongside
+       // these exact cells, so editing a table cell updates its chart too.
+       if (window.Chart) {
+         const jsEntries = Object.entries(s.jobSplit);
+         const ctxPie = document.getElementById('pieChartDrivers');
+         if (ctxPie) {
+           if (excelPieChart) {
+             excelPieChart.data.labels = jsEntries.map(e => e[0]);
+             excelPieChart.data.datasets[0].data = jsEntries.map(e => e[1]);
+             excelPieChart.update();
+           } else {
+             excelPieChart = new Chart(ctxPie, {
+               type: 'pie',
+               data: {
+                 labels: jsEntries.map(e => e[0]),
+                 datasets: [{ data: jsEntries.map(e => e[1]), backgroundColor: ['#4F81BD', '#C0504D'] }]
+               },
+               options: { responsive: true, maintainAspectRatio: false,
+                 plugins: { legend: { position: 'bottom', labels: { color: '#000' } } } }
+             });
+           }
+         }
+
+         const ctxBar = document.getElementById('barChartVehicles');
+         if (ctxBar) {
+           if (excelBarChart) {
+             excelBarChart.data.labels = sortedTypes.map(x => x[0]);
+             excelBarChart.data.datasets[0].data = sortedTypes.map(x => x[1]);
+             excelBarChart.update();
+           } else {
+             excelBarChart = new Chart(ctxBar, {
+               type: 'bar',
+               data: {
+                 labels: sortedTypes.map(x => x[0]),
+                 datasets: [{ label: 'Series1', data: sortedTypes.map(x => x[1]), backgroundColor: '#4F81BD' }]
+               },
+               options: {
+                 responsive: true, maintainAspectRatio: false,
+                 plugins: { legend: { display: false } },
+                 scales: {
+                   y: { beginAtZero: true, ticks: { stepSize: 1, color: '#000' } },
+                   x: { ticks: { color: '#000' } }
+                 }
+               }
+             });
+           }
+         }
+       }
     }
 
     // Rebuild state.summary.jobSplit / vehicleTypes straight from whatever's currently
