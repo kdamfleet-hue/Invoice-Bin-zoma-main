@@ -361,6 +361,17 @@ SNAP_TAB_BY_ROUTE = {
 }
 
 
+
+@app.context_processor
+def inject_system_features():
+    features = _global_blob_get("system_features") or {
+        "audit_enforced": True,
+        "ai_assistant": True,
+        "email_alerts": True,
+        "workstation_mode": False
+    }
+    return {"features": features}
+
 @app.context_processor
 def inject_branch():
     """Make the active branch + current tab's snapshot key available to every template."""
@@ -407,6 +418,7 @@ def blob_get(table):
 
 def blob_set(table, data_obj):
     """Write a single-row JSON blob to the mode-specific row (id=2 for workstation)."""
+    data_obj = sanitize_data(data_obj)
     table = _safe_tbl(table)
     rid = _row_id()
     data_str = json.dumps(data_obj, ensure_ascii=False)
@@ -469,7 +481,18 @@ def _global_blob_get(table):
     return _loads_blob(row)
 
 
+
+def sanitize_data(data):
+    if isinstance(data, dict):
+        return {k: sanitize_data(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_data(v) for v in data]
+    elif isinstance(data, str):
+        return " ".join(data.split()).strip()
+    return data
+
 def _global_blob_set(table, data_obj):
+    data_obj = sanitize_data(data_obj)
     table = _safe_tbl(table)
     data_str = json.dumps(data_obj, ensure_ascii=False)
     with db_connection() as conn:
