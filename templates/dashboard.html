@@ -852,14 +852,14 @@
     }
 
     var cards = [
-      { c: 'k-gold', ic: '🚚', label: 'إجمالي المركبات', num: vehicles, foot: (rows.length ? (rows.length + ' في الجدول الأسبوعي') : ''), trend: trendFor('dispVehicles'), type: 'vehicles' },
-      { c: 'k-blue', ic: '👷', label: 'إجمالي الموظفين/السائقين', num: people, foot: (empCount ? 'سجل الموظفين' : 'سجل السائقين'), trend: trendFor('dispPeople'), type: 'drivers' },
-      { c: 'k-green', ic: '🛵', label: 'موصلون', num: delivery, foot: 'موزعون: ' + distrib, type: 'drivers' },
-      { c: 'k-navy', ic: '🏖️', label: 'في إجازة', num: vacation, foot: 'حسب ملخص الجدول', type: 'vacation' },
-      { c: 'k-red', ic: '⛔', label: 'وثائق منتهية', num: expired, foot: 'تحتاج تجديد فوري', type: 'expired_docs' },
-      { c: 'k-amber', ic: '⚠️', label: 'تنتهي خلال 30 يوم', num: d30, foot: 'متابعة عاجلة', type: 'expiring_30' },
-      { c: 'k-amber', ic: '🗓️', label: 'تنتهي خلال 90 يوم', num: d90, foot: 'تخطيط للتجديد', type: 'expiring_90' },
-      { c: 'k-green', ic: '🧼', label: 'غُسلت هذا الشهر', num: washedThis, foot: 'لم تُغسل: ' + (pendingThis < 0 ? 0 : pendingThis), type: 'washed' }
+      { c: 'k-gold', ic: '🚚', label: 'إجمالي المركبات', num: vehicles, foot: (rows.length ? (rows.length + ' في الجدول الأسبوعي') : ''), trend: trendFor('dispVehicles'), type: 'total_vehicles' },
+      { c: 'k-blue', ic: '👷', label: 'إجمالي الموظفين/السائقين', num: people, foot: (empCount ? 'سجل الموظفين' : 'سجل السائقين'), trend: trendFor('dispPeople'), type: 'total_drivers' },
+      { c: 'k-green', ic: '🛵', label: 'موصلون', num: delivery, foot: 'موزعون: ' + distrib, type: 'today_operations' },
+      { c: 'k-navy', ic: '🏖️', label: 'في إجازة', num: vacation, foot: 'حسب ملخص الجدول', type: 'unscheduled_drivers' },
+      { c: 'k-red', ic: '⛔', label: 'وثائق منتهية', num: expired, foot: 'تحتاج تجديد فوري', type: 'expired_documents' },
+      { c: 'k-amber', ic: '⚠️', label: 'تنتهي خلال 30 يوم', num: d30, foot: 'متابعة عاجلة', type: 'expiring_30_days' },
+      { c: 'k-amber', ic: '🗓️', label: 'تنتهي خلال 90 يوم', num: d90, foot: 'تخطيط للتجديد', type: 'expiring_30_days' },
+      { c: 'k-green', ic: '🧼', label: 'غُسلت هذا الشهر', num: washedThis, foot: 'لم تُغسل: ' + (pendingThis < 0 ? 0 : pendingThis), type: 'maintenance_vehicles' }
     ];
     $('kpiGrid').innerHTML = cards.map(function (k) {
       var trendHtml = '', footText = k.foot;
@@ -868,8 +868,8 @@
         trendHtml = '<span class="k-trend ' + (up ? 'up' : 'down') + '" title="مقارنةً بآخر نسخة في سجل التحديثات">' + (up ? '▲ +' : '▼ ') + k.trend.delta + '</span>';
         footText = k.trend.age; // show the real period instead of the static sub-stat when something actually changed
       }
-      return '<div class="kpi ' + k.c + '" onclick="navigateToContext(\'' + (k.type || '') + '\')" style="cursor:pointer;"><div class="k-top"><span class="k-label">' + k.label + '</span><span class="k-ic">' + k.ic + '</span></div>' +
-        '<div class="k-num">' + k.num + '</div><div class="k-foot">' + trendHtml + '<span>' + esc(footText) + '</span></div></div>';
+      return '<div class="kpi dashboard-card ' + k.c + '" onclick="DeepLinkNavigator.navigate(\'' + (k.type || '') + '\')" style="cursor:pointer;"><div class="k-top"><span class="k-label">' + k.label + '</span><span class="k-ic card-icon">' + k.ic + '</span></div>' +
+        '<div class="k-num value">' + k.num + '</div><div class="k-foot subtitle">' + trendHtml + '<span>' + esc(footText) + '</span></div></div>';
     }).join('');
 
     // readiness
@@ -1293,3 +1293,62 @@
 </script>
 </body>
 </html>
+<style>
+/* =============================================
+ * Deep Linking Professional CSS
+ * ============================================= */
+.dashboard-card {
+    background: linear-gradient(145deg, #1a1f2e, #252b3d);
+    border-radius: 16px;
+    padding: 20px 24px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.dashboard-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.dashboard-card:hover::before {
+    opacity: 1;
+}
+
+/* ألوان حسب النوع */
+.card-drivers { border-left: 5px solid #3b82f6; }
+.card-vehicles { border-left: 5px solid #10b981; }
+.card-documents { border-left: 5px solid #f59e0b; }
+.card-alert { border-left: 5px solid #ef4444; }
+
+/* تأثير الدونات والأيقونات */
+.dashboard-card .card-icon {
+    position: absolute;
+    top: 20px;
+    left: 20px; /* modified for RTL */
+    font-size: 28px;
+    opacity: 0.15;
+    transition: all 0.3s;
+}
+
+.dashboard-card:hover .card-icon {
+    opacity: 0.3;
+    transform: scale(1.1);
+}
+</style>

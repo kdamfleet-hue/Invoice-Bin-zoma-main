@@ -3006,36 +3006,125 @@ document.addEventListener('DOMContentLoaded', function() {
       .catch(function(err) { console.warn("Failed to load system features for UI response", err); });
 });
 
-/**
- * نظام الربط الذكي - يربط بطاقات لوحة التحكم بالصفحات التفصيلية
- */
-function navigateToContext(type) {
-    // Audit log via API
-    fetch('/api/audit/deep_link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'وصول إداري (Deep Link)', type: type })
-    }).catch(function(e) { console.error('Audit log failed', e); });
 
-    switch(type) {
-        case 'drivers':
-        case 'vehicles':
-            window.location.href = '/registry'; // سجل الأسطول
-            break;
-        case 'unscheduled':
-        case 'vacation':
-            window.location.href = '/schedule'; // الجدول الأسبوعي
-            break;
-        case 'expired_docs':
-        case 'expiring_30':
-        case 'expiring_90':
-            window.location.href = '/documents'; // التوثيق والأرشيف
-            break;
-        case 'washed':
-            window.location.href = '/washing';
-            break;
-        default:
-            console.log('No route for type: ' + type);
-            break;
+/**
+ * =============================================
+ * نظام الربط الذكي (Deep Linking) - النسخة النهائية الاحترافية
+ * =============================================
+ */
+
+const DeepLinkNavigator = {
+    mappings: {
+        'total_drivers': {
+            url: '/registry',
+            params: { filter: 'all', tab: 'drivers' },
+            auditAction: 'view_all_drivers'
+        },
+        'unscheduled_drivers': {
+            url: '/schedule',
+            params: { status: 'unscheduled', date: 'current' },
+            auditAction: 'view_unscheduled_drivers'
+        },
+        'total_vehicles': {
+            url: '/registry',
+            params: { tab: 'vehicles', filter: 'active' },
+            auditAction: 'view_all_vehicles'
+        },
+        'expired_documents': {
+            url: '/documents',
+            params: { status: 'expired', sort: 'expiry_date_asc' },
+            auditAction: 'view_expired_docs'
+        },
+        'mohammed_mandouh': {
+            url: '/employees',
+            params: { search: 'المندوه' },
+            auditAction: 'view_mandouh_profile'
+        },
+        'maintenance_vehicles': {
+            url: '/registry',
+            params: { tab: 'vehicles', filter: 'maintenance', priority: 'high' },
+            auditAction: 'view_maintenance_vehicles'
+        },
+        'today_operations': {
+            url: '/schedule',
+            params: { date: 'today', view: 'full' },
+            auditAction: 'view_today_operations'
+        },
+        'expiring_30_days': {
+            url: '/documents',
+            params: { status: 'expiring', days: '30', sort: 'expiry_date' },
+            auditAction: 'view_expiring_30_days'
+        },
+        'unlinked_drivers': {
+            url: '/registry',
+            params: { filter: 'unlinked', tab: 'drivers' },
+            auditAction: 'view_unlinked_drivers'
+        },
+        'driver_performance': {
+            url: '/insights',
+            params: { report_type: 'driver_performance', period: 'weekly' },
+            auditAction: 'view_driver_performance'
+        },
+        'nearest_expirations': {
+            url: '/documents',
+            params: { sort: 'expiry_date_asc', limit: '10' },
+            auditAction: 'view_nearest_expirations'
+        }
+    },
+
+    navigate(type) {
+        const mapping = this.mappings[type];
+        if (!mapping) {
+            console.error(\❌ نوع الربط غير معروف: \);
+            return false;
+        }
+
+        try {
+            let url = mapping.url;
+            const params = new URLSearchParams();
+
+            Object.entries(mapping.params).forEach(([key, value]) => {
+                params.append(key, value);
+            });
+
+            if (params.toString()) url += '?' + params.toString();
+
+            this.logAudit(mapping.auditAction, type);
+            window.location.href = url;
+            return true;
+
+        } catch (error) {
+            console.error('خطأ في DeepLinkNavigator:', error);
+            return false;
+        }
+    },
+
+    logAudit(action, type) {
+        const logData = {
+            action: 'وصول إداري (Deep Link) - ' + action,
+            type: type
+        };
+
+        fetch('/api/audit/deep_link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(logData)
+        }).catch(() => {});
+    },
+
+    addMapping(key, config) {
+        this.mappings[key] = config;
+        console.log(\✅ تم إضافة اختصار: \);
     }
+};
+
+window.DeepLinkNavigator = DeepLinkNavigator;
+
+// Fallback old function to support existing cards temporarily if needed
+function navigateToContext(type) {
+    if (DeepLinkNavigator.mappings[type]) {
+        return DeepLinkNavigator.navigate(type);
+    }
+    DeepLinkNavigator.navigate('total_drivers');
+}
 }
