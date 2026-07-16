@@ -384,6 +384,10 @@
             shown++;
             // Count attachments + a legacy document link (if present) for the badge
             const attN = (r.attachments || []).length + (r.link ? 1 : 0);
+            let hashShield = '';
+            if (r.attachments && r.attachments.length > 0 && r.attachments[0].hash) {
+                hashShield = '<br><span style="font-size:10px; color:#c9a227; font-weight:bold;">🛡️ مُحصّن</span>';
+            }
             html += '<tr data-idx="' + idx + '">'
                 + '<td>' + shown + '</td>'
                 + '<td><input type="date" class="rec-in" data-key="date" value="' + escapeHtml(r.date) + '"></td>'
@@ -395,7 +399,7 @@
                 + '<td class="col-details"><textarea class="rec-in" data-key="details" rows="1" placeholder="التفاصيل">' + escapeHtml(r.details) + '</textarea></td>'
                 + '<td><input type="text" class="rec-in" data-key="ref" value="' + escapeHtml(r.ref) + '" placeholder="المرجع"></td>'
                 + '<td>' + buildSelect('status', r.status || 'مفتوح', STATUSES, 'rec-status') + '</td>'
-                + '<td><button class="att-btn' + (attN ? ' has' : '') + '" onclick="openAttachments(' + idx + ')" title="إدارة المرفقات">📎 ' + attN + '</button></td>'
+                + '<td><button class="att-btn' + (attN ? ' has' : '') + '" onclick="openAttachments(' + idx + ')" title="إدارة المرفقات">📎 ' + attN + hashShield + '</button></td>'
                 + '<td><input type="text" class="rec-in" data-key="notes" value="' + escapeHtml(r.notes) + '" placeholder="ملاحظات"></td>'
                 + '<td><button class="rec-del" onclick="deleteRecord(' + idx + ')" title="حذف السجل">🗑</button></td>'
                 + '</tr>';
@@ -519,6 +523,7 @@
             return '<div class="att-row">'
                 + '<span style="font-size:1.1rem;">' + icon + '</span>'
                 + '<span class="att-name">' + escapeHtml(a.name || ('ملف ' + (i + 1))) + '</span>'
+                + (a.hash ? '<span class="att-hash" title="البصمة الرقمية (SHA-256)">🛡️ مُحصّن (' + escapeHtml(a.hash.substring(0,8)) + ')</span>' : '')
                 + '<span class="att-size">' + humanSize(approxBytes(a)) + '</span>'
                 + '<button class="att-view" onclick="viewAtt(' + i + ')">عرض</button>'
                 + '<button class="att-dl" onclick="downloadAtt(' + i + ')">تنزيل</button>'
@@ -540,8 +545,30 @@
             if (file.size > MAX_FILE_BYTES) { showToast('«' + file.name + '» أكبر من 2MB — لم يُضف', 'error'); return; }
             queued++;
             const reader = new FileReader();
-            reader.onload = function (e) {
-                r.attachments.push({ name: file.name, mime: file.type || 'application/octet-stream', size: file.size, data: e.target.result });
+            reader.onload = async function (e) {
+                // Generate SHA-256 hash using Web Crypto API for Tamper-Proof Ledger
+                let hashHex = '';
+                try {
+                    const dataBuffer = e.target.result;
+                    // For hashing, we need the ArrayBuffer. We can extract it from the base64 string or re-read.
+                    // Since it's read as DataURL, we convert the base64 part back to binary:
+                    const bstr = atob(dataBuffer.split(',')[1]);
+                    const u8 = new Uint8Array(bstr.length);
+                    for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', u8);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                } catch(err) {
+                    console.error("Hash calculation failed", err);
+                }
+
+                r.attachments.push({ 
+                    name: file.name, 
+                    mime: file.type || 'application/octet-stream', 
+                    size: file.size, 
+                    data: e.target.result,
+                    hash: hashHex
+                });
                 renderAttList();
                 renderTable();
                 scheduleSave();
@@ -678,8 +705,13 @@
                 // Attachments column: count of uploaded files + legacy document link if present.
                 const attCount = (r.attachments || []).length;
                 let docCell = '';
-                if (attCount) docCell = attCount + ' مرفق';
-                if (r.link) docCell = (docCell ? docCell + ' — ' : '') + 'رابط: ' + r.link;
+                if (attCount > 0) {
+                    const firstHash = r.attachments[0].hash;
+                    const hashBadge = firstHash ? '\n🛡️ مُحصّن' : '';
+                    docCell = attCount + ' ملفات' + hashBadge;
+                } else if (r.link) {
+                    docCell = (docCell ? docCell + ' — ' : '') + 'رابط: ' + r.link;
+                }
                 const vals = [idx + 1, r.date, TL(r.type), r.name, r.iqama, r.plate, r.subject, r.details, r.ref, TL(r.status), docCell, r.notes];
                 const zebra = (idx % 2 === 1);
                 vals.forEach(function (val, ci) {
