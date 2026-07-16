@@ -5784,6 +5784,7 @@ def export_schedule_exact():
 
 
 @app.route("/api/seed_from_template")
+@login_required
 def seed_from_template():
     import openpyxl
     template_path = os.path.join(app.root_path, "weekly_schedule_template.xlsx")

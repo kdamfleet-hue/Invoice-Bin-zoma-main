@@ -733,6 +733,14 @@
         if (r.ok) {
           serverLoadOk = true;
           const j = await r.json(); if (j.success && j.data) data = j.data;
+        } else if (r.status === 401) {
+          // Session expired — surface it instead of silently falling back to a possibly
+          // stale localStorage/static snapshot with no indication anything is wrong.
+          let msg = 'انتهت صلاحية الجلسة — يرجى تحديث الصفحة وتسجيل الدخول مجدداً';
+          try { const j = await r.json(); if (j.error) msg = j.error; } catch (e) {}
+          if (window.showToast) showToast(msg, 'error');
+          const hint = document.getElementById('saveHint');
+          if (hint) hint.textContent = '⚠️ ' + msg;
         }
       } catch (e) {}
       // WS: skip localStorage & static-file fallbacks so an empty server response stays EMPTY
@@ -1128,7 +1136,7 @@
       const c = computeCounts();
       const s = state.summary || {};
       state.summary = Object.assign({}, s, { vacation: String(c.vacation) });
-      refreshStatsAndAlerts(c, s);
+      refreshStatsAndAlerts(c, state.summary);
     }
 
     // ---- premium stat cards + alert bar + expired tab (presentation only) ----
@@ -1310,6 +1318,7 @@
       });
       if (!state.summary) state.summary = {};
       state.summary.jobSplit = obj;
+      renderExcelSummaryTables();
       scheduleSave();
     }
     function onVehicleTypeEdit() {
@@ -1324,6 +1333,7 @@
       });
       if (!state.summary) state.summary = {};
       state.summary.vehicleTypes = obj;
+      renderExcelSummaryTables();
       scheduleSave();
     }
     function recalcJobSplit() {
@@ -1557,7 +1567,7 @@
       window.__vehAll = veh;
       const chip = document.getElementById('chipVeh'); if (chip) chip.textContent = veh.length;
       const s = document.getElementById('vehSearch');
-      renderVehicles((s && s.value.trim()) ? veh : veh);
+      renderVehicles(veh);
       if (s && s.value.trim()) window.filterVehicles(s.value);
     }
 
@@ -1666,7 +1676,12 @@
       saveTimer = setTimeout(async () => {
         try {
           const r = await fetch('/api/schedule_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) });
-          hint.textContent = r.ok ? '✓ تم الحفظ' : 'تعذّر الحفظ على الخادم';
+          if (r.ok) {
+            hint.textContent = '✓ تم الحفظ';
+          } else {
+            const d = await r.json().catch(() => ({}));
+            hint.textContent = d.error ? '⚠️ ' + d.error : 'تعذّر الحفظ على الخادم';
+          }
         } catch (e) { hint.textContent = 'تعذّر الحفظ على الخادم'; }
       }, 700);
     }
@@ -2232,18 +2247,20 @@
       const allFleet = window.FleetData.all() || [];
       const scheduledPlates = new Set();
       const scheduledNames = new Set();
+      // Only key a scheduled row by driver name when it has no plate to key on instead —
+      // otherwise two distinct fleet records that happen to share a driver name would make a
+      // genuinely unscheduled vehicle disappear just because its namesake is scheduled elsewhere.
       ['main', 'spare', 'vacation'].forEach(sec => {
         (state[sec] || []).forEach(r => {
           if (r.plate) scheduledPlates.add(FleetData.normalizePlate(r.plate));
-          if (r.name) scheduledNames.add(r.name.trim());
+          else if (r.name) scheduledNames.add(r.name.trim());
         });
       });
-      
+
       const unscheduled = allFleet.filter(d => {
         if (!d.plate && !d.name) return false;
-        if (d.plate && scheduledPlates.has(FleetData.normalizePlate(d.plate))) return false;
-        if (d.name && scheduledNames.has(d.name.trim())) return false;
-        return true;
+        if (d.plate) return !scheduledPlates.has(FleetData.normalizePlate(d.plate));
+        return !(d.name && scheduledNames.has(d.name.trim()));
       });
       
       const chip = document.getElementById('chipUnscheduled');
@@ -2288,14 +2305,19 @@
       else showToast('⚠️ تمت الإضافة بدون اسم سائق — يرجى تعبئته يدوياً', 'error');
     }
 
-    // Call renderUnscheduled when FleetData finishes loading
-    const oldFleetLoad = window.FleetData ? window.FleetData.load : null;
-    if (window.FleetData) {
-      window.FleetData.load = async function() {
-        if(oldFleetLoad) await oldFleetLoad.apply(this, arguments);
-        renderUnscheduled();
-      };
-    }
+    // Call renderUnscheduled when FleetData finishes loading. This inline script runs during
+    // initial parsing, before the deferred app_ux.js (which defines window.FleetData) has
+    // executed — so the wrap has to wait for DOMContentLoaded, same as everything else that
+    // depends on FleetData existing.
+    document.addEventListener('DOMContentLoaded', () => {
+      const oldFleetLoad = window.FleetData ? window.FleetData.load : null;
+      if (window.FleetData) {
+        window.FleetData.load = async function() {
+          if (oldFleetLoad) await oldFleetLoad.apply(this, arguments);
+          renderUnscheduled();
+        };
+      }
+    });
   </script>
 </body>
 </html>
