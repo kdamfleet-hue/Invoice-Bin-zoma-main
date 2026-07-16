@@ -4813,9 +4813,11 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 
 from routes.auth import auth_bp
 from routes.api_fleet import api_fleet_bp
+from routes.api_schedule import api_schedule_bp
 from routes.ai import ai_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_fleet_bp)
+app.register_blueprint(api_schedule_bp)
 app.register_blueprint(ai_bp)
 
 
