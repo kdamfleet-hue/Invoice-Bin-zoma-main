@@ -40,6 +40,21 @@
         .snap-restore:hover { background: var(--brand-gold); color: #1a1a1a; }
         .snap-restore:disabled { opacity: .5; cursor: default; }
         .snap-empty { text-align: center; color: var(--text-muted); padding: 1.4rem; font-weight: 700; }
+
+        /* ── Feature Flagging Toggle Switches ── */
+        .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+        @media (max-width: 720px) { .feat-grid { grid-template-columns: 1fr; } }
+        .feat-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--surface-hover); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; transition: var(--trans, .2s); }
+        .feat-item:hover { border-color: var(--accent, #c5a059); box-shadow: 0 0 12px rgba(197,160,89,.12); }
+        .feat-info { flex: 1; }
+        .feat-info .feat-label { font-weight: 800; font-size: .95rem; color: var(--text-primary); margin-bottom: 2px; }
+        .feat-info .feat-desc { font-size: .78rem; color: var(--text-secondary); line-height: 1.6; }
+        .toggle-switch { position: relative; width: 52px; height: 28px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #3b3b4f; border-radius: 28px; transition: .3s; }
+        .toggle-slider::before { content: ''; position: absolute; width: 22px; height: 22px; border-radius: 50%; background: #fff; bottom: 3px; left: 3px; transition: .3s; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+        .toggle-switch input:checked + .toggle-slider { background: linear-gradient(135deg, #c5a059, #d4af37); box-shadow: 0 0 14px rgba(197,160,89,.35); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(24px); }
     </style>
 </head>
 <body>
@@ -128,6 +143,18 @@
 
         <div class="set-card">
           <div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هو وحده من يبدّل بين كل الفروع ويرى <b>مركز الفروع</b>.</span></div>
+        </div>
+
+        <!-- ═══════════ قسم التحكم في ميزات النظام (Feature Flagging) ═══════════ -->
+        <div class="set-card" id="featuresCard">
+          <h3>🎛️ التحكم في ميزات النظام</h3>
+          <div class="sub">فعّل أو عطّل أي ميزة بضغطة زر. التغيير يُحفظ فوراً في قاعدة البيانات ويُطبَّق على كل المستخدمين.</div>
+
+          <div class="feat-grid" id="featGrid">
+            <!-- يتم تحميلها ديناميكياً -->
+            <div class="snap-empty" id="featLoading">جارٍ تحميل الإعدادات…</div>
+          </div>
+          <div class="set-msg" id="featMsg"></div>
         </div>
 
       </div>
@@ -295,6 +322,69 @@
   loadUsers();
   loadSnapTabs();
   loadBranchAccounts();
+
+  // ── التحكم في ميزات النظام (Feature Flagging) ─────────────────────────
+  var FEAT_META = {
+    audit_enforced:  { icon: '🛡️', label: 'فرض سجل التدقيق', desc: 'إلزام المستخدمين بإدخال مسوّغ لكل تعديل.' },
+    ai_assistant:    { icon: '🤖', label: 'المساعد الذكي', desc: 'تفعيل / تعطيل المحادثة مع مساعد الذكاء الاصطناعي.' },
+    email_alerts:    { icon: '📧', label: 'تنبيهات البريد', desc: 'إرسال تنبيهات بريد إلكتروني عند اقتراب انتهاء الوثائق.' },
+    workstation_mode:{ icon: '🖥️', label: 'وضع محطة العمل', desc: 'تفعيل الدخول بنمط محطة العمل المفتوحة (Sandbox).' }
+  };
+
+  function loadFeatures() {
+    fetch('/api/system_features', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.features) throw new Error('no data');
+        renderFeatures(j.features);
+      })
+      .catch(function () {
+        var el = $('featLoading');
+        if (el) el.textContent = 'تعذّر تحميل إعدادات الميزات.';
+      });
+  }
+
+  function renderFeatures(features) {
+    var grid = $('featGrid');
+    grid.innerHTML = '';
+    Object.keys(FEAT_META).forEach(function (key) {
+      var m = FEAT_META[key];
+      var on = !!features[key];
+      var html = '<div class="feat-item">' +
+        '<div class="feat-info"><div class="feat-label">' + m.icon + ' ' + esc(m.label) + '</div>' +
+        '<div class="feat-desc">' + esc(m.desc) + '</div></div>' +
+        '<label class="toggle-switch"><input type="checkbox" data-key="' + key + '"' + (on ? ' checked' : '') + '>' +
+        '<span class="toggle-slider"></span></label></div>';
+      grid.insertAdjacentHTML('beforeend', html);
+    });
+    Array.prototype.forEach.call(grid.querySelectorAll('input[type="checkbox"]'), function (cb) {
+      cb.addEventListener('change', function () { toggleFeature(cb.getAttribute('data-key'), cb.checked); });
+    });
+  }
+
+  function toggleFeature(key, val) {
+    var msg = $('featMsg');
+    msg.innerHTML = '<span style="color:var(--text-secondary)">جارٍ الحفظ…</span>';
+    var body = {};
+    body[key] = val;
+    fetch('/api/system_features', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (res) {
+      if (res.ok && res.j.success) {
+        msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ الإعداد.</span>';
+        if (window.showToast) showToast('✓ تم تحديث الإعداد', 'success');
+      } else {
+        msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ تعذّر الحفظ.</span>';
+      }
+    })
+    .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+  }
+
+  loadFeatures();
 })();
 </script>
 

@@ -1661,7 +1661,18 @@
     window.exportDeauthorized = exportDeauthorized;
 
     // ---- persistence ----
+    let sessionReason = null;
     function scheduleSave() {
+      if (!sessionReason) {
+        sessionReason = prompt("يرجى إدخال مسوّغ التعديل (إلزامي للتوثيق في سجل التدقيق):");
+        if (!sessionReason || sessionReason.length < 5) {
+          sessionReason = null;
+          const hint = document.getElementById('saveHint');
+          if (hint) hint.textContent = '⚠️ لم يُحفظ التعديل: السبب إلزامي (5 أحرف على الأقل).';
+          return;
+        }
+      }
+      state.reason = sessionReason;
       localStorage.setItem(LS_KEY, JSON.stringify(state));
       const hint = document.getElementById('saveHint');
       // The initial GET never succeeded this session — we can't tell if this state reflects a

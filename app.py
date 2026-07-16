@@ -482,6 +482,28 @@ def _global_blob_set(table, data_obj):
         conn.commit()
 
 
+# ── System Feature Flags (Admin Control Panel) ────────────────────────────
+_DEFAULT_FEATURES = {
+    "audit_enforced": True,
+    "ai_assistant": True,
+    "email_alerts": True,
+    "workstation_mode": True,
+}
+
+def get_system_features():
+    """Read feature flags from DB, falling back to defaults."""
+    d = _global_blob_get("system_features")
+    if isinstance(d, dict):
+        merged = dict(_DEFAULT_FEATURES)
+        merged.update(d)
+        return merged
+    return dict(_DEFAULT_FEATURES)
+
+def set_system_features(features):
+    """Persist feature flags to DB."""
+    _global_blob_set("system_features", features)
+
+
 def _persistent_secret_key():
     """A stable session-signing key stored in the DB (survives restarts/redeploys), used
     only when SECRET_KEY isn't set in the environment — so deploys no longer log everyone
@@ -590,6 +612,17 @@ def _audit_add(action, target, count=None, detail=""):
         _audit_write(log)
     except Exception:
         logger.exception("audit_add failed")
+
+def audit_and_verify(action, target, reason):
+    """
+    تتحقق من وجود سبب وتضيفه لسجل التدقيق. 
+    القاعدة الثالثة: لا يُقبل أي تعديل يدوي بدون مسوّغ مكتوب.
+    """
+    if not reason or len(reason.strip()) < 5:
+        raise ValueError("يجب إدخال مسوّغ مكتوب (السبب) لإتمام التعديل.")
+    
+    _audit_add(action, target, detail=f"السبب: {reason.strip()}")
+    return True
 
 
 # ── Workstation example/demo data (FAKE — for the open sandbox only) ──────────
@@ -799,6 +832,28 @@ def settings():
     if not session.get("settings_unlocked"):
         return render_template("tab_lock.html", next="/settings", action="/settings")
     return render_template("settings.html", google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@app.route("/api/system_features", methods=["GET", "POST"])
+@login_required
+def api_system_features():
+    """Read / update system-wide feature flags (admin only)."""
+    if not session.get("settings_unlocked"):
+        return jsonify({"error": "locked"}), 403
+    if request.method == "GET":
+        return jsonify({"success": True, "features": get_system_features()})
+    try:
+        body = request.get_json(silent=True) or {}
+        features = get_system_features()
+        for key in _DEFAULT_FEATURES:
+            if key in body:
+                features[key] = bool(body[key])
+        set_system_features(features)
+        _audit_add("تحديث", "إعدادات النظام", detail="تعديل ميزات النظام")
+        return jsonify({"success": True, "features": features})
+    except Exception:
+        logger.exception("system_features POST error")
+        return jsonify({"success": False, "error": "تعذّر حفظ الإعدادات."}), 500
 
 
 @app.route("/api/users", methods=["GET", "POST", "DELETE"])
@@ -1519,7 +1574,14 @@ def employees_data():
     """Persist the branch employees grid using the hybrid SQL hr_employees table."""
     if request.method == "POST":
         try:
-            rows = (request.json or {}).get("rows", [])
+            req_data = request.json or {}
+            reason = req_data.get("reason")
+            try:
+                audit_and_verify("تحديث", "بيانات الموظفين (SQL)", reason)
+            except ValueError as e:
+                return jsonify({"success": False, "error": str(e)}), 400
+            
+            rows = req_data.get("rows", [])
             with db_connection() as db:
                 db.execute("DELETE FROM hr_employees")
                 for row in rows:
@@ -1539,7 +1601,6 @@ def employees_data():
                                (empid, iqama, name, plate, phone, job, details_json))
                 db.commit()
             blob_set("employees", rows)
-            _audit_add("تحديث", "بيانات الموظفين (SQL)", len(rows) if isinstance(rows, list) else None)
             return jsonify({"success": True})
         except Exception:
             logger.exception("employees_data POST error")
@@ -1689,6 +1750,12 @@ def schedule_data():
     if request.method == "POST":
         try:
             sd = request.json or {}
+            reason = sd.get("reason")
+            try:
+                audit_and_verify("تحديث", "الجدول الأسبوعي", reason)
+            except ValueError as e:
+                return jsonify({"success": False, "error": str(e)}), 400
+            
             blob_set("schedule_data", sd)
             try:
                 _harvest_driver_registry(sd)  # learn each driver's card-expiry/job for future autofill
@@ -1699,7 +1766,6 @@ def schedule_data():
             except Exception:
                 logger.warning("vehicle_registry harvest failed (non-fatal)")
             _n = (len(sd.get("main", []) or []) + len(sd.get("spare", []) or [])) if isinstance(sd, dict) else None
-            _audit_add("تحديث", "الجدول الأسبوعي", _n)
             return jsonify({"success": True})
         except Exception:
             logger.exception("schedule_data POST error")

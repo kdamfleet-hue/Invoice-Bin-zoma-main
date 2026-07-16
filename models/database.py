@@ -8,6 +8,7 @@ from flask import current_app
 try:
     import psycopg2
     import psycopg2.extras
+    from psycopg2 import pool
 except ImportError:
     psycopg2 = None
 
@@ -15,6 +16,12 @@ logger = logging.getLogger('InvoiceApp')
 
 DATABASE_URL = (os.environ.get('DATABASE_URL') or '').strip()
 USE_POSTGRES = bool(DATABASE_URL) and psycopg2 is not None
+db_pool = None
+if USE_POSTGRES:
+    try:
+        db_pool = pool.SimpleConnectionPool(1, 20, DATABASE_URL)
+    except Exception as e:
+        logger.error(f"Failed to create connection pool: {e}")
 if DATABASE_URL and psycopg2 is None:
     logger.warning('DATABASE_URL is set but psycopg2 is not installed — falling back to SQLite.')
 
@@ -63,11 +70,15 @@ class _PgConn:
         self._conn.rollback()
 
     def close(self):
-        self._conn.close()
+        if db_pool:
+            db_pool.putconn(self._conn)
+        else:
+            self._conn.close()
 
 def get_db():
     if USE_POSTGRES:
-        return _PgConn(psycopg2.connect(DATABASE_URL))
+        conn = db_pool.getconn() if db_pool else psycopg2.connect(DATABASE_URL)
+        return _PgConn(conn)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA journal_mode=WAL')

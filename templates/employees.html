@@ -430,13 +430,19 @@
         }
 
         async function saveToServer() {
+            const reason = prompt("يرجى إدخال مسوّغ التعديل (إلزامي للتوثيق في سجل التدقيق):");
+            if (!reason || reason.length < 5) {
+                if (window.showToast) showToast('⚠️ لم يُحفظ التعديل: السبب إلزامي (5 أحرف على الأقل).', 'error');
+                else alert('⚠️ لم يُحفظ التعديل: السبب إلزامي (5 أحرف على الأقل).');
+                return;
+            }
             const rows = collectRows();
             persistLocal();
             try {
                 const res = await fetch('/api/employees', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rows })
+                    body: JSON.stringify({ rows, reason })
                 });
                 const data = await res.json().catch(() => ({}));
                 if (res.ok && data.success) {
