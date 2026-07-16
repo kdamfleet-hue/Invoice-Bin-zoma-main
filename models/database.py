@@ -148,6 +148,7 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS deauthorized_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS drivers_backup (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS system_features (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             
             # --- Query Optimization Indices ---
             db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_plate ON drivers(plate)')
