@@ -5606,3 +5606,11 @@ def weekly_update_api():
             return jsonify({"success": True, "message": "تم حفظ التعديلات بنجاح"})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+@app.route('/api/audit/deep_link', methods=['POST'])
+@login_required
+def api_audit_deep_link():
+    body = request.get_json(silent=True) or {}
+    action = body.get('action', 'وصول إداري (Deep Link)')
+    target = body.get('type', 'غير محدد')
+    _audit_add(action, target, 1)
+    return jsonify({'success': True})

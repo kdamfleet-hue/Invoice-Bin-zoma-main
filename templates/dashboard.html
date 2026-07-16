@@ -852,14 +852,14 @@
     }
 
     var cards = [
-      { c: 'k-gold', ic: '🚚', label: 'إجمالي المركبات', num: vehicles, foot: (rows.length ? (rows.length + ' في الجدول الأسبوعي') : ''), trend: trendFor('dispVehicles') },
-      { c: 'k-blue', ic: '👷', label: 'إجمالي الموظفين/السائقين', num: people, foot: (empCount ? 'سجل الموظفين' : 'سجل السائقين'), trend: trendFor('dispPeople') },
-      { c: 'k-green', ic: '🛵', label: 'موصلون', num: delivery, foot: 'موزعون: ' + distrib },
-      { c: 'k-navy', ic: '🏖️', label: 'في إجازة', num: vacation, foot: 'حسب ملخص الجدول' },
-      { c: 'k-red', ic: '⛔', label: 'وثائق منتهية', num: expired, foot: 'تحتاج تجديد فوري' },
-      { c: 'k-amber', ic: '⚠️', label: 'تنتهي خلال 30 يوم', num: d30, foot: 'متابعة عاجلة' },
-      { c: 'k-amber', ic: '🗓️', label: 'تنتهي خلال 90 يوم', num: d90, foot: 'تخطيط للتجديد' },
-      { c: 'k-green', ic: '🧼', label: 'غُسلت هذا الشهر', num: washedThis, foot: 'لم تُغسل: ' + (pendingThis < 0 ? 0 : pendingThis) }
+      { c: 'k-gold', ic: '🚚', label: 'إجمالي المركبات', num: vehicles, foot: (rows.length ? (rows.length + ' في الجدول الأسبوعي') : ''), trend: trendFor('dispVehicles'), type: 'vehicles' },
+      { c: 'k-blue', ic: '👷', label: 'إجمالي الموظفين/السائقين', num: people, foot: (empCount ? 'سجل الموظفين' : 'سجل السائقين'), trend: trendFor('dispPeople'), type: 'drivers' },
+      { c: 'k-green', ic: '🛵', label: 'موصلون', num: delivery, foot: 'موزعون: ' + distrib, type: 'drivers' },
+      { c: 'k-navy', ic: '🏖️', label: 'في إجازة', num: vacation, foot: 'حسب ملخص الجدول', type: 'vacation' },
+      { c: 'k-red', ic: '⛔', label: 'وثائق منتهية', num: expired, foot: 'تحتاج تجديد فوري', type: 'expired_docs' },
+      { c: 'k-amber', ic: '⚠️', label: 'تنتهي خلال 30 يوم', num: d30, foot: 'متابعة عاجلة', type: 'expiring_30' },
+      { c: 'k-amber', ic: '🗓️', label: 'تنتهي خلال 90 يوم', num: d90, foot: 'تخطيط للتجديد', type: 'expiring_90' },
+      { c: 'k-green', ic: '🧼', label: 'غُسلت هذا الشهر', num: washedThis, foot: 'لم تُغسل: ' + (pendingThis < 0 ? 0 : pendingThis), type: 'washed' }
     ];
     $('kpiGrid').innerHTML = cards.map(function (k) {
       var trendHtml = '', footText = k.foot;
@@ -868,7 +868,7 @@
         trendHtml = '<span class="k-trend ' + (up ? 'up' : 'down') + '" title="مقارنةً بآخر نسخة في سجل التحديثات">' + (up ? '▲ +' : '▼ ') + k.trend.delta + '</span>';
         footText = k.trend.age; // show the real period instead of the static sub-stat when something actually changed
       }
-      return '<div class="kpi ' + k.c + '"><div class="k-top"><span class="k-label">' + k.label + '</span><span class="k-ic">' + k.ic + '</span></div>' +
+      return '<div class="kpi ' + k.c + '" onclick="navigateToContext(\'' + (k.type || '') + '\')" style="cursor:pointer;"><div class="k-top"><span class="k-label">' + k.label + '</span><span class="k-ic">' + k.ic + '</span></div>' +
         '<div class="k-num">' + k.num + '</div><div class="k-foot">' + trendHtml + '<span>' + esc(footText) + '</span></div></div>';
     }).join('');
 

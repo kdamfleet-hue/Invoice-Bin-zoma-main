@@ -3005,3 +3005,37 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(function(err) { console.warn("Failed to load system features for UI response", err); });
 });
+
+/**
+ * نظام الربط الذكي - يربط بطاقات لوحة التحكم بالصفحات التفصيلية
+ */
+function navigateToContext(type) {
+    // Audit log via API
+    fetch('/api/audit/deep_link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'وصول إداري (Deep Link)', type: type })
+    }).catch(function(e) { console.error('Audit log failed', e); });
+
+    switch(type) {
+        case 'drivers':
+        case 'vehicles':
+            window.location.href = '/registry'; // سجل الأسطول
+            break;
+        case 'unscheduled':
+        case 'vacation':
+            window.location.href = '/schedule'; // الجدول الأسبوعي
+            break;
+        case 'expired_docs':
+        case 'expiring_30':
+        case 'expiring_90':
+            window.location.href = '/documents'; // التوثيق والأرشيف
+            break;
+        case 'washed':
+            window.location.href = '/washing';
+            break;
+        default:
+            console.log('No route for type: ' + type);
+            break;
+    }
+}
