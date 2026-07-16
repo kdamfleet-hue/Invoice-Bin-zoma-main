@@ -153,7 +153,7 @@ def login_required(f):
         if not session.get("authenticated"):
             if request.path.startswith("/api/"):
                 return jsonify({"success": False, "error": "Session expired. Please refresh and log in again."}), 401
-            return redirect(url_for("login"))
+            return redirect(url_for("auth.login"))
         return f(*args, **kwargs)
 
     return decorated_function
