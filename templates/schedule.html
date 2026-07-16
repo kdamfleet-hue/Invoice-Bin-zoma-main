@@ -772,9 +772,21 @@
       rows.forEach((row, idx) => {
         const tr = document.createElement('tr');
         let html = `<td class="col-idx">${idx + 1}</td>`;
-        cols.forEach(c => {
-          const v = escapeHtml(row[c.key] || '');
+        cols.forEach((c, cIdx) => {
+          let v = escapeHtml(row[c.key] || '');
+          
+          // Calculate remaining days automatically for readonly rem_days columns
+          if (c.readonly && c.key.startsWith('rem_days') && cIdx > 0) {
+            const dateCol = cols[cIdx - 1];
+            if (dateCol && dateCol.date) {
+              const diff = dateDiffDays(row[dateCol.key]);
+              v = diff !== null ? diff : '';
+            }
+          }
+
           const listAttr = (c.key === 'name' || c.key === 'empid' || c.key === 'plate' || c.key === 'iqama') ? ' list="driverNames"' : '';
+          const readonlyAttr = c.readonly ? ' readonly tabindex="-1"' : '';
+          
           // presentation-only cell classes: date status (with days hint) + job/plate badge look
           let cls = '';
           let dataAttr = '';
@@ -788,7 +800,7 @@
           } else if (c.key === 'plate') {
             cls = (row.plate || '').trim() ? 'plate-cell' : '';
           }
-          html += `<td class="${cls}"${dataAttr}><input type="text" value="${v}" data-sec="${section}" data-i="${idx}" data-k="${c.key}"${listAttr}></td>`;
+          html += `<td class="${cls}"${dataAttr}><input type="text" value="${v}" data-sec="${section}" data-i="${idx}" data-k="${c.key}"${listAttr}${readonlyAttr}></td>`;
         });
         html += `<td class="col-act"><div class="col-act-wrap"><button class="row-custody" title="نقل عهدة المركبة لسائق آخر" onclick="openCustodyModal('${section}',${idx})">🔄</button><button class="row-notify" title="إشعار السائق عبر واتساب" onclick="notifyDriver('${section}',${idx})">📲</button><button class="row-del" title="حذف" onclick="deleteRow('${section}',${idx})">✕</button></div></td>`;
         tr.innerHTML = html;
@@ -1363,18 +1375,18 @@
         else if (el) { el.textContent = v; }
       };
       
-      // Set KPI input values — prefer saved summary value, fallback to computed, fallback to Dummy Excel Data if 0
+      // Set KPI input values — prefer saved summary value, fallback to computed
       const getKpi = (saved, computed, dummy) => {
         let val = pick(saved, computed);
-        if (!val || val === 0 || val === '0') return dummy;
+        if (val === undefined || val === null || val === '') return dummy;
         return val;
       };
 
       setInput('excelTotalDrivers', getKpi(s.drivers, c.drivers, 29));
       setInput('excelDelivery', getKpi(s.delivery, c.delivery, 16));
       setInput('excelDistributors', getKpi(s.distributors, c.distributors, 13));
-      setInput('excelVacation', getKpi(s.vacation, c.vacation, 2));
-      setInput('excelSpare', getKpi(s.spare, state.spare.length, 6));
+      setInput('excelVacation', getKpi(s.vacation, c.vacation, 0));
+      setInput('excelSpare', getKpi(s.spare, state.spare.length, 0));
       
       // Tab chips
       const setChip = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
