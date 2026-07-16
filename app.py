@@ -1249,7 +1249,7 @@ def generate_invoice():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/generate_schedule", methods=["POST"])
+@app.route("/api/legacy/generate_schedule", methods=["POST"])
 @login_required
 def generate_schedule():
     try:
@@ -1666,7 +1666,7 @@ def _harvest_vehicle_registry(sd):
             blob_set("vehicle_registry", reg)
 
 
-@app.route("/api/schedule_data", methods=["GET", "POST"])
+@app.route("/api/legacy/schedule_data", methods=["GET", "POST"])
 @login_required
 def schedule_data():
     """Persist the weekly schedule (main/spare/vacation/summary). Sandboxed for workstation."""
@@ -5471,7 +5471,7 @@ def seed_from_template():
     blob_set("schedule_data", sd)
     return "تم سحب البيانات من ملف الإكسل وإدخالها في الموقع بنجاح!"
 
-@app.route('/api/weekly_update', methods=['GET', 'POST'])
+@app.route('/api/legacy/weekly_update', methods=['GET', 'POST'])
 def weekly_update_api():
     file_path = 'تحديث الاسبوعي - فرع الدمام (محدث).xlsx'
     
