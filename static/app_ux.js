@@ -2093,6 +2093,32 @@ function applyEnglishStyles() {
     }
 }
 
+// ==========================================================================
+// MANDATORY ACTION ENGINE (نظام التفاعل الإجباري)
+// ==========================================================================
+document.addEventListener('click', function(event) {
+    var btn = event.target.closest('button[data-action-required="true"]');
+    
+    if (btn) {
+        event.preventDefault(); 
+        event.stopImmediatePropagation(); 
+        
+        var reason = window.prompt("🛡️ [نظام التدقيق الصارم] يرجى إدخال مسوّغ مكتوب للعملية (إلزامي):");
+        
+        if (!reason || reason.trim().length < 5) {
+            window.bzAlert("❌ لا يمكن تنفيذ العملية بدون مسوّغ (السبب إلزامي للامتثال للمعايير).");
+            return;
+        }
+
+        var callbackName = btn.getAttribute('data-callback');
+        if (callbackName && typeof window[callbackName] === 'function') {
+            window[callbackName](reason.trim());
+        } else {
+            console.error("لم يتم العثور على الدالة المحددة:", callbackName);
+        }
+    }
+});
+
 // =============================================================================
 // AI ASSISTANT (مساعد بن زومة الذكي) — chat + reviewable table edits, every tab.
 // Sends the CURRENT tab's table to the server-side Gemini proxy (/api/ai/chat); the
