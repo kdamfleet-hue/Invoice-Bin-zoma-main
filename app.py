@@ -743,6 +743,14 @@ def load_logo():
     return b64_en
 
 
+@app.route("/tech_updates")
+@login_required
+def tech_updates():
+    return render_template("tech_updates.html", 
+                           active_branch_id=session.get("active_branch_id", 1), 
+                           active_branch=session.get("active_branch", {}), 
+                           snap_tab="tech_updates")
+
 @app.route("/")
 @login_required
 def index():
