@@ -32,6 +32,9 @@ COPY . .
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PORT=5000
+ENV SECRET_KEY=Khaled@Damfleet1105090615
+ENV ADMIN_USERNAME=Khaled@fleetadmin
+ENV MASTER_PASSWORD=Khaled@Damfleet1105090615
 
 # أمر التشغيل الاحترافي (استخدام sh -c لضمان تقييم $PORT بشكل سليم في كل بيئات لينكس)
 CMD ["sh", "-c", "gunicorn --workers 2 --threads 4 --worker-class gevent --worker-tmp-dir /dev/shm --bind 0.0.0.0:$PORT app:app"]
