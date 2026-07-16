@@ -81,6 +81,12 @@ DEFAULT_TEMPLATES = {
 EMAIL_LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAHgAAABQCAIAAABd+SbeAAAGl0lEQVR42u3abWybVxUH8HPu47eSxHFiu3GTKW5e3KR5aZhDOkqmFhoxadpg0wqCIugEqwZsIAqIicKmdqNiCLURQhvdBmXVVrUrRJ3WoWpsq1iaboNuTZs0IU7avGyu06RJ7Dh+t597Dx9cYOpgdBMTj9H5f/AXPx8e/XR17z3nPEhEwPnwI5iAoRmaw9AMzdAchmZoDkMzNENzGJqhOQzN0AzNYWiG5jA0QzM0h6HfHQIoxMG9KDhlBEAsPOtCgiYCBFBSZbKy4KxFgRBfSSSWvXv30Bd2nLkcTuetlSKG/q8FERFRCBydSvyud/6lM9ETZ+elVAgkBKpCWNto5E/CpCQCQIS3Q3PBS5elpMrlJSeH0WTCdp996+4Rq0176M7aDX6XLsmkIUN/0B0ZAQAy6fjQ6CQRIUJOV6V2ezyRtpcsOztp3dodKCvW9t/XtPFjbqlIE8jQ748YABDh0Iuh8JIOoABRE6jrZC/Suq63DQTGE8ncuraVpyfMW7sDVjM++YOmT691KyKByNDXfE1WJAQ++OT53b+/mEgrRKT8HwCU1e+8ecXOLZ/j8RCqd+3ibdzSobXtsXCD17GjtaCqjIhKGXNcmoykDgRC4c9/57mdDFQ7L5o3L7RbUpcqfiELgXCQdnBfr/I19b4y8PjD1qY762ztde/8wPTQZX9tcpkuGvrZrHADs2j/e/WzIvkzs+UbdWp89GVpwOoob6uuuerhrnfNLfYOXw3GzSWgCgWQmk7JalxtzZLB6BGOJ3OHeuZsJn97W2FKdOX5qvNJdmiXHZ3/Yn0rpRCQQzSbNSfedz9RvWrg5HokpmgEApGApc8HiqqirK/3GQMvS/hhYCECGdzj3+3cZWb6avf8LjdGy4oXlkKnv8bPTSg5PxZzKS9p1LHZX/YeKDnw4xeVIkRFSORKZ2EkT8Kkz0N/ZGbB41DY3VNyc3+8upC7MlMRKZKV6EjOE2vk6xK2z7yeEMPlugbpoCdAzDdqdKnvnd49AQBgt9u1Df2Ct1gsqizLeNovNhp0+C2OA8koaQnp9/rO2/aKxSaD7qM0c2S9LTfqSPVL+g7gdLk3R4Lvn7+mOzy/opoQygzl5NQIq0/p5lhK0e2LzTzqGkWc+MfHZXRCoZDRfINvaOwiz6hElTDSJI1SP3BSkjGC9pRbIp/87qt+t6PBqkEYVgcUzn9CAABxl/mB7nH0vYi07reLMYozcWJtqzI2u8KnIVC0eTcdVgg//uLewJtFRfvcQCkKR1Bh/zeUZYrtdqSVVnXmdI4JjvQEzWUyIPV+s7p1f5Zk8HkDQ5a8h0/4lTsdTtiCWifdzGoFQylFZ2t+TNl1tN2TVdJW99ddpChfbuVZGXiXku/4WVeK/MlA9GqOFK+HGgnWaVXKgvnXjSkLjWEYhmEYhmEYhmEYhmH+sz8BzQDdMcl1yrQAAAAASUVORK5CYII="
 
 app = Flask(__name__)
+from models.schema import db
+import os
+DB_PATH = os.environ.get('SQLITE_PATH', os.path.join(os.path.dirname(__file__), 'database.sqlite'))
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Initialize Security Headers
@@ -3541,7 +3547,7 @@ def _driver_blob_table(store):
     return "drivers_ws" if store == "ws" else "drivers_branch"
 
 
-@app.route("/api/drivers", methods=["GET"])
+@app.route("/api/legacy/drivers", methods=["GET"])
 @login_required
 def get_drivers():
     store = _driver_store()
@@ -3733,7 +3739,7 @@ def api_gps_sync():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/drivers", methods=["POST"])
+@app.route("/api/legacy/drivers", methods=["POST"])
 @login_required
 def add_driver():
     data = request.json or {}
@@ -3773,7 +3779,7 @@ def add_driver():
     return jsonify({"success": True, "id": new_id, **vals})
 
 
-@app.route("/api/drivers/<int:driver_id>", methods=["DELETE"])
+@app.route("/api/legacy/drivers/<int:driver_id>", methods=["DELETE"])
 @login_required
 def delete_driver(driver_id):
     store = _driver_store()
@@ -3790,7 +3796,7 @@ def delete_driver(driver_id):
     return jsonify({"success": True})
 
 
-@app.route("/api/drivers/bulk_delete", methods=["POST"])
+@app.route("/api/legacy/drivers/bulk_delete", methods=["POST"])
 @login_required
 def bulk_delete_drivers():
     """Admin-code-protected bulk delete from «جميع مركبات الفرع». All-or-nothing: the secret
@@ -3834,7 +3840,7 @@ def bulk_delete_drivers():
     return jsonify({"success": True, "deleted": deleted})
 
 
-@app.route("/api/drivers/<int:driver_id>", methods=["PUT"])
+@app.route("/api/legacy/drivers/<int:driver_id>", methods=["PUT"])
 @login_required
 def update_driver(driver_id):
     data = request.json or {}
@@ -4806,8 +4812,10 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 
 
 from routes.auth import auth_bp
+from routes.api_fleet import api_fleet_bp
 from routes.ai import ai_bp
 app.register_blueprint(auth_bp)
+app.register_blueprint(api_fleet_bp)
 app.register_blueprint(ai_bp)
 
 
