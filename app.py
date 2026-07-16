@@ -2336,7 +2336,7 @@ def documents_page():
     return render_template("documents.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
-@app.route("/api/documents", methods=["GET", "POST"])
+@app.route("/api/legacy/documents", methods=["GET", "POST"])
 @login_required
 def api_documents():
     if request.method == "GET":
@@ -2378,7 +2378,7 @@ def api_documents():
     return jsonify({"success": True, "row": _doc_meta(row)})
 
 
-@app.route("/api/documents/<doc_id>", methods=["DELETE"])
+@app.route("/api/legacy/documents/<doc_id>", methods=["DELETE"])
 @login_required
 def api_documents_delete(doc_id):
     with _ALERTS_CENTER_LOCK:  # avoid racing an alerts-center edit of the same document
@@ -2391,7 +2391,7 @@ def api_documents_delete(doc_id):
     return jsonify({"success": True})
 
 
-@app.route("/api/documents/<doc_id>/file")
+@app.route("/api/legacy/documents/<doc_id>/file")
 @login_required
 def api_document_file(doc_id):
     for r in _documents_rows():
@@ -4814,10 +4814,12 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 from routes.auth import auth_bp
 from routes.api_fleet import api_fleet_bp
 from routes.api_schedule import api_schedule_bp
+from routes.api_docs import api_docs_bp
 from routes.ai import ai_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_fleet_bp)
 app.register_blueprint(api_schedule_bp)
+app.register_blueprint(api_docs_bp)
 app.register_blueprint(ai_bp)
 
 

@@ -114,7 +114,14 @@ class Document(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
     doc_type = db.Column(db.String(50), nullable=False)
-    reference_id = db.Column(db.Integer, nullable=True) # polymorphic, could be driver or vehicle
+    entity_type = db.Column(db.String(50), nullable=True)
+    entity_ref = db.Column(db.String(255), nullable=True)
+    number = db.Column(db.String(100), nullable=True)
+    expiry = db.Column(db.Date, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    file_data = db.Column(db.Text, nullable=True) # Base64 for backwards compatibility
+    mime_type = db.Column(db.String(50), nullable=True)
+    file_size = db.Column(db.Integer, default=0)
     file_path = db.Column(db.String(255), nullable=False)
     upload_date = db.Column(db.Date, default=datetime.utcnow)
 
