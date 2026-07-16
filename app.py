@@ -142,6 +142,8 @@ def login_required(f):
         if request.path.startswith(WS_PREFIX):
             return f(*args, **kwargs)
         if not session.get("authenticated"):
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "error": "Session expired. Please refresh and log in again."}), 401
             return redirect(url_for("login"))
         return f(*args, **kwargs)
 
