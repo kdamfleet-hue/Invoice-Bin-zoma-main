@@ -3075,7 +3075,7 @@ const DeepLinkNavigator = {
     navigate(type) {
         const mapping = this.mappings[type];
         if (!mapping) {
-            console.error(\❌ نوع الربط غير معروف: \);
+            console.error(`❌ نوع الربط غير معروف: ${type}`);
             return false;
         }
 
@@ -3114,7 +3114,7 @@ const DeepLinkNavigator = {
 
     addMapping(key, config) {
         this.mappings[key] = config;
-        console.log(\✅ تم إضافة اختصار: \);
+        console.log(`✅ تم إضافة اختصار: ${key}`);
     }
 };
 
@@ -3126,5 +3126,4 @@ function navigateToContext(type) {
         return DeepLinkNavigator.navigate(type);
     }
     DeepLinkNavigator.navigate('total_drivers');
-}
 }
