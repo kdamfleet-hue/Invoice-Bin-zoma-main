@@ -5247,8 +5247,8 @@ def refund_part():
     return jsonify({"success": True})
 
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
-_start_alert_scheduler()
-
+if os.environ.get("ENABLE_BACKGROUND_SCHEDULER") == "true":
+    _start_alert_scheduler()
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
