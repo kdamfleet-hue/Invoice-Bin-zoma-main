@@ -4021,30 +4021,33 @@ def api_sync_excel():
 
 @login_required
 def api_fleet_data():
-    _, drivers = _drivers_list_for_sync()
+    from models.schema import Driver, VehicleCustody
+    drivers = Driver.query.all()
     fleet = []
     for d in drivers:
-        if d.get("name", "").strip() or d.get("plate", "").strip():
-            fleet.append({
-                "id": d.get("id", ""),
-                "name": d.get("name", ""),
-                "empid": d.get("empid", ""),
-                "iqama": d.get("iqama", ""),
-                "plate": d.get("plate", ""),
-                "car": d.get("car", ""),
-                "phone": d.get("phone", ""),
-                "drivercard": d.get("drivercard", ""),
-                "job": d.get("job", ""),
-                "empNotes": d.get("empNotes", ""),
-                "model": d.get("model", ""),
-                "pallets": d.get("pallets", ""),
-                "load": d.get("load", ""),
-                "vserial": d.get("vserial", ""),
-                "inspect": d.get("inspect", ""),
-                "license": d.get("license", ""),
-                "opcard": d.get("opcard", ""),
-                "notes": d.get("notes", "")
-            })
+        custody = VehicleCustody.query.filter_by(driver_id=d.id, status='active').first()
+        v = custody.vehicle if custody and custody.vehicle else None
+        
+        fleet.append({
+            "id": d.id,
+            "name": d.name or "",
+            "empid": d.employee_id or "",
+            "iqama": d.iqama_number or "",
+            "plate": v.plate_number if v else "",
+            "car": v.v_type if v else "",
+            "phone": d.phone or "",
+            "drivercard": "",
+            "job": d.job_title or "",
+            "empNotes": d.notes or "",
+            "model": v.model if v else "",
+            "pallets": "",
+            "load": "",
+            "vserial": "",
+            "inspect": "",
+            "license": "",
+            "opcard": "",
+            "notes": ""
+        })
     response = jsonify(fleet)
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     return response
