@@ -4038,7 +4038,7 @@ def api_fleet_data():
             "phone": d.phone or "",
             "drivercard": "",
             "job": d.job_title or "",
-            "empNotes": d.notes or "",
+            "empNotes": "",
             "model": v.model if v else "",
             "pallets": "",
             "load": "",
