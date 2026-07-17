@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أوامر النظام والتزامن | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --sys-bg: #111318;
+            --sys-card: #1c1f26;
+            --sys-border: #2e3340;
+            --sys-text: #f0ede6;
+            --sys-muted: #8a8d96;
+            --sys-accent: #c5a059;
+            --sys-accent-hover: #e0c489;
+            --sys-ok: #10b981;
+            --sys-err: #ef4444;
+        }
+
+        body {
+            background-color: var(--sys-bg);
+            color: var(--sys-text);
+            font-family: 'Tajawal', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #252525 50%, #1a1a1a 100%);
+            border-bottom: 2px solid var(--sys-accent);
+            padding: 18px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: var(--sys-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1a1a1a;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--sys-accent);
+            margin: 0;
+        }
+
+        .header h1 span {
+            display: block;
+            font-size: .8rem;
+            color: var(--sys-muted);
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        .btn-back {
+            text-decoration: none;
+            color: #1a1a1a;
+            background: var(--sys-accent);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+
+        .btn-back:hover {
+            background: var(--sys-accent-hover);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .card {
+            background: var(--sys-card);
+            border: 1px solid var(--sys-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: border-color 0.3s;
+        }
+        
+        .card:hover {
+            border-color: var(--sys-accent);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--sys-border);
+            padding-bottom: 1rem;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--sys-accent);
+        }
+
+        .card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .cmd-desc {
+            color: var(--sys-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .btn-run {
+            align-self: flex-start;
+            background: transparent;
+            color: var(--sys-accent);
+            border: 1px solid var(--sys-accent);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .btn-run:hover {
+            background: rgba(197, 160, 89, 0.1);
+        }
+        
+        .btn-run:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .console-output {
+            background: #0d0f12;
+            border: 1px solid var(--sys-border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #e2e8f0;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            direction: ltr;
+            text-align: left;
+            white-space: pre-wrap;
+        }
+
+        .log-info { color: #60a5fa; }
+        .log-success { color: var(--sys-ok); }
+        .log-error { color: var(--sys-err); }
+        .log-warn { color: #f59e0b; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-title">
+            <div class="header-icon">
+                <i data-lucide="terminal"></i>
+            </div>
+            <div>
+                <h1>أوامر النظام والتزامن</h1>
+                <span>لوحة التحكم المباشرة لتشغيل سكربتات المزامنة والصيانة</span>
+            </div>
+        </div>
+        <a href="/" class="btn-back">العودة للرئيسية</a>
+    </header>
+
+    <div class="container">
+        
+        <!-- Smart Sync Card -->
+        <div class="card">
+            <div class="card-header">
+                <i data-lucide="refresh-cw" style="color: var(--sys-accent)"></i>
+                <h2>المزامنة الذكية الشاملة (Smart Sync)</h2>
+            </div>
+            <div class="card-body">
+                <div class="cmd-desc">
+                    يقوم هذا الأمر بجلب جميع البيانات من السجلات ومزامنتها لضمان ترابط النظام والتأكد من مطابقة السائقين والمركبات وتحديث الحالات.
+                </div>
+                <button class="btn-run" id="btn-sync-all" onclick="runCommand('sync-all')">
+                    <i data-lucide="play"></i> بدء المزامنة الشاملة
+                </button>
+                <div class="console-output" id="out-sync-all"></div>
+            </div>
+        </div>
+
+        <!-- Sync Excel Dammam -->
+        <div class="card">
+            <div class="card-header">
+                <i data-lucide="file-spreadsheet" style="color: var(--sys-accent)"></i>
+                <h2>مزامنة إكسيل (فرع الدمام)</h2>
+            </div>
+            <div class="card-body">
+                <div class="cmd-desc">
+                    تحديث قاعدة البيانات وسجلات الأسطول تلقائياً من خلال معالجة البيانات الموجودة في ملفات الإكسيل لفرع الدمام وتطبيق الصلاحيات.
+                </div>
+                <button class="btn-run" id="btn-sync-excel" onclick="runCommand('sync-excel')">
+                    <i data-lucide="play"></i> تحديث ومزامنة الإكسيل
+                </button>
+                <div class="console-output" id="out-sync-excel"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        function logToConsole(id, message, type='info') {
+            const out = document.getElementById(id);
+            out.style.display = 'block';
+            const line = document.createElement('div');
+            line.className = `log-${type}`;
+            const time = new Date().toLocaleTimeString();
+            line.textContent = `[${time}] ${message}`;
+            out.appendChild(line);
+            out.scrollTop = out.scrollHeight;
+        }
+
+        async function runCommand(cmd) {
+            let btnId, outId, url, method = 'POST';
+            
+            if (cmd === 'sync-all') {
+                btnId = 'btn-sync-all';
+                outId = 'out-sync-all';
+                url = '/api/sync_all_from_drivers';
+            } else if (cmd === 'sync-excel') {
+                btnId = 'btn-sync-excel';
+                outId = 'out-sync-excel';
+                url = '/api/sync_excel';
+            }
+
+            const btn = document.getElementById(btnId);
+            const out = document.getElementById(outId);
+            
+            btn.disabled = true;
+            out.style.display = 'block';
+            out.innerHTML = ''; // Clear previous
+            
+            logToConsole(outId, `🚀 Starting command execution: ${url}...`, 'info');
+            
+            try {
+                logToConsole(outId, `⏳ Waiting for server response...`, 'warn');
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && (data.success || data.status === 'ok' || !data.error)) {
+                    logToConsole(outId, `✅ Command executed successfully!`, 'success');
+                    if (data.updated_count !== undefined) {
+                        logToConsole(outId, `📊 Records updated: ${data.updated_count}`, 'success');
+                    }
+                    if (data.message) {
+                        logToConsole(outId, `💬 Server message: ${data.message}`, 'info');
+                    }
+                } else {
+                    logToConsole(outId, `❌ Error during execution: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                logToConsole(outId, `❌ Connection error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                logToConsole(outId, `✨ Execution completed.`, 'info');
+            }
+        }
+    </script>
+</body>
+</html>

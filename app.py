@@ -746,6 +746,14 @@ def tech_updates():
                            active_branch=session.get("active_branch", {}), 
                            snap_tab="tech_updates")
 
+@app.route("/system_commands")
+@login_required
+def system_commands():
+    return render_template("system_commands.html",
+                           active_branch_id=session.get("active_branch_id", 1),
+                           active_branch=session.get("active_branch", {}),
+                           snap_tab="system_commands")
+
 @app.route("/")
 @login_required
 def index():
