@@ -1,36 +1,38 @@
-# --- المرحلة الأولى: التحضير (Builder) ---
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim
 
+# ضبط إعدادات بايثون
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && \
-    pip install --no-cache-dir --upgrade pip uv
+# إنشاء مستخدم عادي
+RUN useradd -m appuser
 
+WORKDIR /app
+
+# تحديث pip أولاً
+RUN pip install --no-cache-dir --upgrade pip
+
+# نسخ المتطلبات
 COPY requirements.txt .
-RUN uv pip install --no-cache --system -r requirements.txt
 
-# --- المرحلة الثانية: التشغيل (Runner) ---
-FROM python:3.12-slim
+# تثبيت الحزم (تجاهل تحذير الروت هنا لأننا في دوكر، أو يمكن تثبيتها بصلاحيات روت)
+# يمكنك استخدام بيئة وهمية أو --user لتفادي تحذير pip لكن هذا يفي بالغرض حالياً
+RUN pip install --no-cache-dir -r requirements.txt
 
-WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends libpq5 && \
-    rm -rf /var/lib/apt/lists/*
-
-# نسخ المكتبات المثبتة فقط من المرحلة الأولى
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
+# نسخ التطبيق وإعطاء الصلاحية للمستخدم العادي (مهم لقاعدة بيانات sqlite)
 COPY . .
+RUN chown -R appuser:appuser /app
 
-# ضبط إعدادات الأمان والتخزين المؤقت عبر متغيرات البيئة
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# متغيرات البيئة الأساسية
 ENV PORT=3000
 ENV SECRET_KEY=Khaled@Damfleet1105090615
 ENV ADMIN_USERNAME=Khaled@fleetadmin
 ENV MASTER_PASSWORD=Khaled@Damfleet1105090615
 
 EXPOSE 3000
-CMD ["sh", "-c", "gunicorn --workers 2 --threads 4 --worker-class gevent --worker-tmp-dir /dev/shm --bind 0.0.0.0:$PORT app:app"]
+
+# تبديل للمستخدم العادي
+USER appuser
+
+# تشغيل التطبيق مع الإعدادات المحسنة
+CMD ["sh", "-c", "gunicorn --workers 4 --threads 8 --bind 0.0.0.0:$PORT app:app"]
