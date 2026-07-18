@@ -457,7 +457,7 @@ _DEFAULT_FEATURES = {
     "audit_enforced": True,
     "ai_assistant": True,
     "email_alerts": True,
-    "workstation_mode": True,
+    "workstation_mode": False,
 }
 
 def get_system_features():
@@ -3069,7 +3069,7 @@ def push_subscribe():
     role = session.get("google_user", {}).get("role", "admin")
     
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute('''
             INSERT INTO push_subscriptions (endpoint, p256dh, auth, user_role)
@@ -3092,7 +3092,7 @@ def send_push_notification(title, body):
     try:
         if not os.path.exists(VAPID_PRIVATE_KEY):
             return
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("SELECT endpoint, p256dh, auth FROM push_subscriptions")
         subs = c.fetchall()
@@ -3119,7 +3119,7 @@ def send_push_notification(title, body):
                 # If gone, delete from DB (HTTP 410)
                 if ex.response and ex.response.status_code in [404, 410]:
                     try:
-                        conn2 = sqlite3.connect(DATABASE_PATH)
+                        conn2 = sqlite3.connect(DB_PATH)
                         conn2.execute("DELETE FROM push_subscriptions WHERE endpoint=?", (sub[0],))
                         conn2.commit()
                         conn2.close()
@@ -4118,32 +4118,41 @@ def api_sync_excel():
 @login_required
 def api_fleet_data():
     from models.schema import Driver, VehicleCustody
-    drivers = Driver.query.all()
     fleet = []
-    for d in drivers:
-        custody = VehicleCustody.query.filter_by(driver_id=d.id, status='active').first()
-        v = custody.vehicle if custody and custody.vehicle else None
-        
-        fleet.append({
-            "id": d.id,
-            "name": d.name or "",
-            "empid": d.employee_id or "",
-            "iqama": d.iqama_number or "",
-            "plate": v.plate_number if v else "",
-            "car": v.v_type if v else "",
-            "phone": d.phone or "",
-            "drivercard": "",
-            "job": d.job_title or "",
-            "empNotes": "",
-            "model": v.model if v else "",
-            "pallets": "",
-            "load": "",
-            "vserial": "",
-            "inspect": "",
-            "license": "",
-            "opcard": "",
-            "notes": ""
-        })
+    try:
+        drivers = Driver.query.all()
+        for d in drivers:
+            custody = VehicleCustody.query.filter_by(driver_id=d.id, status='active').first()
+            v = custody.vehicle if custody and custody.vehicle else None
+
+            fleet.append({
+                "id": d.id,
+                "name": d.name or "",
+                "empid": d.employee_id or "",
+                "iqama": d.iqama_number or "",
+                "plate": v.plate_number if v else "",
+                "car": v.v_type if v else "",
+                "phone": d.phone or "",
+                "drivercard": "",
+                "job": d.job_title or "",
+                "empNotes": "",
+                "model": v.model if v else "",
+                "pallets": "",
+                "load": "",
+                "vserial": "",
+                "inspect": "",
+                "license": "",
+                "opcard": "",
+                "notes": ""
+            })
+    except Exception as e:
+        # The SQLAlchemy tables this route reads are created by a separate manual
+        # migration (migrate_db.py), not by the app's own startup init_db(). On a
+        # fresh deploy where that migration hasn't run yet, degrade to an empty
+        # fleet list instead of a hard 500 that would take down the whole fleet
+        # dashboard page.
+        logger.error(f"api_fleet_data error (SQLAlchemy tables may be missing): {e}")
+        fleet = []
     response = jsonify(fleet)
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     return response

@@ -149,7 +149,12 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS drivers_backup (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS ws_meta (k TEXT PRIMARY KEY, v TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS system_features (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
-            
+            db.execute(
+                'CREATE TABLE IF NOT EXISTS push_subscriptions ('
+                'id %s, endpoint TEXT UNIQUE NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, '
+                "user_role TEXT DEFAULT 'admin', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)" % _pk_clause()
+            )
+
             # --- Query Optimization Indices ---
             db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_plate ON drivers(plate)')
             db.execute('CREATE INDEX IF NOT EXISTS idx_drivers_empid ON drivers(empid)')
