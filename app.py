@@ -358,44 +358,46 @@ def _safe_tbl(table):
     return table
 
 
-def _loads_blob(row):
+def _loads_blob(data_str):
     """Parse a blob row's JSON, tolerating corrupt/invalid data instead of raising 500."""
-    if not row:
+    if not data_str:
         return None
     try:
-        return json.loads(row["data"])
+        return json.loads(data_str)
     except (ValueError, TypeError):
         logger.warning("Corrupt JSON blob encountered; returning None")
         return None
 
 
 def blob_get(table):
-    """Read a single-row JSON blob for the active mode (branch id, or 2 for workstation).
-    Each mode reads ONLY its own row and NEVER falls back to another — so the workstation
-    sandbox AND every non-الدمام branch start EMPTY instead of mirroring الدمام (id=1)."""
+    """Read JSON blob for the active branch from SQLAlchemy AppSetting."""
     table = _safe_tbl(table)
     rid = _row_id()
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT data FROM %s WHERE id = ?" % table, (rid,))
-        row = c.fetchone()
-    return _loads_blob(row)
+    key = f"{table}_branch_{rid}"
+    setting = AppSetting.query.get(key)
+    return _loads_blob(setting.value) if setting else None
 
 
 def blob_set(table, data_obj):
-    """Write a single-row JSON blob to the mode-specific row (id=2 for workstation)."""
+    """Write JSON blob for the active branch to SQLAlchemy AppSetting."""
     data_obj = sanitize_data(data_obj)
     table = _safe_tbl(table)
     rid = _row_id()
+    key = f"{table}_branch_{rid}"
     data_str = json.dumps(data_obj, ensure_ascii=False)
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT id FROM %s WHERE id = ?" % table, (rid,))
-        if c.fetchone():
-            c.execute("UPDATE %s SET data = ? WHERE id = ?" % table, (data_str, rid))
+    
+    try:
+        setting = AppSetting.query.get(key)
+        if setting:
+            setting.value = data_str
         else:
-            c.execute("INSERT INTO %s (id, data) VALUES (?, ?)" % table, (rid, data_str))
-        conn.commit()
+            setting = AppSetting(key=key, value=data_str)
+            db.session.add(setting)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving blob {key}: {e}")
+        
     _snapshot(table, data_str)
 
 
@@ -413,38 +415,38 @@ SNAP_LABELS = {
 
 
 def _snapshot(table, data_str):
-    """Append a dated snapshot of a data tab; keep the last SNAP_KEEP per (tab, mode); dedup identical."""
+    """Append a dated snapshot using SQLAlchemy Snapshot model."""
+    from models.schema import Snapshot
     if table not in SNAPSHOT_TABLES:
         return
     mode = _row_id()
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     try:
-        with db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT data FROM data_snapshots WHERE tab = ? AND mode = ? ORDER BY id DESC LIMIT 1", (table, mode))
-            last = c.fetchone()
-            if last and last["data"] == data_str:
-                return  # no change since the last snapshot
-            c.execute("INSERT INTO data_snapshots (tab, ts, data, mode) VALUES (?, ?, ?, ?)", (table, ts, data_str, mode))
-            c.execute("DELETE FROM data_snapshots WHERE tab = ? AND mode = ? AND id NOT IN "
-                      "(SELECT id FROM data_snapshots WHERE tab = ? AND mode = ? ORDER BY id DESC LIMIT ?)",
-                      (table, mode, table, mode, SNAP_KEEP))
-            conn.commit()
+        last = Snapshot.query.filter_by(tab=table, branch_id=mode).order_by(Snapshot.id.desc()).first()
+        if last and last.data == data_str:
+            return  # no change since the last snapshot
+            
+        new_snap = Snapshot(tab=table, branch_id=mode, data=data_str)
+        db.session.add(new_snap)
+        
+        # Cleanup old snapshots
+        snaps = Snapshot.query.filter_by(tab=table, branch_id=mode).order_by(Snapshot.id.desc()).all()
+        if len(snaps) > SNAP_KEEP:
+            for s in snaps[SNAP_KEEP:]:
+                db.session.delete(s)
+                
+        db.session.commit()
     except Exception as e:
+        db.session.rollback()
         logger.warning("snapshot failed for %s: %s", table, e)
 
 
 # ── GLOBAL (id=1) blobs: login accounts live here regardless of the active branch ─────
-# Login happens before a branch is chosen, so accounts always live at the fixed row (id=1)
-# and must NOT go through _row_id() — otherwise managing them while on another branch would
-# write to the wrong row and silently break login.
 def _global_blob_get(table):
     table = _safe_tbl(table)
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT data FROM %s WHERE id = 1" % table)
-        row = c.fetchone()
-    return _loads_blob(row)
+    key = f"{table}_global"
+    setting = AppSetting.query.get(key)
+    return _loads_blob(setting.value) if setting else None
 
 
 
@@ -460,15 +462,20 @@ def sanitize_data(data):
 def _global_blob_set(table, data_obj):
     data_obj = sanitize_data(data_obj)
     table = _safe_tbl(table)
+    key = f"{table}_global"
     data_str = json.dumps(data_obj, ensure_ascii=False)
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT id FROM %s WHERE id = 1" % table)
-        if c.fetchone():
-            c.execute("UPDATE %s SET data = ? WHERE id = 1" % table, (data_str,))
+    
+    try:
+        setting = AppSetting.query.get(key)
+        if setting:
+            setting.value = data_str
         else:
-            c.execute("INSERT INTO %s (id, data) VALUES (1, ?)" % table, (data_str,))
-        conn.commit()
+            setting = AppSetting(key=key, value=data_str)
+            db.session.add(setting)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving global blob {key}: {e}")
 
 
 # ── System Feature Flags (Admin Control Panel) ────────────────────────────
@@ -551,27 +558,31 @@ AUDIT_COALESCE_SEC = 600
 
 def _audit_get():
     rid = _row_id()
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT data FROM audit_log WHERE id = ?", (rid,))
-        row = c.fetchone()
+    key = f"audit_log_branch_{rid}"
+    setting = AppSetting.query.get(key)
+    if not setting: return []
     try:
-        return json.loads(row["data"]) if row else []
+        return json.loads(setting.value) or []
     except Exception:
         return []
 
 
 def _audit_write(log):
     rid = _row_id()
+    key = f"audit_log_branch_{rid}"
     data_str = json.dumps(log[-AUDIT_MAX:], ensure_ascii=False)
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT id FROM audit_log WHERE id = ?", (rid,))
-        if c.fetchone():
-            c.execute("UPDATE audit_log SET data = ? WHERE id = ?", (data_str, rid))
+    
+    try:
+        setting = AppSetting.query.get(key)
+        if setting:
+            setting.value = data_str
         else:
-            c.execute("INSERT INTO audit_log (id, data) VALUES (?, ?)", (rid, data_str))
-        conn.commit()
+            setting = AppSetting(key=key, value=data_str)
+            db.session.add(setting)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving audit log: {e}")
 
 
 def _audit_add(action, target, count=None, detail=""):
@@ -626,46 +637,50 @@ except Exception as _e:
 
 
 def _ws_meta_get(k):
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT v FROM ws_meta WHERE k = ?", (k,))
-        row = c.fetchone()
-    return row["v"] if row else None
+    key = f"ws_meta_{k}"
+    setting = AppSetting.query.get(key)
+    return setting.value if setting else None
 
 
 def _ws_meta_set(k, v):
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT k FROM ws_meta WHERE k = ?", (k,))
-        if c.fetchone():
-            c.execute("UPDATE ws_meta SET v = ? WHERE k = ?", (v, k))
+    key = f"ws_meta_{k}"
+    try:
+        setting = AppSetting.query.get(key)
+        if setting:
+            setting.value = str(v)
         else:
-            c.execute("INSERT INTO ws_meta (k, v) VALUES (?, ?)", (k, v))
-        conn.commit()
+            setting = AppSetting(key=key, value=str(v))
+            db.session.add(setting)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving ws_meta {key}: {e}")
 
 
 def _ws_get2(table):
     """Read the workstation (id=2) blob for a table, or None."""
     table = _safe_tbl(table)
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT data FROM %s WHERE id = 2" % table)
-        row = c.fetchone()
-    return _loads_blob(row)
+    key = f"{table}_branch_2"
+    setting = AppSetting.query.get(key)
+    return _loads_blob(setting.value) if setting else None
 
 
 def _ws_put2(table, value):
     """Upsert the workstation (id=2) blob for a table."""
     table = _safe_tbl(table)
+    key = f"{table}_branch_2"
     data_str = json.dumps(value, ensure_ascii=False)
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT id FROM %s WHERE id = 2" % table)
-        if c.fetchone():
-            c.execute("UPDATE %s SET data = ? WHERE id = 2" % table, (data_str,))
+    try:
+        setting = AppSetting.query.get(key)
+        if setting:
+            setting.value = data_str
         else:
-            c.execute("INSERT INTO %s (id, data) VALUES (2, ?)" % table, (data_str,))
-        conn.commit()
+            setting = AppSetting(key=key, value=data_str)
+            db.session.add(setting)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving ws blob {key}: {e}")
 
 
 def _ws_is_empty(value):
@@ -848,31 +863,59 @@ def api_system_features():
 
 
 @app.route("/api/users", methods=["GET", "POST", "DELETE"])
+@login_required
+def api_users():
+    if request.method == "GET":
+        return jsonify({"success": True, "users": _global_blob_get("users") or []})
+    
+    if not session.get("settings_unlocked"):
+        return jsonify({"success": False, "error": "غير مصرح لك."}), 403
+        
+    users = _global_blob_get("users") or []
+    
+    if request.method == "DELETE":
+        uid = request.args.get("id")
+        users = [u for u in users if str(u.get("id")) != str(uid)]
+        _global_blob_set("users", users)
+        return jsonify({"success": True})
+        
+    body = request.get_json(silent=True) or {}
+    uid = body.get("id")
+    if uid:
+        for u in users:
+            if str(u.get("id")) == str(uid):
+                u.update(body)
+                break
+    else:
+        body["id"] = "u" + secrets.token_hex(4)
+        users.append(body)
+        
+    _global_blob_set("users", users)
+    return jsonify({"success": True})
+
+
+
 def _snapshot_list(tab, mode):
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT id, ts FROM data_snapshots WHERE tab = ? AND mode = ? ORDER BY id DESC", (tab, mode))
-        rows = c.fetchall()
-    return [{"id": r["id"], "ts": r["ts"]} for r in rows]
+    from models.schema import Snapshot
+    snaps = Snapshot.query.filter_by(tab=tab, branch_id=mode).order_by(Snapshot.id.desc()).all()
+    return [{"id": s.id, "ts": s.timestamp.strftime('%Y-%m-%d %H:%M:%S') if s.timestamp else ""} for s in snaps]
 
 
 def _restore_snapshot(sid, mode, require_tab=None):
     """Restore one dated snapshot into its tab's blob. Returns (ok, info)."""
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT tab, data FROM data_snapshots WHERE id = ? AND mode = ?", (sid, mode))
-        row = c.fetchone()
-    if not row:
+    from models.schema import Snapshot
+    snap = Snapshot.query.filter_by(id=sid, branch_id=mode).first()
+    if not snap:
         return False, "not_found"
-    if require_tab is not None and row["tab"] != require_tab:
+    if require_tab is not None and snap.tab != require_tab:
         return False, "tab_mismatch"
     try:
-        data = json.loads(row["data"])
+        data = json.loads(snap.data)
     except (ValueError, TypeError):
         return False, "corrupt"
-    blob_set(row["tab"], data)   # restore (also versioned as the new latest state)
-    _audit_add("استعادة نسخة", SNAP_LABELS.get(row["tab"], row["tab"]), None, "من سجل النسخ المؤرّخة")
-    return True, row["tab"]
+    blob_set(snap.tab, data)   # restore (also versioned as the new latest state)
+    _audit_add("استعادة نسخة", SNAP_LABELS.get(snap.tab, snap.tab), None, "من سجل النسخ المؤرّخة")
+    return True, snap.tab
 
 
 @app.route("/api/snapshots", methods=["GET"])
@@ -3002,12 +3045,11 @@ def api_branch():
 
 def _audit_get_at(rid):
     """Read the audit list for a SPECIFIC mode/branch id (used by the HQ overview)."""
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT data FROM audit_log WHERE id = ?", (rid,))
-        row = c.fetchone()
+    key = f"audit_log_branch_{rid}"
+    setting = AppSetting.query.get(key)
+    if not setting: return []
     try:
-        d = json.loads(row["data"]) if row else []
+        d = json.loads(setting.value)
         return d if isinstance(d, list) else []
     except Exception:
         return []
@@ -3159,22 +3201,23 @@ def push_subscribe():
     role = session.get("google_user", {}).get("role", "admin")
     
     try:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('''
-            INSERT INTO push_subscriptions (endpoint, p256dh, auth, user_role)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(endpoint) DO UPDATE SET
-                p256dh=excluded.p256dh,
-                auth=excluded.auth,
-                user_role=excluded.user_role
-        ''', (endpoint, p256dh, auth, role))
-        conn.commit()
+        subs = _global_blob_get("push_subscriptions") or []
+        # Update if exists, else append
+        found = False
+        for s in subs:
+            if s.get("endpoint") == endpoint:
+                s["p256dh"] = p256dh
+                s["auth"] = auth
+                s["user_role"] = role
+                found = True
+                break
+        if not found:
+            subs.append({"endpoint": endpoint, "p256dh": p256dh, "auth": auth, "user_role": role})
+            
+        _global_blob_set("push_subscriptions", subs)
     except Exception as e:
         logger.error(f"Push Subscribe error: {e}")
         return jsonify({"error": str(e)}), 500
-    finally:
-        if 'conn' in locals(): conn.close()
         
     return jsonify({"success": True})
 
@@ -3182,20 +3225,17 @@ def send_push_notification(title, body):
     try:
         if not os.path.exists(VAPID_PRIVATE_KEY):
             return
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("SELECT endpoint, p256dh, auth FROM push_subscriptions")
-        subs = c.fetchall()
-        conn.close()
-        
+            
+        subs = _global_blob_get("push_subscriptions") or []
         payload = json.dumps({"title": title, "body": body})
+        
         for sub in subs:
             try:
                 sub_info = {
-                    "endpoint": sub[0],
+                    "endpoint": sub["endpoint"],
                     "keys": {
-                        "p256dh": sub[1],
-                        "auth": sub[2]
+                        "p256dh": sub["p256dh"],
+                        "auth": sub["auth"]
                     }
                 }
                 webpush(
@@ -3256,11 +3296,9 @@ def api_notifications():
 def _blob_get_at(table, rid):
     """Read a tab blob for a SPECIFIC branch id (used by the all-branches view)."""
     table = _safe_tbl(table)
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT data FROM %s WHERE id = ?" % table, (rid,))
-        row = c.fetchone()
-    return _loads_blob(row)
+    key = f"{table}_branch_{rid}"
+    setting = AppSetting.query.get(key)
+    return _loads_blob(setting.value) if setting else None
 
 
 def _blob_count(data):
@@ -3691,15 +3729,13 @@ def ws_reset():
     if not is_workstation():
         return jsonify({"success": False, "error": "workstation only"}), 404
     try:
-        with db_connection() as conn:
-            c = conn.cursor()
-            for t in WS_BLOB_TABLES:
-                c.execute("DELETE FROM %s WHERE id = 2" % t)
-            conn.commit()
+        AppSetting.query.filter(AppSetting.key.like('%_branch_2')).delete(synchronize_session=False)
+        db.session.commit()
         _ws_meta_set("ws_cleared", "1")  # user emptied it on purpose → don't auto-reseed
         return jsonify({"success": True})
-    except Exception:
-        logger.exception("ws_reset error")
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"ws_reset error: {e}")
         return jsonify({"success": False}), 500
 
 
