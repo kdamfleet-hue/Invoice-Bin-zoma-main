@@ -87,6 +87,8 @@ DB_PATH = os.environ.get('SQLITE_PATH', os.path.join(os.path.dirname(__file__), 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+from flask_migrate import Migrate
+migrate = Migrate(app, db)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Initialize Security Headers
@@ -111,6 +113,17 @@ if not _secret:
 app.secret_key = _secret
 
 init_db(app)
+
+def init_db_on_startup():
+    from flask_migrate import upgrade
+    with app.app_context():
+        try:
+            upgrade()
+            logger.info("✅ Database migrated successfully (Alembic).")
+        except Exception as e:
+            logger.error(f"❌ Error migrating database: {e}")
+
+init_db_on_startup()
 # CORS: the app serves its own same-origin frontend, so cross-origin is disabled by
 # default. Set ALLOWED_ORIGINS (comma-separated) only if external clients are needed.
 _allowed_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
@@ -240,11 +253,17 @@ mail = Mail(app)
 # A COMPLETELY SEPARATE, OPEN entry that mirrors the site under a URL prefix. It is a
 # sandbox (edits go to id=2, never touching the real id=1 data) and the
 # Cameras/Employees/GPS-Sync tabs are password-locked. The MAIN site (/) is untouched.
-WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD", "Kn-123123")
+WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD")
+if not WORKSTATION_PASSWORD:
+    WORKSTATION_PASSWORD = secrets.token_hex(16)
+    logger.warning("WORKSTATION_PASSWORD not set in env — generated a random secure key.")
 
 # Kiosk account: workshop-report-only access, no nav, full-screen.
 KIOSK_USER     = os.environ.get("KIOSK_USER",     "jam")
-KIOSK_PASSWORD = os.environ.get("KIOSK_PASSWORD", "Jam-123123")
+KIOSK_PASSWORD = os.environ.get("KIOSK_PASSWORD")
+if not KIOSK_PASSWORD:
+    KIOSK_PASSWORD = secrets.token_hex(16)
+    logger.warning("KIOSK_PASSWORD not set in env — generated a random secure key.")
 WS_TABS = {
     "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard",
     "schedule": "schedule", "oils": "oils", "purchase": "purchase", "fuel": "fuel",
@@ -792,7 +811,9 @@ def handover():
 @login_required
 def settings():
     # Locked admin tab: re-enter the MASTER_PASSWORD to open, then manage shared accounts.
-    master_pass = os.environ.get("MASTER_PASSWORD", "123456")
+    master_pass = os.environ.get("MASTER_PASSWORD")
+    if not master_pass:
+        logger.warning("MASTER_PASSWORD not set in env! Settings page cannot be unlocked.")
     if request.method == "POST" and "password" in request.form:
         if master_pass and hmac.compare_digest(request.form.get("password", ""), master_pass):
             session["settings_unlocked"] = True
