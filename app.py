@@ -2372,78 +2372,147 @@ def documents_page():
 @app.route("/api/legacy/documents", methods=["GET", "POST"])
 @login_required
 def api_documents():
+    branch_id = current_branch_id()
+    
     if request.method == "GET":
-        return jsonify({"success": True, "rows": [_doc_meta(r) for r in _documents_rows()], "doc_types": DOC_TYPES})
+        docs = Document.query.filter_by(branch_id=branch_id).all()
+        rows = []
+        for d in docs:
+            rows.append({
+                "id": str(d.id),
+                "entity_type": d.entity_type,
+                "entity_ref": d.entity_ref,
+                "doc_type": d.doc_type,
+                "number": d.number,
+                "expiry": d.expiry.strftime('%Y-%m-%d') if d.expiry else "",
+                "notes": d.notes,
+                "ts": d.upload_date.strftime('%Y-%m-%d') if d.upload_date else "",
+                "file": {"name": "ملف", "mime": d.mime_type, "size": d.file_size}
+            })
+        return jsonify({"success": True, "rows": rows, "doc_types": DOC_TYPES})
+        
     body = request.get_json(silent=True) or {}
-    rows = _documents_rows()
-    if len(rows) >= DOC_MAX_ROWS:
+    
+    current_count = Document.query.filter_by(branch_id=branch_id).count()
+    if current_count >= DOC_MAX_ROWS:
         return jsonify({"success": False, "error": "بلغت الحد الأقصى لعدد الوثائق في هذا الفرع (%d)." % DOC_MAX_ROWS}), 400
+        
     f = body.get("file") or {}
     data = f.get("data") or ""
     mime = (f.get("mime") or "").lower().strip()
+    
     if not data or not str(data).startswith("data:"):
         return jsonify({"success": False, "error": "الملف مطلوب."}), 400
     if mime not in DOC_ALLOWED_MIME:
         return jsonify({"success": False, "error": "نوع الملف غير مدعوم (صور JPG/PNG/WebP/GIF أو PDF فقط)."}), 400
+        
     size = _b64_size(data)
     if size <= 0 or size > DOC_MAX_FILE_BYTES:
         return jsonify({"success": False, "error": "حجم الملف يتجاوز 2.5 ميجابايت."}), 400
     if not _sniff_ok(data, mime):
         return jsonify({"success": False, "error": "محتوى الملف لا يطابق نوعه المُعلَن."}), 400
-    if sum(_b64_size((r.get("file") or {}).get("data", "")) for r in rows) + size > DOC_MAX_BLOB_BYTES:
-        return jsonify({"success": False, "error": "امتلأت مساحة أرشيف الفرع — احذف وثائق قديمة."}), 400
-    row = {
-        "id": "d" + datetime.now().strftime("%Y%m%d%H%M%S") + secrets.token_hex(3),
-        "entity_type": "vehicle" if body.get("entity_type") == "vehicle" else "employee",
-        "entity_ref": str(body.get("entity_ref") or "")[:120],
-        "doc_type": str(body.get("doc_type") or "أخرى")[:60],
-        "number": str(body.get("number") or "")[:80],
-        "expiry": str(body.get("expiry") or "")[:10],
-        "notes": str(body.get("notes") or "")[:300],
-        "file": {"name": str(f.get("name") or "ملف")[:160], "mime": mime, "size": size, "data": data},
-        "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    }
-    if not row["entity_ref"]:
+        
+    if not body.get("entity_ref"):
         return jsonify({"success": False, "error": "حدّد المركبة/الموظف (المرجع)."}), 400
-    rows.append(row)
-    blob_set("documents_data", {"rows": rows})
-    _audit_add("إضافة", "أرشيف الوثائق", len(rows), row["doc_type"] + " — " + row["entity_ref"])
-    return jsonify({"success": True, "row": _doc_meta(row)})
+
+    def parse_date(dstr):
+        if not dstr: return None
+        try: return datetime.strptime(str(dstr)[:10], '%Y-%m-%d').date()
+        except: return None
+
+    try:
+        new_doc = Document(
+            branch_id=branch_id,
+            doc_type=str(body.get("doc_type") or "أخرى")[:60],
+            entity_type="vehicle" if body.get("entity_type") == "vehicle" else "employee",
+            entity_ref=str(body.get("entity_ref") or "")[:120],
+            number=str(body.get("number") or "")[:80],
+            expiry=parse_date(body.get("expiry")),
+            notes=str(body.get("notes") or "")[:300],
+            file_data=data,
+            mime_type=mime,
+            file_size=size,
+            file_path="base64", # legacy dummy path
+            upload_date=datetime.now().date()
+        )
+        db.session.add(new_doc)
+        db.session.flush() # To get ID
+        
+        audit = AuditLog(
+            user_id=getattr(g, 'user', None),
+            branch_id=branch_id,
+            action="إضافة مستند",
+            target_table="erp_documents",
+            target_id=str(new_doc.id)
+        )
+        db.session.add(audit)
+        db.session.commit()
+        
+        row_res = {
+            "id": str(new_doc.id),
+            "entity_type": new_doc.entity_type,
+            "entity_ref": new_doc.entity_ref,
+            "doc_type": new_doc.doc_type,
+            "number": new_doc.number,
+            "expiry": new_doc.expiry.strftime('%Y-%m-%d') if new_doc.expiry else "",
+            "notes": new_doc.notes,
+            "ts": new_doc.upload_date.strftime('%Y-%m-%d') if new_doc.upload_date else "",
+            "file": {"name": "ملف", "mime": new_doc.mime_type, "size": new_doc.file_size}
+        }
+        return jsonify({"success": True, "row": row_res})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving document: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/legacy/documents/<doc_id>", methods=["DELETE"])
+@app.route("/api/legacy/documents/<int:doc_id>", methods=["DELETE"])
 @login_required
 def api_documents_delete(doc_id):
-    with _ALERTS_CENTER_LOCK:  # avoid racing an alerts-center edit of the same document
-        rows = _documents_rows()
-        kept = [r for r in rows if r.get("id") != doc_id]
-        if len(kept) == len(rows):
+    try:
+        doc = Document.query.filter_by(id=doc_id, branch_id=current_branch_id()).first()
+        if not doc:
             return jsonify({"success": False, "error": "غير موجود."}), 404
-        blob_set("documents_data", {"rows": kept})
-    _audit_add("حذف", "أرشيف الوثائق", len(kept), str(doc_id))
-    return jsonify({"success": True})
+            
+        db.session.delete(doc)
+        audit = AuditLog(
+            user_id=getattr(g, 'user', None),
+            branch_id=current_branch_id(),
+            action="حذف مستند",
+            target_table="erp_documents",
+            target_id=str(doc_id)
+        )
+        db.session.add(audit)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting document: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/legacy/documents/<doc_id>/file")
+@app.route("/api/legacy/documents/<int:doc_id>/file")
 @login_required
 def api_document_file(doc_id):
-    for r in _documents_rows():
-        if r.get("id") == doc_id:
-            fl = r.get("file") or {}
-            try:
-                s = str(fl.get("data") or "")
-                raw = base64.b64decode(s.split(",", 1)[1] if "," in s else s)
-            except Exception:
-                return ("", 404)
-            from flask import Response
-            mime = fl.get("mime") or "application/octet-stream"
-            resp = Response(raw, mimetype=mime)
-            # Hardening: never sniff; preview images inline, force everything else (e.g. PDF) to
-            # download so no embedded script can run same-origin. Bytes are magic-validated on upload.
-            resp.headers["X-Content-Type-Options"] = "nosniff"
-            resp.headers["Content-Disposition"] = "inline" if mime.startswith("image/") else "attachment"
-            resp.headers["Cache-Control"] = "private, max-age=600"
-            return resp
+    doc = Document.query.filter_by(id=doc_id, branch_id=current_branch_id()).first()
+    if not doc or not doc.file_data:
+        return ("", 404)
+        
+    try:
+        s = str(doc.file_data)
+        raw = base64.b64decode(s.split(",", 1)[1] if "," in s else s)
+    except Exception:
+        return ("", 404)
+        
+    from flask import Response
+    mime = doc.mime_type or "application/octet-stream"
+    resp = Response(raw, mimetype=mime)
+    # Hardening: never sniff; preview images inline, force everything else (e.g. PDF) to
+    # download so no embedded script can run same-origin. Bytes are magic-validated on upload.
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Content-Disposition"] = "inline" if mime.startswith("image/") else "attachment"
+    resp.headers["Cache-Control"] = "private, max-age=600"
+    return resp
     return ("", 404)
 
 
