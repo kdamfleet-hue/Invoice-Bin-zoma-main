@@ -2209,6 +2209,10 @@ def _start_alert_scheduler():
                     today = datetime.now().strftime("%Y-%m-%d")
                     if (cfg["enabled"] and cfg["recipients"]
                             and datetime.now().hour >= cfg["hour"] and cfg["last_sent"] != today):
+                        alerts = _collect_all_branches_alerts(cfg["window_days"])
+                        alert_count = sum(len(x.get("alerts", [])) for x in alerts)
+                        if alert_count > 0:
+                            send_push_notification("تنبيه أسطول بن زومة", f"يوجد {alert_count} مستند على وشك الانتهاء، يرجى مراجعة لوحة القيادة.")
                         res = _send_scheduled_digest(cfg["recipients"], cfg["window_days"])
                         if res.get("reason") != "mail_not_configured":   # else retry when SMTP is ready
                             cfg["last_sent"] = today
@@ -3038,6 +3042,90 @@ def _notify_icon(target):
         return "🏢"
     return "📝"
 
+
+from pywebpush import webpush, WebPushException
+import json
+
+VAPID_PRIVATE_KEY = os.path.join(os.path.dirname(__file__), "vapid_private.pem")
+VAPID_PUBLIC_KEY = "BAzGwlPjwO9421qLp5AckUJgBJ4P2EQTn97mxgWL9K6GkNRy8Ft3ky-0ePFSc2KHMEdW8bDqm5fh0dC1_rVq8i8"
+VAPID_CLAIMS = {"sub": "mailto:admin@binzoma.com"}
+
+@app.route("/api/push/vapid_public_key", methods=["GET"])
+@login_required
+def push_vapid_public_key():
+    return jsonify({"public_key": VAPID_PUBLIC_KEY})
+
+@app.route("/api/push/subscribe", methods=["POST"])
+@login_required
+def push_subscribe():
+    sub_info = request.json
+    if not sub_info or "endpoint" not in sub_info:
+        return jsonify({"error": "Invalid subscription"}), 400
+    
+    endpoint = sub_info["endpoint"]
+    keys = sub_info.get("keys", {})
+    p256dh = keys.get("p256dh", "")
+    auth = keys.get("auth", "")
+    role = session.get("google_user", {}).get("role", "admin")
+    
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO push_subscriptions (endpoint, p256dh, auth, user_role)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(endpoint) DO UPDATE SET
+                p256dh=excluded.p256dh,
+                auth=excluded.auth,
+                user_role=excluded.user_role
+        ''', (endpoint, p256dh, auth, role))
+        conn.commit()
+    except Exception as e:
+        logger.error(f"Push Subscribe error: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if 'conn' in locals(): conn.close()
+        
+    return jsonify({"success": True})
+
+def send_push_notification(title, body):
+    try:
+        if not os.path.exists(VAPID_PRIVATE_KEY):
+            return
+        conn = sqlite3.connect(DATABASE_PATH)
+        c = conn.cursor()
+        c.execute("SELECT endpoint, p256dh, auth FROM push_subscriptions")
+        subs = c.fetchall()
+        conn.close()
+        
+        payload = json.dumps({"title": title, "body": body})
+        for sub in subs:
+            try:
+                sub_info = {
+                    "endpoint": sub[0],
+                    "keys": {
+                        "p256dh": sub[1],
+                        "auth": sub[2]
+                    }
+                }
+                webpush(
+                    subscription_info=sub_info,
+                    data=payload,
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims=VAPID_CLAIMS
+                )
+            except WebPushException as ex:
+                logger.error(f"WebPush error: {repr(ex)}")
+                # If gone, delete from DB (HTTP 410)
+                if ex.response and ex.response.status_code in [404, 410]:
+                    try:
+                        conn2 = sqlite3.connect(DATABASE_PATH)
+                        conn2.execute("DELETE FROM push_subscriptions WHERE endpoint=?", (sub[0],))
+                        conn2.commit()
+                        conn2.close()
+                    except: pass
+    except Exception as e:
+        logger.error(f"send_push_notification error: {e}")
 
 @app.route("/api/notifications", methods=["GET"])
 @login_required
