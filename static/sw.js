@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fleet-pwa-v3';
+const CACHE_NAME = 'fleet-pwa-v4';
 const OFFLINE_URL = '/offline.html';
 
 // ملفات أساسية للتخزين
