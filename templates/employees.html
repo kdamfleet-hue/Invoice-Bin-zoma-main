@@ -1,20 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بيانات موظفين الفرع — BIN ZOMAH INTL.</title>
-    <!-- PWA Settings -->
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#1a1a1a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/static/logo_192.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+{% extends 'base.html' %}
 
-    <style>
+{% block title %}بيانات موظفين الفرع — BIN ZOMAH INTL.{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         /* Page-specific layout only — colors/fonts/topbar come from base_styles.css */
         .excel-table-container {
             width: 100%;
@@ -127,85 +117,80 @@
         .emp-count { font-weight: 700; color: var(--text-secondary); white-space: nowrap; }
         .emp-hint { font-size: .82rem; color: var(--text-muted); margin: -.4rem 0 .8rem; }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees" class="active">👥 الموظفين</a>
-    <a href="/search">🔍 بحث</a>
-    <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
-
-    <div class="bz-shell">
-        <h2 class="bz-section-title">بيانات جميع الموظفين في الفرع</h2>
-
-        <div class="emp-toolbar">
-            <div class="bz-smart-search" style="margin-bottom:0;">
-                <input type="text" id="empSearch" placeholder="ابحث باسم الموظف، الإقامة، أو اللوحة..." oninput="filterEmployees()">
-                <span class="search-icon">🔍</span>
-            </div>
-            <div class="emp-filter"><select id="empJobFilter" onchange="filterEmployees()" title="فلترة حسب الوظيفة"><option value="">كل الوظائف</option></select></div>
-            <button class="btn-primary" id="viewToggleBtn" onclick="toggleView()">📊 عرض كامل (كل الأعمدة)</button>
-            <span class="emp-count" id="empCount"></span>
-            <span style="flex:1"></span>
-            <button class="btn-primary" onclick="addEmployeeRow()">+ إضافة صف</button>
-            <button class="btn-primary" style="background-color: #9b59b6;" onclick="openPasteModal()">📋 لصق من إكسل</button>
-            <button class="btn-submit-gold" onclick="exportToExcel()">📥 تصدير Excel</button>
-            <button class="btn-submit-orange" onclick="shareEmployees()">📤 مشاركة / تصدير</button>
-            <button class="btn-outline" data-action-required="true" data-callback="saveToServer">💾 حفظ على الخادم</button>
-            <button class="btn-outline" style="border-color:rgba(96,165,250,.5);color:#60a5fa;" onclick="updateVehiclesFromFleet()">🔄 تحديث المركبات</button>
-        </div>
-        <p class="emp-hint">العرض المختصر يُظهر الأعمدة الأساسية فقط (بدون تمرير جانبي). اضغط «عرض كامل» لكل الأعمدة الـ46، واستخدم البحث للوصول لأي موظف بسرعة. عمود «م» والترويسة يبقيان ثابتين أثناء التمرير.</p>
-
-        <div class="excel-table-container">
-            <table id="employeesTable" class="bz-fit">
-                <thead>
-                    <tr class="group-row">
-                        <th rowspan="2" class="idx-head">م</th>
-                        <th class="group-header" colspan="10">بيانات الموظف العامة</th>
-                        <th class="group-header" colspan="6">مقيم</th>
-                        <th class="group-header" colspan="9">قوى</th>
-                        <th class="group-header" colspan="5">مسيرات الشركة</th>
-                        <th class="group-header" colspan="2">البصمة</th>
-                        <th class="group-header" colspan="8">المركبة</th>
-                        <th class="group-header" colspan="6">السكن والسند والتامين</th>
-                        <th rowspan="2">إجراءات</th>
-                    </tr>
-                    <tr id="empColHeaderRow">
-                        <!-- 46 column headers injected by JS from COLS to stay in sync with export -->
-                    </tr>
-                </thead>
-                <tbody id="employeesBody">
-                    <!-- Rows will be populated by JS -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <datalist id="empNames"></datalist>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script>
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a class="active" href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">بيانات جميع الموظفين في الفرع</h2>
+<div class="emp-toolbar">
+<div class="bz-smart-search" style="margin-bottom:0;">
+<input id="empSearch" oninput="filterEmployees()" placeholder="ابحث باسم الموظف، الإقامة، أو اللوحة..." type="text"/>
+<span class="search-icon">🔍</span>
+</div>
+<div class="emp-filter"><select id="empJobFilter" onchange="filterEmployees()" title="فلترة حسب الوظيفة"><option value="">كل الوظائف</option></select></div>
+<button class="btn-primary" id="viewToggleBtn" onclick="toggleView()">📊 عرض كامل (كل الأعمدة)</button>
+<span class="emp-count" id="empCount"></span>
+<span style="flex:1"></span>
+<button class="btn-primary" onclick="addEmployeeRow()">+ إضافة صف</button>
+<button class="btn-primary" onclick="openPasteModal()" style="background-color: #9b59b6;">📋 لصق من إكسل</button>
+<button class="btn-submit-gold" onclick="exportToExcel()">📥 تصدير Excel</button>
+<button class="btn-submit-orange" onclick="shareEmployees()">📤 مشاركة / تصدير</button>
+<button class="btn-outline" data-action-required="true" data-callback="saveToServer">💾 حفظ على الخادم</button>
+<button class="btn-outline" onclick="updateVehiclesFromFleet()" style="border-color:rgba(96,165,250,.5);color:#60a5fa;">🔄 تحديث المركبات</button>
+</div>
+<p class="emp-hint">العرض المختصر يُظهر الأعمدة الأساسية فقط (بدون تمرير جانبي). اضغط «عرض كامل» لكل الأعمدة الـ46، واستخدم البحث للوصول لأي موظف بسرعة. عمود «م» والترويسة يبقيان ثابتين أثناء التمرير.</p>
+<div class="excel-table-container">
+<table class="bz-fit" id="employeesTable">
+<thead>
+<tr class="group-row">
+<th class="idx-head" rowspan="2">م</th>
+<th class="group-header" colspan="10">بيانات الموظف العامة</th>
+<th class="group-header" colspan="6">مقيم</th>
+<th class="group-header" colspan="9">قوى</th>
+<th class="group-header" colspan="5">مسيرات الشركة</th>
+<th class="group-header" colspan="2">البصمة</th>
+<th class="group-header" colspan="8">المركبة</th>
+<th class="group-header" colspan="6">السكن والسند والتامين</th>
+<th rowspan="2">إجراءات</th>
+</tr>
+<tr id="empColHeaderRow">
+<!-- 46 column headers injected by JS from COLS to stay in sync with export -->
+</tr>
+</thead>
+<tbody id="employeesBody">
+<!-- Rows will be populated by JS -->
+</tbody>
+</table>
+</div>
+</div>
+<datalist id="empNames"></datalist>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script>
         // The 46 data columns, in exact table/export order. Index 2 = اسم العامل (name).
         const COLS = [
             'الرقم الوظيفي', 'الإقامة - البطاقة', 'اسم العامل', 'الاسم بالانجليزي', 'الفرع',
@@ -753,21 +738,19 @@
             });
         }
     </script>
-
-    <!-- Modal for Pasting Excel Data -->
-    <div class="modal-backdrop" id="pasteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-        <div class="modal-content-custom" style="background: var(--surface, #fff); padding: 2rem; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-            <h2 style="margin-top: 0; color: var(--brand-navy, #0c2340);">لصق بيانات الإكسل</h2>
-            <p style="color: var(--text-secondary, #5a6a7a); margin-bottom: 1rem;">قم بنسخ الخلايا من ملف الإكسل والصقها في المربع أدناه (اضغط Ctrl+V):</p>
-            <textarea id="pasteArea" rows="8" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border, #d9d9d9); background: var(--surface-hover, #f1f5f9); color: var(--text-primary, #1a2b49); font-family: inherit; margin-bottom: 1rem; resize: vertical;" placeholder="الصق البيانات هنا..."></textarea>
-            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                <button class="btn-outline" onclick="closePasteModal()">إلغاء</button>
-                <button class="btn-primary" onclick="processPasteArea()">إضافة البيانات</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
+ Modal for Pasting Excel Data 
+<div class="modal-backdrop" id="pasteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+<div class="modal-content-custom" style="background: var(--surface, #fff); padding: 2rem; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+<h2 style="margin-top: 0; color: var(--brand-navy, #0c2340);">لصق بيانات الإكسل</h2>
+<p style="color: var(--text-secondary, #5a6a7a); margin-bottom: 1rem;">قم بنسخ الخلايا من ملف الإكسل والصقها في المربع أدناه (اضغط Ctrl+V):</p>
+<textarea id="pasteArea" placeholder="الصق البيانات هنا..." rows="8" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border, #d9d9d9); background: var(--surface-hover, #f1f5f9); color: var(--text-primary, #1a2b49); font-family: inherit; margin-bottom: 1rem; resize: vertical;"></textarea>
+<div style="display: flex; gap: 1rem; justify-content: flex-end;">
+<button class="btn-outline" onclick="closePasteModal()">إلغاء</button>
+<button class="btn-primary" onclick="processPasteArea()">إضافة البيانات</button>
+</div>
+</div>
+</div>
+<script>
         function openPasteModal() {
             document.getElementById('pasteModal').style.display = 'flex';
             document.getElementById('pasteArea').value = '';
@@ -810,5 +793,4 @@
             }
         }
     </script>
-</body>
-</html>
+{% endblock %}

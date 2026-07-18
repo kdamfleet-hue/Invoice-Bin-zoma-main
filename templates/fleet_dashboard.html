@@ -1,20 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% extends 'base.html' %}
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>لوحة التحكم المركزية بالأسطول | شركة بن زومة</title>
-  <meta name="description"
-    content="لوحة القيادة المركزية لإدارة بيانات السائقين والمركبات مع مؤشرات الترابط والمزامنة الذكية">
-  <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-  <link
-    href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;600;700;800&display=swap"
-    rel="stylesheet">
-  <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-  <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch | tojson }}; window.BZ_SNAP_TAB = {{ snap_tab | tojson }};</script>
-  <style>
+{% block title %}لوحة التحكم المركزية بالأسطول | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch | tojson }}; window.BZ_SNAP_TAB = {{ snap_tab | tojson }};</script>
+<style>
     /* ══════════════════════════════════════════════════════════════════
        FLEET DASHBOARD — Luxury Intelligence Theme
        ══════════════════════════════════════════════════════════════════ */
@@ -947,404 +937,354 @@
       border: 1px solid #22c55e;
     }
   </style>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css', v=31) }}">
-</head>
+{% endblock %}
 
-<body>
-
-  <!-- Alert Sound -->
-  <audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3"
-    preload="auto"></audio>
-
-
-  <!-- Top Navigation (shared component) -->
-  <header class="bz-topbar">
-    <div class="bz-brand">
-      <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-      <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-    </div>
-    <nav class="bz-nav">
-      <a href="/">الرئيسية</a>
-      <a href="/invoice">الفاتورة</a>
-      <a href="/dashboard">لوحة التحكم</a>
-      <a href="/schedule">الجدول</a>
-      <a href="/employees">الموظفين</a>
-      <a href="/fleet_dashboard" class="active">الأسطول</a>
-      <a href="/washing">الغسيل</a>
-      <a href="/oils">الزيوت</a>
-      <a href="/workshop">الورشة</a>
-      <a href="/system_commands">الأوامر ⚡</a>
-    </nav>
-    <div class="bz-actions">
-      <select id="roleSelector"
-        onchange="currentUser.role = this.value; if(window.showToast) showToast('تم التبديل إلى ' + this.value, 'info')"
-        style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); border: 1px solid var(--border-glass); border-radius: 8px; padding: 5px; margin-left: 10px;">
-        <option value="admin">مدير (Admin)</option>
-        <option value="viewer">مشاهد (Viewer)</option>
-      </select>
-
-
-      <div class="fd-bell-wrap">
-        <svg class="fd-bell-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-        <span class="fd-bell-badge" id="bellBadge">0</span>
-        <div class="fd-notifications">
-          <div class="fd-noti-header">
-            تنبيهات ذكية <span style="font-size:0.7rem;color:var(--fd-muted)" id="liveStatus">🟢 متصل</span>
-          </div>
-          <ul class="fd-noti-body" id="notiBody">
-            <li class="fd-noti-item">
-              <div style="color:var(--fd-muted)">لا توجد تنبيهات حالياً</div>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      </button>
-      <a href="/logout" class="bz-logout">خروج</a>
-    </div>
-  </header>
-
-  <div class="fd-shell">
-
-    <!-- ── Page Header ── -->
-    <div class="fd-header">
-      <div class="fd-header-title">
-        <div class="fd-header-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="1" y="3" width="15" height="13" />
-            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-            <circle cx="5.5" cy="18.5" r="2.5" />
-            <circle cx="18.5" cy="18.5" r="2.5" />
-          </svg>
-        </div>
-        <h1>لوحة التحكم المركزية بالأسطول
+{% block content %}
+Alert Sound 
+<audio id="alertSound" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3"></audio>
+ Top Navigation (shared component) 
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">الرئيسية</a>
+<a href="/invoice">الفاتورة</a>
+<a href="/dashboard">لوحة التحكم</a>
+<a href="/schedule">الجدول</a>
+<a href="/employees">الموظفين</a>
+<a class="active" href="/fleet_dashboard">الأسطول</a>
+<a href="/washing">الغسيل</a>
+<a href="/oils">الزيوت</a>
+<a href="/workshop">الورشة</a>
+<a href="/system_commands">الأوامر ⚡</a>
+</nav>
+<div class="bz-actions">
+<select id="roleSelector" onchange="currentUser.role = this.value; if(window.showToast) showToast('تم التبديل إلى ' + this.value, 'info')" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); border: 1px solid var(--border-glass); border-radius: 8px; padding: 5px; margin-left: 10px;">
+<option value="admin">مدير (Admin)</option>
+<option value="viewer">مشاهد (Viewer)</option>
+</select>
+<div class="fd-bell-wrap">
+<svg class="fd-bell-icon" fill="none" height="22" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="22">
+<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+<path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+</svg>
+<span class="fd-bell-badge" id="bellBadge">0</span>
+<div class="fd-notifications">
+<div class="fd-noti-header">
+            تنبيهات ذكية <span id="liveStatus" style="font-size:0.7rem;color:var(--fd-muted)">🟢 متصل</span>
+</div>
+<ul class="fd-noti-body" id="notiBody">
+<li class="fd-noti-item">
+<div style="color:var(--fd-muted)">لا توجد تنبيهات حالياً</div>
+</li>
+</ul>
+</div>
+</div>
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">
+<svg fill="none" height="18" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="18">
+<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+</svg>
+</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="fd-shell">
+<!-- ── Page Header ── -->
+<div class="fd-header">
+<div class="fd-header-title">
+<div class="fd-header-icon">
+<svg fill="none" height="24" stroke="#1a1a1a" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24">
+<rect height="13" width="15" x="1" y="3"></rect>
+<polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+<circle cx="5.5" cy="18.5" r="2.5"></circle>
+<circle cx="18.5" cy="18.5" r="2.5"></circle>
+</svg>
+</div>
+<h1>لوحة التحكم المركزية بالأسطول
           <span>إدارة شاملة — مؤشرات الترابط — المزامنة الذكية</span>
-        </h1>
-      </div>
-      <div class="fd-toolbar">
-
-        <button class="btn-sync" onclick="window.location.href='/system_commands'" id="syncExcelBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="12" y1="18" x2="12" y2="12" />
-            <polyline points="9 15 12 18 15 15" />
-          </svg>
+</h1>
+</div>
+<div class="fd-toolbar">
+<button class="btn-sync" id="syncExcelBtn" onclick="window.location.href='/system_commands'">
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16">
+<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+<polyline points="14 2 14 8 20 8"></polyline>
+<line x1="12" x2="12" y1="18" y2="12"></line>
+<polyline points="9 15 12 18 15 15"></polyline>
+</svg>
           مزامنة إكسيل الدمام
         </button>
-        <button class="btn-sync" onclick="window.location.href='/system_commands'" id="syncBtn">
-
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
+<button class="btn-sync" id="syncBtn" onclick="window.location.href='/system_commands'">
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16">
+<polyline points="23 4 23 10 17 10"></polyline>
+<polyline points="1 20 1 14 7 14"></polyline>
+<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+</svg>
           مزامنة ذكية
         </button>
-        <button class="btn-outline" onclick="exportFleetExcel()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
+<button class="btn-outline" onclick="exportFleetExcel()">
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16">
+<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+<polyline points="7 10 12 15 17 10"></polyline>
+<line x1="12" x2="12" y1="15" y2="3"></line>
+</svg>
           تصدير Excel
         </button>
-        <button class="btn-outline" onclick="window.print()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 6 2 18 2 18 9" />
-            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-            <rect x="6" y="14" width="12" height="8" />
-          </svg>
+<button class="btn-outline" onclick="window.print()">
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16">
+<polyline points="6 9 6 2 18 2 18 9"></polyline>
+<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+<rect height="8" width="12" x="6" y="14"></rect>
+</svg>
           طباعة
         </button>
-      </div>
-    </div>
-
-    <!-- ══════════════════════════ TABS NAV ══════════════════════════ -->
-    <div class="fd-tabs">
-      <button class="fd-tab active" onclick="switchFdTab('tab-dash', this)" id="btn-tab-dash">
+</div>
+</div>
+<!-- ══════════════════════════ TABS NAV ══════════════════════════ -->
+<div class="fd-tabs">
+<button class="fd-tab active" id="btn-tab-dash" onclick="switchFdTab('tab-dash', this)">
         📊 لوحة القيادة
       </button>
-      <button class="fd-tab" onclick="switchFdTab('tab-fleet', this)" id="btn-tab-fleet">
+<button class="fd-tab" id="btn-tab-fleet" onclick="switchFdTab('tab-fleet', this)">
         🚛 سجل الأسطول
       </button>
-
-      <button class="fd-tab" onclick="switchFdTab('tab-weekly', this)" id="btn-tab-weekly">
+<button class="fd-tab" id="btn-tab-weekly" onclick="switchFdTab('tab-weekly', this)">
         📅 الجدول الأسبوعي (حي)
       </button>
-    </div>
-
-    <!-- ══════════════════════════ TAB: DASHBOARD ══════════════════════════ -->
-    <div id="tab-dash" class="fd-tab-panel active">
-
-      <!-- Expiry Alert Strip (shown only if there are issues) -->
-      <div id="fd-expiry-alert" class="fd-alert-strip" style="display:none">
-        <div class="icon">⚠️</div>
-        <div>
-          <h4>تنبيه: وثائق تحتاج مراجعة عاجلة</h4>
-          <p>الوثائق التالية منتهية أو ستنتهي خلال 30 يوماً:</p>
-          <ul class="fd-alert-items" id="fd-alert-list"></ul>
-        </div>
-      </div>
-
-      <!-- KPI Cards -->
-      <div class="fd-dash-grid">
-        <div class="fd-kpi glass-panel glass-panel">
-          <div class="kpi-icon">👥</div>
-          <div class="kpi-val" id="kpiTotal">—</div>
-          <div class="kpi-label">إجمالي السائقين</div>
-          <div class="kpi-trend ok" id="kpiTotalTrend">— في الجدول</div>
-        </div>
-        <div class="fd-kpi glass-panel kpi-green">
-          <div class="kpi-icon">✅</div>
-          <div class="kpi-val" id="kpiActive">—</div>
-          <div class="kpi-label">نشطون (مجدولون)</div>
-          <div class="kpi-trend ok" id="kpiActiveTrend">جاهزون للعمل</div>
-        </div>
-        <div class="fd-kpi glass-panel kpi-orange">
-          <div class="kpi-icon">🚌</div>
-          <div class="kpi-val" id="kpiVehicles">—</div>
-          <div class="kpi-label">مركبات مسجلة</div>
-          <div class="kpi-trend ok" id="kpiVehTrend">مع بطاقات تشغيل</div>
-        </div>
-        <div class="fd-kpi glass-panel kpi-red">
-          <div class="kpi-icon">📋</div>
-          <div class="kpi-val" id="kpiExpiring">—</div>
-          <div class="kpi-label">وثائق منتهية / قريبة</div>
-          <div class="kpi-trend danger" id="kpiExpiringTrend">تحتاج مراجعة</div>
-        </div>
-        <div class="fd-kpi glass-panel kpi-blue">
-          <div class="kpi-icon">🔗</div>
-          <div class="kpi-val" id="kpiLinked">—</div>
-          <div class="kpi-label">مترابطون بالأنظمة</div>
-          <div class="kpi-trend ok" id="kpiLinkedTrend">ترابط كامل</div>
-        </div>
-      </div>
-
-      <!-- Charts Row 1 -->
-      <div class="fd-charts-row">
-        <!-- Distribution donut -->
-        <div class="fd-chart-card">
-          <h3>📈 نشاط الأسطول الأسبوعي</h3>
-          <canvas id="fdWeeklyChart" height="220"></canvas>
-        </div>
-        <!-- Driver status donut -->
-        <div class="fd-chart-card">
-          <h3>🍩 توزيع حالة السائقين</h3>
-          <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
-            <canvas id="fdDonutChart" width="180" height="180" style="flex-shrink:0"></canvas>
-            <div id="fdDonutLegend" style="font-size:.82rem;line-height:2;"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Charts Row 2 -->
-      <div class="fd-charts-row-3">
-        <!-- Expiry bar -->
-        <div class="fd-chart-card">
-          <h3>📋 حالة الوثائق</h3>
-          <canvas id="fdDocChart" height="200"></canvas>
-        </div>
-        <!-- Source linking bar -->
-        <div class="fd-chart-card">
-          <h3>🔗 ترابط الأنظمة</h3>
-          <canvas id="fdLinkChart" height="200"></canvas>
-        </div>
-        <!-- Recent expiring list -->
-        <div class="fd-chart-card">
-          <h3>🚨 أقرب انتهاءات</h3>
-          <ul class="fd-activity-list" id="fdExpiryList">
-            <li>
-              <div class="fd-activity-dot" style="background:var(--fd-muted)"></div>جارٍ التحميل...
+</div>
+<!-- ══════════════════════════ TAB: DASHBOARD ══════════════════════════ -->
+<div class="fd-tab-panel active" id="tab-dash">
+<!-- Expiry Alert Strip (shown only if there are issues) -->
+<div class="fd-alert-strip" id="fd-expiry-alert" style="display:none">
+<div class="icon">⚠️</div>
+<div>
+<h4>تنبيه: وثائق تحتاج مراجعة عاجلة</h4>
+<p>الوثائق التالية منتهية أو ستنتهي خلال 30 يوماً:</p>
+<ul class="fd-alert-items" id="fd-alert-list"></ul>
+</div>
+</div>
+<!-- KPI Cards -->
+<div class="fd-dash-grid">
+<div class="fd-kpi glass-panel glass-panel">
+<div class="kpi-icon">👥</div>
+<div class="kpi-val" id="kpiTotal">—</div>
+<div class="kpi-label">إجمالي السائقين</div>
+<div class="kpi-trend ok" id="kpiTotalTrend">— في الجدول</div>
+</div>
+<div class="fd-kpi glass-panel kpi-green">
+<div class="kpi-icon">✅</div>
+<div class="kpi-val" id="kpiActive">—</div>
+<div class="kpi-label">نشطون (مجدولون)</div>
+<div class="kpi-trend ok" id="kpiActiveTrend">جاهزون للعمل</div>
+</div>
+<div class="fd-kpi glass-panel kpi-orange">
+<div class="kpi-icon">🚌</div>
+<div class="kpi-val" id="kpiVehicles">—</div>
+<div class="kpi-label">مركبات مسجلة</div>
+<div class="kpi-trend ok" id="kpiVehTrend">مع بطاقات تشغيل</div>
+</div>
+<div class="fd-kpi glass-panel kpi-red">
+<div class="kpi-icon">📋</div>
+<div class="kpi-val" id="kpiExpiring">—</div>
+<div class="kpi-label">وثائق منتهية / قريبة</div>
+<div class="kpi-trend danger" id="kpiExpiringTrend">تحتاج مراجعة</div>
+</div>
+<div class="fd-kpi glass-panel kpi-blue">
+<div class="kpi-icon">🔗</div>
+<div class="kpi-val" id="kpiLinked">—</div>
+<div class="kpi-label">مترابطون بالأنظمة</div>
+<div class="kpi-trend ok" id="kpiLinkedTrend">ترابط كامل</div>
+</div>
+</div>
+<!-- Charts Row 1 -->
+<div class="fd-charts-row">
+<!-- Distribution donut -->
+<div class="fd-chart-card">
+<h3>📈 نشاط الأسطول الأسبوعي</h3>
+<canvas height="220" id="fdWeeklyChart"></canvas>
+</div>
+<!-- Driver status donut -->
+<div class="fd-chart-card">
+<h3>🍩 توزيع حالة السائقين</h3>
+<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+<canvas height="180" id="fdDonutChart" style="flex-shrink:0" width="180"></canvas>
+<div id="fdDonutLegend" style="font-size:.82rem;line-height:2;"></div>
+</div>
+</div>
+</div>
+<!-- Charts Row 2 -->
+<div class="fd-charts-row-3">
+<!-- Expiry bar -->
+<div class="fd-chart-card">
+<h3>📋 حالة الوثائق</h3>
+<canvas height="200" id="fdDocChart"></canvas>
+</div>
+<!-- Source linking bar -->
+<div class="fd-chart-card">
+<h3>🔗 ترابط الأنظمة</h3>
+<canvas height="200" id="fdLinkChart"></canvas>
+</div>
+<!-- Recent expiring list -->
+<div class="fd-chart-card">
+<h3>🚨 أقرب انتهاءات</h3>
+<ul class="fd-activity-list" id="fdExpiryList">
+<li>
+<div class="fd-activity-dot" style="background:var(--fd-muted)"></div>جارٍ التحميل...
             </li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Hidden stat bar data (for backwards compat) -->
-      <div style="display:none">
-        <span id="stTotal"></span>
-        <span id="stActive"></span>
-        <span id="stAbsent"></span>
-        <span id="stExpiring"></span>
-        <span id="stVehicles"></span>
-      </div>
-
-    </div><!-- /tab-dash -->
-
-    <!-- ══════════════════════════ TAB: FLEET TABLE ══════════════════════════ -->
-    <div id="tab-fleet" class="fd-tab-panel">
-
-      <!-- ── Stat Bar ── -->
-      <div class="fd-stats" style="padding-top:20px;">
-        <div class="fd-stat">
-          <div class="st-val" id="stTotal2">—</div>
-          <div class="st-lbl">إجمالي السائقين</div>
-        </div>
-        <div class="fd-stat">
-          <div class="st-val" id="stActive2" style="color:#22c55e">—</div>
-          <div class="st-lbl">نشطون (في الجدول)</div>
-        </div>
-        <div class="fd-stat">
-          <div class="st-val" id="stAbsent2" style="color:#f97316">—</div>
-          <div class="st-lbl">غير مجدولين</div>
-        </div>
-        <div class="fd-stat">
-          <div class="st-val" id="stExpiring2" style="color:#ef4444">—</div>
-          <div class="st-lbl">وثائق منتهية أو قريبة</div>
-        </div>
-        <div class="fd-stat">
-          <div class="st-val" id="stVehicles2">—</div>
-          <div class="st-lbl">مركبات مسجلة</div>
-        </div>
-      </div>
-
-      <!-- ── Main Fleet Table ── -->
-      <div class="fd-card glass-panel" style="margin-top:20px;">
-        <div class="fd-card-head">
-          <h2>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+</ul>
+</div>
+</div>
+<!-- Hidden stat bar data (for backwards compat) -->
+<div style="display:none">
+<span id="stTotal"></span>
+<span id="stActive"></span>
+<span id="stAbsent"></span>
+<span id="stExpiring"></span>
+<span id="stVehicles"></span>
+</div>
+</div><!-- /tab-dash -->
+<!-- ══════════════════════════ TAB: FLEET TABLE ══════════════════════════ -->
+<div class="fd-tab-panel" id="tab-fleet">
+<!-- ── Stat Bar ── -->
+<div class="fd-stats" style="padding-top:20px;">
+<div class="fd-stat">
+<div class="st-val" id="stTotal2">—</div>
+<div class="st-lbl">إجمالي السائقين</div>
+</div>
+<div class="fd-stat">
+<div class="st-val" id="stActive2" style="color:#22c55e">—</div>
+<div class="st-lbl">نشطون (في الجدول)</div>
+</div>
+<div class="fd-stat">
+<div class="st-val" id="stAbsent2" style="color:#f97316">—</div>
+<div class="st-lbl">غير مجدولين</div>
+</div>
+<div class="fd-stat">
+<div class="st-val" id="stExpiring2" style="color:#ef4444">—</div>
+<div class="st-lbl">وثائق منتهية أو قريبة</div>
+</div>
+<div class="fd-stat">
+<div class="st-val" id="stVehicles2">—</div>
+<div class="st-lbl">مركبات مسجلة</div>
+</div>
+</div>
+<!-- ── Main Fleet Table ── -->
+<div class="fd-card glass-panel" style="margin-top:20px;">
+<div class="fd-card-head">
+<h2>
+<svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="18">
+<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+<circle cx="9" cy="7" r="4"></circle>
+<path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+</svg>
             سجل الأسطول الكامل
           </h2>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <span class="fd-stat" style="padding:6px 14px;margin:0;border-radius:20px;font-size:.8rem;"
-              id="tableCount">0
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+<span class="fd-stat" id="tableCount" style="padding:6px 14px;margin:0;border-radius:20px;font-size:.8rem;">0
               سائق</span>
-            <label
-              style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--fd-muted);cursor:pointer;">
-              <input type="checkbox" id="toggleBadges" checked onchange="rerenderTable()"
-                style="accent-color:var(--accent-primary);"> مؤشرات الترابط
+<label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--fd-muted);cursor:pointer;">
+<input checked="" id="toggleBadges" onchange="rerenderTable()" style="accent-color:var(--accent-primary);" type="checkbox"/> مؤشرات الترابط
             </label>
-          </div>
-        </div>
-
-        <!-- Search bar -->
-        <div class="fd-search-bar">
-          <input type="text" id="fdSearch" placeholder="🔍 بحث بالاسم / اللوحة / الرقم الوظيفي / الإقامة / الجوال..."
-            oninput="filterTable(this.value)">
-        </div>
-
-        <div class="fd-card-body">
-          <div class="table-wrapper">
-            <table class="fd-table" id="fleetTable">
-              <thead id="fleetHead"></thead>
-              <tbody id="fleetBody">
-                <tr class="empty-row">
-                  <td colspan="20">جارٍ تحميل البيانات…</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /tab-fleet -->
-
-    <!-- ══════════════════════════ TAB: WEEKLY SCHEDULE ══════════════════════════ -->
-    <div id="tab-weekly" class="fd-tab-panel">
-      <div class="lux-sched-container">
-        <!-- Input Form -->
-        <div class="lux-form-card">
-          <h3>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
+</div>
+</div>
+<!-- Search bar -->
+<div class="fd-search-bar">
+<input id="fdSearch" oninput="filterTable(this.value)" placeholder="🔍 بحث بالاسم / اللوحة / الرقم الوظيفي / الإقامة / الجوال..." type="text"/>
+</div>
+<div class="fd-card-body">
+<div class="table-wrapper">
+<table class="fd-table" id="fleetTable">
+<thead id="fleetHead"></thead>
+<tbody id="fleetBody">
+<tr class="empty-row">
+<td colspan="20">جارٍ تحميل البيانات…</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div><!-- /tab-fleet -->
+<!-- ══════════════════════════ TAB: WEEKLY SCHEDULE ══════════════════════════ -->
+<div class="fd-tab-panel" id="tab-weekly">
+<div class="lux-sched-container">
+<!-- Input Form -->
+<div class="lux-form-card">
+<h3>
+<svg fill="none" height="20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="20">
+<path d="M12 20h9"></path>
+<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+</svg>
             إضافة رحلة / مهمة جديدة
           </h3>
-          <form id="tripForm" onsubmit="addLiveTrip(event)">
-            <input type="text" id="tripDriver" class="lux-input" placeholder="اسم السائق" required>
-            <input type="text" id="tripDest" class="lux-input" placeholder="الوجهة (مثال: الرياض)" required>
-            <input type="date" id="tripDate" class="lux-input" required>
-            <select id="tripStatus" class="lux-input">
-              <option value="مجدول">مجدول</option>
-              <option value="في الطريق">في الطريق</option>
-              <option value="مكتمل">مكتمل</option>
-            </select>
-            <button type="submit" class="btn-primary" style="width:100%;justify-content:center;margin-top:10px;">إضافة
+<form id="tripForm" onsubmit="addLiveTrip(event)">
+<input class="lux-input" id="tripDriver" placeholder="اسم السائق" required="" type="text"/>
+<input class="lux-input" id="tripDest" placeholder="الوجهة (مثال: الرياض)" required="" type="text"/>
+<input class="lux-input" id="tripDate" required="" type="date"/>
+<select class="lux-input" id="tripStatus">
+<option value="مجدول">مجدول</option>
+<option value="في الطريق">في الطريق</option>
+<option value="مكتمل">مكتمل</option>
+</select>
+<button class="btn-primary" style="width:100%;justify-content:center;margin-top:10px;" type="submit">إضافة
               للجدول الحي</button>
-          </form>
-        </div>
-
-        <!-- Live Table -->
-        <div class="lux-table-wrap">
-          <table class="lux-table" id="liveSchedTable">
-            <thead>
-              <tr>
-                <th>السائق</th>
-                <th>الوجهة</th>
-                <th>التاريخ</th>
-                <th>الحالة</th>
-                <th>تحديث حي</th>
-              </tr>
-            </thead>
-            <tbody id="liveSchedBody">
-              <!-- Populated by JS -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-
-  </div><!-- /fd-shell -->
-
-  <!-- ── Smart Sync Modal ── -->
-  <div class="fd-sync-modal hidden" id="syncModal">
-    <div class="fd-sync-box">
-      <h3>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round"
-          style="vertical-align:middle;margin-left:6px;color:var(--accent-primary)">
-          <polyline points="23 4 23 10 17 10" />
-          <polyline points="1 20 1 14 7 14" />
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-        </svg>
+</form>
+</div>
+<!-- Live Table -->
+<div class="lux-table-wrap">
+<table class="lux-table" id="liveSchedTable">
+<thead>
+<tr>
+<th>السائق</th>
+<th>الوجهة</th>
+<th>التاريخ</th>
+<th>الحالة</th>
+<th>تحديث حي</th>
+</tr>
+</thead>
+<tbody id="liveSchedBody">
+<!-- Populated by JS -->
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div> /fd-shell 
+ ── Smart Sync Modal ── 
+<div class="fd-sync-modal hidden" id="syncModal">
+<div class="fd-sync-box">
+<h3>
+<svg fill="none" height="20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="vertical-align:middle;margin-left:6px;color:var(--accent-primary)" viewbox="0 0 24 24" width="20">
+<polyline points="23 4 23 10 17 10"></polyline>
+<polyline points="1 20 1 14 7 14"></polyline>
+<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+</svg>
         مزامنة ذكية شاملة
       </h3>
-      <p>ستقوم هذه العملية بضبط ومطابقة الأسماء وأرقام اللوحات في جميع صفحات الموقع (الغسيل، الزيوت، الورشة،
+<p>ستقوم هذه العملية بضبط ومطابقة الأسماء وأرقام اللوحات في جميع صفحات الموقع (الغسيل، الزيوت، الورشة،
         المشتريات...) بناءً على سجل السائقين الرئيسي. <strong style="color:var(--accent-primary)">لا يمكن التراجع
           عنها.</strong></p>
-      <div class="fd-sync-progress">
-        <div class="fd-sync-bar" id="syncBar"></div>
-      </div>
-      <div class="fd-sync-log" id="syncLog">في انتظار بدء المزامنة...</div>
-      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
-        <button class="btn-outline" onclick="closeSyncModal()">إغلاق</button>
-        <button class="btn-primary" id="startSyncBtn" onclick="startSmartSync()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
+<div class="fd-sync-progress">
+<div class="fd-sync-bar" id="syncBar"></div>
+</div>
+<div class="fd-sync-log" id="syncLog">في انتظار بدء المزامنة...</div>
+<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+<button class="btn-outline" onclick="closeSyncModal()">إغلاق</button>
+<button class="btn-primary" id="startSyncBtn" onclick="startSmartSync()">
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 24 24" width="16">
+<polyline points="23 4 23 10 17 10"></polyline>
+<polyline points="1 20 1 14 7 14"></polyline>
+<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+</svg>
           بدء المزامنة
         </button>
-      </div>
-    </div>
-  </div>
-
-  <script>
+</div>
+</div>
+</div>
+<script>
     // ═══════════════════════════════════════════════════════════════════
     //  Fleet Dashboard — Intelligence & Integrity Engine
     // ═══════════════════════════════════════════════════════════════════
@@ -2051,29 +1991,21 @@
     }
 
   </script>
-
-  <!-- Edit Modal -->
-  <div id="editModal" class="modal"
-    style="display:none; position:fixed; top:20%; left:30%; background:#252545; padding:20px; border-radius:10px; z-index:1000; color:white; min-width: 300px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-    <h3 style="margin-top:0; border-bottom:1px solid #444; padding-bottom:10px; color:var(--accent-primary)">تعديل حالة السائق
+ Edit Modal 
+<div class="modal" id="editModal" style="display:none; position:fixed; top:20%; left:30%; background:#252545; padding:20px; border-radius:10px; z-index:1000; color:white; min-width: 300px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+<h3 style="margin-top:0; border-bottom:1px solid #444; padding-bottom:10px; color:var(--accent-primary)">تعديل حالة السائق
     </h3>
-    <input type="hidden" id="editDriverId">
-    <label style="display:block; margin-bottom: 10px;">الحالة:</label>
-    <select id="editStatus"
-      style="width:100%; padding: 8px; border-radius: 4px; background: #1a1a2e; color: white; border: 1px solid #444; margin-bottom: 20px;">
-      <option value="في الطريق">في الطريق</option>
-      <option value="مجدول">مجدول</option>
-      <option value="نشط">نشط</option>
-    </select>
-    <div style="display:flex; justify-content: space-between;">
-      <button onclick="saveDriverChanges()"
-        style="background: var(--accent-primary); color: black; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">حفظ
+<input id="editDriverId" type="hidden"/>
+<label style="display:block; margin-bottom: 10px;">الحالة:</label>
+<select id="editStatus" style="width:100%; padding: 8px; border-radius: 4px; background: #1a1a2e; color: white; border: 1px solid #444; margin-bottom: 20px;">
+<option value="في الطريق">في الطريق</option>
+<option value="مجدول">مجدول</option>
+<option value="نشط">نشط</option>
+</select>
+<div style="display:flex; justify-content: space-between;">
+<button onclick="saveDriverChanges()" style="background: var(--accent-primary); color: black; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">حفظ
         التغييرات</button>
-      <button onclick="closeEditModal()"
-        style="background: #444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">إغلاق</button>
-    </div>
-  </div>
-
-</body>
-
-</html>
+<button onclick="closeEditModal()" style="background: #444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">إغلاق</button>
+</div>
+</div>
+{% endblock %}

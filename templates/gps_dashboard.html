@@ -1,14 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>لوحة مؤشرات GPS للأسطول | شركة بن زومة</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-  <style>
+{% extends 'base.html' %}
+
+{% block title %}لوحة مؤشرات GPS للأسطول | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
     :root {
       --primary: #C5A059;
       --primary-light: #e0c489;
@@ -337,164 +333,159 @@
     }
     .footer .logo-sm { height: 18px; width: auto; background:#fff; border-radius:4px; padding:2px; }
   </style>
-</head>
-<body>
-  <div class="dashboard">
-    <header class="header">
-      <div class="top-actions">
-        <a class="top-btn" href="/gps_sync">&#8594; العودة لمزامنة GPS</a>
-        <button class="top-btn theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
-          <span class="icon-sun">&#9788;</span>
-          <span class="icon-moon">&#9790;</span>
-        </button>
-      </div>
-      <img class="logo" src="/static/nav_logo.png" alt="BIN ZOMAH INTL.">
-      <div>
-        <h1 class="title">لوحة مؤشرات GPS للأسطول</h1>
-        <p class="subtitle">عرض تفاعلي لأولوية الأسطول والامتثال وتوزيع أنواع المركبات — فرع الدمام</p>
-      </div>
-    </header>
+{% endblock %}
 
-    <div class="grid">
-      <div class="col-3">
-        <div class="kpi-card">
-          <div class="kpi-label">Total Vehicles</div>
-          <div class="kpi-value" id="kpi-total">--</div>
-          <div class="kpi-delta neutral" id="kpi-total-note">--</div>
-        </div>
-      </div>
-      <div class="col-3">
-        <div class="kpi-card">
-          <div class="kpi-label">High Priority</div>
-          <div class="kpi-value" id="kpi-high">--</div>
-          <div class="kpi-delta negative" id="kpi-high-note">--</div>
-        </div>
-      </div>
-      <div class="col-3">
-        <div class="kpi-card">
-          <div class="kpi-label">Missing Drivers</div>
-          <div class="kpi-value" id="kpi-missing">--</div>
-          <div class="kpi-delta warning" id="kpi-missing-note">--</div>
-        </div>
-      </div>
-      <div class="col-3">
-        <div class="kpi-card">
-          <div class="kpi-label">Expired Compliance</div>
-          <div class="kpi-value" id="kpi-expired">--</div>
-          <div class="kpi-subvalue" id="kpi-expired-detail">--</div>
-          <div class="kpi-delta negative" id="kpi-expired-note">--</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid">
-      <div class="col-8">
-        <div class="text-card">
-          <div class="card-title">Fleet Highlights</div>
-          <p id="overview-line-1"></p>
-          <p id="overview-line-2"></p>
-          <ul class="highlights-list">
-            <li id="highlight-1"></li>
-            <li id="highlight-2"></li>
-            <li id="highlight-3"></li>
-          </ul>
-        </div>
-      </div>
-      <div class="col-4">
-        <div class="text-card filter-panel">
-          <div>
-            <div class="card-title">Vehicle Type Filter</div>
-            <div class="filter-group" id="type-filter"></div>
-          </div>
-          <div>
-            <div class="selected-type-label" id="selected-type-label"></div>
-            <p class="selected-type-note" id="selected-type-note"></p>
-          </div>
-          <div class="mini-grid">
-            <div class="mini-stat">
-              <div class="mini-stat-label">Vehicles</div>
-              <div class="mini-stat-value" id="mini-total">--</div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-stat-label">High Priority</div>
-              <div class="mini-stat-value" id="mini-high">--</div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-stat-label">Missing Drivers</div>
-              <div class="mini-stat-value" id="mini-missing">--</div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-stat-label">Expired Compliance</div>
-              <div class="mini-stat-value" id="mini-expired">--</div>
-            </div>
-          </div>
-          <div class="mix-wrap">
-            <div class="mini-stat-label">Priority Mix</div>
-            <div class="mix-bar" aria-label="Priority mix for selected vehicle type">
-              <div class="mix-seg" id="mix-high" style="background:#E73B4F;width:0%"></div>
-              <div class="mix-seg" id="mix-medium" style="background:#D4A740;width:0%"></div>
-              <div class="mix-seg" id="mix-low" style="background:#34C563;width:0%"></div>
-            </div>
-            <div class="mix-legend">
-              <div class="mix-key"><span class="dot" style="background:#E73B4F" aria-hidden="true">&#8226;</span><span id="mix-high-label">High</span></div>
-              <div class="mix-key"><span class="dot" style="background:#D4A740" aria-hidden="true">&#8226;</span><span id="mix-medium-label">Medium</span></div>
-              <div class="mix-key"><span class="dot" style="background:#34C563" aria-hidden="true">&#8226;</span><span id="mix-low-label">Low</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid">
-      <div class="col-12">
-        <div class="chart-card">
-          <div class="card-title">Overall Priority Mix</div>
-          <div class="chart-container" id="chart-priority-overall"></div>
-        </div>
-      </div>
-      <div class="col-12">
-        <div class="chart-card">
-          <div class="card-title">Priority Breakdown by Vehicle Type</div>
-          <div class="chart-container" id="chart-priority-by-type"></div>
-        </div>
-      </div>
-      <div class="col-12">
-        <div class="chart-card">
-          <div class="card-title" id="selected-chart-title">Selected Vehicle Type Risk Counters</div>
-          <div class="chart-container" id="chart-selected-type"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid">
-      <div class="col-12">
-        <div class="table-card">
-          <div class="card-title" id="table-title">Priority Watchlist</div>
-          <table>
-            <thead>
-              <tr>
-                <th>اللوحة</th>
-                <th>نوع المركبة</th>
-                <th>الأولوية</th>
-                <th>السائق</th>
-                <th>الفحص</th>
-                <th>التأمين</th>
-                <th>ملاحظات</th>
-              </tr>
-            </thead>
-            <tbody id="watchlist-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <footer class="footer">
-      <img class="logo-sm" src="/static/nav_logo.png" alt="BIN ZOMAH">
-      <span>شركة بن زومة للتجارة والتطوير الدولية — قسم الحركة | فرع الدمام</span>
-    </footer>
-  </div>
-
-  <script>
+{% block content %}
+<div class="dashboard">
+<header class="header">
+<div class="top-actions">
+<a class="top-btn" href="/gps_sync">→ العودة لمزامنة GPS</a>
+<button aria-label="Toggle dark mode" class="top-btn theme-toggle" onclick="toggleTheme()">
+<span class="icon-sun">☼</span>
+<span class="icon-moon">☾</span>
+</button>
+</div>
+<img alt="BIN ZOMAH INTL." class="logo" src="/static/nav_logo.png"/>
+<div>
+<h1 class="title">لوحة مؤشرات GPS للأسطول</h1>
+<p class="subtitle">عرض تفاعلي لأولوية الأسطول والامتثال وتوزيع أنواع المركبات — فرع الدمام</p>
+</div>
+</header>
+<div class="grid">
+<div class="col-3">
+<div class="kpi-card">
+<div class="kpi-label">Total Vehicles</div>
+<div class="kpi-value" id="kpi-total">--</div>
+<div class="kpi-delta neutral" id="kpi-total-note">--</div>
+</div>
+</div>
+<div class="col-3">
+<div class="kpi-card">
+<div class="kpi-label">High Priority</div>
+<div class="kpi-value" id="kpi-high">--</div>
+<div class="kpi-delta negative" id="kpi-high-note">--</div>
+</div>
+</div>
+<div class="col-3">
+<div class="kpi-card">
+<div class="kpi-label">Missing Drivers</div>
+<div class="kpi-value" id="kpi-missing">--</div>
+<div class="kpi-delta warning" id="kpi-missing-note">--</div>
+</div>
+</div>
+<div class="col-3">
+<div class="kpi-card">
+<div class="kpi-label">Expired Compliance</div>
+<div class="kpi-value" id="kpi-expired">--</div>
+<div class="kpi-subvalue" id="kpi-expired-detail">--</div>
+<div class="kpi-delta negative" id="kpi-expired-note">--</div>
+</div>
+</div>
+</div>
+<div class="grid">
+<div class="col-8">
+<div class="text-card">
+<div class="card-title">Fleet Highlights</div>
+<p id="overview-line-1"></p>
+<p id="overview-line-2"></p>
+<ul class="highlights-list">
+<li id="highlight-1"></li>
+<li id="highlight-2"></li>
+<li id="highlight-3"></li>
+</ul>
+</div>
+</div>
+<div class="col-4">
+<div class="text-card filter-panel">
+<div>
+<div class="card-title">Vehicle Type Filter</div>
+<div class="filter-group" id="type-filter"></div>
+</div>
+<div>
+<div class="selected-type-label" id="selected-type-label"></div>
+<p class="selected-type-note" id="selected-type-note"></p>
+</div>
+<div class="mini-grid">
+<div class="mini-stat">
+<div class="mini-stat-label">Vehicles</div>
+<div class="mini-stat-value" id="mini-total">--</div>
+</div>
+<div class="mini-stat">
+<div class="mini-stat-label">High Priority</div>
+<div class="mini-stat-value" id="mini-high">--</div>
+</div>
+<div class="mini-stat">
+<div class="mini-stat-label">Missing Drivers</div>
+<div class="mini-stat-value" id="mini-missing">--</div>
+</div>
+<div class="mini-stat">
+<div class="mini-stat-label">Expired Compliance</div>
+<div class="mini-stat-value" id="mini-expired">--</div>
+</div>
+</div>
+<div class="mix-wrap">
+<div class="mini-stat-label">Priority Mix</div>
+<div aria-label="Priority mix for selected vehicle type" class="mix-bar">
+<div class="mix-seg" id="mix-high" style="background:#E73B4F;width:0%"></div>
+<div class="mix-seg" id="mix-medium" style="background:#D4A740;width:0%"></div>
+<div class="mix-seg" id="mix-low" style="background:#34C563;width:0%"></div>
+</div>
+<div class="mix-legend">
+<div class="mix-key"><span aria-hidden="true" class="dot" style="background:#E73B4F">•</span><span id="mix-high-label">High</span></div>
+<div class="mix-key"><span aria-hidden="true" class="dot" style="background:#D4A740">•</span><span id="mix-medium-label">Medium</span></div>
+<div class="mix-key"><span aria-hidden="true" class="dot" style="background:#34C563">•</span><span id="mix-low-label">Low</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="grid">
+<div class="col-12">
+<div class="chart-card">
+<div class="card-title">Overall Priority Mix</div>
+<div class="chart-container" id="chart-priority-overall"></div>
+</div>
+</div>
+<div class="col-12">
+<div class="chart-card">
+<div class="card-title">Priority Breakdown by Vehicle Type</div>
+<div class="chart-container" id="chart-priority-by-type"></div>
+</div>
+</div>
+<div class="col-12">
+<div class="chart-card">
+<div class="card-title" id="selected-chart-title">Selected Vehicle Type Risk Counters</div>
+<div class="chart-container" id="chart-selected-type"></div>
+</div>
+</div>
+</div>
+<div class="grid">
+<div class="col-12">
+<div class="table-card">
+<div class="card-title" id="table-title">Priority Watchlist</div>
+<table>
+<thead>
+<tr>
+<th>اللوحة</th>
+<th>نوع المركبة</th>
+<th>الأولوية</th>
+<th>السائق</th>
+<th>الفحص</th>
+<th>التأمين</th>
+<th>ملاحظات</th>
+</tr>
+</thead>
+<tbody id="watchlist-body"></tbody>
+</table>
+</div>
+</div>
+</div>
+<footer class="footer">
+<img alt="BIN ZOMAH" class="logo-sm" src="/static/nav_logo.png"/>
+<span>شركة بن زومة للتجارة والتطوير الدولية — قسم الحركة | فرع الدمام</span>
+</footer>
+</div>
+<script>
     // عند التقديم تحت مسار محطة العمل، أبقِ الروابط الداخلية داخل البادئة
     (function () {
       var WS = '/importantworkstation';
@@ -818,5 +809,4 @@
     initCharts();
     updateSelectedType(selectedType);
   </script>
-</body>
-</html>
+{% endblock %}

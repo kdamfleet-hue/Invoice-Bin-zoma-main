@@ -1,15 +1,11 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة الإدارة التنفيذية — BIN ZOMAH INTL.</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <!-- washing fallback seed (provides window.WASHING_VEHICLES if the API is empty) -->
-    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}لوحة الإدارة التنفيذية — BIN ZOMAH INTL.{% endblock %}
+
+{% block head %}
+<script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<style>
         /* ============================================================
            Executive Dashboard — deep-dark premium identity (read-only).
            All tokens scoped to .bz-dash so the rest of the site is untouched.
@@ -210,169 +206,157 @@
             .dash-top .meta { display: none; }
         }
     </style>
-</head>
-<body class="bz-dash">
+{% endblock %}
 
-    <!-- ===== Top bar ===== -->
-    <header class="dash-top">
-        <button class="tbtn dash-burger" onclick="document.querySelector('.dash-side').classList.toggle('open')" title="القائمة">☰</button>
-        <div class="brand">
-            <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-            <div><b>BIN ZOMAH INTL.</b><span>لوحة الإدارة التنفيذية — فرع الدمام</span></div>
-        </div>
-        <div class="spacer"></div>
-        <div class="meta" id="topMeta">—</div>
-        <button class="tbtn" onclick="if(window.toggleDarkMode)toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a class="back-link" id="backLink" href="/">← الموقع</a>
-    </header>
-
-    <div class="dash-layout">
-        <!-- ===== Sidebar ===== -->
-        <aside class="dash-side" id="side">
-            <div class="side-title">الأقسام</div>
-            <a href="#overview" class="active"><span class="ic">📊</span> نظرة عامة</a>
-            <a href="#alerts"><span class="ic">🚨</span> مركز التنبيهات</a>
-            <a href="#gps"><span class="ic">🛰️</span> التتبع المباشر</a>
-            <a href="#charts"><span class="ic">📈</span> الرسوم البيانية</a>
-            <a href="#search"><span class="ic">🔎</span> البحث والفلاتر</a>
-            <a href="#history"><span class="ic">🕒</span> سجل التحديثات</a>
-            <a href="#audit"><span class="ic">📝</span> سجل التدقيق</a>
-            <div class="side-title">التبويبات</div>
-            <nav id="quickLinks"></nav>
-        </aside>
-
-        <!-- ===== Main ===== -->
-        <main class="dash-main">
-
-            <!-- Overview / KPIs -->
-            <div class="dash-h" id="overview">نظرة عامة تنفيذية <span class="sub" id="ovSub">جارٍ التحميل…</span></div>
-            <section class="kpi-grid" id="kpiGrid"></section>
-
-            <div class="grid-2" style="margin-top:1.1rem;">
-                <div class="panel">
-                    <div style="font-weight:800;margin-bottom:.7rem;">مؤشرات الجاهزية</div>
-                    <div id="readiness"></div>
-                </div>
-                <div class="panel">
-                    <div style="font-weight:800;margin-bottom:.7rem;">تكوين الأسطول</div>
-                    <div id="fleetMini" class="muted-note">—</div>
-                </div>
-            </div>
-
-            <!-- Alerts -->
-            <div class="dash-h" id="alerts">🚨 مركز تنبيهات الوثائق <span class="sub" id="alSub"></span></div>
-            <section class="panel">
-                <div id="alMailBar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.7rem .8rem;background:var(--d-card-2);border:1px solid var(--d-border);border-radius:12px;">
-                    <span style="font-weight:700;font-size:.84rem;">📧 إرسال تنبيهات الوثائق بالبريد:</span>
-                    <input id="alMailTo" type="text" placeholder="بريد المستلمين (افصل بفاصلة)" style="flex:1;min-width:220px;background:var(--d-bg2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:8px 12px;font:inherit;font-size:.82rem;outline:none;">
-                    <button class="chip on" id="alMailBtn" onclick="sendExpiryMail()">إرسال الآن</button>
-                    <span class="muted-note" id="alMailHint" style="width:100%;margin-top:2px;">…</span>
-                </div>
-                <div class="filters" id="alFilters"></div>
-                <div class="dtable-wrap">
-                    <table class="dtable">
-                        <thead><tr>
-                            <th>الاسم</th><th>رقم اللوحة</th><th>الوثيقة</th><th>تاريخ الانتهاء</th><th>المتبقي</th><th>الحالة</th>
-                        </tr></thead>
-                        <tbody id="alBody"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- GPS live map -->
-            <div class="dash-h" id="gps">🛰️ التتبع المباشر للأسطول <span class="sub" id="gpsSub"></span></div>
-            <section class="panel">
-                <div class="gps-stats">
-                    <div class="gps-stat"><b id="gpsTotal" style="color:#fff">0</b><span>مركبات على الخريطة</span></div>
-                    <div class="gps-stat"><b id="gpsOnline" style="color:#6ee7b7">0</b><span>🟢 نشطة الآن</span></div>
-                    <div class="gps-stat"><b id="gpsOffline" style="color:#fca5a5">0</b><span>🔴 متوقفة</span></div>
-                    <div class="gps-stat" style="flex:1;min-width:auto;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;background:transparent;border:none;">
-                        <button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>
-                        <a class="chip" id="gpsFull" href="/tracking" style="text-decoration:none;">↗ التتبع الكامل</a>
+{% block content %}
+===== Top bar ===== 
+<header class="dash-top">
+<button class="tbtn dash-burger" onclick="document.querySelector('.dash-side').classList.toggle('open')" title="القائمة">☰</button>
+<div class="brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div><b>BIN ZOMAH INTL.</b><span>لوحة الإدارة التنفيذية — فرع الدمام</span></div>
+</div>
+<div class="spacer"></div>
+<div class="meta" id="topMeta">—</div>
+<button class="tbtn" onclick="if(window.toggleDarkMode)toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="back-link" href="/" id="backLink">← الموقع</a>
+</header>
+<div class="dash-layout">
+<!-- ===== Sidebar ===== -->
+<aside class="dash-side" id="side">
+<div class="side-title">الأقسام</div>
+<a class="active" href="#overview"><span class="ic">📊</span> نظرة عامة</a>
+<a href="#alerts"><span class="ic">🚨</span> مركز التنبيهات</a>
+<a href="#gps"><span class="ic">🛰️</span> التتبع المباشر</a>
+<a href="#charts"><span class="ic">📈</span> الرسوم البيانية</a>
+<a href="#search"><span class="ic">🔎</span> البحث والفلاتر</a>
+<a href="#history"><span class="ic">🕒</span> سجل التحديثات</a>
+<a href="#audit"><span class="ic">📝</span> سجل التدقيق</a>
+<div class="side-title">التبويبات</div>
+<nav id="quickLinks"></nav>
+</aside>
+<!-- ===== Main ===== -->
+<main class="dash-main">
+<!-- Overview / KPIs -->
+<div class="dash-h" id="overview">نظرة عامة تنفيذية <span class="sub" id="ovSub">جارٍ التحميل…</span></div>
+<section class="kpi-grid" id="kpiGrid"></section>
+<div class="grid-2" style="margin-top:1.1rem;">
+<div class="panel">
+<div style="font-weight:800;margin-bottom:.7rem;">مؤشرات الجاهزية</div>
+<div id="readiness"></div>
+</div>
+<div class="panel">
+<div style="font-weight:800;margin-bottom:.7rem;">تكوين الأسطول</div>
+<div class="muted-note" id="fleetMini">—</div>
+</div>
+</div>
+<!-- Alerts -->
+<div class="dash-h" id="alerts">🚨 مركز تنبيهات الوثائق <span class="sub" id="alSub"></span></div>
+<section class="panel">
+<div id="alMailBar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.7rem .8rem;background:var(--d-card-2);border:1px solid var(--d-border);border-radius:12px;">
+<span style="font-weight:700;font-size:.84rem;">📧 إرسال تنبيهات الوثائق بالبريد:</span>
+<input id="alMailTo" placeholder="بريد المستلمين (افصل بفاصلة)" style="flex:1;min-width:220px;background:var(--d-bg2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:8px 12px;font:inherit;font-size:.82rem;outline:none;" type="text"/>
+<button class="chip on" id="alMailBtn" onclick="sendExpiryMail()">إرسال الآن</button>
+<span class="muted-note" id="alMailHint" style="width:100%;margin-top:2px;">…</span>
+</div>
+<div class="filters" id="alFilters"></div>
+<div class="dtable-wrap">
+<table class="dtable">
+<thead><tr>
+<th>الاسم</th><th>رقم اللوحة</th><th>الوثيقة</th><th>تاريخ الانتهاء</th><th>المتبقي</th><th>الحالة</th>
+</tr></thead>
+<tbody id="alBody"></tbody>
+</table>
+</div>
+</section>
+<!-- GPS live map -->
+<div class="dash-h" id="gps">🛰️ التتبع المباشر للأسطول <span class="sub" id="gpsSub"></span></div>
+<section class="panel">
+<div class="gps-stats">
+<div class="gps-stat"><b id="gpsTotal" style="color:#fff">0</b><span>مركبات على الخريطة</span></div>
+<div class="gps-stat"><b id="gpsOnline" style="color:#6ee7b7">0</b><span>🟢 نشطة الآن</span></div>
+<div class="gps-stat"><b id="gpsOffline" style="color:#fca5a5">0</b><span>🔴 متوقفة</span></div>
+<div class="gps-stat" style="flex:1;min-width:auto;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;background:transparent;border:none;">
+<button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>
+<a class="chip" href="/tracking" id="gpsFull" style="text-decoration:none;">↗ التتبع الكامل</a>
+</div>
+</div>
+<div class="gps-wrap">
+<div id="dashMap"></div>
+<div class="gps-overlay" id="gpsOverlay"><div class="gps-spinner"></div><div>جارٍ تجهيز الخريطة…</div></div>
+</div>
+</section>
+<!-- Charts -->
+<div class="dash-h" id="charts">📈 الرسوم البيانية</div>
+<section class="grid-3">
+<div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">توزيع الوظائف</div><div id="chJobs"></div></div>
+<div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">المركبات حسب النوع</div><div id="chTypes"></div></div>
+<div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">حالة الوثائق</div><div class="donut-wrap"><div class="donut" id="chDonut"><div class="d-c" id="donutCenter"></div></div><div class="legend" id="donutLegend"></div></div></div>
+</section>
+<!-- Search -->
+<div class="dash-h" id="search">🔎 البحث والفلاتر المتقدمة <span class="sub" id="seSub"></span></div>
+<section class="panel">
+<div class="search-bar">
+<input id="seInput" placeholder="ابحث بالاسم، رقم اللوحة، الرقم الوظيفي، الإقامة، أو الجوال…" type="text"/>
+<select id="seJob"><option value="">كل الوظائف</option></select>
+<select id="seType"><option value="">كل أنواع المركبات</option></select>
+<select id="seStatus">
+<option value="">كل حالات الوثائق</option>
+<option value="expired">منتهية</option>
+<option value="d30">تنتهي خلال 30 يوم</option>
+<option value="d90">تنتهي خلال 90 يوم</option>
+<option value="valid">سارية</option>
+</select>
+</div>
+<div class="dtable-wrap">
+<table class="dtable">
+<thead><tr>
+<th>الاسم</th><th>الرقم الوظيفي</th><th>الإقامة</th><th>الجوال</th><th>رقم اللوحة</th><th>الوظيفة</th><th>المركبة</th><th>حالة الوثائق</th>
+</tr></thead>
+<tbody id="seBody"></tbody>
+</table>
+</div>
+</section>
+<!-- History -->
+<div class="dash-h" id="history">🕒 سجل التحديثات واستعادة النسخ</div>
+<section class="grid-2">
+<div class="panel">
+<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;">
+<div style="font-weight:800;">الخط الزمني</div>
+<button class="chip" onclick="downloadCurrentBackup()" style="margin-inline-start:auto;">📥 تنزيل نسخة كاملة الآن</button>
+</div>
+<div class="timeline" id="timeline"></div>
+</div>
+<div class="panel">
+<div style="font-weight:800;margin-bottom:.7rem;">كيف يعمل سجل التحديثات؟</div>
+<div class="muted-note">
+                        • تُلتقط نسخة تلقائية من بياناتك (الجدول الأسبوعي، الغسيل، التوثيق، الموظفون) في كل مرة تتغيّر فيها البيانات — <b>تُحفظ محلياً في متصفحك فقط</b> ولا تُرسل لأي جهة.<br/>
+                        • كل نسخة تُظهر <b>ما الذي تغيّر</b> (إضافة/حذف/تعديل) مقارنةً بالسابقة.<br/>
+                        • <b>📥 تنزيل</b>: يحفظ نسخة احتياطية كاملة (JSON) تقدر ترجعها وقت ما تبي.<br/>
+                        • <b>↩️ استعادة</b>: يعيد البيانات لتلك النسخة (الجدول/الغسيل/التوثيق/الموظفون) بعد تأكيد صريح.<br/>
+                        • تُحفظ آخر 6 نسخ كاملة قابلة للاستعادة؛ والأقدم يبقى كسجل (تاريخ + ملخص التغييرات).<br/>
+<span style="color:var(--gold-soft)">ملاحظة:</span> هذه اللوحة <b>تقرأ بياناتك فقط</b> ولا تعدّلها أبداً إلا عند ضغطك زر «استعادة».
                     </div>
-                </div>
-                <div class="gps-wrap">
-                    <div id="dashMap"></div>
-                    <div class="gps-overlay" id="gpsOverlay"><div class="gps-spinner"></div><div>جارٍ تجهيز الخريطة…</div></div>
-                </div>
-            </section>
-
-            <!-- Charts -->
-            <div class="dash-h" id="charts">📈 الرسوم البيانية</div>
-            <section class="grid-3">
-                <div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">توزيع الوظائف</div><div id="chJobs"></div></div>
-                <div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">المركبات حسب النوع</div><div id="chTypes"></div></div>
-                <div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">حالة الوثائق</div><div class="donut-wrap"><div class="donut" id="chDonut"><div class="d-c" id="donutCenter"></div></div><div class="legend" id="donutLegend"></div></div></div>
-            </section>
-
-            <!-- Search -->
-            <div class="dash-h" id="search">🔎 البحث والفلاتر المتقدمة <span class="sub" id="seSub"></span></div>
-            <section class="panel">
-                <div class="search-bar">
-                    <input type="text" id="seInput" placeholder="ابحث بالاسم، رقم اللوحة، الرقم الوظيفي، الإقامة، أو الجوال…">
-                    <select id="seJob"><option value="">كل الوظائف</option></select>
-                    <select id="seType"><option value="">كل أنواع المركبات</option></select>
-                    <select id="seStatus">
-                        <option value="">كل حالات الوثائق</option>
-                        <option value="expired">منتهية</option>
-                        <option value="d30">تنتهي خلال 30 يوم</option>
-                        <option value="d90">تنتهي خلال 90 يوم</option>
-                        <option value="valid">سارية</option>
-                    </select>
-                </div>
-                <div class="dtable-wrap">
-                    <table class="dtable">
-                        <thead><tr>
-                            <th>الاسم</th><th>الرقم الوظيفي</th><th>الإقامة</th><th>الجوال</th><th>رقم اللوحة</th><th>الوظيفة</th><th>المركبة</th><th>حالة الوثائق</th>
-                        </tr></thead>
-                        <tbody id="seBody"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- History -->
-            <div class="dash-h" id="history">🕒 سجل التحديثات واستعادة النسخ</div>
-            <section class="grid-2">
-                <div class="panel">
-                    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;">
-                        <div style="font-weight:800;">الخط الزمني</div>
-                        <button class="chip" onclick="downloadCurrentBackup()" style="margin-inline-start:auto;">📥 تنزيل نسخة كاملة الآن</button>
-                    </div>
-                    <div class="timeline" id="timeline"></div>
-                </div>
-                <div class="panel">
-                    <div style="font-weight:800;margin-bottom:.7rem;">كيف يعمل سجل التحديثات؟</div>
-                    <div class="muted-note">
-                        • تُلتقط نسخة تلقائية من بياناتك (الجدول الأسبوعي، الغسيل، التوثيق، الموظفون) في كل مرة تتغيّر فيها البيانات — <b>تُحفظ محلياً في متصفحك فقط</b> ولا تُرسل لأي جهة.<br>
-                        • كل نسخة تُظهر <b>ما الذي تغيّر</b> (إضافة/حذف/تعديل) مقارنةً بالسابقة.<br>
-                        • <b>📥 تنزيل</b>: يحفظ نسخة احتياطية كاملة (JSON) تقدر ترجعها وقت ما تبي.<br>
-                        • <b>↩️ استعادة</b>: يعيد البيانات لتلك النسخة (الجدول/الغسيل/التوثيق/الموظفون) بعد تأكيد صريح.<br>
-                        • تُحفظ آخر 6 نسخ كاملة قابلة للاستعادة؛ والأقدم يبقى كسجل (تاريخ + ملخص التغييرات).<br>
-                        <span style="color:var(--gold-soft)">ملاحظة:</span> هذه اللوحة <b>تقرأ بياناتك فقط</b> ولا تعدّلها أبداً إلا عند ضغطك زر «استعادة».
-                    </div>
-                </div>
-            </section>
-
-            <!-- Audit log (server-side, immutable) -->
-            <div class="dash-h" id="audit">📝 سجل التدقيق (Audit Log) <span class="sub" id="auSub"></span></div>
-            <section class="panel">
-                <div class="muted-note" style="margin-bottom:.85rem;">
+</div>
+</section>
+<!-- Audit log (server-side, immutable) -->
+<div class="dash-h" id="audit">📝 سجل التدقيق (Audit Log) <span class="sub" id="auSub"></span></div>
+<section class="panel">
+<div class="muted-note" style="margin-bottom:.85rem;">
                     سجل <b>غير قابل للحذف أو التعديل</b> — يوثّق كل عملية حفظ على الخادم: <b>مَن</b> غيّر <b>ماذا</b> و<b>متى</b>.
                     (يُحفظ على الخادم بشكل منفصل عن «سجل التحديثات» المحلي أعلاه، وتُجمَّع عمليات الحفظ المتتالية للسجل نفسه في سطر واحد.)
                 </div>
-                <div class="dtable-wrap">
-                    <table class="dtable">
-                        <thead><tr>
-                            <th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>السجل المتأثر</th><th>التفاصيل</th>
-                        </tr></thead>
-                        <tbody id="auBody"><tr><td colspan="5" class="empty-hint">جارٍ التحميل…</td></tr></tbody>
-                    </table>
-                </div>
-            </section>
-
-        </main>
-    </div>
-
+<div class="dtable-wrap">
+<table class="dtable">
+<thead><tr>
+<th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>السجل المتأثر</th><th>التفاصيل</th>
+</tr></thead>
+<tbody id="auBody"><tr><td class="empty-hint" colspan="5">جارٍ التحميل…</td></tr></tbody>
+</table>
+</div>
+</section>
+</main>
+</div>
 <script>
 (function () {
   'use strict';
@@ -856,8 +840,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
-
-<!-- ===== GPS live map (reuses /api/gps; read-only; gracefully degrades) ===== -->
+ ===== GPS live map (reuses /api/gps; read-only; gracefully degrades) ===== 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function () {
@@ -931,5 +914,4 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 </script>
-</body>
-</html>
+{% endblock %}

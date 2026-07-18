@@ -1,15 +1,11 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تحضير جدول الغسيل | شركة بن زومة</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}تحضير جدول الغسيل | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+<style>
         .header-container {
             display: flex; flex-direction: column; align-items: center;
             margin: 0 auto 2rem auto; width: 100%; max-width: 1500px; z-index: 2;
@@ -147,85 +143,78 @@
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
-</head>
-<body>
-    <datalist id="driversList"></datalist>
-    <button id="darkModeToggle" onclick="toggleDarkMode()" style="position:absolute;top:20px;right:20px;border:none;font-size:1.5rem;cursor:pointer;border-radius:50%;width:45px;height:45px;display:flex;align-items:center;justify-content:center;transition:var(--trans-spring);z-index:1000;box-shadow:var(--shadow-sm);backdrop-filter:blur(5px);">🌙</button>
+{% endblock %}
 
-    <div class="header-container">
+{% block content %}
+<datalist id="driversList"></datalist>
+<button id="darkModeToggle" onclick="toggleDarkMode()" style="position:absolute;top:20px;right:20px;border:none;font-size:1.5rem;cursor:pointer;border-radius:50%;width:45px;height:45px;display:flex;align-items:center;justify-content:center;transition:var(--trans-spring);z-index:1000;box-shadow:var(--shadow-sm);backdrop-filter:blur(5px);">🌙</button>
+<div class="header-container">
         {% if b64_en %}
-        <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="site-logo">
+        <img alt="Logo" class="site-logo" src="data:image/png;base64,{{ b64_en }}"/>
         {% endif %}
 
                 {% if google_user %}
         <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
-            <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
-            <span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
-            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
-        </div>
+<img alt="Profile" src="{{ google_user.picture }}" style="width:28px;height:28px;border-radius:50%"/>
+<span style="font-weight:bold;color:#1A3A5C;font-size:0.9rem">{{ google_user.name }}</span>
+<a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
+</div>
         {% endif %}
 
         <h1 class="header-title">🚿 تحضير جدول الغسيل</h1>
-        <p class="header-subtitle">جدول غسيل المركبات الشهري - فرع الدمام 2026</p>
-        <div class="nav-buttons">
-            <a href="/" class="btn-outline" style="text-decoration:none;">🏠 الرئيسية</a>
-            <a href="/oils" class="btn-outline" style="text-decoration:none;">📄 بيان الزيوت</a>
-            <a href="/purchase" class="btn-outline" style="text-decoration:none;">🛒 طلبات الشراء</a>
-            <a href="/schedule" class="btn-outline" style="text-decoration:none;">📋 الجدول الأسبوعي</a>
-            <a href="/tracking" target="_blank" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
-        </div>
-    </div>
-
-    <!-- Stats -->
-    <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">إجمالي المركبات</div><div class="stat-value stat-blue" id="statTotal">0</div></div>
-        <div class="stat-card"><div class="stat-label">إجمالي الغسلات</div><div class="stat-value stat-green" id="statWashes">0</div></div>
-        <div class="stat-card"><div class="stat-label">غسلات الشهر الحالي</div><div class="stat-value stat-amber" id="statCurrent">0</div></div>
-        <div class="stat-card"><div class="stat-label">لم تُغسل هذا الشهر</div><div class="stat-value stat-red" id="statPending">0</div></div>
-    </div>
-
-    <!-- Search -->
-    <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." oninput="filterTable()">
-    </div>
-
-    <!-- Table -->
-    <div class="wash-table-wrap">
-        <table id="washTable">
-            <thead>
-                <tr>
-                    <th class="col-id">#</th>
-                    <th class="col-plate">رقم اللوحة</th>
-                    <th class="col-type">نوع السيارة</th>
-                    <th class="col-driver">اسم السائق</th>
-                    <th class="col-month">1</th><th class="col-month">2</th>
-                    <th class="col-month">3</th><th class="col-month">4</th>
-                    <th class="col-month">5</th><th class="col-month">6</th>
-                    <th class="col-month">7</th><th class="col-month">8</th>
-                    <th class="col-month">9</th><th class="col-month">10</th>
-                    <th class="col-month">11</th><th class="col-month">12</th>
-                    <th class="col-total">المجموع</th>
-                </tr>
-            </thead>
-            <tbody id="washBody"></tbody>
-        </table>
-    </div>
-
-    <!-- Legend -->
-    <div class="legend">
-        <div class="legend-item"><div class="legend-dot green">✓</div><span>تم الغسيل (استلم)</span></div>
-        <div class="legend-item"><div class="legend-dot gray">✕</div><span>لم يتم الغسيل</span></div>
-        <div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">انقر على أي خلية شهر لتغيير الحالة</div>
-    </div>
-
-    <!-- Actions -->
-    <div class="actions-bar">
-        <button class="btn-action btn-export" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
-        <button class="btn-action btn-save" onclick="saveState()">💾 حفظ التغييرات محلياً</button>
-    </div>
-
-    <footer style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
-
+<p class="header-subtitle">جدول غسيل المركبات الشهري - فرع الدمام 2026</p>
+<div class="nav-buttons">
+<a class="btn-outline" href="/" style="text-decoration:none;">🏠 الرئيسية</a>
+<a class="btn-outline" href="/oils" style="text-decoration:none;">📄 بيان الزيوت</a>
+<a class="btn-outline" href="/purchase" style="text-decoration:none;">🛒 طلبات الشراء</a>
+<a class="btn-outline" href="/schedule" style="text-decoration:none;">📋 الجدول الأسبوعي</a>
+<a class="btn-outline" href="/tracking" style="text-decoration:none;" target="_blank">🛰️ التتبع المباشر</a>
+</div>
+</div>
+ Stats 
+<div class="stats-grid">
+<div class="stat-card"><div class="stat-label">إجمالي المركبات</div><div class="stat-value stat-blue" id="statTotal">0</div></div>
+<div class="stat-card"><div class="stat-label">إجمالي الغسلات</div><div class="stat-value stat-green" id="statWashes">0</div></div>
+<div class="stat-card"><div class="stat-label">غسلات الشهر الحالي</div><div class="stat-value stat-amber" id="statCurrent">0</div></div>
+<div class="stat-card"><div class="stat-label">لم تُغسل هذا الشهر</div><div class="stat-value stat-red" id="statPending">0</div></div>
+</div>
+ Search 
+<div class="search-bar">
+<input id="searchInput" oninput="filterTable()" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." type="text"/>
+</div>
+ Table 
+<div class="wash-table-wrap">
+<table id="washTable">
+<thead>
+<tr>
+<th class="col-id">#</th>
+<th class="col-plate">رقم اللوحة</th>
+<th class="col-type">نوع السيارة</th>
+<th class="col-driver">اسم السائق</th>
+<th class="col-month">1</th><th class="col-month">2</th>
+<th class="col-month">3</th><th class="col-month">4</th>
+<th class="col-month">5</th><th class="col-month">6</th>
+<th class="col-month">7</th><th class="col-month">8</th>
+<th class="col-month">9</th><th class="col-month">10</th>
+<th class="col-month">11</th><th class="col-month">12</th>
+<th class="col-total">المجموع</th>
+</tr>
+</thead>
+<tbody id="washBody"></tbody>
+</table>
+</div>
+ Legend 
+<div class="legend">
+<div class="legend-item"><div class="legend-dot green">✓</div><span>تم الغسيل (استلم)</span></div>
+<div class="legend-item"><div class="legend-dot gray">✕</div><span>لم يتم الغسيل</span></div>
+<div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">انقر على أي خلية شهر لتغيير الحالة</div>
+</div>
+ Actions 
+<div class="actions-bar">
+<button class="btn-action btn-export" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+<button class="btn-action btn-save" onclick="saveState()">💾 حفظ التغييرات محلياً</button>
+</div>
+<footer style="text-align:center;padding:20px;color:#5A6A7A;font-weight:bold;margin-top:40px;border-top:1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد الغامدي)</footer>
 <script>
     const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
     let vehicles = [];
@@ -412,7 +401,7 @@
 
     window.addEventListener('load', init);
 </script>
-<!-- GPS Session Monitor -->
+ GPS Session Monitor 
 <script>
 (function () {
     const originalFetch = window.fetch;
@@ -432,6 +421,4 @@
     };
 })();
 </script>
-</body>
-</html>
-
+{% endblock %}

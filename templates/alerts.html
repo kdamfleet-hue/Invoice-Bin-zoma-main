@@ -1,13 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تنبيهات الوثائق التلقائية | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}تنبيهات الوثائق التلقائية | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         .al-wrap { max-width: 760px; margin: 0 auto; }
         .al-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.12)); padding: 1.4rem 1.5rem; margin-bottom: 1.3rem; }
         .al-card h3 { margin: 0 0 6px; font-size: 1.1rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
@@ -41,70 +38,63 @@
         .al-warn { display: flex; gap: 10px; align-items: flex-start; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 12px; padding: 12px 14px; color: var(--text-secondary); font-size: .84rem; line-height: 1.8; margin-bottom: 14px; }
         .al-note { color: var(--text-muted); font-size: .78rem; margin-top: 10px; }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/employees">👥 الموظفين</a>
-        <a href="/records">📁 التوثيق</a>
-        <a href="/dashboard">📊 لوحة الإدارة</a>
-      </nav>
-      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
-    </header>
-
-    <div class="bz-shell">
-      <h2 class="bz-section-title">🔔 تنبيهات الوثائق التلقائية</h2>
-      <div class="al-wrap">
-        <div class="al-card">
-          <h3>① التفعيل والمستلمون</h3>
-          <div class="sub">يُرسل النظام <b>تلقائياً كل يوم</b> رسالة بريد واحدة بجميع الوثائق المنتهية أو القريبة من الانتهاء (الفحص، الرخصة، بطاقة التشغيل، الإقامة، الجواز) عبر <b>كل الفروع</b> إلى المستلمين أدناه. لا حاجة لأي إعداد خارجي.</div>
-
-          <div class="al-warn" id="alMailWarn" style="display:none">⚠️ <span>لم يتم ضبط بريد الإرسال على الخادم (MAIL_USERNAME / MAIL_PASSWORD)، فلن تُرسَل التنبيهات حتى يُضبط.</span></div>
-
-          <div class="al-toggle">
-            <label class="al-switch"><input type="checkbox" id="alEnabled"><span class="al-slider"></span></label>
-            <div class="tt"><b>تشغيل التنبيهات اليومية التلقائية</b><span>عند الإيقاف، لن تُرسل أي رسائل تلقائية.</span></div>
-          </div>
-
-          <div class="al-fld">
-            <span>المستلمون (بريد إلكتروني — افصل بفاصلة أو سطر)</span>
-            <textarea id="alRecipients" placeholder="manager@bz.sa&#10;fleet@bz.sa"></textarea>
-          </div>
-
-          <div class="al-row">
-            <div class="al-fld">
-              <span>ساعة الإرسال يومياً</span>
-              <select id="alHour"></select>
-            </div>
-            <div class="al-fld">
-              <span>نطاق التنبيه (الأيام قبل الانتهاء)</span>
-              <input id="alWindow" type="number" min="1" max="180" inputmode="numeric" value="30">
-            </div>
-          </div>
-
-          <div class="al-actions">
-            <button class="al-btn save" id="alSave" type="button">💾 حفظ الإعدادات</button>
-            <button class="al-btn test" id="alTest" type="button">📨 إرسال تجريبي الآن</button>
-          </div>
-          <div class="al-msg" id="alMsg"></div>
-          <div class="al-note" id="alLast"></div>
-        </div>
-
-        <div class="al-card">
-          <h3>② الوضع الحالي للوثائق (كل الفروع)</h3>
-          <div class="al-kpis">
-            <div class="al-kpi"><div class="v" id="alPreview">—</div><div class="l">وثائق تحتاج تنبيهاً الآن</div></div>
-            <div class="al-kpi"><div class="v" id="alState">—</div><div class="l">حالة التنبيهات</div></div>
-          </div>
-          <div class="sub">هذا العدد ضمن النطاق المختار أعلاه. اضبط النطاق ثم احفظ لتحديثه.</div>
-        </div>
-      </div>
-    </div>
-
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand"><img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/dashboard">📊 لوحة الإدارة</a>
+</nav>
+<div class="bz-actions"><button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a class="bz-logout" href="/logout">خروج</a></div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">🔔 تنبيهات الوثائق التلقائية</h2>
+<div class="al-wrap">
+<div class="al-card">
+<h3>① التفعيل والمستلمون</h3>
+<div class="sub">يُرسل النظام <b>تلقائياً كل يوم</b> رسالة بريد واحدة بجميع الوثائق المنتهية أو القريبة من الانتهاء (الفحص، الرخصة، بطاقة التشغيل، الإقامة، الجواز) عبر <b>كل الفروع</b> إلى المستلمين أدناه. لا حاجة لأي إعداد خارجي.</div>
+<div class="al-warn" id="alMailWarn" style="display:none">⚠️ <span>لم يتم ضبط بريد الإرسال على الخادم (MAIL_USERNAME / MAIL_PASSWORD)، فلن تُرسَل التنبيهات حتى يُضبط.</span></div>
+<div class="al-toggle">
+<label class="al-switch"><input id="alEnabled" type="checkbox"/><span class="al-slider"></span></label>
+<div class="tt"><b>تشغيل التنبيهات اليومية التلقائية</b><span>عند الإيقاف، لن تُرسل أي رسائل تلقائية.</span></div>
+</div>
+<div class="al-fld">
+<span>المستلمون (بريد إلكتروني — افصل بفاصلة أو سطر)</span>
+<textarea id="alRecipients" placeholder="manager@bz.sa
+fleet@bz.sa"></textarea>
+</div>
+<div class="al-row">
+<div class="al-fld">
+<span>ساعة الإرسال يومياً</span>
+<select id="alHour"></select>
+</div>
+<div class="al-fld">
+<span>نطاق التنبيه (الأيام قبل الانتهاء)</span>
+<input id="alWindow" inputmode="numeric" max="180" min="1" type="number" value="30"/>
+</div>
+</div>
+<div class="al-actions">
+<button class="al-btn save" id="alSave" type="button">💾 حفظ الإعدادات</button>
+<button class="al-btn test" id="alTest" type="button">📨 إرسال تجريبي الآن</button>
+</div>
+<div class="al-msg" id="alMsg"></div>
+<div class="al-note" id="alLast"></div>
+</div>
+<div class="al-card">
+<h3>② الوضع الحالي للوثائق (كل الفروع)</h3>
+<div class="al-kpis">
+<div class="al-kpi"><div class="v" id="alPreview">—</div><div class="l">وثائق تحتاج تنبيهاً الآن</div></div>
+<div class="al-kpi"><div class="v" id="alState">—</div><div class="l">حالة التنبيهات</div></div>
+</div>
+<div class="sub">هذا العدد ضمن النطاق المختار أعلاه. اضبط النطاق ثم احفظ لتحديثه.</div>
+</div>
+</div>
+</div>
 <script>
 (function () {
   'use strict';
@@ -170,6 +160,4 @@
   document.addEventListener('DOMContentLoaded', load);
 })();
 </script>
-
-</body>
-</html>
+{% endblock %}

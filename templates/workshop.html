@@ -1,21 +1,12 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تقرير صيانة الورشة | شركة بن زومة</title>
-    <!-- PWA Settings -->
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#1a1a1a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/static/logo_192.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}تقرير صيانة الورشة | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
         /* Page-specific layout only — colors/fonts/buttons/inputs come from base_styles.css */
         .report-header {
             background: rgba(15, 15, 15, 0.75);
@@ -163,152 +154,143 @@
             .notes-table input, .meta-item input, .sig-item input { color: #000 !important; border-color: #000 !important; }
         }
     </style>
-    {% if kiosk %}<style>
+<style>
         /* Kiosk mode: hide all nav chrome — workshop report fills the full viewport */
         .bz-topbar, .bz-topbar * { display: none !important; }
         header.bz-topbar + * { margin-top: 0 !important; }
         .bz-shell { margin-top: 1.5rem !important; }
-    </style>{% endif %}
-</head>
-<body class="bz-lux">
-    <!-- Top Navigation Bar -->
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop" class="active">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-    <a href="/search">🔍 بحث</a>
-    <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
+    </style>
+{% endblock %}
 
-    <div class="bz-shell">
-        <h2 class="bz-section-title">🔧 تقرير صيانة الورشة</h2>
-        <div class="action-bar">
-            <button class="btn-submit-gold" onclick="exportWorkshopExcel()">📥 تصدير Excel</button>
-            <button class="btn-primary" onclick="shareWorkshop()">📤 مشاركة / تصدير</button>
-            <button class="btn-danger" onclick="clearAll()">🗑 مسح الكل</button>
-            <span class="autosave-hint">💾 يتم الحفظ تلقائياً</span>
-        </div>
-
-        <div id="workshopPrintable">
-        <div class="report-header">
-            <h1>Workshop Technical Report — Bin Zomah Trading &amp; Development Company</h1>
-            <div style="font-size:.9rem;font-weight:600;opacity:.85;margin-top:.3rem;direction:ltr;">BIN ZOMAH INTL. — Dammam Branch</div>
-            <div style="font-size:.9rem;font-weight:600;opacity:.85;direction:rtl;">تقرير صيانة الورشة — فرع الدمام</div>
-        </div>
-
-        <div class="meta-grid">
-            <div class="meta-item">
-                <label>التاريخ</label>
-                <input type="date" id="reportDate">
-            </div>
-            <div class="meta-item">
-                <label>اسم السائق</label>
-                <input type="text" id="driverName" list="driverNames" placeholder="اختر السائق">
-            </div>
-            <div class="meta-item">
-                <label>رقم اللوحة (P:NO)</label>
-                <input type="text" id="carPlate" list="plateList" placeholder="أ د ج 1234">
-            </div>
-            <div class="meta-item">
-                <label>نوع السيارة (V/NAME)</label>
-                <input type="text" id="carType" placeholder="مثال: ايسوزو دينا">
-            </div>
-            <div class="meta-item">
-                <label>الموديل (MODEL)</label>
-                <input type="text" id="carModel" placeholder="2024">
-            </div>
-            <div class="meta-item" style="grid-column: 1 / -1;">
-                <label>العداد (K/m)</label>
-                <input type="text" id="carKm" placeholder="150,000" style="max-width:240px;">
-            </div>
-        </div>
-
-        <div class="table-wrapper">
-            <table class="notes-table bz-fit">
-                <colgroup>
-                    <col style="width:8%;">
-                    <col style="width:46%;">
-                    <col style="width:46%;">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th class="col-idx">م</th>
-                        <th class="col-note"><div style="direction:ltr;">Remarks</div><div style="direction:rtl;">الملاحظات</div></th>
-                        <th class="col-sol"><div style="direction:ltr;">Solution</div><div style="direction:rtl;">الإصلاح</div></th>
-                    </tr>
-                </thead>
-                <tbody id="notesBody">
-                    <!-- JavaScript will generate 10 rows here -->
-                </tbody>
-            </table>
-        </div>
-
-        <div class="parts-section" style="margin-top:1.5rem; background: rgba(30,30,30,0.6); padding:1rem; border-inline: 1px solid rgba(212, 175, 55, 0.15); border-top: 1px solid rgba(212, 175, 55, 0.15);">
-            <h3 style="color:var(--accent); margin-top:0; margin-bottom:1rem; text-align:center; font-size:1.1rem;">قطع الغيار المستهلكة (Spare Parts Used)</h3>
-            
-            <div class="print-hide" style="display:flex; gap:10px; margin-bottom:1rem; flex-wrap:wrap;">
-                <select id="partSelect" style="flex:1; padding:10px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.2); color:white; font-weight:600; outline:none; min-width:200px;">
-                    <option value="">-- جارِ تحميل المخزن --</option>
-                </select>
-                <input type="number" id="partQty" placeholder="الكمية" min="1" value="1" style="width:100px; padding:10px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.2); color:white; font-weight:600; text-align:center; outline:none;">
-                <button type="button" class="btn-primary" onclick="addUsedPart()" id="btnAddPart" style="padding:10px 15px; font-weight:bold;">➕ صرف وإضافة للتقرير</button>
-            </div>
-            
-            <table class="notes-table bz-fit" id="usedPartsTable">
-                <colgroup>
-                    <col style="width:8%;">
-                    <col style="width:60%;">
-                    <col style="width:20%;">
-                    <col style="width:12%;" class="print-hide">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th class="col-idx">م</th>
-                        <th>رقم القطعة / الاسم</th>
-                        <th>الكمية المستهلكة</th>
-                        <th class="print-hide">إجراء</th>
-                    </tr>
-                </thead>
-                <tbody id="usedPartsBody">
-                    <!-- Dynamic parts rows -->
-                </tbody>
-            </table>
-        </div>
-
-        <div class="sig-section">
-            <div class="sig-item">
-                <label><div style="direction:ltr;">Technician Signature</div><div style="direction:rtl;">توقيع الفني</div></label>
-                <input type="text" id="sigTech" placeholder="الاسم أو التوقيع">
-            </div>
-            <div class="sig-item">
-                <label><div style="direction:ltr;">Movement Supervisor Signature</div><div style="direction:rtl;">توقيع مشرف الحركة</div></label>
-                <input type="text" id="sigManager" placeholder="الاسم أو التوقيع">
-            </div>
-        </div>
-        </div><!-- /#workshopPrintable -->
-    </div>
-
-    <datalist id="plateList"></datalist>
-    <datalist id="driverNames"></datalist>
-
-    <script>
+{% block content %}
+Top Navigation Bar 
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a class="active" href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">🔧 تقرير صيانة الورشة</h2>
+<div class="action-bar">
+<button class="btn-submit-gold" onclick="exportWorkshopExcel()">📥 تصدير Excel</button>
+<button class="btn-primary" onclick="shareWorkshop()">📤 مشاركة / تصدير</button>
+<button class="btn-danger" onclick="clearAll()">🗑 مسح الكل</button>
+<span class="autosave-hint">💾 يتم الحفظ تلقائياً</span>
+</div>
+<div id="workshopPrintable">
+<div class="report-header">
+<h1>Workshop Technical Report — Bin Zomah Trading &amp; Development Company</h1>
+<div style="font-size:.9rem;font-weight:600;opacity:.85;margin-top:.3rem;direction:ltr;">BIN ZOMAH INTL. — Dammam Branch</div>
+<div style="font-size:.9rem;font-weight:600;opacity:.85;direction:rtl;">تقرير صيانة الورشة — فرع الدمام</div>
+</div>
+<div class="meta-grid">
+<div class="meta-item">
+<label>التاريخ</label>
+<input id="reportDate" type="date"/>
+</div>
+<div class="meta-item">
+<label>اسم السائق</label>
+<input id="driverName" list="driverNames" placeholder="اختر السائق" type="text"/>
+</div>
+<div class="meta-item">
+<label>رقم اللوحة (P:NO)</label>
+<input id="carPlate" list="plateList" placeholder="أ د ج 1234" type="text"/>
+</div>
+<div class="meta-item">
+<label>نوع السيارة (V/NAME)</label>
+<input id="carType" placeholder="مثال: ايسوزو دينا" type="text"/>
+</div>
+<div class="meta-item">
+<label>الموديل (MODEL)</label>
+<input id="carModel" placeholder="2024" type="text"/>
+</div>
+<div class="meta-item" style="grid-column: 1 / -1;">
+<label>العداد (K/m)</label>
+<input id="carKm" placeholder="150,000" style="max-width:240px;" type="text"/>
+</div>
+</div>
+<div class="table-wrapper">
+<table class="notes-table bz-fit">
+<colgroup>
+<col style="width:8%;"/>
+<col style="width:46%;"/>
+<col style="width:46%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="col-idx">م</th>
+<th class="col-note"><div style="direction:ltr;">Remarks</div><div style="direction:rtl;">الملاحظات</div></th>
+<th class="col-sol"><div style="direction:ltr;">Solution</div><div style="direction:rtl;">الإصلاح</div></th>
+</tr>
+</thead>
+<tbody id="notesBody">
+<!-- JavaScript will generate 10 rows here -->
+</tbody>
+</table>
+</div>
+<div class="parts-section" style="margin-top:1.5rem; background: rgba(30,30,30,0.6); padding:1rem; border-inline: 1px solid rgba(212, 175, 55, 0.15); border-top: 1px solid rgba(212, 175, 55, 0.15);">
+<h3 style="color:var(--accent); margin-top:0; margin-bottom:1rem; text-align:center; font-size:1.1rem;">قطع الغيار المستهلكة (Spare Parts Used)</h3>
+<div class="print-hide" style="display:flex; gap:10px; margin-bottom:1rem; flex-wrap:wrap;">
+<select id="partSelect" style="flex:1; padding:10px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.2); color:white; font-weight:600; outline:none; min-width:200px;">
+<option value="">-- جارِ تحميل المخزن --</option>
+</select>
+<input id="partQty" min="1" placeholder="الكمية" style="width:100px; padding:10px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.2); color:white; font-weight:600; text-align:center; outline:none;" type="number" value="1"/>
+<button class="btn-primary" id="btnAddPart" onclick="addUsedPart()" style="padding:10px 15px; font-weight:bold;" type="button">➕ صرف وإضافة للتقرير</button>
+</div>
+<table class="notes-table bz-fit" id="usedPartsTable">
+<colgroup>
+<col style="width:8%;"/>
+<col style="width:60%;"/>
+<col style="width:20%;"/>
+<col class="print-hide" style="width:12%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="col-idx">م</th>
+<th>رقم القطعة / الاسم</th>
+<th>الكمية المستهلكة</th>
+<th class="print-hide">إجراء</th>
+</tr>
+</thead>
+<tbody id="usedPartsBody">
+<!-- Dynamic parts rows -->
+</tbody>
+</table>
+</div>
+<div class="sig-section">
+<div class="sig-item">
+<label><div style="direction:ltr;">Technician Signature</div><div style="direction:rtl;">توقيع الفني</div></label>
+<input id="sigTech" placeholder="الاسم أو التوقيع" type="text"/>
+</div>
+<div class="sig-item">
+<label><div style="direction:ltr;">Movement Supervisor Signature</div><div style="direction:rtl;">توقيع مشرف الحركة</div></label>
+<input id="sigManager" placeholder="الاسم أو التوقيع" type="text"/>
+</div>
+</div>
+</div><!-- /#workshopPrintable -->
+</div>
+<datalist id="plateList"></datalist>
+<datalist id="driverNames"></datalist>
+<script>
     const LS_KEY = 'workshop_report_v4';
     let driversData = [];
     let usedPartsArray = [];
@@ -967,5 +949,4 @@
     document.addEventListener('input', saveData);
     document.addEventListener('change', saveData);
     </script>
-</body>
-</html>
+{% endblock %}

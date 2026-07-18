@@ -1,10 +1,8 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>كشف أجهزة GPS | فرع الدمام 2026</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% extends 'base.html' %}
+
+{% block title %}كشف أجهزة GPS | فرع الدمام 2026{% endblock %}
+
+{% block head %}
 <style>
   :root {
     --bg: #1A1A1A;
@@ -532,160 +530,151 @@
   .btn-save { background: var(--accent); color: #1A1A1A; padding: 9px 22px; border-radius: 8px; border: none; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
   .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-sub); padding: 9px 18px; border-radius: 8px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 13px; cursor: pointer; }
 </style>
-</head>
-<body>
+{% endblock %}
 
+{% block content %}
 <header>
-  <div class="logo">
-    <div class="logo-icon">📡</div>
-    <div>
-      <div class="logo-text">كشف أجهزة GPS</div>
-      <div class="logo-sub">فرع الدمام — 2026</div>
-    </div>
-  </div>
-  <div class="header-badge">76 مركبة</div>
-</header>
-
-<main>
-
-  <!-- Stats -->
-  <div class="stats-grid">
-    <div class="stat-card total">
-      <div class="stat-icon">🚗</div>
-      <div class="stat-label">إجمالي المركبات</div>
-      <div class="stat-value">76</div>
-      <div class="stat-pct">فرع الدمام كامل</div>
-    </div>
-    <div class="stat-card active">
-      <div class="stat-icon">✅</div>
-      <div class="stat-label">أجهزة نشطة</div>
-      <div class="stat-value" id="activeCount">12</div>
-      <div class="stat-pct">15.8% من الإجمالي</div>
-    </div>
-    <div class="stat-card broken">
-      <div class="stat-icon">❌</div>
-      <div class="stat-label">أجهزة معطلة</div>
-      <div class="stat-value" id="brokenCount">53</div>
-      <div class="stat-pct">69.7% من الإجمالي</div>
-    </div>
-    <div class="stat-card issue">
-      <div class="stat-icon">⚠️</div>
-      <div class="stat-label">يوجد مشكلة</div>
-      <div class="stat-value" id="issueCount">11</div>
-      <div class="stat-pct">14.5% من الإجمالي</div>
-    </div>
-  </div>
-
-  <!-- Brand Distribution -->
-  <div class="brand-bar-section">
-    <div class="section-title">توزيع الماركات</div>
-    <div class="brand-bars">
-      <div class="brand-row">
-        <div class="brand-name">ايسوزو</div>
-        <div class="brand-track"><div class="brand-fill" style="width:47%; background:linear-gradient(90deg,#C5A059,#d8b87a);"></div></div>
-        <div class="brand-count">36</div>
-      </div>
-      <div class="brand-row">
-        <div class="brand-name">متسوبيشي</div>
-        <div class="brand-track"><div class="brand-fill" style="width:25%; background:linear-gradient(90deg,#e0c489,#b8893f);"></div></div>
-        <div class="brand-count">19</div>
-      </div>
-      <div class="brand-row">
-        <div class="brand-name">سوزوكي</div>
-        <div class="brand-track"><div class="brand-fill" style="width:9%; background:linear-gradient(90deg,#f59e0b,#d97706);"></div></div>
-        <div class="brand-count">7</div>
-      </div>
-      <div class="brand-row">
-        <div class="brand-name">تويوتا</div>
-        <div class="brand-track"><div class="brand-fill" style="width:5%; background:linear-gradient(90deg,#ef4444,#b91c1c);"></div></div>
-        <div class="brand-count">4</div>
-      </div>
-      <div class="brand-row">
-        <div class="brand-name">أخرى</div>
-        <div class="brand-track"><div class="brand-fill" style="width:13%; background:linear-gradient(90deg,#8b949e,#484f58);"></div></div>
-        <div class="brand-count">10</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Controls -->
-  <div class="controls-bar">
-    <div class="search-box">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="searchInput" placeholder="ابحث برقم اللوحة، الماركة، أو الطراز..." oninput="filterTable()">
-    </div>
-    <div class="filter-btns">
-      <button class="filter-btn active-all" onclick="setFilter('all', this)">الكل (76)</button>
-      <button class="filter-btn" onclick="setFilter('نشط', this)">✅ نشط (12)</button>
-      <button class="filter-btn" onclick="setFilter('معطلة', this)">❌ معطلة (53)</button>
-      <button class="filter-btn" onclick="setFilter('مشكله', this)">⚠️ مشكلة (11)</button>
-    </div>
-  </div>
-
-  <!-- Table -->
-  <div class="table-wrap">
-    <div class="table-header-bar">
-      <div class="section-title" style="margin:0">قائمة المركبات</div>
-      <div class="hbar-actions">
-        <span class="save-status" id="saveStatus"></span>
-        <button class="add-btn" onclick="openAdd()">➕ إضافة مركبة</button>
-        <div class="count-label">عرض <span class="count-num" id="showingCount">76</span> مركبة</div>
-      </div>
-    </div>
-    <div style="overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>رقم اللوحة</th>
-            <th>نوع التسجيل</th>
-            <th>الماركة</th>
-            <th>الطراز</th>
-            <th>سنة الصنع</th>
-            <th>الرقم التسلسلي</th>
-            <th>حالة الجهاز</th>
-            <th>المدة</th>
-            <th>إجراءات</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
-    <div id="emptyState" class="empty-state" style="display:none;">
-      <div class="icon">🔍</div>
-      <p>لا توجد نتائج مطابقة للبحث</p>
-    </div>
-  </div>
-
-</main>
-
-<div class="gps-modal" id="gpsModal" onclick="if(event.target===this)closeModal()">
-  <div class="gps-modal-box">
-    <h2 id="modalTitle">تعديل المركبة</h2>
-    <div class="form-grid">
-      <div class="fg"><label>م (الرقم)</label><input type="number" id="f-num"></div>
-      <div class="fg"><label>رقم اللوحة</label><input type="text" id="f-plate" placeholder="أ ب ج 1234"></div>
-      <div class="fg"><label>نوع التسجيل</label><input type="text" id="f-type" placeholder="نقل عام / نقل خاص / خاص"></div>
-      <div class="fg"><label>الماركة</label><input type="text" id="f-brand"></div>
-      <div class="fg"><label>الطراز</label><input type="text" id="f-model"></div>
-      <div class="fg"><label>سنة الصنع</label><input type="number" id="f-year"></div>
-      <div class="fg"><label>الرقم التسلسلي</label><input type="text" id="f-serial"></div>
-      <div class="fg"><label>رقم الهيكل</label><input type="text" id="f-hull"></div>
-      <div class="fg"><label>حالة الجهاز</label>
-        <select id="f-status"><option value="نشط">نشط</option><option value="معطلة">معطلة</option><option value="مشكله">يوجد مشكلة</option></select></div>
-      <div class="fg"><label>المدة (مدة الانقطاع)</label><input type="text" id="f-since" placeholder="مثال: منذ شهر"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
-      <button class="btn-save" onclick="saveModal()">💾 حفظ</button>
-    </div>
-  </div>
+<div class="logo">
+<div class="logo-icon">📡</div>
+<div>
+<div class="logo-text">كشف أجهزة GPS</div>
+<div class="logo-sub">فرع الدمام — 2026</div>
 </div>
-
+</div>
+<div class="header-badge">76 مركبة</div>
+</header>
+<main>
+<!-- Stats -->
+<div class="stats-grid">
+<div class="stat-card total">
+<div class="stat-icon">🚗</div>
+<div class="stat-label">إجمالي المركبات</div>
+<div class="stat-value">76</div>
+<div class="stat-pct">فرع الدمام كامل</div>
+</div>
+<div class="stat-card active">
+<div class="stat-icon">✅</div>
+<div class="stat-label">أجهزة نشطة</div>
+<div class="stat-value" id="activeCount">12</div>
+<div class="stat-pct">15.8% من الإجمالي</div>
+</div>
+<div class="stat-card broken">
+<div class="stat-icon">❌</div>
+<div class="stat-label">أجهزة معطلة</div>
+<div class="stat-value" id="brokenCount">53</div>
+<div class="stat-pct">69.7% من الإجمالي</div>
+</div>
+<div class="stat-card issue">
+<div class="stat-icon">⚠️</div>
+<div class="stat-label">يوجد مشكلة</div>
+<div class="stat-value" id="issueCount">11</div>
+<div class="stat-pct">14.5% من الإجمالي</div>
+</div>
+</div>
+<!-- Brand Distribution -->
+<div class="brand-bar-section">
+<div class="section-title">توزيع الماركات</div>
+<div class="brand-bars">
+<div class="brand-row">
+<div class="brand-name">ايسوزو</div>
+<div class="brand-track"><div class="brand-fill" style="width:47%; background:linear-gradient(90deg,#C5A059,#d8b87a);"></div></div>
+<div class="brand-count">36</div>
+</div>
+<div class="brand-row">
+<div class="brand-name">متسوبيشي</div>
+<div class="brand-track"><div class="brand-fill" style="width:25%; background:linear-gradient(90deg,#e0c489,#b8893f);"></div></div>
+<div class="brand-count">19</div>
+</div>
+<div class="brand-row">
+<div class="brand-name">سوزوكي</div>
+<div class="brand-track"><div class="brand-fill" style="width:9%; background:linear-gradient(90deg,#f59e0b,#d97706);"></div></div>
+<div class="brand-count">7</div>
+</div>
+<div class="brand-row">
+<div class="brand-name">تويوتا</div>
+<div class="brand-track"><div class="brand-fill" style="width:5%; background:linear-gradient(90deg,#ef4444,#b91c1c);"></div></div>
+<div class="brand-count">4</div>
+</div>
+<div class="brand-row">
+<div class="brand-name">أخرى</div>
+<div class="brand-track"><div class="brand-fill" style="width:13%; background:linear-gradient(90deg,#8b949e,#484f58);"></div></div>
+<div class="brand-count">10</div>
+</div>
+</div>
+</div>
+<!-- Controls -->
+<div class="controls-bar">
+<div class="search-box">
+<span class="search-icon">🔍</span>
+<input id="searchInput" oninput="filterTable()" placeholder="ابحث برقم اللوحة، الماركة، أو الطراز..." type="text"/>
+</div>
+<div class="filter-btns">
+<button class="filter-btn active-all" onclick="setFilter('all', this)">الكل (76)</button>
+<button class="filter-btn" onclick="setFilter('نشط', this)">✅ نشط (12)</button>
+<button class="filter-btn" onclick="setFilter('معطلة', this)">❌ معطلة (53)</button>
+<button class="filter-btn" onclick="setFilter('مشكله', this)">⚠️ مشكلة (11)</button>
+</div>
+</div>
+<!-- Table -->
+<div class="table-wrap">
+<div class="table-header-bar">
+<div class="section-title" style="margin:0">قائمة المركبات</div>
+<div class="hbar-actions">
+<span class="save-status" id="saveStatus"></span>
+<button class="add-btn" onclick="openAdd()">➕ إضافة مركبة</button>
+<div class="count-label">عرض <span class="count-num" id="showingCount">76</span> مركبة</div>
+</div>
+</div>
+<div style="overflow-x:auto;">
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>رقم اللوحة</th>
+<th>نوع التسجيل</th>
+<th>الماركة</th>
+<th>الطراز</th>
+<th>سنة الصنع</th>
+<th>الرقم التسلسلي</th>
+<th>حالة الجهاز</th>
+<th>المدة</th>
+<th>إجراءات</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+<div class="empty-state" id="emptyState" style="display:none;">
+<div class="icon">🔍</div>
+<p>لا توجد نتائج مطابقة للبحث</p>
+</div>
+</div>
+</main>
+<div class="gps-modal" id="gpsModal" onclick="if(event.target===this)closeModal()">
+<div class="gps-modal-box">
+<h2 id="modalTitle">تعديل المركبة</h2>
+<div class="form-grid">
+<div class="fg"><label>م (الرقم)</label><input id="f-num" type="number"/></div>
+<div class="fg"><label>رقم اللوحة</label><input id="f-plate" placeholder="أ ب ج 1234" type="text"/></div>
+<div class="fg"><label>نوع التسجيل</label><input id="f-type" placeholder="نقل عام / نقل خاص / خاص" type="text"/></div>
+<div class="fg"><label>الماركة</label><input id="f-brand" type="text"/></div>
+<div class="fg"><label>الطراز</label><input id="f-model" type="text"/></div>
+<div class="fg"><label>سنة الصنع</label><input id="f-year" type="number"/></div>
+<div class="fg"><label>الرقم التسلسلي</label><input id="f-serial" type="text"/></div>
+<div class="fg"><label>رقم الهيكل</label><input id="f-hull" type="text"/></div>
+<div class="fg"><label>حالة الجهاز</label>
+<select id="f-status"><option value="نشط">نشط</option><option value="معطلة">معطلة</option><option value="مشكله">يوجد مشكلة</option></select></div>
+<div class="fg"><label>المدة (مدة الانقطاع)</label><input id="f-since" placeholder="مثال: منذ شهر" type="text"/></div>
+</div>
+<div class="modal-actions">
+<button class="btn-cancel" onclick="closeModal()">إلغاء</button>
+<button class="btn-save" onclick="saveModal()">💾 حفظ</button>
+</div>
+</div>
+</div>
 <footer>
   فرع الدمام · بن زومة للتجارة الدولية والتنمية · كشف أجهزة التتبع GPS 2026
 </footer>
-
 <script>
 const DEFAULT_VEHICLES = [
   {num:1, plate:"ر و د 1693", type:"خاص", brand:"سوزوكي", model:"DZIRE", year:2025, serial:"966200220", hull:"151666SA26ZFDF3MA", status:"نشط", since:""},
@@ -935,5 +924,4 @@ function setFilter(f, btn) {
 // تحميل البيانات المحفوظة من الخادم ثم العرض
 loadData();
 </script>
-</body>
-</html>
+{% endblock %}

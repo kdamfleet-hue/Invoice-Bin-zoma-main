@@ -1,13 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>أرشيف الوثائق | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}أرشيف الوثائق | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         .dc-intro { max-width: 1000px; margin: -.25rem auto 1.2rem; padding: .9rem 1.2rem; border: 1px solid var(--border); border-right: 4px solid var(--accent, #c5a059); border-radius: 12px; background: var(--surface); color: var(--text-secondary); font-size: .88rem; line-height: 1.9; }
         .dc-intro strong { color: var(--text-primary); }
         .dc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; max-width: 1000px; margin: 0 auto 1.2rem; }
@@ -53,72 +50,65 @@
         .dc-acts .del:hover { background: rgba(239,68,68,.14); color: #ef4444; border-color: rgba(239,68,68,.3); }
         .dc-empty { text-align: center; color: var(--text-muted, #94a3b8); padding: 2.5rem 1rem; font-weight: 700; }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/employees">👥 الموظفين</a>
-        <a href="/records">📁 التوثيق</a>
-        <a href="/tracking">🛰️ التتبع</a>
-      </nav>
-      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
-    </header>
-
-    <datalist id="dcPlates"></datalist>
-    <datalist id="dcNames"></datalist>
-
-    <div class="bz-shell">
-      <h2 class="bz-section-title">📂 أرشيف الوثائق</h2>
-      <div class="dc-intro">
-        <strong>أرشيف مركزي لوثائق الأسطول.</strong>
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand"><img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/tracking">🛰️ التتبع</a>
+</nav>
+<div class="bz-actions"><button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a class="bz-logout" href="/logout">خروج</a></div>
+</header>
+<datalist id="dcPlates"></datalist>
+<datalist id="dcNames"></datalist>
+<div class="bz-shell">
+<h2 class="bz-section-title">📂 أرشيف الوثائق</h2>
+<div class="dc-intro">
+<strong>أرشيف مركزي لوثائق الأسطول.</strong>
         ارفع صور أو ملفات PDF للاستمارة والتأمين والفحص ورخصة السير وبطاقة التشغيل (للمركبات) والإقامة والجواز (للموظفين) مع تاريخ الانتهاء — وتظهر تواريخ الانتهاء تلقائياً في <b>التنبيهات اليومية</b> ولوحة التحليلات. الحد الأقصى للملف 2.5 ميجابايت.
       </div>
-
-      <div class="dc-stats">
-        <div class="dc-stat"><div class="v" id="stTotal">0</div><div class="l">إجمالي الوثائق</div></div>
-        <div class="dc-stat"><div class="v red" id="stExpired">0</div><div class="l">منتهية</div></div>
-        <div class="dc-stat"><div class="v amber" id="stSoon">0</div><div class="l">تنتهي ≤ 30 يوم</div></div>
-        <div class="dc-stat"><div class="v" id="stValid" style="color:#10b981">0</div><div class="l">سارية</div></div>
-      </div>
-
-      <div class="dc-card">
-        <h3>➕ رفع وثيقة جديدة</h3>
-        <div class="dc-seg" id="dcSeg">
-          <button type="button" data-et="vehicle" class="on">🚗 مركبة</button>
-          <button type="button" data-et="employee">👤 موظف</button>
-        </div>
-        <div class="dc-row">
-          <label class="dc-fld"><span id="refLbl">المركبة (رقم اللوحة)</span><input id="dcRef" list="dcPlates" placeholder="مثال: أ ب ج 1234"></label>
-          <label class="dc-fld"><span>نوع الوثيقة</span><select id="dcType"></select></label>
-          <label class="dc-fld"><span>تاريخ الانتهاء</span><input id="dcExp" type="date"></label>
-        </div>
-        <div class="dc-row">
-          <label class="dc-fld"><span>رقم الوثيقة (اختياري)</span><input id="dcNum" placeholder="رقم الاستمارة/البوليصة…"></label>
-          <label class="dc-fld"><span>ملاحظات (اختياري)</span><input id="dcNotes" placeholder="ملاحظة قصيرة"></label>
-        </div>
-        <label class="dc-drop" for="dcFile" id="dcDrop">📎 اختر صورة أو ملف PDF للوثيقة<small id="dcFileName">لم يُختر ملف بعد · حتى 2.5MB</small></label>
-        <input id="dcFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" style="display:none">
-        <div class="dc-up">
-          <button class="dc-btn" id="dcUpload" type="button" disabled>📤 رفع وحفظ</button>
-          <span class="dc-msg" id="dcMsg"></span>
-        </div>
-      </div>
-
-      <div class="dc-toolbar">
-        <input id="dcSearch" type="search" placeholder="🔍 بحث بالمرجع/النوع/الملاحظات…">
-        <select id="dcFltEntity"><option value="">كل الأنواع</option><option value="vehicle">مركبات</option><option value="employee">موظفون</option></select>
-        <select id="dcFltStatus"><option value="">كل الحالات</option><option value="expired">منتهية</option><option value="d30">≤ 30 يوم</option><option value="d90">≤ 90 يوم</option><option value="valid">سارية</option><option value="none">بدون تاريخ</option></select>
-      </div>
-
-      <div class="dc-grid" id="dcGrid"></div>
-      <div class="dc-empty" id="dcEmpty" style="display:none">لا توجد وثائق مطابقة بعد — ابدأ برفع وثيقة من الأعلى.</div>
-      <div class="dc-empty" id="dcLoad">⏳ جارٍ التحميل…</div>
-    </div>
-
+<div class="dc-stats">
+<div class="dc-stat"><div class="v" id="stTotal">0</div><div class="l">إجمالي الوثائق</div></div>
+<div class="dc-stat"><div class="v red" id="stExpired">0</div><div class="l">منتهية</div></div>
+<div class="dc-stat"><div class="v amber" id="stSoon">0</div><div class="l">تنتهي ≤ 30 يوم</div></div>
+<div class="dc-stat"><div class="v" id="stValid" style="color:#10b981">0</div><div class="l">سارية</div></div>
+</div>
+<div class="dc-card">
+<h3>➕ رفع وثيقة جديدة</h3>
+<div class="dc-seg" id="dcSeg">
+<button class="on" data-et="vehicle" type="button">🚗 مركبة</button>
+<button data-et="employee" type="button">👤 موظف</button>
+</div>
+<div class="dc-row">
+<label class="dc-fld"><span id="refLbl">المركبة (رقم اللوحة)</span><input id="dcRef" list="dcPlates" placeholder="مثال: أ ب ج 1234"/></label>
+<label class="dc-fld"><span>نوع الوثيقة</span><select id="dcType"></select></label>
+<label class="dc-fld"><span>تاريخ الانتهاء</span><input id="dcExp" type="date"/></label>
+</div>
+<div class="dc-row">
+<label class="dc-fld"><span>رقم الوثيقة (اختياري)</span><input id="dcNum" placeholder="رقم الاستمارة/البوليصة…"/></label>
+<label class="dc-fld"><span>ملاحظات (اختياري)</span><input id="dcNotes" placeholder="ملاحظة قصيرة"/></label>
+</div>
+<label class="dc-drop" for="dcFile" id="dcDrop">📎 اختر صورة أو ملف PDF للوثيقة<small id="dcFileName">لم يُختر ملف بعد · حتى 2.5MB</small></label>
+<input accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" id="dcFile" style="display:none" type="file"/>
+<div class="dc-up">
+<button class="dc-btn" disabled="" id="dcUpload" type="button">📤 رفع وحفظ</button>
+<span class="dc-msg" id="dcMsg"></span>
+</div>
+</div>
+<div class="dc-toolbar">
+<input id="dcSearch" placeholder="🔍 بحث بالمرجع/النوع/الملاحظات…" type="search"/>
+<select id="dcFltEntity"><option value="">كل الأنواع</option><option value="vehicle">مركبات</option><option value="employee">موظفون</option></select>
+<select id="dcFltStatus"><option value="">كل الحالات</option><option value="expired">منتهية</option><option value="d30">≤ 30 يوم</option><option value="d90">≤ 90 يوم</option><option value="valid">سارية</option><option value="none">بدون تاريخ</option></select>
+</div>
+<div class="dc-grid" id="dcGrid"></div>
+<div class="dc-empty" id="dcEmpty" style="display:none">لا توجد وثائق مطابقة بعد — ابدأ برفع وثيقة من الأعلى.</div>
+<div class="dc-empty" id="dcLoad">⏳ جارٍ التحميل…</div>
+</div>
 <script>
 (function () {
   'use strict';
@@ -250,6 +240,4 @@
   ['dcSearch', 'dcFltEntity', 'dcFltStatus'].forEach(function (id) { $(id).addEventListener('input', render); });
 })();
 </script>
-
-</body>
-</html>
+{% endblock %}

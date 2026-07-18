@@ -1,16 +1,12 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة الإدارة التنفيذية — BIN ZOMAH INTL.</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <!-- washing fallback seed (provides window.WASHING_VEHICLES if the API is empty) -->
-    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}لوحة الإدارة التنفيذية — BIN ZOMAH INTL.{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<style>
         /* ============================================================
            Executive Dashboard — deep-dark premium identity (read-only).
            All tokens scoped to .bz-dash so the rest of the site is untouched.
@@ -288,228 +284,210 @@
             .dash-top .meta { display: none; }
         }
     </style>
-</head>
-<body class="bz-dash">
+{% endblock %}
+
+{% block content %}
 <script>try{if(localStorage.getItem('bz_dash_theme')==='dark')document.body.classList.add('theme-dark');}catch(e){}</script>
-
-    <!-- ===== Top bar ===== -->
-    <header class="dash-top">
-        <button class="tbtn dash-burger" onclick="document.querySelector('.dash-side').classList.toggle('open')" title="القائمة">☰</button>
-        <div class="brand">
-            <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-            <div><b>BIN ZOMAH INTL.</b><span>لوحة الإدارة التنفيذية — فرع الدمام</span></div>
-        </div>
-        <div class="spacer"></div>
-        <button class="tbtn" id="themeBtn" onclick="bzToggleDashTheme()" title="التبديل للوضع الداكن">🌙</button>
-        <a class="back-link" id="backLink" href="/">← الموقع</a>
-    </header>
-
-    <div class="dash-layout">
-        <!-- ===== Sidebar ===== -->
-        <aside class="dash-side" id="side">
-            <div class="side-title">الأقسام</div>
-            <a href="#overview" class="active"><span class="ic">📊</span> نظرة عامة</a>
-            <a href="#alerts"><span class="ic">🚨</span> مركز التنبيهات</a>
-            <a href="#gps"><span class="ic">🛰️</span> التتبع المباشر</a>
-            <a href="#charts"><span class="ic">📈</span> الرسوم البيانية</a>
-            <a href="#search"><span class="ic">🔎</span> البحث والفلاتر</a>
-            <a href="#tech-updates"><span class="ic">📂</span> تقارير التحديثات التقنية</a>
-            <a href="#history"><span class="ic">🕒</span> سجل استعادة النسخ</a>
-            <a href="#audit"><span class="ic">📝</span> سجل التدقيق</a>
-            <a href="/kpis"><span class="ic">🎯</span> مؤشرات الأداء (KPIs)</a>
-            <div class="side-title">التبويبات</div>
-            <nav id="quickLinks"></nav>
-        </aside>
-
-        <!-- ===== Main ===== -->
-        <main class="dash-main">
-
-            <!-- date line (relocated out of the top bar; populated by topMeta() via id) -->
-            <div class="meta" id="topMeta" style="font-size:.82rem;color:var(--d-text-2);margin:.2rem 0 .1rem;line-height:1.6;">—</div>
-
-            <!-- Overview / KPIs -->
-            <div class="dash-h" id="overview">نظرة عامة تنفيذية <span class="sub" id="ovSub"></span></div>
-            <section class="kpi-grid" id="kpiGrid"></section>
-
-            <div class="grid-2" style="margin-top:1.1rem;">
-                <div class="panel">
-                    <div style="font-weight:800;margin-bottom:.7rem;">مؤشرات الجاهزية</div>
-                    <div id="readiness"></div>
-                </div>
-                <div class="panel">
-                    <div style="font-weight:800;margin-bottom:.7rem;">تكوين الأسطول</div>
-                    <div id="fleetMini" class="muted-note">—</div>
-                </div>
-            </div>
-
-            <!-- Alerts -->
-            <div class="dash-h" id="alerts">🚨 مركز تنبيهات الوثائق <span class="sub" id="alSub"></span></div>
-            <section class="panel">
-                <div id="alMailBar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.7rem .8rem;background:var(--d-card-2);border:1px solid var(--d-border);border-radius:12px;">
-                    <span style="font-weight:700;font-size:.84rem;">📧 إرسال تنبيهات الوثائق بالبريد:</span>
-                    <input id="alMailTo" type="text" placeholder="بريد المستلمين (افصل بفاصلة)" style="flex:1;min-width:220px;background:var(--d-bg2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:8px 12px;font:inherit;font-size:.82rem;outline:none;">
-                    <button class="chip on" id="alMailBtn" onclick="sendExpiryMail()">📧 إرسال حسب الفرز</button>
-                    <span class="muted-note" id="alMailHint" style="width:100%;margin-top:2px;">…</span>
-                </div>
-                <div class="filters" id="alFilters"></div>
-                <div class="dtable-wrap">
-                    <table class="dtable">
-                        <thead id="alHead"><tr>
-                            <th style="width:38px;text-align:center"><input type="checkbox" id="alSelectAll" onclick="toggleAllAlerts(this)" title="تحديد الكل"></th>
-                            <th class="al-sort" onclick="sortAlerts('name')">الاسم<span class="sort-ind" data-k="name"></span></th><th class="al-sort" onclick="sortAlerts('plate')">رقم اللوحة<span class="sort-ind" data-k="plate"></span></th><th class="al-sort" onclick="sortAlerts('doc')">الوثيقة<span class="sort-ind" data-k="doc"></span></th><th class="al-sort" onclick="sortAlerts('date')">تاريخ الانتهاء<span class="sort-ind" data-k="date"></span></th><th class="al-sort" onclick="sortAlerts('days')">المتبقي<span class="sort-ind" data-k="days"></span></th><th class="al-sort" onclick="sortAlerts('status')">الحالة<span class="sort-ind" data-k="status"></span></th>
-                        </tr></thead>
-                        <tbody id="alBody"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- GPS live map -->
-            <div class="dash-h" id="gps">🛰️ التتبع المباشر للأسطول <span class="sub" id="gpsSub"></span></div>
-            <section class="panel">
-                <div class="gps-stats">
-                    <div class="gps-stat"><b id="gpsTotal">0</b><span>مركبات على الخريطة</span></div>
-                    <div class="gps-stat"><b id="gpsOnline" style="color:var(--ok-fg)">0</b><span>🟢 نشطة الآن</span></div>
-                    <div class="gps-stat"><b id="gpsOffline" style="color:var(--bad-fg)">0</b><span>🔴 متوقفة</span></div>
-                    <div class="gps-stat" style="flex:1;min-width:auto;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;background:transparent;border:none;">
-                        <button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>
-                        <a class="chip" id="gpsFull" href="/tracking" style="text-decoration:none;">↗ التتبع الكامل</a>
+ ===== Top bar ===== 
+<header class="dash-top">
+<button class="tbtn dash-burger" onclick="document.querySelector('.dash-side').classList.toggle('open')" title="القائمة">☰</button>
+<div class="brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div><b>BIN ZOMAH INTL.</b><span>لوحة الإدارة التنفيذية — فرع الدمام</span></div>
+</div>
+<div class="spacer"></div>
+<button class="tbtn" id="themeBtn" onclick="bzToggleDashTheme()" title="التبديل للوضع الداكن">🌙</button>
+<a class="back-link" href="/" id="backLink">← الموقع</a>
+</header>
+<div class="dash-layout">
+<!-- ===== Sidebar ===== -->
+<aside class="dash-side" id="side">
+<div class="side-title">الأقسام</div>
+<a class="active" href="#overview"><span class="ic">📊</span> نظرة عامة</a>
+<a href="#alerts"><span class="ic">🚨</span> مركز التنبيهات</a>
+<a href="#gps"><span class="ic">🛰️</span> التتبع المباشر</a>
+<a href="#charts"><span class="ic">📈</span> الرسوم البيانية</a>
+<a href="#search"><span class="ic">🔎</span> البحث والفلاتر</a>
+<a href="#tech-updates"><span class="ic">📂</span> تقارير التحديثات التقنية</a>
+<a href="#history"><span class="ic">🕒</span> سجل استعادة النسخ</a>
+<a href="#audit"><span class="ic">📝</span> سجل التدقيق</a>
+<a href="/kpis"><span class="ic">🎯</span> مؤشرات الأداء (KPIs)</a>
+<div class="side-title">التبويبات</div>
+<nav id="quickLinks"></nav>
+</aside>
+<!-- ===== Main ===== -->
+<main class="dash-main">
+<!-- date line (relocated out of the top bar; populated by topMeta() via id) -->
+<div class="meta" id="topMeta" style="font-size:.82rem;color:var(--d-text-2);margin:.2rem 0 .1rem;line-height:1.6;">—</div>
+<!-- Overview / KPIs -->
+<div class="dash-h" id="overview">نظرة عامة تنفيذية <span class="sub" id="ovSub"></span></div>
+<section class="kpi-grid" id="kpiGrid"></section>
+<div class="grid-2" style="margin-top:1.1rem;">
+<div class="panel">
+<div style="font-weight:800;margin-bottom:.7rem;">مؤشرات الجاهزية</div>
+<div id="readiness"></div>
+</div>
+<div class="panel">
+<div style="font-weight:800;margin-bottom:.7rem;">تكوين الأسطول</div>
+<div class="muted-note" id="fleetMini">—</div>
+</div>
+</div>
+<!-- Alerts -->
+<div class="dash-h" id="alerts">🚨 مركز تنبيهات الوثائق <span class="sub" id="alSub"></span></div>
+<section class="panel">
+<div id="alMailBar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.7rem .8rem;background:var(--d-card-2);border:1px solid var(--d-border);border-radius:12px;">
+<span style="font-weight:700;font-size:.84rem;">📧 إرسال تنبيهات الوثائق بالبريد:</span>
+<input id="alMailTo" placeholder="بريد المستلمين (افصل بفاصلة)" style="flex:1;min-width:220px;background:var(--d-bg2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:8px 12px;font:inherit;font-size:.82rem;outline:none;" type="text"/>
+<button class="chip on" id="alMailBtn" onclick="sendExpiryMail()">📧 إرسال حسب الفرز</button>
+<span class="muted-note" id="alMailHint" style="width:100%;margin-top:2px;">…</span>
+</div>
+<div class="filters" id="alFilters"></div>
+<div class="dtable-wrap">
+<table class="dtable">
+<thead id="alHead"><tr>
+<th style="width:38px;text-align:center"><input id="alSelectAll" onclick="toggleAllAlerts(this)" title="تحديد الكل" type="checkbox"/></th>
+<th class="al-sort" onclick="sortAlerts('name')">الاسم<span class="sort-ind" data-k="name"></span></th><th class="al-sort" onclick="sortAlerts('plate')">رقم اللوحة<span class="sort-ind" data-k="plate"></span></th><th class="al-sort" onclick="sortAlerts('doc')">الوثيقة<span class="sort-ind" data-k="doc"></span></th><th class="al-sort" onclick="sortAlerts('date')">تاريخ الانتهاء<span class="sort-ind" data-k="date"></span></th><th class="al-sort" onclick="sortAlerts('days')">المتبقي<span class="sort-ind" data-k="days"></span></th><th class="al-sort" onclick="sortAlerts('status')">الحالة<span class="sort-ind" data-k="status"></span></th>
+</tr></thead>
+<tbody id="alBody"></tbody>
+</table>
+</div>
+</section>
+<!-- GPS live map -->
+<div class="dash-h" id="gps">🛰️ التتبع المباشر للأسطول <span class="sub" id="gpsSub"></span></div>
+<section class="panel">
+<div class="gps-stats">
+<div class="gps-stat"><b id="gpsTotal">0</b><span>مركبات على الخريطة</span></div>
+<div class="gps-stat"><b id="gpsOnline" style="color:var(--ok-fg)">0</b><span>🟢 نشطة الآن</span></div>
+<div class="gps-stat"><b id="gpsOffline" style="color:var(--bad-fg)">0</b><span>🔴 متوقفة</span></div>
+<div class="gps-stat" style="flex:1;min-width:auto;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;background:transparent;border:none;">
+<button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>
+<a class="chip" href="/tracking" id="gpsFull" style="text-decoration:none;">↗ التتبع الكامل</a>
+</div>
+</div>
+<div class="gps-wrap">
+<div id="dashMap"></div>
+<div class="gps-overlay" id="gpsOverlay"><div class="gps-spinner"></div><div>جارٍ تجهيز الخريطة…</div></div>
+</div>
+</section>
+<!-- Charts -->
+<div class="dash-h" id="charts">📈 الرسوم البيانية</div>
+<section class="grid-3">
+<div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">توزيع الوظائف</div><div id="chJobs"></div></div>
+<div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">المركبات حسب النوع</div><div id="chTypes"></div></div>
+<div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">حالة الوثائق</div><div class="donut-wrap"><div class="donut" id="chDonut"><div class="d-c" id="donutCenter"></div></div><div class="legend" id="donutLegend"></div></div></div>
+</section>
+<!-- Search -->
+<div class="dash-h" id="search">🔎 البحث والفلاتر المتقدمة <span class="sub" id="seSub"></span></div>
+<section class="panel">
+<div class="search-bar">
+<input id="seInput" placeholder="ابحث بالاسم، رقم اللوحة، الرقم الوظيفي، الإقامة، أو الجوال…" type="text"/>
+<select id="seJob"><option value="">كل الوظائف</option></select>
+<select id="seType"><option value="">كل أنواع المركبات</option></select>
+<select id="seStatus">
+<option value="">كل حالات الوثائق</option>
+<option value="expired">منتهية</option>
+<option value="d30">تنتهي خلال 30 يوم</option>
+<option value="d90">تنتهي خلال 90 يوم</option>
+<option value="valid">سارية</option>
+</select>
+</div>
+<div class="dtable-wrap">
+<table class="dtable">
+<thead><tr>
+<th>الاسم</th><th>الرقم الوظيفي</th><th>الإقامة</th><th>الجوال</th><th>رقم اللوحة</th><th>الوظيفة</th><th>المركبة</th><th>حالة الوثائق</th>
+</tr></thead>
+<tbody id="seBody"></tbody>
+</table>
+</div>
+</section>
+<!-- Tech Updates -->
+<div class="dash-h" id="tech-updates">📂 تقارير النظام والتحديثات التقنية <span class="sub">سجل الصيانة والدعم الفني</span></div>
+<section class="panel" style="margin-bottom: 2rem; border-inline-start: 4px solid var(--gold);">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; border-bottom: 1px solid var(--d-border); padding-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+<div>
+<h3 style="margin: 0; color: var(--head-color); font-size: 1.2rem;">🔧 الفحص الشامل للنظام — مكتمل بنجاح</h3>
+<div style="font-size: .85rem; color: var(--d-muted); margin-top: .4rem;">تم تنفيذ فحص شامل للنظام واعتماد جميع الإصلاحات الأساسية، مع تطوير الواجهة وتحويلها إلى مستوى احترافي متكامل.</div>
+</div>
+<div class="badge st-valid" style="font-size: .9rem; padding: 6px 14px;">مكتمل ومُعتمد ✓</div>
+</div>
+<div class="grid-2">
+<div>
+<h4 style="color: var(--gold-soft); margin-top: 0; margin-bottom: .8rem;">🧭 مسارات الفحص المتوازي</h4>
+<ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: .9rem; color: var(--d-text-2); line-height: 1.8;">
+<li><span style="color: var(--gold);">■</span> لوحة المعلومات (Dashboard)</li>
+<li><span style="color: var(--gold);">■</span> الجداول الثلاثة الرئيسية</li>
+<li><span style="color: var(--gold);">■</span> الحفظ والباك-إند (Backend API)</li>
+<li><span style="color: var(--gold);">■</span> التبويبات الثانوية</li>
+</ul>
+<h4 style="color: var(--gold-soft); margin-top: 0; margin-bottom: .8rem;">📊 نتائج الفحص</h4>
+<ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: .9rem; color: var(--d-text-2); line-height: 1.8;">
+<li><span style="color: var(--ok-fg);">✔</span> عناصر سليمة بالكامل</li>
+<li><span style="color: var(--ok-fg);">✔</span> أخطاء فعلية تم إصلاحها بالكامل</li>
+<li><span style="color: var(--neutral-fg);">ℹ</span> بلاغ واحد مرفوض (تبويبات مخفية عمداً ومشروحة داخل الكود)</li>
+</ul>
+</div>
+<div>
+<h4 style="color: var(--gold-soft); margin-top: 0; margin-bottom: .8rem;">🛠️ الإصلاحات المعتمدة</h4>
+<ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: .85rem; color: var(--d-text-2); line-height: 1.6;">
+<li style="margin-bottom: .6rem;"><b>تحديث عدّاد الإجازات:</b> إصلاح تأخر تحديث رقم “سائقون في إجازة” بعد أي تعديل.</li>
+<li style="margin-bottom: .6rem;"><b>تحديث الرسم البياني:</b> تفعيل التحديث التلقائي للرسم البياني عند تعديل الجداول مباشرة.</li>
+<li style="margin-bottom: .6rem;"><b>إغلاق ثغرة أمنية:</b> حماية مسار <code>/api/seed_from_template</code>.</li>
+<li style="margin-bottom: .6rem;"><b>معالجة انتهاء الجلسة:</b> عرض رسالة دقيقة عند انتهاء الجلسة.</li>
+<li style="margin-bottom: .6rem;"><b>تنظيف كود ميت:</b> إزالة كود غير مستخدم في جدول “جميع مركبات الفرع”.</li>
+<li style="margin-bottom: .6rem;"><b>المركبات المستبعدة:</b> معالجة مشكلة توقيت تحميل السكربتات.</li>
+<li style="margin-bottom: .6rem;"><b>مقارنة السائقين:</b> الاعتماد على رقم اللوحة بدلاً من الاسم.</li>
+</ul>
+</div>
+</div>
+<div style="background: var(--d-bg2); border: 1px solid var(--d-border); border-radius: 12px; padding: 1rem 1.2rem; margin-top: 1rem; position: relative; overflow: hidden;">
+<div style="position: absolute; top: 0; bottom: 0; inset-inline-start: 0; width: 4px; background: var(--warn-fg);"></div>
+<h4 style="color: var(--warn-fg); margin: 0 0 .5rem 0; font-size: .95rem;">📌 قرار إداري — قيمة KPI (جدول الأسبير والمعطّلة)</h4>
+<div style="font-size: .85rem; color: var(--d-text-2); line-height: 1.6;">
+                        الصفوف الفعلية = <b>7</b> | قيمة KPI الحالية = <b>6</b><br/>
+<span class="muted-note" style="display: inline-block; margin-top: 4px;">تم الإبقاء على القيمة 6 بناءً على القرار الإداري لضمان التطابق الحرفي مع ملف الإكسل الأصلي. (يمكن تعديلها لاحقاً لتعكس القيمة الفعلية).</span>
+</div>
+</div>
+</section>
+<!-- History -->
+<div class="dash-h" id="history">🕒 سجل استعادة النسخ</div>
+<section class="grid-2">
+<div class="panel">
+<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;">
+<div style="font-weight:800;">الخط الزمني</div>
+<button class="chip" onclick="downloadCurrentBackup()" style="margin-inline-start:auto;">📥 تنزيل نسخة كاملة الآن</button>
+</div>
+<div class="timeline" id="timeline"></div>
+</div>
+<div class="panel">
+<div style="font-weight:800;margin-bottom:.7rem;">كيف يعمل سجل التحديثات؟</div>
+<div class="muted-note">
+                        • تُلتقط نسخة تلقائية من بياناتك (الجدول الأسبوعي، الغسيل، التوثيق، الموظفون) في كل مرة تتغيّر فيها البيانات — <b>تُحفظ محلياً في متصفحك فقط</b> ولا تُرسل لأي جهة.<br/>
+                        • كل نسخة تُظهر <b>ما الذي تغيّر</b> (إضافة/حذف/تعديل) مقارنةً بالسابقة.<br/>
+                        • <b>📥 تنزيل</b>: يحفظ نسخة احتياطية كاملة (JSON) تقدر ترجعها وقت ما تبي.<br/>
+                        • <b>↩️ استعادة</b>: يعيد البيانات لتلك النسخة (الجدول/الغسيل/التوثيق/الموظفون) بعد تأكيد صريح.<br/>
+                        • تُحفظ آخر 6 نسخ كاملة قابلة للاستعادة؛ والأقدم يبقى كسجل (تاريخ + ملخص التغييرات).<br/>
+<span style="color:var(--gold-soft)">ملاحظة:</span> هذه اللوحة <b>تقرأ بياناتك فقط</b> ولا تعدّلها أبداً إلا عند ضغطك زر «استعادة».
                     </div>
-                </div>
-                <div class="gps-wrap">
-                    <div id="dashMap"></div>
-                    <div class="gps-overlay" id="gpsOverlay"><div class="gps-spinner"></div><div>جارٍ تجهيز الخريطة…</div></div>
-                </div>
-            </section>
-
-            <!-- Charts -->
-            <div class="dash-h" id="charts">📈 الرسوم البيانية</div>
-            <section class="grid-3">
-                <div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">توزيع الوظائف</div><div id="chJobs"></div></div>
-                <div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">المركبات حسب النوع</div><div id="chTypes"></div></div>
-                <div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">حالة الوثائق</div><div class="donut-wrap"><div class="donut" id="chDonut"><div class="d-c" id="donutCenter"></div></div><div class="legend" id="donutLegend"></div></div></div>
-            </section>
-
-            <!-- Search -->
-            <div class="dash-h" id="search">🔎 البحث والفلاتر المتقدمة <span class="sub" id="seSub"></span></div>
-            <section class="panel">
-                <div class="search-bar">
-                    <input type="text" id="seInput" placeholder="ابحث بالاسم، رقم اللوحة، الرقم الوظيفي، الإقامة، أو الجوال…">
-                    <select id="seJob"><option value="">كل الوظائف</option></select>
-                    <select id="seType"><option value="">كل أنواع المركبات</option></select>
-                    <select id="seStatus">
-                        <option value="">كل حالات الوثائق</option>
-                        <option value="expired">منتهية</option>
-                        <option value="d30">تنتهي خلال 30 يوم</option>
-                        <option value="d90">تنتهي خلال 90 يوم</option>
-                        <option value="valid">سارية</option>
-                    </select>
-                </div>
-                <div class="dtable-wrap">
-                    <table class="dtable">
-                        <thead><tr>
-                            <th>الاسم</th><th>الرقم الوظيفي</th><th>الإقامة</th><th>الجوال</th><th>رقم اللوحة</th><th>الوظيفة</th><th>المركبة</th><th>حالة الوثائق</th>
-                        </tr></thead>
-                        <tbody id="seBody"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Tech Updates -->
-            <div class="dash-h" id="tech-updates">📂 تقارير النظام والتحديثات التقنية <span class="sub">سجل الصيانة والدعم الفني</span></div>
-            <section class="panel" style="margin-bottom: 2rem; border-inline-start: 4px solid var(--gold);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; border-bottom: 1px solid var(--d-border); padding-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
-                    <div>
-                        <h3 style="margin: 0; color: var(--head-color); font-size: 1.2rem;">🔧 الفحص الشامل للنظام — مكتمل بنجاح</h3>
-                        <div style="font-size: .85rem; color: var(--d-muted); margin-top: .4rem;">تم تنفيذ فحص شامل للنظام واعتماد جميع الإصلاحات الأساسية، مع تطوير الواجهة وتحويلها إلى مستوى احترافي متكامل.</div>
-                    </div>
-                    <div class="badge st-valid" style="font-size: .9rem; padding: 6px 14px;">مكتمل ومُعتمد ✓</div>
-                </div>
-
-                <div class="grid-2">
-                    <div>
-                        <h4 style="color: var(--gold-soft); margin-top: 0; margin-bottom: .8rem;">🧭 مسارات الفحص المتوازي</h4>
-                        <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: .9rem; color: var(--d-text-2); line-height: 1.8;">
-                            <li><span style="color: var(--gold);">■</span> لوحة المعلومات (Dashboard)</li>
-                            <li><span style="color: var(--gold);">■</span> الجداول الثلاثة الرئيسية</li>
-                            <li><span style="color: var(--gold);">■</span> الحفظ والباك-إند (Backend API)</li>
-                            <li><span style="color: var(--gold);">■</span> التبويبات الثانوية</li>
-                        </ul>
-
-                        <h4 style="color: var(--gold-soft); margin-top: 0; margin-bottom: .8rem;">📊 نتائج الفحص</h4>
-                        <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: .9rem; color: var(--d-text-2); line-height: 1.8;">
-                            <li><span style="color: var(--ok-fg);">✔</span> عناصر سليمة بالكامل</li>
-                            <li><span style="color: var(--ok-fg);">✔</span> أخطاء فعلية تم إصلاحها بالكامل</li>
-                            <li><span style="color: var(--neutral-fg);">ℹ</span> بلاغ واحد مرفوض (تبويبات مخفية عمداً ومشروحة داخل الكود)</li>
-                        </ul>
-                    </div>
-                    
-                    <div>
-                        <h4 style="color: var(--gold-soft); margin-top: 0; margin-bottom: .8rem;">🛠️ الإصلاحات المعتمدة</h4>
-                        <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: .85rem; color: var(--d-text-2); line-height: 1.6;">
-                            <li style="margin-bottom: .6rem;"><b>تحديث عدّاد الإجازات:</b> إصلاح تأخر تحديث رقم “سائقون في إجازة” بعد أي تعديل.</li>
-                            <li style="margin-bottom: .6rem;"><b>تحديث الرسم البياني:</b> تفعيل التحديث التلقائي للرسم البياني عند تعديل الجداول مباشرة.</li>
-                            <li style="margin-bottom: .6rem;"><b>إغلاق ثغرة أمنية:</b> حماية مسار <code>/api/seed_from_template</code>.</li>
-                            <li style="margin-bottom: .6rem;"><b>معالجة انتهاء الجلسة:</b> عرض رسالة دقيقة عند انتهاء الجلسة.</li>
-                            <li style="margin-bottom: .6rem;"><b>تنظيف كود ميت:</b> إزالة كود غير مستخدم في جدول “جميع مركبات الفرع”.</li>
-                            <li style="margin-bottom: .6rem;"><b>المركبات المستبعدة:</b> معالجة مشكلة توقيت تحميل السكربتات.</li>
-                            <li style="margin-bottom: .6rem;"><b>مقارنة السائقين:</b> الاعتماد على رقم اللوحة بدلاً من الاسم.</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div style="background: var(--d-bg2); border: 1px solid var(--d-border); border-radius: 12px; padding: 1rem 1.2rem; margin-top: 1rem; position: relative; overflow: hidden;">
-                    <div style="position: absolute; top: 0; bottom: 0; inset-inline-start: 0; width: 4px; background: var(--warn-fg);"></div>
-                    <h4 style="color: var(--warn-fg); margin: 0 0 .5rem 0; font-size: .95rem;">📌 قرار إداري — قيمة KPI (جدول الأسبير والمعطّلة)</h4>
-                    <div style="font-size: .85rem; color: var(--d-text-2); line-height: 1.6;">
-                        الصفوف الفعلية = <b>7</b> | قيمة KPI الحالية = <b>6</b><br>
-                        <span class="muted-note" style="display: inline-block; margin-top: 4px;">تم الإبقاء على القيمة 6 بناءً على القرار الإداري لضمان التطابق الحرفي مع ملف الإكسل الأصلي. (يمكن تعديلها لاحقاً لتعكس القيمة الفعلية).</span>
-                    </div>
-                </div>
-            </section>
-
-            <!-- History -->
-            <div class="dash-h" id="history">🕒 سجل استعادة النسخ</div>
-            <section class="grid-2">
-                <div class="panel">
-                    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;">
-                        <div style="font-weight:800;">الخط الزمني</div>
-                        <button class="chip" onclick="downloadCurrentBackup()" style="margin-inline-start:auto;">📥 تنزيل نسخة كاملة الآن</button>
-                    </div>
-                    <div class="timeline" id="timeline"></div>
-                </div>
-                <div class="panel">
-                    <div style="font-weight:800;margin-bottom:.7rem;">كيف يعمل سجل التحديثات؟</div>
-                    <div class="muted-note">
-                        • تُلتقط نسخة تلقائية من بياناتك (الجدول الأسبوعي، الغسيل، التوثيق، الموظفون) في كل مرة تتغيّر فيها البيانات — <b>تُحفظ محلياً في متصفحك فقط</b> ولا تُرسل لأي جهة.<br>
-                        • كل نسخة تُظهر <b>ما الذي تغيّر</b> (إضافة/حذف/تعديل) مقارنةً بالسابقة.<br>
-                        • <b>📥 تنزيل</b>: يحفظ نسخة احتياطية كاملة (JSON) تقدر ترجعها وقت ما تبي.<br>
-                        • <b>↩️ استعادة</b>: يعيد البيانات لتلك النسخة (الجدول/الغسيل/التوثيق/الموظفون) بعد تأكيد صريح.<br>
-                        • تُحفظ آخر 6 نسخ كاملة قابلة للاستعادة؛ والأقدم يبقى كسجل (تاريخ + ملخص التغييرات).<br>
-                        <span style="color:var(--gold-soft)">ملاحظة:</span> هذه اللوحة <b>تقرأ بياناتك فقط</b> ولا تعدّلها أبداً إلا عند ضغطك زر «استعادة».
-                    </div>
-                </div>
-            </section>
-
-            <!-- Audit log (server-side, immutable) -->
-            <div class="dash-h" id="audit">📝 سجل التدقيق (Audit Log) <span class="sub" id="auSub"></span></div>
-            <section class="panel">
-                <div class="muted-note" style="margin-bottom:.85rem;">
+</div>
+</section>
+<!-- Audit log (server-side, immutable) -->
+<div class="dash-h" id="audit">📝 سجل التدقيق (Audit Log) <span class="sub" id="auSub"></span></div>
+<section class="panel">
+<div class="muted-note" style="margin-bottom:.85rem;">
                     سجل <b>غير قابل للحذف أو التعديل</b> — يوثّق كل عملية حفظ على الخادم: <b>مَن</b> غيّر <b>ماذا</b> و<b>متى</b>.
                     (يُحفظ على الخادم بشكل منفصل عن «سجل التحديثات» المحلي أعلاه، وتُجمَّع عمليات الحفظ المتتالية للسجل نفسه في سطر واحد.)
                 </div>
-                <div class="dtable-wrap">
-                    <table class="dtable">
-                        <thead><tr>
-                            <th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>السجل المتأثر</th><th>التفاصيل</th>
-                        </tr></thead>
-                        <tbody id="auBody"><tr><td colspan="5" class="empty-hint">جارٍ التحميل…</td></tr></tbody>
-                    </table>
-                </div>
-            </section>
-
-        </main>
-    </div>
-
+<div class="dtable-wrap">
+<table class="dtable">
+<thead><tr>
+<th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>السجل المتأثر</th><th>التفاصيل</th>
+</tr></thead>
+<tbody id="auBody"><tr><td class="empty-hint" colspan="5">جارٍ التحميل…</td></tr></tbody>
+</table>
+</div>
+</section>
+</main>
+</div>
 <script>
 (function () {
   'use strict';
@@ -1207,8 +1185,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
-
-<!-- ===== GPS live map (reuses /api/gps; read-only; gracefully degrades) ===== -->
+ ===== GPS live map (reuses /api/gps; read-only; gracefully degrades) ===== 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function () {
@@ -1291,64 +1268,4 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 </script>
-</body>
-</html>
-<style>
-/* =============================================
- * Deep Linking Professional CSS
- * ============================================= */
-.dashboard-card {
-    background: linear-gradient(145deg, #1a1f2e, #252b3d);
-    border-radius: 16px;
-    padding: 20px 24px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid rgba(255,255,255,0.08);
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-.dashboard-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
-    border-color: rgba(59, 130, 246, 0.4);
-}
-
-.dashboard-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.dashboard-card:hover::before {
-    opacity: 1;
-}
-
-/* ألوان حسب النوع */
-.card-drivers { border-left: 5px solid #3b82f6; }
-.card-vehicles { border-left: 5px solid #10b981; }
-.card-documents { border-left: 5px solid #f59e0b; }
-.card-alert { border-left: 5px solid #ef4444; }
-
-/* تأثير الدونات والأيقونات */
-.dashboard-card .card-icon {
-    position: absolute;
-    top: 20px;
-    left: 20px; /* modified for RTL */
-    font-size: 28px;
-    opacity: 0.15;
-    transition: all 0.3s;
-}
-
-.dashboard-card:hover .card-icon {
-    opacity: 0.3;
-    transform: scale(1.1);
-}
-</style>
+{% endblock %}

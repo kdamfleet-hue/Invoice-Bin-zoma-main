@@ -1,15 +1,12 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سجل الحركة الموحد | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}سجل الحركة الموحد | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
         /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
         .inc-intro {
             max-width: 920px; margin: -0.25rem auto 1.5rem; padding: 1rem 1.25rem;
@@ -108,168 +105,154 @@
 
         @media (max-width: 768px) { .bz-stats { grid-template-columns: repeat(2, 1fr); } .inc-toolbar select { flex: 1 1 45%; min-width: 0; } }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-        <a href="/search">🔍 بحث</a>
-        <a href="/records">📁 التوثيق</a>
-        <a href="/incidents" class="active">🚨 سجل الحركة الموحد</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-        <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
-    </header>
-
-    <datalist id="driverNames"></datalist>
-
-    <div class="bz-shell">
-
-    <!-- Modal تنبيه هام جداً - حوادث المركبات -->
-    <div class="modal fade" id="importantAccidentModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content border-4 border-danger shadow-lg" style="background: linear-gradient(135deg, #7f1d1d, #991b1b); color: #fee2e2;">
-                <div class="modal-header border-0">
-                    <h3 class="modal-title fw-bold d-flex align-items-center gap-3">
-                        <span style="font-size: 2rem;">⚠️</span>
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand"><img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a class="active" href="/incidents">🚨 سجل الحركة الموحد</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions"><button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a class="bz-logout" href="/logout">خروج</a></div>
+</header>
+<datalist id="driverNames"></datalist>
+<div class="bz-shell">
+<!-- Modal تنبيه هام جداً - حوادث المركبات -->
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="importantAccidentModal" tabindex="-1">
+<div class="modal-dialog modal-xl modal-dialog-centered">
+<div class="modal-content border-4 border-danger shadow-lg" style="background: linear-gradient(135deg, #7f1d1d, #991b1b); color: #fee2e2;">
+<div class="modal-header border-0">
+<h3 class="modal-title fw-bold d-flex align-items-center gap-3">
+<span style="font-size: 2rem;">⚠️</span>
                         توجيه إداري هام جداً
                     </h3>
-                    <button type="button" class="btn-close-white" data-bs-dismiss="modal" aria-label="Close">✖</button>
-                </div>
-                <div class="modal-body p-4">
-                    <div class="alert alert-light border-0 mb-4" style="background: rgba(255,255,255,0.15);">
-                        <strong>بخصوص حوادث المركبات (لا سمح الله)</strong>
-                    </div>
-                    <ol class="list-group list-group-numbered" style="font-size: 1.1rem; line-height: 2;">
-                        <li class="list-group-item bg-transparent border-0 text-light">يجب إرسال تقرير فوري عن أي حادث.</li>
-                        <li class="list-group-item bg-transparent border-0 text-light">إرفاق صور واضحة للسيارة والحادث من جميع الجهات.</li>
-                        <li class="list-group-item bg-transparent border-0 text-light">ذكر اسم السائق ووصف إصابات السيارة.</li>
-                        <li class="list-group-item bg-transparent border-0 text-light">شرح مفصل + تقرير كامل عن الحادث.</li>
-                        <li class="list-group-item bg-transparent border-0 text-light">توضيح نسبة الخطأ التقريبية.</li>
-                        <li class="list-group-item bg-transparent border-0 text-light">تحديد مكان الإصلاح والمدة المتوقعة وطريقة التكلفة.</li>
-                        <li class="list-group-item bg-transparent border-0 text-light">إرسال أي معلومات إضافية مهمة.</li>
-                        <li class="list-group-item bg-transparent border-0 text-light">يُرسل التقرير مباشرة إلى <strong>المدير العام</strong> + صورة إلى مسؤول السيارات والحركة.</li>
-                        <li class="list-group-item bg-transparent border-0 text-light">يجب التوقيع من المتسبب + مدير الفرع أو مسؤول الحركة.</li>
-                    </ol>
-                </div>
-                <div class="modal-footer border-0 justify-content-between">
-                    <div class="text-light">
-                        <strong>المدير العام</strong><br>
+<button aria-label="Close" class="btn-close-white" data-bs-dismiss="modal" type="button">✖</button>
+</div>
+<div class="modal-body p-4">
+<div class="alert alert-light border-0 mb-4" style="background: rgba(255,255,255,0.15);">
+<strong>بخصوص حوادث المركبات (لا سمح الله)</strong>
+</div>
+<ol class="list-group list-group-numbered" style="font-size: 1.1rem; line-height: 2;">
+<li class="list-group-item bg-transparent border-0 text-light">يجب إرسال تقرير فوري عن أي حادث.</li>
+<li class="list-group-item bg-transparent border-0 text-light">إرفاق صور واضحة للسيارة والحادث من جميع الجهات.</li>
+<li class="list-group-item bg-transparent border-0 text-light">ذكر اسم السائق ووصف إصابات السيارة.</li>
+<li class="list-group-item bg-transparent border-0 text-light">شرح مفصل + تقرير كامل عن الحادث.</li>
+<li class="list-group-item bg-transparent border-0 text-light">توضيح نسبة الخطأ التقريبية.</li>
+<li class="list-group-item bg-transparent border-0 text-light">تحديد مكان الإصلاح والمدة المتوقعة وطريقة التكلفة.</li>
+<li class="list-group-item bg-transparent border-0 text-light">إرسال أي معلومات إضافية مهمة.</li>
+<li class="list-group-item bg-transparent border-0 text-light">يُرسل التقرير مباشرة إلى <strong>المدير العام</strong> + صورة إلى مسؤول السيارات والحركة.</li>
+<li class="list-group-item bg-transparent border-0 text-light">يجب التوقيع من المتسبب + مدير الفرع أو مسؤول الحركة.</li>
+</ol>
+</div>
+<div class="modal-footer border-0 justify-content-between">
+<div class="text-light">
+<strong>المدير العام</strong><br/>
                         خالد بن زومة
                     </div>
-                    <button type="button" class="btn btn-light px-5 py-2 fw-bold" data-bs-dismiss="modal">
+<button class="btn btn-light px-5 py-2 fw-bold" data-bs-dismiss="modal" type="button">
                         فهمت وأتعهد بالالتزام
                     </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <h2 class="bz-section-title">🚨 سجل الحركة الموحد (السجل الزمني) — قسم الحركة</h2>
-
-    <div class="inc-intro">
-        <strong>سجل الحركة الموحد.</strong>
+</div>
+</div>
+</div>
+</div>
+<h2 class="bz-section-title">🚨 سجل الحركة الموحد (السجل الزمني) — قسم الحركة</h2>
+<div class="inc-intro">
+<strong>سجل الحركة الموحد.</strong>
         يوثّق كل واقعة (حادث، مخالفة مرورية أو جسيمة، إنذار، تحقيق إداري، استلام وتسليم، صيانة) برقم مرجع وتاريخ ومستوى خطورة ومسؤول وحالة إجراء —
         مع إمكانية <strong>إرفاق المستندات (PDF/صور) داخل النظام</strong> فتبقى محفوظة بشكل دائم. هذا السجل مرجعية رسمية تحمي قسم الحركة عند أي مساءلة.
     </div>
-
-    <!-- Stats -->
-    <div class="bz-stats">
-        <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي الوقائع</div></div>
-        <div class="bz-stat"><div class="num" id="statHigh" style="color:#dc2626;">0</div><div class="label">🔴 خطورة عالية</div></div>
-        <div class="bz-stat"><div class="num" id="statOpen">0</div><div class="label">مفتوحة / قيد المعالجة</div></div>
-        <div class="bz-stat"><div class="num" id="statClosed">0</div><div class="label">مغلقة</div></div>
-    </div>
-
-    <!-- Toolbar -->
-    <div class="inc-toolbar">
-        <div class="inc-search">
-            <input type="text" id="searchInput" placeholder="ابحث بالمرجع أو الاسم أو اللوحة أو النوع أو الوصف..." oninput="renderTable()">
-        </div>
-        <select id="filterType" class="inc-in" onchange="renderTable()" title="فلترة حسب النوع" style="max-width:190px;"><option value="">كل الأنواع</option></select>
-        <select id="filterSeverity" class="inc-in" onchange="renderTable()" title="فلترة حسب الخطورة" style="max-width:160px;">
-            <option value="">كل المستويات</option><option value="عالية">عالية</option><option value="متوسطة">متوسطة</option><option value="منخفضة">منخفضة</option>
-        </select>
-        <select id="filterStatus" class="inc-in" onchange="renderTable()" title="فلترة حسب الحالة" style="max-width:170px;">
-            <option value="">كل الحالات</option><option value="مفتوح">مفتوح</option><option value="قيد المعالجة">قيد المعالجة</option><option value="مغلق">مغلق</option>
-        </select>
-        <button class="btn-primary" onclick="addIncident('top')">➕ تسجيل واقعة</button>
-    </div>
-
-    <div class="inc-count" id="incCount">0 واقعة</div>
-
-    <!-- Table -->
-    <div class="card" id="incPrintArea">
-    <div class="table-wrapper">
-        <table id="incTable" class="bz-fit">
-            <colgroup>
-                <col style="width:3%"><col style="width:9%"><col style="width:8%"><col style="width:9%"><col style="width:8%">
-                <col style="width:11%"><col style="width:8%"><col style="width:8%"><col style="width:14%"><col style="width:8%">
-                <col style="width:8%"><col style="width:6%"><col style="width:8%"><col style="width:4%">
-            </colgroup>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th><span class="nb">رقم</span> <span class="nb">المرجع</span></th>
-                    <th><span class="nb">التاريخ</span></th>
-                    <th><span class="nb">نوع</span> <span class="nb">الواقعة</span></th>
-                    <th><span class="nb">مستوى</span> <span class="nb">الخطورة</span></th>
-                    <th><span class="nb">الموظف</span></th>
-                    <th><span class="nb">رقم</span> <span class="nb">الهوية</span></th>
-                    <th><span class="nb">رقم</span> <span class="nb">اللوحة</span></th>
-                    <th><span class="nb">الوصف</span></th>
-                    <th><span class="nb">حالة</span> <span class="nb">الإجراء</span></th>
-                    <th><span class="nb">المسؤول</span></th>
-                    <th><span class="nb">المرفقات</span></th>
-                    <th><span class="nb">ملاحظات</span></th>
-                    <th><span class="nb">حذف</span></th>
-                </tr>
-            </thead>
-            <tbody id="incBody"></tbody>
-        </table>
-    </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
-        <button class="btn-primary" onclick="addIncident('bottom')">➕ تسجيل واقعة في الأسفل</button>
-        <button class="btn-submit-gold" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
-        <button class="btn-submit-orange" onclick="shareIncidents()">📤 مشاركة / تصدير</button>
-        <button class="btn-outline" onclick="saveState(true)">💾 حفظ يدوي</button>
-    </div>
-
-    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">سجل الحوادث والمخالفات — قسم الحركة، فرع الدمام</footer>
-
-    <!-- Attachments modal -->
-    <div class="modal-backdrop" id="attModal">
-        <div class="modal-content-custom" style="max-width:620px;text-align:right;">
-            <h2 class="bz-section-title" style="margin-top:0;">📎 مرفقات الواقعة <span id="attRefLabel" style="font-size:.85rem;color:var(--text-muted);font-weight:600;"></span></h2>
-            <div id="attList" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;"></div>
-            <label class="btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+<!-- Stats -->
+<div class="bz-stats">
+<div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي الوقائع</div></div>
+<div class="bz-stat"><div class="num" id="statHigh" style="color:#dc2626;">0</div><div class="label">🔴 خطورة عالية</div></div>
+<div class="bz-stat"><div class="num" id="statOpen">0</div><div class="label">مفتوحة / قيد المعالجة</div></div>
+<div class="bz-stat"><div class="num" id="statClosed">0</div><div class="label">مغلقة</div></div>
+</div>
+<!-- Toolbar -->
+<div class="inc-toolbar">
+<div class="inc-search">
+<input id="searchInput" oninput="renderTable()" placeholder="ابحث بالمرجع أو الاسم أو اللوحة أو النوع أو الوصف..." type="text"/>
+</div>
+<select class="inc-in" id="filterType" onchange="renderTable()" style="max-width:190px;" title="فلترة حسب النوع"><option value="">كل الأنواع</option></select>
+<select class="inc-in" id="filterSeverity" onchange="renderTable()" style="max-width:160px;" title="فلترة حسب الخطورة">
+<option value="">كل المستويات</option><option value="عالية">عالية</option><option value="متوسطة">متوسطة</option><option value="منخفضة">منخفضة</option>
+</select>
+<select class="inc-in" id="filterStatus" onchange="renderTable()" style="max-width:170px;" title="فلترة حسب الحالة">
+<option value="">كل الحالات</option><option value="مفتوح">مفتوح</option><option value="قيد المعالجة">قيد المعالجة</option><option value="مغلق">مغلق</option>
+</select>
+<button class="btn-primary" onclick="addIncident('top')">➕ تسجيل واقعة</button>
+</div>
+<div class="inc-count" id="incCount">0 واقعة</div>
+<!-- Table -->
+<div class="card" id="incPrintArea">
+<div class="table-wrapper">
+<table class="bz-fit" id="incTable">
+<colgroup>
+<col style="width:3%"/><col style="width:9%"/><col style="width:8%"/><col style="width:9%"/><col style="width:8%"/>
+<col style="width:11%"/><col style="width:8%"/><col style="width:8%"/><col style="width:14%"/><col style="width:8%"/>
+<col style="width:8%"/><col style="width:6%"/><col style="width:8%"/><col style="width:4%"/>
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th><span class="nb">رقم</span> <span class="nb">المرجع</span></th>
+<th><span class="nb">التاريخ</span></th>
+<th><span class="nb">نوع</span> <span class="nb">الواقعة</span></th>
+<th><span class="nb">مستوى</span> <span class="nb">الخطورة</span></th>
+<th><span class="nb">الموظف</span></th>
+<th><span class="nb">رقم</span> <span class="nb">الهوية</span></th>
+<th><span class="nb">رقم</span> <span class="nb">اللوحة</span></th>
+<th><span class="nb">الوصف</span></th>
+<th><span class="nb">حالة</span> <span class="nb">الإجراء</span></th>
+<th><span class="nb">المسؤول</span></th>
+<th><span class="nb">المرفقات</span></th>
+<th><span class="nb">ملاحظات</span></th>
+<th><span class="nb">حذف</span></th>
+</tr>
+</thead>
+<tbody id="incBody"></tbody>
+</table>
+</div>
+</div>
+<!-- Actions -->
+<div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+<button class="btn-primary" onclick="addIncident('bottom')">➕ تسجيل واقعة في الأسفل</button>
+<button class="btn-submit-gold" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+<button class="btn-submit-orange" onclick="shareIncidents()">📤 مشاركة / تصدير</button>
+<button class="btn-outline" onclick="saveState(true)">💾 حفظ يدوي</button>
+</div>
+<footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">سجل الحوادث والمخالفات — قسم الحركة، فرع الدمام</footer>
+<!-- Attachments modal -->
+<div class="modal-backdrop" id="attModal">
+<div class="modal-content-custom" style="max-width:620px;text-align:right;">
+<h2 class="bz-section-title" style="margin-top:0;">📎 مرفقات الواقعة <span id="attRefLabel" style="font-size:.85rem;color:var(--text-muted);font-weight:600;"></span></h2>
+<div id="attList" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;"></div>
+<label class="btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
                 ➕ إضافة ملف (PDF / صورة)
-                <input type="file" id="attInput" accept="image/*,application/pdf" multiple style="display:none;" onchange="onAttUpload(event)">
-            </label>
-            <div style="margin-top:.6rem;font-size:.8rem;color:var(--text-muted);line-height:1.7;">
+                <input accept="image/*,application/pdf" id="attInput" multiple="" onchange="onAttUpload(event)" style="display:none;" type="file"/>
+</label>
+<div style="margin-top:.6rem;font-size:.8rem;color:var(--text-muted);line-height:1.7;">
                 الحد: <strong>2MB لكل ملف</strong>، حتى <strong>6 ملفات</strong> للواقعة. تُحفظ المرفقات <strong>داخل قاعدة البيانات</strong> فتبقى دائمة على الاستضافة.
             </div>
-            <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.25rem;">
-                <button class="btn-primary" onclick="closeCustomModal('attModal')">تم ✅</button>
-            </div>
-        </div>
-    </div>
-
-    </div><!-- /bz-shell -->
-
+<div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.25rem;">
+<button class="btn-primary" onclick="closeCustomModal('attModal')">تم ✅</button>
+</div>
+</div>
+</div>
+</div> /bz-shell 
 <script>
     // ===== Column model (text columns; attachments handled separately) =====
     const COLS = [
@@ -727,5 +710,4 @@
         }
     });
 </script>
-</body>
-</html>
+{% endblock %}

@@ -1,13 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>الكاميرات | شركة بن زومة</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-  <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-  <style>
+{% extends 'base.html' %}
+
+{% block title %}الكاميرات | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
     .cam-toolbar { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin:1rem 0; }
     .cam-toolbar .url-field { flex:1; min-width:240px; }
     .cam-frame-wrap {
@@ -27,64 +24,57 @@
     }
     .cam-note b { color:var(--text-primary); }
   </style>
-</head>
-<body data-cameras-url="{{ cameras_url or '' }}">
+{% endblock %}
 
-  <header class="bz-topbar">
-    <div class="bz-brand">
-      <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-      <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-    </div>
-    <nav class="bz-nav">
-      <a href="/">🏠 الرئيسية</a>
-      <a href="/purchase">🛒 طلب شراء</a>
-      <a href="/schedule">📋 الجدول الأسبوعي</a>
-      <a href="/oils">🛢️ الزيوت والفلاتر</a>
-      <a href="/washing">🚿 الغسيل</a>
-      <a href="/workshop">🔧 الورشة</a>
-      <a href="/employees">👥 الموظفين</a>
-      <a href="/search">🔍 بحث</a>
-      <a href="/records">📁 التوثيق</a>
-      <a href="/gps_sync">📡 مزامنة GPS</a>
-      <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras" class="active">📹 الكاميرات</a>
-    </nav>
-    <div class="bz-actions">
-      <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-      <a href="/logout" class="bz-logout">خروج</a>
-    </div>
-  </header>
-
-  <div class="bz-shell">
-    <h2 class="bz-section-title">📹 الكاميرات المباشرة — Hik-Connect</h2>
-
-    <div class="cam-note">
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a class="active" href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">📹 الكاميرات المباشرة — Hik-Connect</h2>
+<div class="cam-note">
       تُعرض كاميرات <b>Hik-Connect</b> داخل النظام عبر إطار مضمّن. إذا ظهرت المنطقة فارغة، فهذا يعني أن
       Hik-Connect يمنع التضمين لأسباب أمنية — استخدم زر <b>«فتح في نافذة جديدة»</b>. يمكنك لصق رابط البوابة أو
       رابط المشاركة الخاص بك في الحقل أدناه (يُحفظ على متصفحك)، أو ضبطه على الخادم عبر المتغيّر <b>CAMERAS_URL</b>.
     </div>
-
-    <div class="cam-toolbar">
-      <div class="url-field"><input type="url" id="camUrl" placeholder="https://www.hik-connect.com  (الصق رابط Hik-Connect هنا)"></div>
-      <button class="btn-primary" onclick="loadCameras()">▶️ عرض</button>
-      <button class="btn-submit-gold" onclick="openCamerasTab()">↗️ فتح في نافذة جديدة</button>
-      <button class="btn-outline" onclick="reloadFrame()">↻ تحديث</button>
-    </div>
-
-    <div class="cam-frame-wrap">
-      <iframe id="camFrame" allow="fullscreen; camera; microphone; autoplay; encrypted-media"
-              allowfullscreen referrerpolicy="no-referrer-when-downgrade"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-presentation"></iframe>
-      <div class="cam-fallback" id="camFallback">
-        <div class="ico">📹</div>
-        <h3 style="margin:0;color:var(--text-primary);">جاهز لعرض الكاميرات</h3>
-        <p style="margin:0;max-width:520px;">الصق رابط Hik-Connect ثم اضغط «عرض». إذا منع الموقع التضمين، اضغط «فتح في نافذة جديدة» لعرض الكاميرات في صفحة مستقلة.</p>
-        <button class="btn-primary" onclick="openCamerasTab()">↗️ فتح Hik-Connect في نافذة جديدة</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
+<div class="cam-toolbar">
+<div class="url-field"><input id="camUrl" placeholder="https://www.hik-connect.com  (الصق رابط Hik-Connect هنا)" type="url"/></div>
+<button class="btn-primary" onclick="loadCameras()">▶️ عرض</button>
+<button class="btn-submit-gold" onclick="openCamerasTab()">↗️ فتح في نافذة جديدة</button>
+<button class="btn-outline" onclick="reloadFrame()">↻ تحديث</button>
+</div>
+<div class="cam-frame-wrap">
+<iframe allow="fullscreen; camera; microphone; autoplay; encrypted-media" allowfullscreen="" id="camFrame" referrerpolicy="no-referrer-when-downgrade" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-presentation"></iframe>
+<div class="cam-fallback" id="camFallback">
+<div class="ico">📹</div>
+<h3 style="margin:0;color:var(--text-primary);">جاهز لعرض الكاميرات</h3>
+<p style="margin:0;max-width:520px;">الصق رابط Hik-Connect ثم اضغط «عرض». إذا منع الموقع التضمين، اضغط «فتح في نافذة جديدة» لعرض الكاميرات في صفحة مستقلة.</p>
+<button class="btn-primary" onclick="openCamerasTab()">↗️ فتح Hik-Connect في نافذة جديدة</button>
+</div>
+</div>
+</div>
+<script>
     const LS_CAM = 'bz_cameras_url';
     const DEFAULT_URL = 'https://www.hik-connect.com';
 
@@ -141,5 +131,4 @@
       window.open(u, '_blank', 'noopener');
     }
   </script>
-</body>
-</html>
+{% endblock %}

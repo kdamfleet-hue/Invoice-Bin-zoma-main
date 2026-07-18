@@ -1,13 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة بن زومة | إدارة الأسطول</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}منصة بن زومة | إدارة الأسطول{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         .pf-hero { position: relative; overflow: hidden; max-width: 1300px; margin: -.25rem auto 1.5rem; padding: 2rem 2rem; border: 1px solid rgba(197,160,89,.3); border-radius: 20px; background: linear-gradient(135deg, #161616 0%, #0e0e0e 60%, #0c1730 130%); box-shadow: 0 18px 50px rgba(0,0,0,.4); }
         .pf-hero h1 { margin: 0; font-size: 1.7rem; font-weight: 800; color: #fff; letter-spacing: .3px; }
         .pf-hero .tag { color: var(--brand-gold-soft, #e0c489); font-weight: 700; font-size: .92rem; margin-top: 8px; max-width: 760px; line-height: 1.9; }
@@ -29,74 +26,66 @@
         .pf-note { max-width: 1300px; margin: 1.6rem auto 1rem; padding: 1rem 1.25rem; border: 1px solid var(--border); border-right: 4px solid var(--accent, #c5a059); border-radius: 12px; background: var(--surface); color: var(--text-secondary); font-size: .86rem; line-height: 1.9; }
         .pf-note strong { color: var(--text-primary); }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-        <a href="/records">📁 التوثيق</a>
-        <a href="/tracking">🛰️ التتبع</a>
-        <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
-    </header>
-
-    <div class="bz-shell">
-      <h2 class="bz-section-title">🚀 منصة بن زومة لإدارة الأسطول</h2>
-
-      <div class="pf-hero">
-        <h1>مركز قيادة الأسطول — Fleet Command Center</h1>
-        <div class="tag">منصة موحّدة تجمع إدارة المركبات والسائقين، التتبع اللحظي GPS، الصيانة والورشة، الحوادث والتوثيق، والتحليلات الذكية في مكان واحد — كل ذلك ببيانات <b id="pfBranch">فرعك</b> الحقيقية.</div>
-        <div class="chips" id="pfChips">
-          <div class="pf-chip"><b id="cVehicles">—</b><span>مركبات</span></div>
-          <div class="pf-chip"><b id="cDrivers">—</b><span>سائقون</span></div>
-          <div class="pf-chip"><b id="cHealth">—</b><span>مؤشر الصحة</span></div>
-          <div class="pf-chip"><b id="cAlerts">—</b><span>تنبيهات وثائق</span></div>
-        </div>
-      </div>
-
-      <div class="pf-sec-title">🚛 إدارة الأسطول</div>
-      <div class="pf-grid">
-        <a class="pf-card" href="/schedule"><div class="pf-ic">📋</div><h4>الجدول الأسبوعي</h4><p>توزيع المركبات والسائقين أسبوعياً مع تواريخ الوثائق والفحص.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/employees"><div class="pf-ic">👥</div><h4>الموظفون والسائقون</h4><p>سجل الموظفين والسائقين، الهويات، الأرقام الوظيفية والمركبات المُسندة.</p><div class="pf-meta"><span class="pf-count" id="mEmployees">—</span><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/handover"><div class="pf-ic">🚗</div><h4>تسليم واستلام مركبة</h4><p>نماذج موقّعة لتسليم/استلام المركبات مع إرسالها بالبريد تلقائياً.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/purchase"><div class="pf-ic">🛒</div><h4>طلبات الشراء والإصلاح</h4><p>إنشاء وإرسال طلبات الشراء وأوامر الإصلاح كملفات رسمية.</p><div class="pf-meta"><span class="pf-count" id="mPurchase">—</span><span class="pf-go">فتح ←</span></div></a>
-      </div>
-
-      <div class="pf-sec-title">🛰️ التتبع GPS</div>
-      <div class="pf-grid">
-        <a class="pf-card" href="/tracking"><div class="pf-ic">🛰️</div><h4>التتبع اللحظي</h4><p>متابعة مواقع وحركة المركبات على الخريطة لحظياً.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/gps_dashboard"><div class="pf-ic">📡</div><h4>لوحة GPS</h4><p>نظرة شاملة على أجهزة التتبع وحالتها وأداء الأسطول.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/gps_devices"><div class="pf-ic">🔌</div><h4>أجهزة التتبع</h4><p>سجل أجهزة GPS المركّبة وربطها بالمركبات.</p><div class="pf-meta"><span class="pf-count" id="mGps">—</span><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/cameras"><div class="pf-ic">📹</div><h4>الكاميرات</h4><p>مراقبة كاميرات المركبات والمواقع.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
-      </div>
-
-      <div class="pf-sec-title">🔧 الصيانة والعمليات</div>
-      <div class="pf-grid">
-        <a class="pf-card" href="/workshop"><div class="pf-ic">🔧</div><h4>الورشة</h4><p>متابعة أعمال الصيانة الوقائية والتصحيحية وقطع الغيار.</p><div class="pf-meta"><span class="pf-count" id="mWorkshop">—</span><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/oils"><div class="pf-ic">🛢️</div><h4>الزيوت والفلاتر</h4><p>سجل استهلاك الزيوت والفلاتر لكل مركبة.</p><div class="pf-meta"><span class="pf-count" id="mOils">—</span><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/washing"><div class="pf-ic">🚿</div><h4>الغسيل</h4><p>جدولة ومتابعة غسيل مركبات الأسطول.</p><div class="pf-meta"><span class="pf-count" id="mWashing">—</span><span class="pf-go">فتح ←</span></div></a>
-      </div>
-
-      <div class="pf-sec-title">🚨 السلامة والتوثيق والتحليلات</div>
-      <div class="pf-grid">
-        <a class="pf-card" href="/incidents"><div class="pf-badge" id="mIncOpen" style="display:none"></div><div class="pf-ic">🚨</div><h4>الحوادث والمخالفات</h4><p>توثيق الحوادث والمخالفات والمرفقات بمرجعية قانونية.</p><div class="pf-meta"><span class="pf-count" id="mIncidents">—</span><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/records"><div class="pf-ic">📁</div><h4>التوثيق والسجلات</h4><p>سجل إداري مؤرّخ لكل واقعة تخص الأسطول.</p><div class="pf-meta"><span class="pf-count" id="mRecords">—</span><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/insights"><div class="pf-ic">🧠</div><h4>التحليلات الذكية</h4><p>مؤشرات صحة الأسطول ومخاطر الوثائق محسوبة من بياناتك الحقيقية.</p><div class="pf-meta"><span class="pf-count" id="mHealth">—</span><span class="pf-go">فتح ←</span></div></a>
-        <a class="pf-card" href="/dashboard"><div class="pf-ic">📊</div><h4>اللوحة التنفيذية</h4><p>نظرة تنفيذية شاملة على مؤشرات الأداء والوثائق.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
-      </div>
-
-      <div class="pf-note">
-        <strong>كل الوحدات أعلاه مُفعّلة وتعمل ببيانات فرعك الحقيقية.</strong>
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand"><img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions"><button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a class="bz-logout" href="/logout">خروج</a></div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">🚀 منصة بن زومة لإدارة الأسطول</h2>
+<div class="pf-hero">
+<h1>مركز قيادة الأسطول — Fleet Command Center</h1>
+<div class="tag">منصة موحّدة تجمع إدارة المركبات والسائقين، التتبع اللحظي GPS، الصيانة والورشة، الحوادث والتوثيق، والتحليلات الذكية في مكان واحد — كل ذلك ببيانات <b id="pfBranch">فرعك</b> الحقيقية.</div>
+<div class="chips" id="pfChips">
+<div class="pf-chip"><b id="cVehicles">—</b><span>مركبات</span></div>
+<div class="pf-chip"><b id="cDrivers">—</b><span>سائقون</span></div>
+<div class="pf-chip"><b id="cHealth">—</b><span>مؤشر الصحة</span></div>
+<div class="pf-chip"><b id="cAlerts">—</b><span>تنبيهات وثائق</span></div>
+</div>
+</div>
+<div class="pf-sec-title">🚛 إدارة الأسطول</div>
+<div class="pf-grid">
+<a class="pf-card" href="/schedule"><div class="pf-ic">📋</div><h4>الجدول الأسبوعي</h4><p>توزيع المركبات والسائقين أسبوعياً مع تواريخ الوثائق والفحص.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/employees"><div class="pf-ic">👥</div><h4>الموظفون والسائقون</h4><p>سجل الموظفين والسائقين، الهويات، الأرقام الوظيفية والمركبات المُسندة.</p><div class="pf-meta"><span class="pf-count" id="mEmployees">—</span><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/handover"><div class="pf-ic">🚗</div><h4>تسليم واستلام مركبة</h4><p>نماذج موقّعة لتسليم/استلام المركبات مع إرسالها بالبريد تلقائياً.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/purchase"><div class="pf-ic">🛒</div><h4>طلبات الشراء والإصلاح</h4><p>إنشاء وإرسال طلبات الشراء وأوامر الإصلاح كملفات رسمية.</p><div class="pf-meta"><span class="pf-count" id="mPurchase">—</span><span class="pf-go">فتح ←</span></div></a>
+</div>
+<div class="pf-sec-title">🛰️ التتبع GPS</div>
+<div class="pf-grid">
+<a class="pf-card" href="/tracking"><div class="pf-ic">🛰️</div><h4>التتبع اللحظي</h4><p>متابعة مواقع وحركة المركبات على الخريطة لحظياً.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/gps_dashboard"><div class="pf-ic">📡</div><h4>لوحة GPS</h4><p>نظرة شاملة على أجهزة التتبع وحالتها وأداء الأسطول.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/gps_devices"><div class="pf-ic">🔌</div><h4>أجهزة التتبع</h4><p>سجل أجهزة GPS المركّبة وربطها بالمركبات.</p><div class="pf-meta"><span class="pf-count" id="mGps">—</span><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/cameras"><div class="pf-ic">📹</div><h4>الكاميرات</h4><p>مراقبة كاميرات المركبات والمواقع.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+</div>
+<div class="pf-sec-title">🔧 الصيانة والعمليات</div>
+<div class="pf-grid">
+<a class="pf-card" href="/workshop"><div class="pf-ic">🔧</div><h4>الورشة</h4><p>متابعة أعمال الصيانة الوقائية والتصحيحية وقطع الغيار.</p><div class="pf-meta"><span class="pf-count" id="mWorkshop">—</span><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/oils"><div class="pf-ic">🛢️</div><h4>الزيوت والفلاتر</h4><p>سجل استهلاك الزيوت والفلاتر لكل مركبة.</p><div class="pf-meta"><span class="pf-count" id="mOils">—</span><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/washing"><div class="pf-ic">🚿</div><h4>الغسيل</h4><p>جدولة ومتابعة غسيل مركبات الأسطول.</p><div class="pf-meta"><span class="pf-count" id="mWashing">—</span><span class="pf-go">فتح ←</span></div></a>
+</div>
+<div class="pf-sec-title">🚨 السلامة والتوثيق والتحليلات</div>
+<div class="pf-grid">
+<a class="pf-card" href="/incidents"><div class="pf-badge" id="mIncOpen" style="display:none"></div><div class="pf-ic">🚨</div><h4>الحوادث والمخالفات</h4><p>توثيق الحوادث والمخالفات والمرفقات بمرجعية قانونية.</p><div class="pf-meta"><span class="pf-count" id="mIncidents">—</span><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/records"><div class="pf-ic">📁</div><h4>التوثيق والسجلات</h4><p>سجل إداري مؤرّخ لكل واقعة تخص الأسطول.</p><div class="pf-meta"><span class="pf-count" id="mRecords">—</span><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/insights"><div class="pf-ic">🧠</div><h4>التحليلات الذكية</h4><p>مؤشرات صحة الأسطول ومخاطر الوثائق محسوبة من بياناتك الحقيقية.</p><div class="pf-meta"><span class="pf-count" id="mHealth">—</span><span class="pf-go">فتح ←</span></div></a>
+<a class="pf-card" href="/dashboard"><div class="pf-ic">📊</div><h4>اللوحة التنفيذية</h4><p>نظرة تنفيذية شاملة على مؤشرات الأداء والوثائق.</p><div class="pf-meta"><span class="pf-go">فتح ←</span></div></a>
+</div>
+<div class="pf-note">
+<strong>كل الوحدات أعلاه مُفعّلة وتعمل ببيانات فرعك الحقيقية.</strong>
         الأرقام تُحدَّث مباشرةً من قاعدة البيانات. لا توجد هنا وحدات وهمية أو بيانات تجريبية — ما تراه هو ما يحتويه النظام فعلاً. لإرسال أي تقرير بالبريد استخدم زر <b>📤</b> في أي تبويب.
       </div>
-    </div>
-
+</div>
 <script>
 (function () {
   'use strict';
@@ -118,6 +107,4 @@
     .catch(function () {});
 })();
 </script>
-
-</body>
-</html>
+{% endblock %}

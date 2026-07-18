@@ -1,15 +1,12 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تموين المحروقات | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}تموين المحروقات | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
         /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
         .fuel-table-wrap { overflow-x: auto; }
         #fuelTable { border-collapse: collapse; width: 100%; table-layout: auto; }
@@ -41,95 +38,85 @@
         .search-bar input { width: 100%; padding: 12px 20px; border-radius: 50px; font-size: 1rem; }
         @media (max-width: 768px) { .bz-stats { grid-template-columns: repeat(2, 1fr); } }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/fuel" class="active">⛽ تموين المحروقات</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-    <a href="/search">🔍 بحث</a>
-    <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
-
-    <datalist id="fuelDriversList"></datalist>
-    <datalist id="fuelPlatesList"></datalist>
-
-    <div class="bz-shell">
-
-    <h2 class="bz-section-title">⛽ تموين المحروقات — فرع الدمام</h2>
-    <p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">سجل تعبئة الديزل/الوقود لكل مركبة — المصروفات، الكمية، المسافة، والاستهلاك</p>
-
-    <div class="bz-stats">
-        <div class="bz-stat"><div class="num" id="statFills">0</div><div class="label">عمليات التموين</div></div>
-        <div class="bz-stat"><div class="num" id="statLiters">0</div><div class="label">إجمالي اللترات</div></div>
-        <div class="bz-stat"><div class="num" id="statCost">0</div><div class="label">إجمالي المصروفات (ر.س)</div></div>
-        <div class="bz-stat"><div class="num" id="statAvgConsumption">—</div><div class="label">متوسط الاستهلاك (ل/١٠٠كم)</div></div>
-    </div>
-
-    <div class="search-bar">
-        <input type="text" id="fuelSearch" placeholder="ابحث بالاسم أو رقم اللوحة..." oninput="renderFuelTable()">
-    </div>
-
-    <div class="card" id="fuelPrintArea">
-    <div class="table-wrapper fuel-table-wrap">
-        <table id="fuelTable" class="bz-fit">
-            <colgroup>
-                <col style="width:3%"><col style="width:8%"><col style="width:9%"><col style="width:11%">
-                <col style="width:9%"><col style="width:8%"><col style="width:8%"><col style="width:8%">
-                <col style="width:7%"><col style="width:9%"><col style="width:8%"><col style="width:9%"><col style="width:3%">
-            </colgroup>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>التاريخ</th>
-                    <th>رقم اللوحة</th>
-                    <th>اسم السائق</th>
-                    <th>نوع المركبة</th>
-                    <th>قراءة سابقة (كم)</th>
-                    <th>قراءة حالية (كم)</th>
-                    <th>المسافة المقطوعة (كم)</th>
-                    <th>كمية الصرف (لتر)</th>
-                    <th>استهلاك الوقود (ل/١٠٠كم)</th>
-                    <th>المصروفات (ر.س)</th>
-                    <th>ملاحظات</th>
-                    <th class="pdf-exclude">حذف</th>
-                </tr>
-            </thead>
-            <tbody id="fuelBody"></tbody>
-        </table>
-    </div>
-    </div>
-
-    <div class="actions-bar pdf-exclude" style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
-        <button class="btn-primary" onclick="addFuelRow()">➕ إضافة عملية تموين</button>
-        <button class="btn-submit-gold" onclick="exportFuelExcel()">📥 تصدير Excel</button>
-        <button class="btn-submit-orange" onclick="shareFuel()">📤 مشاركة / تصدير</button>
-        <button class="btn-primary" onclick="saveFuelState()">💾 حفظ التغييرات</button>
-    </div>
-
-    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة — فرع الدمام</footer>
-
-    </div><!-- /bz-shell -->
-
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a class="active" href="/fuel">⛽ تموين المحروقات</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<datalist id="fuelDriversList"></datalist>
+<datalist id="fuelPlatesList"></datalist>
+<div class="bz-shell">
+<h2 class="bz-section-title">⛽ تموين المحروقات — فرع الدمام</h2>
+<p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">سجل تعبئة الديزل/الوقود لكل مركبة — المصروفات، الكمية، المسافة، والاستهلاك</p>
+<div class="bz-stats">
+<div class="bz-stat"><div class="num" id="statFills">0</div><div class="label">عمليات التموين</div></div>
+<div class="bz-stat"><div class="num" id="statLiters">0</div><div class="label">إجمالي اللترات</div></div>
+<div class="bz-stat"><div class="num" id="statCost">0</div><div class="label">إجمالي المصروفات (ر.س)</div></div>
+<div class="bz-stat"><div class="num" id="statAvgConsumption">—</div><div class="label">متوسط الاستهلاك (ل/١٠٠كم)</div></div>
+</div>
+<div class="search-bar">
+<input id="fuelSearch" oninput="renderFuelTable()" placeholder="ابحث بالاسم أو رقم اللوحة..." type="text"/>
+</div>
+<div class="card" id="fuelPrintArea">
+<div class="table-wrapper fuel-table-wrap">
+<table class="bz-fit" id="fuelTable">
+<colgroup>
+<col style="width:3%"/><col style="width:8%"/><col style="width:9%"/><col style="width:11%"/>
+<col style="width:9%"/><col style="width:8%"/><col style="width:8%"/><col style="width:8%"/>
+<col style="width:7%"/><col style="width:9%"/><col style="width:8%"/><col style="width:9%"/><col style="width:3%"/>
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>التاريخ</th>
+<th>رقم اللوحة</th>
+<th>اسم السائق</th>
+<th>نوع المركبة</th>
+<th>قراءة سابقة (كم)</th>
+<th>قراءة حالية (كم)</th>
+<th>المسافة المقطوعة (كم)</th>
+<th>كمية الصرف (لتر)</th>
+<th>استهلاك الوقود (ل/١٠٠كم)</th>
+<th>المصروفات (ر.س)</th>
+<th>ملاحظات</th>
+<th class="pdf-exclude">حذف</th>
+</tr>
+</thead>
+<tbody id="fuelBody"></tbody>
+</table>
+</div>
+</div>
+<div class="actions-bar pdf-exclude" style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+<button class="btn-primary" onclick="addFuelRow()">➕ إضافة عملية تموين</button>
+<button class="btn-submit-gold" onclick="exportFuelExcel()">📥 تصدير Excel</button>
+<button class="btn-submit-orange" onclick="shareFuel()">📤 مشاركة / تصدير</button>
+<button class="btn-primary" onclick="saveFuelState()">💾 حفظ التغييرات</button>
+</div>
+<footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة — فرع الدمام</footer>
+</div> /bz-shell 
 <script>
     let fuelEntries = [];
     const FUEL_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
@@ -365,6 +352,4 @@
 
     document.addEventListener('DOMContentLoaded', init);
 </script>
-
-</body>
-</html>
+{% endblock %}

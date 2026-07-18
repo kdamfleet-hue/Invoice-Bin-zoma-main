@@ -1,15 +1,12 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>التوثيق والسجلات | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}التوثيق والسجلات | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
         /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
         .rec-intro {
             max-width: 920px; margin: -0.25rem auto 1.5rem; padding: 1rem 1.25rem;
@@ -87,172 +84,154 @@
             .rec-toolbar select { flex: 1 1 45%; min-width: 0; }
         }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-        <a href="/search">🔍 بحث</a>
-        <a href="/records" class="active">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
-    </header>
-
-    <datalist id="driverNames"></datalist>
-
-    <div class="bz-shell">
-
-    <h2 class="bz-section-title">📁 التوثيق والسجلات — قسم الحركة</h2>
-
-    <div class="rec-intro">
-        <strong>سجل توثيق إداري دقيق.</strong>
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand"><img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a class="active" href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions"><button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a class="bz-logout" href="/logout">خروج</a></div>
+</header>
+<datalist id="driverNames"></datalist>
+<div class="bz-shell">
+<h2 class="bz-section-title">📁 التوثيق والسجلات — قسم الحركة</h2>
+<div class="rec-intro">
+<strong>سجل توثيق إداري دقيق.</strong>
         يُوثّق هذا السجل كل واقعة تتعلق بالأسطول (حوادث، مخالفات مرورية، تسليم واستلام المركبات، صيانة، إنذارات، تحقيقات إدارية) بتاريخها ومرجعها وحالتها.
         التوثيق الدقيق والمؤرّخ يُشكّل <strong>مرجعية قانونية</strong> تحمي حقوق قسم الحركة ومسؤول الحركة، وتُثبت سلامة الإجراءات عند أي نزاع أو مساءلة.
         احرص على إرفاق رقم المرجع ورفع المستند الرسمي (صورة/PDF) داخل النظام كلما توفّر، وعلى تحديث الحالة حتى الإغلاق.
     </div>
-
-    <!-- Stats -->
-    <div class="bz-stats">
-        <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي السجلات</div></div>
-        <div class="bz-stat"><div class="num" id="statOpen">0</div><div class="label">مفتوحة</div></div>
-        <div class="bz-stat"><div class="num" id="statFollow">0</div><div class="label">قيد المتابعة</div></div>
-        <div class="bz-stat"><div class="num" id="statClosed">0</div><div class="label">مغلقة</div></div>
-    </div>
-
-    <!-- Toolbar: search + filters + add -->
-    <div class="rec-toolbar">
-        <div class="rec-search">
-            <input type="text" id="searchInput" placeholder="ابحث بالاسم أو اللوحة أو الموضوع أو النوع أو التفاصيل..." oninput="renderTable()">
-        </div>
-        <select id="filterType" class="rec-in" onchange="renderTable()" title="فلترة حسب النوع" style="max-width:200px;">
-            <option value="">كل الأنواع</option>
-        </select>
-        <select id="filterStatus" class="rec-in" onchange="renderTable()" title="فلترة حسب الحالة" style="max-width:180px;">
-            <option value="">كل الحالات</option>
-            <option value="مفتوح">مفتوح</option>
-            <option value="قيد المتابعة">قيد المتابعة</option>
-            <option value="مغلق">مغلق</option>
-        </select>
-        <button class="btn-primary" onclick="addRecord('top')">➕ إضافة سجل</button>
-        <button class="btn-outline" onclick="openCustomModal('recHelpModal')" title="شرح فائدة هذا التبويب">❓ ما فائدة هذا التبويب؟</button>
-    </div>
-
-    <div class="rec-count" id="recCount">0 سجل</div>
-
-    <!-- Table -->
-    <div class="card" id="recPrintArea">
-    <div class="table-wrapper">
-        <table id="recTable" class="bz-fit">
-            <colgroup>
-                <col style="width:3%">
-                <col style="width:8%">
-                <col style="width:9%">
-                <col style="width:11%">
-                <col style="width:8%">
-                <col style="width:8%">
-                <col style="width:11%">
-                <col style="width:15%">
-                <col style="width:7%">
-                <col style="width:8%">
-                <col style="width:9%">
-                <col style="width:9%">
-                <col style="width:4%">
-            </colgroup>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>التاريخ</th>
-                    <th>نوع التوثيق</th>
-                    <th>اسم السائق/الموظف</th>
-                    <th>رقم الإقامة</th>
-                    <th>رقم اللوحة</th>
-                    <th>الموضوع</th>
-                    <th>التفاصيل</th>
-                    <th>رقم المرجع</th>
-                    <th>الحالة</th>
-                    <th>المستند / المرفقات</th>
-                    <th>ملاحظات</th>
-                    <th>حذف</th>
-                </tr>
-            </thead>
-            <tbody id="recBody"></tbody>
-        </table>
-    </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
-        <button class="btn-primary" onclick="addRecord('bottom')">➕ إضافة سجل في الأسفل</button>
-        <button class="btn-submit-gold" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
-        <button class="btn-submit-orange" onclick="shareRecords()">📤 مشاركة / تصدير</button>
-        <button class="btn-outline" onclick="saveState(true)">💾 حفظ يدوي</button>
-    </div>
-
-    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">سجل التوثيق — قسم الحركة، فرع الدمام</footer>
-
-    <!-- Help modal: what is this tab for + document link guidance -->
-    <div class="modal-backdrop" id="recHelpModal">
-        <div class="modal-content-custom" style="max-width:640px;text-align:right;">
-            <h2 class="bz-section-title" style="margin-top:0;">❓ ما فائدة تبويب «التوثيق والسجلات»؟</h2>
-
-            <div style="line-height:1.95;color:var(--text-secondary);font-size:0.95rem;">
-                <p style="margin:0 0 0.5rem;"><strong style="color:var(--text-primary);">١) مرجعية قانونية تحمي مسؤول الحركة:</strong>
+<!-- Stats -->
+<div class="bz-stats">
+<div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي السجلات</div></div>
+<div class="bz-stat"><div class="num" id="statOpen">0</div><div class="label">مفتوحة</div></div>
+<div class="bz-stat"><div class="num" id="statFollow">0</div><div class="label">قيد المتابعة</div></div>
+<div class="bz-stat"><div class="num" id="statClosed">0</div><div class="label">مغلقة</div></div>
+</div>
+<!-- Toolbar: search + filters + add -->
+<div class="rec-toolbar">
+<div class="rec-search">
+<input id="searchInput" oninput="renderTable()" placeholder="ابحث بالاسم أو اللوحة أو الموضوع أو النوع أو التفاصيل..." type="text"/>
+</div>
+<select class="rec-in" id="filterType" onchange="renderTable()" style="max-width:200px;" title="فلترة حسب النوع">
+<option value="">كل الأنواع</option>
+</select>
+<select class="rec-in" id="filterStatus" onchange="renderTable()" style="max-width:180px;" title="فلترة حسب الحالة">
+<option value="">كل الحالات</option>
+<option value="مفتوح">مفتوح</option>
+<option value="قيد المتابعة">قيد المتابعة</option>
+<option value="مغلق">مغلق</option>
+</select>
+<button class="btn-primary" onclick="addRecord('top')">➕ إضافة سجل</button>
+<button class="btn-outline" onclick="openCustomModal('recHelpModal')" title="شرح فائدة هذا التبويب">❓ ما فائدة هذا التبويب؟</button>
+</div>
+<div class="rec-count" id="recCount">0 سجل</div>
+<!-- Table -->
+<div class="card" id="recPrintArea">
+<div class="table-wrapper">
+<table class="bz-fit" id="recTable">
+<colgroup>
+<col style="width:3%"/>
+<col style="width:8%"/>
+<col style="width:9%"/>
+<col style="width:11%"/>
+<col style="width:8%"/>
+<col style="width:8%"/>
+<col style="width:11%"/>
+<col style="width:15%"/>
+<col style="width:7%"/>
+<col style="width:8%"/>
+<col style="width:9%"/>
+<col style="width:9%"/>
+<col style="width:4%"/>
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>التاريخ</th>
+<th>نوع التوثيق</th>
+<th>اسم السائق/الموظف</th>
+<th>رقم الإقامة</th>
+<th>رقم اللوحة</th>
+<th>الموضوع</th>
+<th>التفاصيل</th>
+<th>رقم المرجع</th>
+<th>الحالة</th>
+<th>المستند / المرفقات</th>
+<th>ملاحظات</th>
+<th>حذف</th>
+</tr>
+</thead>
+<tbody id="recBody"></tbody>
+</table>
+</div>
+</div>
+<!-- Actions -->
+<div class="actions-bar" style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+<button class="btn-primary" onclick="addRecord('bottom')">➕ إضافة سجل في الأسفل</button>
+<button class="btn-submit-gold" onclick="exportXlsx()">📥 تصدير كملف Excel (.xlsx)</button>
+<button class="btn-submit-orange" onclick="shareRecords()">📤 مشاركة / تصدير</button>
+<button class="btn-outline" onclick="saveState(true)">💾 حفظ يدوي</button>
+</div>
+<footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">سجل التوثيق — قسم الحركة، فرع الدمام</footer>
+<!-- Help modal: what is this tab for + document link guidance -->
+<div class="modal-backdrop" id="recHelpModal">
+<div class="modal-content-custom" style="max-width:640px;text-align:right;">
+<h2 class="bz-section-title" style="margin-top:0;">❓ ما فائدة تبويب «التوثيق والسجلات»؟</h2>
+<div style="line-height:1.95;color:var(--text-secondary);font-size:0.95rem;">
+<p style="margin:0 0 0.5rem;"><strong style="color:var(--text-primary);">١) مرجعية قانونية تحمي مسؤول الحركة:</strong>
                 يُعدّ سجل التوثيق وثيقة مرجعية رسمية تُثبت كل واقعة تتعلق بالأسطول (حوادث، مخالفات،
                 صيانة، إنذارات) بتاريخها ورقم مرجعها وحالتها. عند أي تحقيق إداري أو حادث أو عملية
                 تسليم/استلام للمركبات، يُشكّل هذا السجل المؤرّخ دليلاً يحمي حقوق مسؤول الحركة وقسم
                 الحركة ويُثبت سلامة الإجراءات المتّبعة.</p>
-
-                <p style="margin:0 0 0.5rem;"><strong style="color:var(--text-primary);">٢) ما هو عمود «المستند / المرفقات»؟</strong>
+<p style="margin:0 0 0.5rem;"><strong style="color:var(--text-primary);">٢) ما هو عمود «المستند / المرفقات»؟</strong>
                 هو المكان الذي ترفع فيه نسخة رقمية من المستند الأصلي (صورة أو ملف PDF) <strong>مباشرةً داخل النظام</strong>.
                 تُحفظ الملفات داخل قاعدة البيانات فتبقى دائمة على الاستضافة، ويمكن فتحها أو تنزيلها لاحقاً من
                 الجدول بضغطة واحدة دون الحاجة لأي خدمة تخزين خارجية ولا للبحث في الأرشيف الورقي.</p>
-
-                <p style="margin:0 0 0.25rem;"><strong style="color:var(--text-primary);">٣) كيف ترفع المستند؟</strong></p>
-                <ol style="margin:0 0 0.5rem;padding-right:1.25rem;">
-                    <li>اضغط زر <strong>«📎»</strong> في عمود «المستند / المرفقات» داخل صف السجل.</li>
-                    <li>في النافذة اضغط <strong>«➕ إضافة ملف (PDF / صورة)»</strong> واختر الملف من جهازك.</li>
-                    <li>يمكنك إضافة حتى <strong>٦ ملفات</strong> للسجل، بحد <strong>٢ ميغابايت</strong> لكل ملف، ثم عرضها أو تنزيلها أو حذفها.</li>
-                </ol>
-                <p style="margin:0;">السجلات القديمة التي تحتوي رابط مستند سابق تبقى كما هي، ويظهر الرابط داخل نافذة المرفقات قابلاً للفتح.</p>
-            </div>
-
-            <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
-                <button class="btn-primary" onclick="closeCustomModal('recHelpModal')">فهمت ✅</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Attachments modal -->
-    <div class="modal-backdrop" id="attModal">
-        <div class="modal-content-custom" style="max-width:620px;text-align:right;">
-            <h2 class="bz-section-title" style="margin-top:0;">📎 مرفقات السجل <span id="attRefLabel" style="font-size:.85rem;color:var(--text-muted);font-weight:600;"></span></h2>
-            <div id="attList" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;"></div>
-            <label class="btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+<p style="margin:0 0 0.25rem;"><strong style="color:var(--text-primary);">٣) كيف ترفع المستند؟</strong></p>
+<ol style="margin:0 0 0.5rem;padding-right:1.25rem;">
+<li>اضغط زر <strong>«📎»</strong> في عمود «المستند / المرفقات» داخل صف السجل.</li>
+<li>في النافذة اضغط <strong>«➕ إضافة ملف (PDF / صورة)»</strong> واختر الملف من جهازك.</li>
+<li>يمكنك إضافة حتى <strong>٦ ملفات</strong> للسجل، بحد <strong>٢ ميغابايت</strong> لكل ملف، ثم عرضها أو تنزيلها أو حذفها.</li>
+</ol>
+<p style="margin:0;">السجلات القديمة التي تحتوي رابط مستند سابق تبقى كما هي، ويظهر الرابط داخل نافذة المرفقات قابلاً للفتح.</p>
+</div>
+<div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+<button class="btn-primary" onclick="closeCustomModal('recHelpModal')">فهمت ✅</button>
+</div>
+</div>
+</div>
+<!-- Attachments modal -->
+<div class="modal-backdrop" id="attModal">
+<div class="modal-content-custom" style="max-width:620px;text-align:right;">
+<h2 class="bz-section-title" style="margin-top:0;">📎 مرفقات السجل <span id="attRefLabel" style="font-size:.85rem;color:var(--text-muted);font-weight:600;"></span></h2>
+<div id="attList" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;"></div>
+<label class="btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
                 ➕ إضافة ملف (PDF / صورة)
-                <input type="file" id="attInput" accept="image/*,application/pdf" multiple style="display:none;" onchange="onAttUpload(event)">
-            </label>
-            <div style="margin-top:.6rem;font-size:.8rem;color:var(--text-muted);line-height:1.7;">
+                <input accept="image/*,application/pdf" id="attInput" multiple="" onchange="onAttUpload(event)" style="display:none;" type="file"/>
+</label>
+<div style="margin-top:.6rem;font-size:.8rem;color:var(--text-muted);line-height:1.7;">
                 الحد: <strong>2MB لكل ملف</strong>، حتى <strong>6 ملفات</strong> للسجل. تُحفظ المرفقات <strong>داخل قاعدة البيانات</strong> فتبقى دائمة على الاستضافة.
             </div>
-            <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.25rem;">
-                <button class="btn-primary" onclick="closeCustomModal('attModal')">تم ✅</button>
-            </div>
-        </div>
-    </div>
-
-    </div><!-- /bz-shell -->
-
+<div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.25rem;">
+<button class="btn-primary" onclick="closeCustomModal('attModal')">تم ✅</button>
+</div>
+</div>
+</div>
+</div> /bz-shell 
 <script>
     // ===== Column model (order is preserved everywhere: render, save, export) =====
     const COLS = [
@@ -802,6 +781,4 @@
 
     window.addEventListener('load', init);
 </script>
-
-</body>
-</html>
+{% endblock %}

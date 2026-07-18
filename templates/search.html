@@ -1,14 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بحث سريع | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+{% extends 'base.html' %}
 
-    <style>
+{% block title %}بحث سريع | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         /* Page-specific layout only — colors/fonts/buttons come from base_styles.css tokens. */
         .search-hero {
             max-width: 1200px;
@@ -163,55 +159,45 @@
             .vc-body { grid-template-columns: 1fr; }
         }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-        <a href="/search" class="active">🔍 بحث</a>
-        <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
-    </header>
-
-    <div class="bz-shell">
-
-        <h2 class="bz-section-title">🔍 بحث سريع — بيانات الموظفين</h2>
-
-        <div class="bz-stats">
-            <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي الموظفين</div></div>
-            <div class="bz-stat"><div class="num" id="statWithVehicle">0</div><div class="label">لديهم مركبة</div></div>
-            <div class="bz-stat"><div class="num" id="statExpired">0</div><div class="label">إقامات منتهية</div></div>
-        </div>
-
-        <div class="search-hero">
-            <div class="search-box">
-                <span class="search-icon">🔎</span>
-                <input type="search" id="searchInput" autocomplete="off"
-                       placeholder="اكتب اسم الموظف أو رقم الإقامة..." disabled>
-            </div>
-        </div>
-
-        <div class="result-count" id="resultCount">جارٍ تحميل البيانات...</div>
-
-        <div class="results-grid" id="resultsGrid"></div>
-
-        <div class="empty-state" id="emptyState" style="display:none;"></div>
-
-    </div>
-
-    <script>
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand"><img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a class="active" href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions"><button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a class="bz-logout" href="/logout">خروج</a></div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">🔍 بحث سريع — بيانات الموظفين</h2>
+<div class="bz-stats">
+<div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي الموظفين</div></div>
+<div class="bz-stat"><div class="num" id="statWithVehicle">0</div><div class="label">لديهم مركبة</div></div>
+<div class="bz-stat"><div class="num" id="statExpired">0</div><div class="label">إقامات منتهية</div></div>
+</div>
+<div class="search-hero">
+<div class="search-box">
+<span class="search-icon">🔎</span>
+<input autocomplete="off" disabled="" id="searchInput" placeholder="اكتب اسم الموظف أو رقم الإقامة..." type="search"/>
+</div>
+</div>
+<div class="result-count" id="resultCount">جارٍ تحميل البيانات...</div>
+<div class="results-grid" id="resultsGrid"></div>
+<div class="empty-state" id="emptyState" style="display:none;"></div>
+</div>
+<script>
         (function () {
             'use strict';
 
@@ -544,6 +530,4 @@
             }
         })();
     </script>
-
-</body>
-</html>
+{% endblock %}

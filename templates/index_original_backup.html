@@ -1,27 +1,14 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة القيادة المركزية | شركة بن زومة</title>
-    <!-- PWA Settings -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1a1a1a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/static/logo_192.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=35) }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=35) }}"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script>
+{% extends 'base.html' %}
+
+{% block title %}لوحة القيادة المركزية | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>
         window.BZ_BRANCH_ID = {{ active_branch_id }}; 
         window.BZ_BRANCH = {{ active_branch|tojson }}; 
         window.BZ_SNAP_TAB = {{ snap_tab|tojson }};
     </script>
-    <style>
+<style>
         .hub-header {
             text-align: center;
             margin: 4rem auto 3rem auto;
@@ -170,74 +157,66 @@
             font-weight: 600;
         }
     </style>
-</head>
-<body class="bz-lux">
+{% endblock %}
 
-    <div class="hub-header reveal">
-        <h1 class="hub-title">نظام إدارة الأسطول</h1>
-        <p class="hub-subtitle">مركز التحكم الشامل • شركة بن زومة (فرع الدمام)</p>
-    </div>
-
-    <div class="stats-wrapper reveal">
-        <div class="stat-circle">
-            <div class="count-up" data-count="115" data-format="{n}">0</div>
-            <span>موظف وسائق</span>
-        </div>
-        <div class="stat-circle">
-            <div class="count-up" data-count="85" data-format="{n}">0</div>
-            <span>مركبة نشطة</span>
-        </div>
-        <div class="stat-circle">
-            <div class="count-up" data-count="14" data-format="{n}">0</div>
-            <span>تنبيه عاجل</span>
-        </div>
-    </div>
-
-    <div class="hub-grid">
-        <!-- Dashboard -->
-        <a href="/fleet_dashboard" class="hub-card reveal">
-            <div class="hub-icon"><i data-lucide="layout-dashboard" style="width:36px; height:36px;"></i></div>
-            <h3>لوحة القيادة</h3>
-            <p>مراقبة شاملة لكافة مؤشرات الأداء، الحوادث، التنبيهات، والوثائق المنتهية في شاشة واحدة متكاملة.</p>
-        </a>
-
-        <!-- Schedule -->
-        <a href="/schedule" class="hub-card reveal" style="transition-delay: 0.1s;">
-            <div class="hub-icon"><i data-lucide="calendar-check-2" style="width:36px; height:36px;"></i></div>
-            <h3>الجدول الأسبوعي</h3>
-            <p>إدارة حركة السائقين والمركبات وتوزيع المهام بديناميكية تامة مع تصدير التقارير.</p>
-        </a>
-
-        <!-- Registry -->
-        <a href="/employees" class="hub-card reveal" style="transition-delay: 0.2s;">
-            <div class="hub-icon"><i data-lucide="users" style="width:36px; height:36px;"></i></div>
-            <h3>السجل الشامل</h3>
-            <p>قاعدة البيانات المركزية لجميع الموظفين والسائقين وارتباطاتهم بمركبات الأسطول.</p>
-        </a>
-
-        <!-- Maintenance / Workshop -->
-        <a href="/workshop" class="hub-card reveal" style="transition-delay: 0.3s;">
-            <div class="hub-icon"><i data-lucide="wrench" style="width:36px; height:36px;"></i></div>
-            <h3>صيانة الورشة</h3>
-            <p>متابعة كافة الإصلاحات وطلبات الصيانة، إدارة قطع الغيار والتكاليف بذكاء.</p>
-        </a>
-
-        <!-- Oils -->
-        <a href="/oils" class="hub-card reveal" style="transition-delay: 0.4s;">
-            <div class="hub-icon"><i data-lucide="fuel" style="width:36px; height:36px;"></i></div>
-            <h3>تموين المحروقات</h3>
-            <p>مراقبة استهلاك الديزل والزيوت، الجداول الزمنية للتغيير والفلاتر.</p>
-        </a>
-
-        <!-- Smart Invoice -->
-        <a href="/invoice" class="hub-card reveal" style="transition-delay: 0.5s;">
-            <div class="hub-icon"><i data-lucide="receipt" style="width:36px; height:36px;"></i></div>
-            <h3>الفواتير الذكية</h3>
-            <p>منشئ سريع لفواتير الصيانة والخدمات، معزز بنظام السحب التلقائي (Auto-Fill) للبيانات.</p>
-        </a>
-    </div>
-
-    <script>
+{% block content %}
+<div class="hub-header reveal">
+<h1 class="hub-title">نظام إدارة الأسطول</h1>
+<p class="hub-subtitle">مركز التحكم الشامل • شركة بن زومة (فرع الدمام)</p>
+</div>
+<div class="stats-wrapper reveal">
+<div class="stat-circle">
+<div class="count-up" data-count="115" data-format="{n}">0</div>
+<span>موظف وسائق</span>
+</div>
+<div class="stat-circle">
+<div class="count-up" data-count="85" data-format="{n}">0</div>
+<span>مركبة نشطة</span>
+</div>
+<div class="stat-circle">
+<div class="count-up" data-count="14" data-format="{n}">0</div>
+<span>تنبيه عاجل</span>
+</div>
+</div>
+<div class="hub-grid">
+<!-- Dashboard -->
+<a class="hub-card reveal" href="/fleet_dashboard">
+<div class="hub-icon"><i data-lucide="layout-dashboard" style="width:36px; height:36px;"></i></div>
+<h3>لوحة القيادة</h3>
+<p>مراقبة شاملة لكافة مؤشرات الأداء، الحوادث، التنبيهات، والوثائق المنتهية في شاشة واحدة متكاملة.</p>
+</a>
+<!-- Schedule -->
+<a class="hub-card reveal" href="/schedule" style="transition-delay: 0.1s;">
+<div class="hub-icon"><i data-lucide="calendar-check-2" style="width:36px; height:36px;"></i></div>
+<h3>الجدول الأسبوعي</h3>
+<p>إدارة حركة السائقين والمركبات وتوزيع المهام بديناميكية تامة مع تصدير التقارير.</p>
+</a>
+<!-- Registry -->
+<a class="hub-card reveal" href="/employees" style="transition-delay: 0.2s;">
+<div class="hub-icon"><i data-lucide="users" style="width:36px; height:36px;"></i></div>
+<h3>السجل الشامل</h3>
+<p>قاعدة البيانات المركزية لجميع الموظفين والسائقين وارتباطاتهم بمركبات الأسطول.</p>
+</a>
+<!-- Maintenance / Workshop -->
+<a class="hub-card reveal" href="/workshop" style="transition-delay: 0.3s;">
+<div class="hub-icon"><i data-lucide="wrench" style="width:36px; height:36px;"></i></div>
+<h3>صيانة الورشة</h3>
+<p>متابعة كافة الإصلاحات وطلبات الصيانة، إدارة قطع الغيار والتكاليف بذكاء.</p>
+</a>
+<!-- Oils -->
+<a class="hub-card reveal" href="/oils" style="transition-delay: 0.4s;">
+<div class="hub-icon"><i data-lucide="fuel" style="width:36px; height:36px;"></i></div>
+<h3>تموين المحروقات</h3>
+<p>مراقبة استهلاك الديزل والزيوت، الجداول الزمنية للتغيير والفلاتر.</p>
+</a>
+<!-- Smart Invoice -->
+<a class="hub-card reveal" href="/invoice" style="transition-delay: 0.5s;">
+<div class="hub-icon"><i data-lucide="receipt" style="width:36px; height:36px;"></i></div>
+<h3>الفواتير الذكية</h3>
+<p>منشئ سريع لفواتير الصيانة والخدمات، معزز بنظام السحب التلقائي (Auto-Fill) للبيانات.</p>
+</a>
+</div>
+<script>
         // Ensure Lucide icons are rendered
         window.addEventListener('DOMContentLoaded', () => {
             if(window.lucide) {
@@ -245,5 +224,4 @@
             }
         });
     </script>
-</body>
-</html>
+{% endblock %}

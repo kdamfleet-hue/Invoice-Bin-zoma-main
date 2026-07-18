@@ -1,13 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نموذج تسليم واستلام مركبة | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}نموذج تسليم واستلام مركبة | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         /* Vehicle handover form — page-local layout only (charcoal/gold tokens from base_styles.css) */
         .ho-wrap { max-width: 760px; margin: 0 auto; }
         .ho-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); overflow: hidden; }
@@ -46,125 +43,112 @@
             .ho-pad { border: 1px solid #999 !important; }
         }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/handover" class="active">🚗 تسليم واستلام مركبة</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-        <a href="/search">🔍 بحث</a>
-        <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-        <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
-
-    <div class="bz-shell">
-      <h2 class="bz-section-title">🚗 نموذج تسليم واستلام مركبة</h2>
-      <div class="ho-wrap">
-        <form id="hoForm" class="ho-card" autocomplete="off">
-
-          <div class="ho-head">
-            <div class="logo-row">
-              <div class="co ar">شركة بن زومة للتجارة الدولية والإنماء المحدودة</div>
-              <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="Z">
-              <div class="co en">BIN ZOMAH INTL. TRADING &amp; DEVELOPMENT CO.</div>
-            </div>
-            <div class="ho-title">نموذج فحص تسليم المركبة<small>قسم الحركة — فرع الدمام</small></div>
-          </div>
-
-          <div class="ho-sec">
-            <div class="ho-sec-title">بيانات المركبة الأساسية</div>
-            <div class="ho-grp"><label for="ho-plate">رقم تسجيل المركبة / رقم اللوحة</label><input type="text" id="ho-plate" placeholder="أدخل رقم اللوحة أو الحروف والأرقام" required></div>
-            <div class="ho-grp"><label for="ho-date">تاريخ ووقت التسليم</label><input type="date" id="ho-date" required></div>
-          </div>
-
-          <div class="ho-sec">
-            <div class="ho-sec-title">من السائق (الطرف المسلِّم)</div>
-            <div class="ho-row">
-              <div class="ho-grp"><label for="ho-from-first">الاسم الأول</label><input type="text" id="ho-from-first" placeholder="الاسم الأول" required></div>
-              <div class="ho-grp"><label for="ho-from-last">الاسم الأخير</label><input type="text" id="ho-from-last" placeholder="الاسم الأخير" required></div>
-            </div>
-          </div>
-
-          <div class="ho-sec">
-            <div class="ho-sec-title">إلى السائق (الطرف المستلِم)</div>
-            <div class="ho-row">
-              <div class="ho-grp"><label for="ho-to-first">الاسم الأول</label><input type="text" id="ho-to-first" placeholder="الاسم الأول" required></div>
-              <div class="ho-grp"><label for="ho-to-last">الاسم الأخير</label><input type="text" id="ho-to-last" placeholder="الاسم الأخير" required></div>
-            </div>
-          </div>
-
-          <div class="ho-sec">
-            <div class="ho-sec-title">المسافة الحالية والوقود</div>
-            <div class="ho-grp"><label for="ho-odo">المسافة المقطوعة الحالية (Odometer)</label><input type="number" id="ho-odo" placeholder="كم" required></div>
-            <div class="ho-grp ho-up"><label>صورة المسافة الحالية</label><label class="up" for="ho-odo-img">📷 اضغط لالتقاط أو رفع صورة العداد</label><input type="file" id="ho-odo-img" accept="image/*" capture="environment" onchange="hoFile(this)"><div class="fname"></div></div>
-            <div class="ho-grp" style="margin-top:18px"><label for="ho-fuel">مستوى الوقود الحالي (مثال: ممتلئ، نصف)</label><input type="text" id="ho-fuel" placeholder="حدد مستوى الوقود في الخزان" required></div>
-            <div class="ho-grp ho-up"><label>صورة لمستوى الوقود</label><label class="up" for="ho-fuel-img">📷 اضغط لالتقاط أو رفع صورة مؤشر الوقود</label><input type="file" id="ho-fuel-img" accept="image/*" capture="environment" onchange="hoFile(this)"><div class="fname"></div></div>
-          </div>
-
-          <div class="ho-sec">
-            <div class="ho-sec-title">تقرير وفحص الأضرار</div>
-            <div class="ho-grp"><label for="ho-damage">تفاصيل الأضرار (إن وجدت)</label><textarea id="ho-damage" rows="4" placeholder="يرجى كتابة أي ملاحظات، خدوش، أو صدمات بالتفصيل..."></textarea></div>
-            <div class="ho-grp ho-up"><label>صور المناطق المتضررة</label><label class="up" for="ho-damage-img">📷 يرجى تقديم صور لجميع المناطق المتضررة</label><input type="file" id="ho-damage-img" accept="image/*" multiple onchange="hoFile(this)"><div class="fname"></div></div>
-          </div>
-
-          <div class="ho-sigs">
-            <div class="ho-sig">
-              <div class="ho-grp"><label for="ho-officer">اسم مسؤول الحركة</label><input type="text" id="ho-officer" placeholder="اسم المسؤول الفاحص" required></div>
-              <div class="ho-pad-lbl">توقيع مسؤول الحركة:</div>
-              <canvas class="ho-pad" id="sigOfficer"></canvas>
-              <button type="button" class="ho-clear" data-pad="sigOfficer">مسح (Clear)</button>
-            </div>
-            <div class="ho-sig">
-              <div class="ho-grp"><label for="ho-recipient">اسم المستلم</label><input type="text" id="ho-recipient" placeholder="اسم السائق المستلم" required></div>
-              <div class="ho-pad-lbl">توقيع المستلم:</div>
-              <canvas class="ho-pad" id="sigRecipient"></canvas>
-              <button type="button" class="ho-clear" data-pad="sigRecipient">مسح (Clear)</button>
-            </div>
-          </div>
-
-          <div class="ho-sec">
-            <div class="ho-sec-title">الإرسال والحفظ</div>
-            <div class="ho-grp"><label for="ho-email">بريد المستلم للإرسال (اختياري — افصل بين عدة عناوين بفاصلة)</label>
-              <input type="text" id="ho-email" placeholder="يُرسل تلقائياً لبريد الإدارة إذا تُرك فارغاً" inputmode="email"></div>
-            <div class="ho-grp" id="ho-mailhint" style="font-size:.76rem;color:var(--text-muted);margin:0"></div>
-          </div>
-
-          <div class="ho-actions">
-            <button type="submit" class="btn-submit-gold" style="padding:14px;border-radius:10px;font-weight:800;font-size:1rem;">✅ اعتماد وحفظ وإرسال</button>
-            <button type="button" class="btn-outline" style="padding:14px;border-radius:10px;font-weight:700;" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
-          </div>
-          <div id="ho-status" style="text-align:center;font-size:.9rem;padding:4px 20px 0;min-height:1.2rem"></div>
-          <div class="ho-foot">Powered by Bin Zomah Fleet Operations &copy; 2026</div>
-
-        </form>
-
-        <div class="ho-card" style="margin-top:18px">
-          <div class="ho-sec" style="border-bottom:none">
-            <div class="ho-sec-title">📁 النماذج المحفوظة (آخر التسليمات)</div>
-            <div id="ho-saved" style="font-size:.85rem;color:var(--text-secondary)">جارٍ التحميل…</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a class="active" href="/handover">🚗 تسليم واستلام مركبة</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">🚗 نموذج تسليم واستلام مركبة</h2>
+<div class="ho-wrap">
+<form autocomplete="off" class="ho-card" id="hoForm">
+<div class="ho-head">
+<div class="logo-row">
+<div class="co ar">شركة بن زومة للتجارة الدولية والإنماء المحدودة</div>
+<img alt="Z" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="co en">BIN ZOMAH INTL. TRADING &amp; DEVELOPMENT CO.</div>
+</div>
+<div class="ho-title">نموذج فحص تسليم المركبة<small>قسم الحركة — فرع الدمام</small></div>
+</div>
+<div class="ho-sec">
+<div class="ho-sec-title">بيانات المركبة الأساسية</div>
+<div class="ho-grp"><label for="ho-plate">رقم تسجيل المركبة / رقم اللوحة</label><input id="ho-plate" placeholder="أدخل رقم اللوحة أو الحروف والأرقام" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-date">تاريخ ووقت التسليم</label><input id="ho-date" required="" type="date"/></div>
+</div>
+<div class="ho-sec">
+<div class="ho-sec-title">من السائق (الطرف المسلِّم)</div>
+<div class="ho-row">
+<div class="ho-grp"><label for="ho-from-first">الاسم الأول</label><input id="ho-from-first" placeholder="الاسم الأول" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-from-last">الاسم الأخير</label><input id="ho-from-last" placeholder="الاسم الأخير" required="" type="text"/></div>
+</div>
+</div>
+<div class="ho-sec">
+<div class="ho-sec-title">إلى السائق (الطرف المستلِم)</div>
+<div class="ho-row">
+<div class="ho-grp"><label for="ho-to-first">الاسم الأول</label><input id="ho-to-first" placeholder="الاسم الأول" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-to-last">الاسم الأخير</label><input id="ho-to-last" placeholder="الاسم الأخير" required="" type="text"/></div>
+</div>
+</div>
+<div class="ho-sec">
+<div class="ho-sec-title">المسافة الحالية والوقود</div>
+<div class="ho-grp"><label for="ho-odo">المسافة المقطوعة الحالية (Odometer)</label><input id="ho-odo" placeholder="كم" required="" type="number"/></div>
+<div class="ho-grp ho-up"><label>صورة المسافة الحالية</label><label class="up" for="ho-odo-img">📷 اضغط لالتقاط أو رفع صورة العداد</label><input accept="image/*" capture="environment" id="ho-odo-img" onchange="hoFile(this)" type="file"/><div class="fname"></div></div>
+<div class="ho-grp" style="margin-top:18px"><label for="ho-fuel">مستوى الوقود الحالي (مثال: ممتلئ، نصف)</label><input id="ho-fuel" placeholder="حدد مستوى الوقود في الخزان" required="" type="text"/></div>
+<div class="ho-grp ho-up"><label>صورة لمستوى الوقود</label><label class="up" for="ho-fuel-img">📷 اضغط لالتقاط أو رفع صورة مؤشر الوقود</label><input accept="image/*" capture="environment" id="ho-fuel-img" onchange="hoFile(this)" type="file"/><div class="fname"></div></div>
+</div>
+<div class="ho-sec">
+<div class="ho-sec-title">تقرير وفحص الأضرار</div>
+<div class="ho-grp"><label for="ho-damage">تفاصيل الأضرار (إن وجدت)</label><textarea id="ho-damage" placeholder="يرجى كتابة أي ملاحظات، خدوش، أو صدمات بالتفصيل..." rows="4"></textarea></div>
+<div class="ho-grp ho-up"><label>صور المناطق المتضررة</label><label class="up" for="ho-damage-img">📷 يرجى تقديم صور لجميع المناطق المتضررة</label><input accept="image/*" id="ho-damage-img" multiple="" onchange="hoFile(this)" type="file"/><div class="fname"></div></div>
+</div>
+<div class="ho-sigs">
+<div class="ho-sig">
+<div class="ho-grp"><label for="ho-officer">اسم مسؤول الحركة</label><input id="ho-officer" placeholder="اسم المسؤول الفاحص" required="" type="text"/></div>
+<div class="ho-pad-lbl">توقيع مسؤول الحركة:</div>
+<canvas class="ho-pad" id="sigOfficer"></canvas>
+<button class="ho-clear" data-pad="sigOfficer" type="button">مسح (Clear)</button>
+</div>
+<div class="ho-sig">
+<div class="ho-grp"><label for="ho-recipient">اسم المستلم</label><input id="ho-recipient" placeholder="اسم السائق المستلم" required="" type="text"/></div>
+<div class="ho-pad-lbl">توقيع المستلم:</div>
+<canvas class="ho-pad" id="sigRecipient"></canvas>
+<button class="ho-clear" data-pad="sigRecipient" type="button">مسح (Clear)</button>
+</div>
+</div>
+<div class="ho-sec">
+<div class="ho-sec-title">الإرسال والحفظ</div>
+<div class="ho-grp"><label for="ho-email">بريد المستلم للإرسال (اختياري — افصل بين عدة عناوين بفاصلة)</label>
+<input id="ho-email" inputmode="email" placeholder="يُرسل تلقائياً لبريد الإدارة إذا تُرك فارغاً" type="text"/></div>
+<div class="ho-grp" id="ho-mailhint" style="font-size:.76rem;color:var(--text-muted);margin:0"></div>
+</div>
+<div class="ho-actions">
+<button class="btn-submit-gold" style="padding:14px;border-radius:10px;font-weight:800;font-size:1rem;" type="submit">✅ اعتماد وحفظ وإرسال</button>
+<button class="btn-outline" onclick="window.print()" style="padding:14px;border-radius:10px;font-weight:700;" type="button">🖨️ طباعة / حفظ PDF</button>
+</div>
+<div id="ho-status" style="text-align:center;font-size:.9rem;padding:4px 20px 0;min-height:1.2rem"></div>
+<div class="ho-foot">Powered by Bin Zomah Fleet Operations © 2026</div>
+</form>
+<div class="ho-card" style="margin-top:18px">
+<div class="ho-sec" style="border-bottom:none">
+<div class="ho-sec-title">📁 النماذج المحفوظة (آخر التسليمات)</div>
+<div id="ho-saved" style="font-size:.85rem;color:var(--text-secondary)">جارٍ التحميل…</div>
+</div>
+</div>
+</div>
+</div>
 <script>
 (function () {
   'use strict';
@@ -325,6 +309,4 @@
   else window.addEventListener('load', start);
 })();
 </script>
-
-</body>
-</html>
+{% endblock %}

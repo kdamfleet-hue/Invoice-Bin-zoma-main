@@ -1,13 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الإعدادات | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}الإعدادات | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         .set-wrap { max-width: 920px; margin: 0 auto; }
         .set-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.4rem 1.5rem; margin-bottom: 1.4rem; }
         .set-card h3 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
@@ -56,110 +53,99 @@
         .toggle-switch input:checked + .toggle-slider { background: linear-gradient(135deg, #c5a059, #d4af37); box-shadow: 0 0 14px rgba(197,160,89,.35); }
         .toggle-switch input:checked + .toggle-slider::before { transform: translateX(24px); }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/handover">🚗 تسليم واستلام مركبة</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-        <a href="/search">🔍 بحث</a>
-        <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-        <a href="/cameras">📹 الكاميرات</a>
-        <a href="/settings" class="active">⚙️ الإعدادات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
-
-    <div class="bz-shell">
-      <h2 class="bz-section-title">⚙️ الإعدادات</h2>
-      <div class="set-wrap">
-
-        <div class="set-card">
-          <h3>🔑 مشاركة الموقع — حسابات الدخول</h3>
-          <div class="sub">أنشئ <b>اسم مستخدم وكلمة مرور</b> لكل شخص تريد مشاركته الموقع. يستطيع الدخول من صفحة تسجيل الدخول بنفس البيانات. تُحفظ كلمات المرور <b>مشفّرة</b> ولا تظهر مرة أخرى.</div>
-
-          <form id="addForm" class="set-form" autocomplete="off">
-            <div class="fld"><label for="u-name">الاسم</label><input type="text" id="u-name" placeholder="مثال: محمد العتيبي"></div>
-            <div class="fld"><label for="u-username">اسم المستخدم</label><input type="text" id="u-username" placeholder="مثال: m.alotaibi" required></div>
-            <div class="fld"><label for="u-pass">كلمة المرور</label>
-              <div class="pw-wrap"><input type="password" id="u-pass" placeholder="4 أحرف على الأقل" required>
-              <button type="button" class="eye" onclick="hoTogglePw()" title="إظهار/إخفاء">👁️</button></div>
-            </div>
-            <button type="submit" class="btn-submit-gold set-add">➕ إضافة مستخدم</button>
-          </form>
-          <div class="set-msg" id="addMsg"></div>
-        </div>
-
-        <div class="set-card">
-          <h3>👥 المستخدمون المشاركون <span class="sub" id="uCount" style="margin:0;font-weight:700;"></span></h3>
-          <div class="dtable-wrap" style="overflow-x:auto;">
-            <table class="users-tbl">
-              <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>تاريخ الإنشاء</th><th>إجراء</th></tr></thead>
-              <tbody id="usersBody"><tr><td colspan="4" class="users-empty">جارٍ التحميل…</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="set-card">
-          <h3>🕓 حفظ المتغيرات — السجل الزمني</h3>
-          <div class="sub">يُحفظ تلقائياً عند كل تعديل في أي تبويب نسخة <b>مؤرّخة بالتاريخ والوقت</b>. اختر التبويب لعرض النسخ السابقة، ويمكنك <b>الرجوع لأي نسخة</b> بضغطة زر (يُحتفظ بآخر 30 نسخة لكل تبويب).</div>
-          <div class="snap-bar">
-            <div class="fld">
-              <label for="snapTab">التبويب</label>
-              <select id="snapTab"><option value="">— اختر تبويباً —</option></select>
-            </div>
-          </div>
-          <ul class="snap-list" id="snapList"><li class="snap-empty">اختر تبويباً لعرض النسخ المؤرّخة.</li></ul>
-          <div class="set-msg" id="snapMsg"></div>
-        </div>
-
-        <div class="set-card">
-          <h3>🏢 حسابات الفروع — اسم مستخدم ورمز لكل فرع</h3>
-          <div class="sub">عيّن لكل فرع <b>اسم مستخدم ورمز دخول</b>. عند الدخول بهذه البيانات يُقفَل المستخدم تلقائياً على فرعه فقط، وتُنسب كل تعديلاته لاسم مستخدمه في <b>مركز الفروع</b>. الرموز تُحفظ <b>مشفّرة</b>.</div>
-          <div class="dtable-wrap" style="overflow-x:auto;">
-            <table class="users-tbl">
-              <thead><tr><th>الفرع</th><th>اسم المستخدم</th><th>الرمز</th><th>إجراء</th></tr></thead>
-              <tbody id="baBody"><tr><td colspan="4" class="users-empty">جارٍ التحميل…</td></tr></tbody>
-            </table>
-          </div>
-          <div class="set-msg" id="baMsg"></div>
-        </div>
-
-        <div class="set-card">
-          <div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هو وحده من يبدّل بين كل الفروع ويرى <b>مركز الفروع</b>.</span></div>
-        </div>
-
-        <!-- ═══════════ قسم التحكم في ميزات النظام (Feature Flagging) ═══════════ -->
-        <div class="set-card" id="featuresCard">
-          <h3>🎛️ التحكم في ميزات النظام</h3>
-          <div class="sub">فعّل أو عطّل أي ميزة بضغطة زر. التغيير يُحفظ فوراً في قاعدة البيانات ويُطبَّق على كل المستخدمين.</div>
-
-          <div class="feat-grid" id="featGrid">
-            <!-- يتم تحميلها ديناميكياً -->
-            <div class="snap-empty" id="featLoading">جارٍ تحميل الإعدادات…</div>
-          </div>
-          <div class="set-msg" id="featMsg"></div>
-        </div>
-
-      </div>
-    </div>
-
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/handover">🚗 تسليم واستلام مركبة</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+<a class="active" href="/settings">⚙️ الإعدادات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">⚙️ الإعدادات</h2>
+<div class="set-wrap">
+<div class="set-card">
+<h3>🔑 مشاركة الموقع — حسابات الدخول</h3>
+<div class="sub">أنشئ <b>اسم مستخدم وكلمة مرور</b> لكل شخص تريد مشاركته الموقع. يستطيع الدخول من صفحة تسجيل الدخول بنفس البيانات. تُحفظ كلمات المرور <b>مشفّرة</b> ولا تظهر مرة أخرى.</div>
+<form autocomplete="off" class="set-form" id="addForm">
+<div class="fld"><label for="u-name">الاسم</label><input id="u-name" placeholder="مثال: محمد العتيبي" type="text"/></div>
+<div class="fld"><label for="u-username">اسم المستخدم</label><input id="u-username" placeholder="مثال: m.alotaibi" required="" type="text"/></div>
+<div class="fld"><label for="u-pass">كلمة المرور</label>
+<div class="pw-wrap"><input id="u-pass" placeholder="4 أحرف على الأقل" required="" type="password"/>
+<button class="eye" onclick="hoTogglePw()" title="إظهار/إخفاء" type="button">👁️</button></div>
+</div>
+<button class="btn-submit-gold set-add" type="submit">➕ إضافة مستخدم</button>
+</form>
+<div class="set-msg" id="addMsg"></div>
+</div>
+<div class="set-card">
+<h3>👥 المستخدمون المشاركون <span class="sub" id="uCount" style="margin:0;font-weight:700;"></span></h3>
+<div class="dtable-wrap" style="overflow-x:auto;">
+<table class="users-tbl">
+<thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>تاريخ الإنشاء</th><th>إجراء</th></tr></thead>
+<tbody id="usersBody"><tr><td class="users-empty" colspan="4">جارٍ التحميل…</td></tr></tbody>
+</table>
+</div>
+</div>
+<div class="set-card">
+<h3>🕓 حفظ المتغيرات — السجل الزمني</h3>
+<div class="sub">يُحفظ تلقائياً عند كل تعديل في أي تبويب نسخة <b>مؤرّخة بالتاريخ والوقت</b>. اختر التبويب لعرض النسخ السابقة، ويمكنك <b>الرجوع لأي نسخة</b> بضغطة زر (يُحتفظ بآخر 30 نسخة لكل تبويب).</div>
+<div class="snap-bar">
+<div class="fld">
+<label for="snapTab">التبويب</label>
+<select id="snapTab"><option value="">— اختر تبويباً —</option></select>
+</div>
+</div>
+<ul class="snap-list" id="snapList"><li class="snap-empty">اختر تبويباً لعرض النسخ المؤرّخة.</li></ul>
+<div class="set-msg" id="snapMsg"></div>
+</div>
+<div class="set-card">
+<h3>🏢 حسابات الفروع — اسم مستخدم ورمز لكل فرع</h3>
+<div class="sub">عيّن لكل فرع <b>اسم مستخدم ورمز دخول</b>. عند الدخول بهذه البيانات يُقفَل المستخدم تلقائياً على فرعه فقط، وتُنسب كل تعديلاته لاسم مستخدمه في <b>مركز الفروع</b>. الرموز تُحفظ <b>مشفّرة</b>.</div>
+<div class="dtable-wrap" style="overflow-x:auto;">
+<table class="users-tbl">
+<thead><tr><th>الفرع</th><th>اسم المستخدم</th><th>الرمز</th><th>إجراء</th></tr></thead>
+<tbody id="baBody"><tr><td class="users-empty" colspan="4">جارٍ التحميل…</td></tr></tbody>
+</table>
+</div>
+<div class="set-msg" id="baMsg"></div>
+</div>
+<div class="set-card">
+<div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هو وحده من يبدّل بين كل الفروع ويرى <b>مركز الفروع</b>.</span></div>
+</div>
+<!-- ═══════════ قسم التحكم في ميزات النظام (Feature Flagging) ═══════════ -->
+<div class="set-card" id="featuresCard">
+<h3>🎛️ التحكم في ميزات النظام</h3>
+<div class="sub">فعّل أو عطّل أي ميزة بضغطة زر. التغيير يُحفظ فوراً في قاعدة البيانات ويُطبَّق على كل المستخدمين.</div>
+<div class="feat-grid" id="featGrid">
+<!-- يتم تحميلها ديناميكياً -->
+<div class="snap-empty" id="featLoading">جارٍ تحميل الإعدادات…</div>
+</div>
+<div class="set-msg" id="featMsg"></div>
+</div>
+</div>
+</div>
 <script>
 (function () {
   'use strict';
@@ -387,6 +373,4 @@
   loadFeatures();
 })();
 </script>
-
-</body>
-</html>
+{% endblock %}

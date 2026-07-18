@@ -1,12 +1,9 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>أوامر النظام والتزامن | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}أوامر النظام والتزامن | شركة بن زومة{% endblock %}
+
+{% block head %}
+<style>
         :root {
             --sys-bg: #111318;
             --sys-card: #1c1f26;
@@ -181,61 +178,56 @@
         .log-error { color: var(--sys-err); }
         .log-warn { color: #f59e0b; }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="header">
-        <div class="header-title">
-            <div class="header-icon">
-                <i data-lucide="terminal"></i>
-            </div>
-            <div>
-                <h1>أوامر النظام والتزامن</h1>
-                <span>لوحة التحكم المباشرة لتشغيل سكربتات المزامنة والصيانة</span>
-            </div>
-        </div>
-        <a href="/" class="btn-back">العودة للرئيسية</a>
-    </header>
-
-    <div class="container">
-        
-        <!-- Smart Sync Card -->
-        <div class="card">
-            <div class="card-header">
-                <i data-lucide="refresh-cw" style="color: var(--sys-accent)"></i>
-                <h2>المزامنة الذكية الشاملة (Smart Sync)</h2>
-            </div>
-            <div class="card-body">
-                <div class="cmd-desc">
+{% block content %}
+<header class="header">
+<div class="header-title">
+<div class="header-icon">
+<i data-lucide="terminal"></i>
+</div>
+<div>
+<h1>أوامر النظام والتزامن</h1>
+<span>لوحة التحكم المباشرة لتشغيل سكربتات المزامنة والصيانة</span>
+</div>
+</div>
+<a class="btn-back" href="/">العودة للرئيسية</a>
+</header>
+<div class="container">
+<!-- Smart Sync Card -->
+<div class="card">
+<div class="card-header">
+<i data-lucide="refresh-cw" style="color: var(--sys-accent)"></i>
+<h2>المزامنة الذكية الشاملة (Smart Sync)</h2>
+</div>
+<div class="card-body">
+<div class="cmd-desc">
                     يقوم هذا الأمر بجلب جميع البيانات من السجلات ومزامنتها لضمان ترابط النظام والتأكد من مطابقة السائقين والمركبات وتحديث الحالات.
                 </div>
-                <button class="btn-run" id="btn-sync-all" onclick="runCommand('sync-all')">
-                    <i data-lucide="play"></i> بدء المزامنة الشاملة
+<button class="btn-run" id="btn-sync-all" onclick="runCommand('sync-all')">
+<i data-lucide="play"></i> بدء المزامنة الشاملة
                 </button>
-                <div class="console-output" id="out-sync-all"></div>
-            </div>
-        </div>
-
-        <!-- Sync Excel Dammam -->
-        <div class="card">
-            <div class="card-header">
-                <i data-lucide="file-spreadsheet" style="color: var(--sys-accent)"></i>
-                <h2>مزامنة إكسيل (فرع الدمام)</h2>
-            </div>
-            <div class="card-body">
-                <div class="cmd-desc">
+<div class="console-output" id="out-sync-all"></div>
+</div>
+</div>
+<!-- Sync Excel Dammam -->
+<div class="card">
+<div class="card-header">
+<i data-lucide="file-spreadsheet" style="color: var(--sys-accent)"></i>
+<h2>مزامنة إكسيل (فرع الدمام)</h2>
+</div>
+<div class="card-body">
+<div class="cmd-desc">
                     تحديث قاعدة البيانات وسجلات الأسطول تلقائياً من خلال معالجة البيانات الموجودة في ملفات الإكسيل لفرع الدمام وتطبيق الصلاحيات.
                 </div>
-                <button class="btn-run" id="btn-sync-excel" onclick="runCommand('sync-excel')">
-                    <i data-lucide="play"></i> تحديث ومزامنة الإكسيل
+<button class="btn-run" id="btn-sync-excel" onclick="runCommand('sync-excel')">
+<i data-lucide="play"></i> تحديث ومزامنة الإكسيل
                 </button>
-                <div class="console-output" id="out-sync-excel"></div>
-            </div>
-        </div>
-
-    </div>
-
-    <script>
+<div class="console-output" id="out-sync-excel"></div>
+</div>
+</div>
+</div>
+<script>
         lucide.createIcons();
 
         function logToConsole(id, message, type='info') {
@@ -301,5 +293,4 @@
             }
         }
     </script>
-</body>
-</html>
+{% endblock %}

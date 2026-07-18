@@ -1,22 +1,12 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% extends 'base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>طلبات الشراء | شركة بن زومة فرع الدمام</title>
-    <!-- PWA Settings -->
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#1a1a1a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/static/logo_192.png">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <style>
+{% block title %}طلبات الشراء | شركة بن زومة فرع الدمام{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         /* ── Page-specific layout only (tokens from base_styles.css) ── */
         .header-container {
             display: flex;
@@ -241,247 +231,226 @@
         body.dark-mode .excel-table td[style*="color:#000"],
         body.dark-mode .excel-table th[style*="color:#000"] { color: var(--text-primary) !important; }
     </style>
-</head>
+{% endblock %}
 
-<body class="bz-lux">
-
-    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;">
-        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
-    </video>
-
-    <!-- Standard top bar -->
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/purchase" class="active">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-    <a href="/search">🔍 بحث</a>
-    <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
-
-    <datalist id="driversList"></datalist>
-    <datalist id="platesList"></datalist>
-
-  <div class="bz-shell">
-    <div class="header-container">
-        <img src="{{ url_for('static', filename='main_logo.png') }}" alt="Logo" class="site-logo" style="width: 300px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+{% block content %}
+<video autoplay="" loop="" muted="" playsinline="" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;">
+<source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4"/>
+</video>
+ Standard top bar 
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a class="active" href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<datalist id="driversList"></datalist>
+<datalist id="platesList"></datalist>
+<div class="bz-shell">
+<div class="header-container">
+<img alt="Logo" class="site-logo" src="{{ url_for('static', filename='main_logo.png') }}" style="width: 300px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));"/>
                 {% if google_user %}
         <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:var(--surface);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
-            <img src="{{ google_user.picture }}" alt="Profile" style="width:28px;height:28px;border-radius:50%">
-            <span style="font-weight:bold;color:var(--text-primary);font-size:0.9rem">{{ google_user.name }}</span>
-            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
-        </div>
+<img alt="Profile" src="{{ google_user.picture }}" style="width:28px;height:28px;border-radius:50%"/>
+<span style="font-weight:bold;color:var(--text-primary);font-size:0.9rem">{{ google_user.name }}</span>
+<a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
+</div>
         {% endif %}
         <h1 class="bz-section-title" style="text-align:center;">نموذج طلب شراء وإصلاح سيارة</h1>
-        <div class="nav-buttons">
-            <a href="/" class="btn-outline">🔙 العودة للرئيسية</a>
-            <a href="/washing" class="btn-outline" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
-            <a href="/tracking" class="btn-outline" style="text-decoration:none;">🛰️ التتبع المباشر</a>
-        </div>
-    </div>
-
-    <!-- Vehicle Info -->
-    <div class="table-container glass-surface" id="poFormArea">
-        <div class="section-title">🚗 بيانات السيارة والسائق</div>
-
-        <!-- Universal Search (interactive tool only — excluded from PDF export) -->
-        <div class="pdf-exclude" style="position:relative;margin-bottom:15px;">
-            <label style="font-weight:bold;color:var(--accent);font-size:1rem;display:block;margin-bottom:6px;">🔍 بحث شامل (اسم / رقم إقامة / رقم لوحة / جوال):</label>
-            <input type="text" id="universalSearch" placeholder="ابحث هنا... مثال: خالد أو 7775 أو 2487345031" oninput="universalSearchFn()" style="width:100%;padding:14px 16px;border:2px solid var(--accent);border-radius:10px;font-size:1.05rem;font-family:'Cairo';font-weight:700;background:var(--surface);color:var(--text-primary);box-sizing:border-box;transition:var(--trans);">
-            <div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:0 0 10px 10px;max-height:300px;overflow-y:auto;z-index:100;box-shadow:var(--shadow-md);"></div>
-        </div>
-
-        
-        <table class="excel-table">
-            <thead>
-                <tr><th colspan="6" class="excel-header">بيانات السيارة والسائق</th></tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <th class="excel-label">اسم السائق:</th><td class="excel-input"><input type="text" id="poDriver" list="driversList" onchange="poAutofill()"></td>
-                    <th class="excel-label">الفرع:</th><td class="excel-input"><input type="text" id="poBranch" value="الدمام"></td>
-                    <th class="excel-label">الوظيفة:</th><td class="excel-input"><input type="text" id="poJob" value="سائق"></td>
-                </tr>
-                <tr>
-                    <th class="excel-label">نوع السيارة:</th><td class="excel-input"><input type="text" id="poCar"></td>
-                    <th class="excel-label">رقم اللوحة:</th><td class="excel-input"><input type="text" id="poPlate" list="platesList" onchange="poAutofill()"></td>
-                    <th class="excel-label">الموديل:</th><td class="excel-input"><input type="text" id="poModel"></td>
-                </tr>
-                <tr>
-                    <th class="excel-label">عداد السيارة:</th><td class="excel-input" colspan="5"><input type="number" id="odometer" required placeholder="مثال: 150000"></td>
-                </tr>
-                <tr>
-                    <th class="excel-label">الرقم الوظيفي:</th><td class="excel-input"><input type="text" id="poEmpid"></td>
-                    <th class="excel-label">رقم الجوال:</th><td class="excel-input"><input type="text" id="poPhone"></td>
-                    <th class="excel-label">التاريخ:</th><td class="excel-input"><input type="date" id="poDate"></td>
-                </tr>
-                <tr>
-                    <th class="excel-label">الرقم التسلسلي:</th><td class="excel-input" colspan="5"><input type="text" id="poSerial" readonly style="background: rgba(0,0,0,0.05); color: #d35400;"></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Parts -->
-        <table id="partsTable" class="excel-table bz-fit">
-            <thead>
-                <tr><th colspan="7" class="excel-header">قطع الغيار <button class="btn-add-row pdf-exclude" onclick="addPartRow()">+ إضافة</button></th></tr>
-                <tr>
-                    <th style="width: 5%;">م</th>
-                    <th style="width: 35%;">البيان</th>
-                    <th style="width: 10%;">الكمية</th>
-                    <th style="width: 15%;">السعر</th>
-                    <th style="width: 15%;">القيمة</th>
-                    <th style="width: 15%;">ملاحظات</th>
-                    <th style="width: 5%;">حذف</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <!-- Repairs -->
-        <table id="repairsTable" class="excel-table bz-fit">
-            <thead>
-                <tr><th colspan="5" class="excel-header">الإصلاح <button class="btn-add-row pdf-exclude" onclick="addRepairRow()">+ إضافة</button></th></tr>
-                <tr>
-                    <th style="width: 5%;">م</th>
-                    <th style="width: 45%;">الوصف</th>
-                    <th style="width: 20%;">القيمة</th>
-                    <th style="width: 25%;">ملاحظات</th>
-                    <th style="width: 5%;">حذف</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <!-- Tires -->
-        <table id="tiresTable" class="excel-table bz-fit">
-            <thead>
-                <tr><th colspan="9" class="excel-header">الكفرات <button class="btn-add-row pdf-exclude" onclick="addTireRow()">+ إضافة</button></th></tr>
-                <tr>
-                    <th style="width: 5%;">م</th>
-                    <th style="width: 15%;">تاريخ التغيير</th>
-                    <th style="width: 10%;">العدد</th>
-                    <th style="width: 10%;">أمامية</th>
-                    <th style="width: 10%;">خلفية</th>
-                    <th style="width: 15%;">قراءة سابقة</th>
-                    <th style="width: 15%;">قراءة حالية</th>
-                    <th style="width: 15%;">المسافة</th>
-                    <th style="width: 5%;">حذف</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <!-- Batteries -->
-        <table id="batteriesTable" class="excel-table bz-fit">
-            <thead>
-                <tr><th colspan="8" class="excel-header">البطاريات <button class="btn-add-row pdf-exclude" onclick="addBatteryRow()">+ إضافة</button></th></tr>
-                <tr>
-                    <th style="width: 5%;">م</th>
-                    <th style="width: 30%;">الوصف</th>
-                    <th style="width: 10%;">العدد</th>
-                    <th style="width: 15%;">المقاس</th>
-                    <th style="width: 10%;">أمبير</th>
-                    <th style="width: 15%;">السعر للوحدة</th>
-                    <th style="width: 10%;">التاريخ</th>
-                    <th style="width: 5%;">حذف</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <!-- Summary Totals -->
-        <table id="summaryTable" class="excel-table bz-fit">
-            <thead>
-                <tr><th colspan="7" class="excel-header">ملخص الإجماليات</th></tr>
-                <tr>
-                    <th style="width: 14%;">قطع الغيار</th>
-                    <th style="width: 14%;">الإصلاح</th>
-                    <th style="width: 14%;">الكفرات</th>
-                    <th style="width: 14%;">البطاريات</th>
-                    <th style="width: 15%;">الإجمالي (قبل الضريبة)</th>
-                    <th style="width: 14%;">ضريبة 15%</th>
-                    <th style="width: 15%;">الإجمالي شامل الضريبة</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><input type="number" id="sumParts" oninput="recalcSummary()" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" placeholder="الإجمالي"></td>
-                    <td><input type="number" id="sumRepairs" oninput="recalcSummary()" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" placeholder="الإجمالي"></td>
-                    <td><input type="number" id="sumTires" oninput="recalcSummary()" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" placeholder="أدخل يدوياً"></td>
-                    <td><input type="number" id="sumBatteries" oninput="recalcSummary()" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" placeholder="الإجمالي"></td>
-                    <td><input type="number" id="sumSubtotal" readonly style="background:rgba(212, 175, 55, 0.1);font-weight:bold;text-align:center;color:var(--accent);"></td>
-                    <td><input type="number" id="sumVat" readonly style="background:rgba(212, 175, 55, 0.1);font-weight:bold;text-align:center;color:#f39c12;"></td>
-                    <td><input type="number" id="sumGrandTotal" readonly style="background:rgba(212, 175, 55, 0.2);font-weight:bold;text-align:center;color:#2ecc71;font-size:1.1rem;border:1px solid rgba(46, 204, 113, 0.5);"></td>
-                </tr>
-            </tbody>
-        </table>
-
-                <!-- User Notes -->
-        <table class="excel-table" style="margin-top: 15px;">
-            <tr>
-                <th class="excel-label" style="width:15%">ملاحظات:</th>
-                <td style="padding:0;"><textarea id="poNotes" rows="2" placeholder="حقل الملاحظات..." style="width:100%; height:100%; padding:8px; border:none; resize:none; font-family:inherit; font-weight:bold; outline:none; font-size:1rem; background:transparent; color:var(--text-primary);"></textarea></td>
-            </tr>
-        </table>
-
-        <!-- Signatures Row -->
-        <div style="border-top: 2px solid #b8860b; border-bottom: 2px solid #b8860b; padding: 40px 0 10px 0; display: flex; justify-content: space-between; font-weight: bold; margin-top: 30px; font-size: 0.95rem;">
-            <div style="width:14%; text-align:center; color:var(--text-primary);">السائق</div>
-            <div style="width:14%; text-align:center; color:var(--text-primary);">الميكانيكي</div>
-            <div style="width:14%; text-align:center; color:var(--text-primary);">قسم الحركة</div>
-            <div style="width:14%; text-align:center; color:var(--text-primary);">مسئول الشراء</div>
-            <div style="width:14%; text-align:center; color:var(--text-primary);">الحسابات</div>
-            <div style="width:14%; text-align:center; color:var(--text-primary);">مدير الفرع</div>
-            <div style="width:16%; text-align:center; color:var(--text-primary);">اعتماد الإدارة</div>
-        </div>
-
-        <!-- Notes Section -->
-        <div style="text-align: center; font-weight: bold; margin-top: 40px; margin-bottom: 5px; color:var(--text-primary);">
+<div class="nav-buttons">
+<a class="btn-outline" href="/">🔙 العودة للرئيسية</a>
+<a class="btn-outline" href="/washing" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
+<a class="btn-outline" href="/tracking" style="text-decoration:none;">🛰️ التتبع المباشر</a>
+</div>
+</div>
+<!-- Vehicle Info -->
+<div class="table-container glass-surface" id="poFormArea">
+<div class="section-title">🚗 بيانات السيارة والسائق</div>
+<!-- Universal Search (interactive tool only — excluded from PDF export) -->
+<div class="pdf-exclude" style="position:relative;margin-bottom:15px;">
+<label style="font-weight:bold;color:var(--accent);font-size:1rem;display:block;margin-bottom:6px;">🔍 بحث شامل (اسم / رقم إقامة / رقم لوحة / جوال):</label>
+<input id="universalSearch" oninput="universalSearchFn()" placeholder="ابحث هنا... مثال: خالد أو 7775 أو 2487345031" style="width:100%;padding:14px 16px;border:2px solid var(--accent);border-radius:10px;font-size:1.05rem;font-family:'Cairo';font-weight:700;background:var(--surface);color:var(--text-primary);box-sizing:border-box;transition:var(--trans);" type="text"/>
+<div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:0 0 10px 10px;max-height:300px;overflow-y:auto;z-index:100;box-shadow:var(--shadow-md);"></div>
+</div>
+<table class="excel-table">
+<thead>
+<tr><th class="excel-header" colspan="6">بيانات السيارة والسائق</th></tr>
+</thead>
+<tbody>
+<tr>
+<th class="excel-label">اسم السائق:</th><td class="excel-input"><input id="poDriver" list="driversList" onchange="poAutofill()" type="text"/></td>
+<th class="excel-label">الفرع:</th><td class="excel-input"><input id="poBranch" type="text" value="الدمام"/></td>
+<th class="excel-label">الوظيفة:</th><td class="excel-input"><input id="poJob" type="text" value="سائق"/></td>
+</tr>
+<tr>
+<th class="excel-label">نوع السيارة:</th><td class="excel-input"><input id="poCar" type="text"/></td>
+<th class="excel-label">رقم اللوحة:</th><td class="excel-input"><input id="poPlate" list="platesList" onchange="poAutofill()" type="text"/></td>
+<th class="excel-label">الموديل:</th><td class="excel-input"><input id="poModel" type="text"/></td>
+</tr>
+<tr>
+<th class="excel-label">عداد السيارة:</th><td class="excel-input" colspan="5"><input id="odometer" placeholder="مثال: 150000" required="" type="number"/></td>
+</tr>
+<tr>
+<th class="excel-label">الرقم الوظيفي:</th><td class="excel-input"><input id="poEmpid" type="text"/></td>
+<th class="excel-label">رقم الجوال:</th><td class="excel-input"><input id="poPhone" type="text"/></td>
+<th class="excel-label">التاريخ:</th><td class="excel-input"><input id="poDate" type="date"/></td>
+</tr>
+<tr>
+<th class="excel-label">الرقم التسلسلي:</th><td class="excel-input" colspan="5"><input id="poSerial" readonly="" style="background: rgba(0,0,0,0.05); color: #d35400;" type="text"/></td>
+</tr>
+</tbody>
+</table>
+<!-- Parts -->
+<table class="excel-table bz-fit" id="partsTable">
+<thead>
+<tr><th class="excel-header" colspan="7">قطع الغيار <button class="btn-add-row pdf-exclude" onclick="addPartRow()">+ إضافة</button></th></tr>
+<tr>
+<th style="width: 5%;">م</th>
+<th style="width: 35%;">البيان</th>
+<th style="width: 10%;">الكمية</th>
+<th style="width: 15%;">السعر</th>
+<th style="width: 15%;">القيمة</th>
+<th style="width: 15%;">ملاحظات</th>
+<th style="width: 5%;">حذف</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<!-- Repairs -->
+<table class="excel-table bz-fit" id="repairsTable">
+<thead>
+<tr><th class="excel-header" colspan="5">الإصلاح <button class="btn-add-row pdf-exclude" onclick="addRepairRow()">+ إضافة</button></th></tr>
+<tr>
+<th style="width: 5%;">م</th>
+<th style="width: 45%;">الوصف</th>
+<th style="width: 20%;">القيمة</th>
+<th style="width: 25%;">ملاحظات</th>
+<th style="width: 5%;">حذف</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<!-- Tires -->
+<table class="excel-table bz-fit" id="tiresTable">
+<thead>
+<tr><th class="excel-header" colspan="9">الكفرات <button class="btn-add-row pdf-exclude" onclick="addTireRow()">+ إضافة</button></th></tr>
+<tr>
+<th style="width: 5%;">م</th>
+<th style="width: 15%;">تاريخ التغيير</th>
+<th style="width: 10%;">العدد</th>
+<th style="width: 10%;">أمامية</th>
+<th style="width: 10%;">خلفية</th>
+<th style="width: 15%;">قراءة سابقة</th>
+<th style="width: 15%;">قراءة حالية</th>
+<th style="width: 15%;">المسافة</th>
+<th style="width: 5%;">حذف</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<!-- Batteries -->
+<table class="excel-table bz-fit" id="batteriesTable">
+<thead>
+<tr><th class="excel-header" colspan="8">البطاريات <button class="btn-add-row pdf-exclude" onclick="addBatteryRow()">+ إضافة</button></th></tr>
+<tr>
+<th style="width: 5%;">م</th>
+<th style="width: 30%;">الوصف</th>
+<th style="width: 10%;">العدد</th>
+<th style="width: 15%;">المقاس</th>
+<th style="width: 10%;">أمبير</th>
+<th style="width: 15%;">السعر للوحدة</th>
+<th style="width: 10%;">التاريخ</th>
+<th style="width: 5%;">حذف</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<!-- Summary Totals -->
+<table class="excel-table bz-fit" id="summaryTable">
+<thead>
+<tr><th class="excel-header" colspan="7">ملخص الإجماليات</th></tr>
+<tr>
+<th style="width: 14%;">قطع الغيار</th>
+<th style="width: 14%;">الإصلاح</th>
+<th style="width: 14%;">الكفرات</th>
+<th style="width: 14%;">البطاريات</th>
+<th style="width: 15%;">الإجمالي (قبل الضريبة)</th>
+<th style="width: 14%;">ضريبة 15%</th>
+<th style="width: 15%;">الإجمالي شامل الضريبة</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><input id="sumParts" oninput="recalcSummary()" placeholder="الإجمالي" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" type="number"/></td>
+<td><input id="sumRepairs" oninput="recalcSummary()" placeholder="الإجمالي" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" type="number"/></td>
+<td><input id="sumTires" oninput="recalcSummary()" placeholder="أدخل يدوياً" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" type="number"/></td>
+<td><input id="sumBatteries" oninput="recalcSummary()" placeholder="الإجمالي" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" type="number"/></td>
+<td><input id="sumSubtotal" readonly="" style="background:rgba(212, 175, 55, 0.1);font-weight:bold;text-align:center;color:var(--accent);" type="number"/></td>
+<td><input id="sumVat" readonly="" style="background:rgba(212, 175, 55, 0.1);font-weight:bold;text-align:center;color:#f39c12;" type="number"/></td>
+<td><input id="sumGrandTotal" readonly="" style="background:rgba(212, 175, 55, 0.2);font-weight:bold;text-align:center;color:#2ecc71;font-size:1.1rem;border:1px solid rgba(46, 204, 113, 0.5);" type="number"/></td>
+</tr>
+</tbody>
+</table>
+<!-- User Notes -->
+<table class="excel-table" style="margin-top: 15px;">
+<tr>
+<th class="excel-label" style="width:15%">ملاحظات:</th>
+<td style="padding:0;"><textarea id="poNotes" placeholder="حقل الملاحظات..." rows="2" style="width:100%; height:100%; padding:8px; border:none; resize:none; font-family:inherit; font-weight:bold; outline:none; font-size:1rem; background:transparent; color:var(--text-primary);"></textarea></td>
+</tr>
+</table>
+<!-- Signatures Row -->
+<div style="border-top: 2px solid #b8860b; border-bottom: 2px solid #b8860b; padding: 40px 0 10px 0; display: flex; justify-content: space-between; font-weight: bold; margin-top: 30px; font-size: 0.95rem;">
+<div style="width:14%; text-align:center; color:var(--text-primary);">السائق</div>
+<div style="width:14%; text-align:center; color:var(--text-primary);">الميكانيكي</div>
+<div style="width:14%; text-align:center; color:var(--text-primary);">قسم الحركة</div>
+<div style="width:14%; text-align:center; color:var(--text-primary);">مسئول الشراء</div>
+<div style="width:14%; text-align:center; color:var(--text-primary);">الحسابات</div>
+<div style="width:14%; text-align:center; color:var(--text-primary);">مدير الفرع</div>
+<div style="width:16%; text-align:center; color:var(--text-primary);">اعتماد الإدارة</div>
+</div>
+<!-- Notes Section -->
+<div style="text-align: center; font-weight: bold; margin-top: 40px; margin-bottom: 5px; color:var(--text-primary);">
             تم إعداد هذا الجدول بواسطة قسم الحركة
         </div>
-        
-        <table class="excel-table" style="margin-top: 0; margin-bottom: 30px;">
-            <thead>
-                <tr><th class="excel-header" style="background-color: var(--accent) !important; text-align: center; padding:4px !important;">ملاحظات هامة</th></tr>
-            </thead>
-            <tbody>
-                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">1- يعبأ الطلب من قبل مسئول الورشة بعد توقيعه وتوقيع السائق والميكانيكي</td></tr>
-                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">2- يوقع بعد ذلك من المحاسبة ويتم ارساله للإدارة عن طريق محاسب الفرع ليتم اعتماده من الإدارة</td></tr>
-                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">3- عند وجود ملاحظة لأي من الأطراف يمكن تدوينها في حقل الملاحظات أعلاه</td></tr>
-                <tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">4- ترفق صورة للإدارة المالية وصورة لقسم الحركة بالإدارة، ويتم حفظ صورة من الطلب لدى الورشة</td></tr>
-            </tbody>
-        </table>
-
-        <div class="pdf-exclude" style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
-            <button class="btn-submit-gold" onclick="downloadPO(this)">📥 استخراج الطلب (Excel)</button>
-            <button class="btn-primary" onclick="sharePO(this)">📤 مشاركة / تصدير</button>
-            <button class="btn-submit-orange" onclick="openCustomModal('emailModal')">📧 إرسال عبر الإيميل</button>
-        </div>
-    </div>
-    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);width:100%">
+<table class="excel-table" style="margin-top: 0; margin-bottom: 30px;">
+<thead>
+<tr><th class="excel-header" style="background-color: var(--accent) !important; text-align: center; padding:4px !important;">ملاحظات هامة</th></tr>
+</thead>
+<tbody>
+<tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">1- يعبأ الطلب من قبل مسئول الورشة بعد توقيعه وتوقيع السائق والميكانيكي</td></tr>
+<tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">2- يوقع بعد ذلك من المحاسبة ويتم ارساله للإدارة عن طريق محاسب الفرع ليتم اعتماده من الإدارة</td></tr>
+<tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">3- عند وجود ملاحظة لأي من الأطراف يمكن تدوينها في حقل الملاحظات أعلاه</td></tr>
+<tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">4- ترفق صورة للإدارة المالية وصورة لقسم الحركة بالإدارة، ويتم حفظ صورة من الطلب لدى الورشة</td></tr>
+</tbody>
+</table>
+<div class="pdf-exclude" style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
+<button class="btn-submit-gold" onclick="downloadPO(this)">📥 استخراج الطلب (Excel)</button>
+<button class="btn-primary" onclick="sharePO(this)">📤 مشاركة / تصدير</button>
+<button class="btn-submit-orange" onclick="openCustomModal('emailModal')">📧 إرسال عبر الإيميل</button>
+</div>
+</div>
+<footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);width:100%">
         تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
-  </div><!-- /bz-shell -->
-
-
-
-    <script>
+</div> /bz-shell 
+<script>
         let driversData = [];
         async function fetchDrivers() { 
             try { 
@@ -974,97 +943,73 @@
             }
         };
     </script>
-
-
-
-    <div class="modal-backdrop" id="emailModal">
-        <div class="modal-content-custom">
-            <div class="modal-header-custom">
-                <span>📧 إرسال عبر الإيميل</span>
-                <button class="close-btn" style="color:white;" onclick="closeCustomModal('emailModal')">✕</button>
-            </div>
-            <div class="modal-body-custom">
-                <div
-                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-                    <label
-                        style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
-                    <input type="email" id="targetEmail" required placeholder="example@gmail.com"
-                        style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);">
-                </div>
-                <div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة
+<div class="modal-backdrop" id="emailModal">
+<div class="modal-content-custom">
+<div class="modal-header-custom">
+<span>📧 إرسال عبر الإيميل</span>
+<button class="close-btn" onclick="closeCustomModal('emailModal')" style="color:white;">✕</button>
+</div>
+<div class="modal-body-custom">
+<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
+<input id="targetEmail" placeholder="example@gmail.com" required="" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="email"/>
+</div>
+<div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+<div style="display:flex;align-items:center;gap:8px">
+<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة
                             إلى:</label>
-                        <div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
-                            <div class="cc-row" style="display:flex;gap:5px;align-items:center">
-                                <input type="email" class="cc-email" placeholder="نسخة (اختياري)"
-                                    style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);">
-                                <button type="button" onclick="addCcRow()"
-                                    style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div
-                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
-                    <label
-                        style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
-                    <input type="text" id="emailSubject" placeholder="موضوع الرسالة"
-                        style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);">
-                </div>
-                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-                    <button type="button" onclick="downloadPO(this)"
-                        class="btn-outline">حفظ في سطح المكتب 💾</button>
-                    <button onclick="closeCustomModal('emailModal')" class="btn-outline"
-                        style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
-                    <button id="btnSendEmail" onclick="sendPOEmail()" class="btn-primary">إرسال 🚀</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Compose Email FAB -->
-    <button id="composeFab" onclick="openCustomModal('composeModal')" class="fab-btn" title="إنشاء رسالة">✉️</button>
-
-    <div class="modal-backdrop" id="composeModal">
-        <div class="modal-content-custom">
-            <div class="modal-header-custom">
-                <span>✉️ إنشاء رسالة جديدة</span>
-                <button class="close-btn" style="color:white;" onclick="closeCustomModal('composeModal')">✕</button>
-            </div>
-            <form id="composeForm" class="modal-body-custom" style="display:flex;flex-direction:column;gap:12px">
-                <div
-                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-                    <label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
-                    <input type="email" name="email" required placeholder="example@gmail.com"
-                        style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);">
-                </div>
-                <div
-                    style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-                    <label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
-                    <input type="text" name="subject" placeholder="موضوع الرسالة"
-                        style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);">
-                </div>
-                <textarea name="body" rows="5" placeholder="اكتب رسالتك هنا..."
-                    style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:inherit;font-size:1rem;resize:vertical;outline:none"></textarea>
-                <div style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer"
-                    onclick="document.getElementById('composeFile').click()">
-                    <span style="font-size:1.3rem">📎</span>
-                    <span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو
+<div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
+<div class="cc-row" style="display:flex;gap:5px;align-items:center">
+<input class="cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);" type="email"/>
+<button onclick="addCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center" type="button">+</button>
+</div>
+</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
+<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
+<input id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="text"/>
+</div>
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+<button class="btn-outline" onclick="downloadPO(this)" type="button">حفظ في سطح المكتب 💾</button>
+<button class="btn-outline" onclick="closeCustomModal('emailModal')" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+<button class="btn-primary" id="btnSendEmail" onclick="sendPOEmail()">إرسال 🚀</button>
+</div>
+</div>
+</div>
+</div>
+ Compose Email FAB 
+<button class="fab-btn" id="composeFab" onclick="openCustomModal('composeModal')" title="إنشاء رسالة">✉️</button>
+<div class="modal-backdrop" id="composeModal">
+<div class="modal-content-custom">
+<div class="modal-header-custom">
+<span>✉️ إنشاء رسالة جديدة</span>
+<button class="close-btn" onclick="closeCustomModal('composeModal')" style="color:white;">✕</button>
+</div>
+<form class="modal-body-custom" id="composeForm" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+<label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
+<input name="email" placeholder="example@gmail.com" required="" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="email"/>
+</div>
+<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+<label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
+<input name="subject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="text"/>
+</div>
+<textarea name="body" placeholder="اكتب رسالتك هنا..." rows="5" style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:inherit;font-size:1rem;resize:vertical;outline:none"></textarea>
+<div onclick="document.getElementById('composeFile').click()" style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer">
+<span style="font-size:1.3rem">📎</span>
+<span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو
                         أي ملف آخر</span>
-                    <input type="file" id="composeFile" name="attachment" style="display:none"
-                        onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'">
-                </div>
-                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
-                    <button type="button" onclick="closeCustomModal('composeModal')" class="btn-outline"
-                        style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
-                    <button type="submit" id="composeSendBtn" class="btn-primary">إرسال 🚀</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
+<input id="composeFile" name="attachment" onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'" style="display:none" type="file"/>
+</div>
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
+<button class="btn-outline" onclick="closeCustomModal('composeModal')" style="border-color:var(--border-strong);color:var(--text-primary);" type="button">إلغاء</button>
+<button class="btn-primary" id="composeSendBtn" type="submit">إرسال 🚀</button>
+</div>
+</form>
+</div>
+</div>
+<script>
         document.getElementById('composeForm').addEventListener('submit', async function (e) {
             e.preventDefault();
             const btn = document.getElementById('composeSendBtn');
@@ -1087,7 +1032,4 @@
             btn.disabled = false;
         });
     </script>
-</body>
-
-</html>
-
+{% endblock %}

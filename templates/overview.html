@@ -1,13 +1,10 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مركز الفروع | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}مركز الفروع | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         .ov-wrap { max-width: 1100px; margin: 0 auto; }
         .ov-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.6rem; }
         .ov-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.1rem 1.2rem; }
@@ -37,54 +34,51 @@
         .ov-card .alerts { margin-top: 9px; display: flex; gap: 6px; flex-wrap: wrap; }
         .ov-card .alerts .pill { font-size: .74rem; padding: 2px 9px; }
     </style>
-</head>
-<body>
+{% endblock %}
 
-
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/handover">🚗 تسليم واستلام مركبة</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-        <a href="/search">🔍 بحث</a>
-        <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-        <a href="/cameras">📹 الكاميرات</a>
-        <a href="/settings">⚙️ الإعدادات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
-
-    <div class="bz-shell">
-      <h2 class="bz-section-title">🏢 مركز الفروع — نظرة شاملة</h2>
-      <div class="ov-wrap">
-        <div class="ov-alertbar" id="ovAlerts" style="display:none"></div>
-        <div class="ov-cards" id="ovCards"></div>
-        <div class="ov-feed">
-          <h3>📋 سجل النشاط عبر كل الفروع <span id="ovUpdated" style="font-size:.7rem;font-weight:700;color:var(--text-muted)"></span></h3>
-          <div class="ov-scroll">
-            <table class="ov-tbl">
-              <thead><tr><th>الوقت</th><th>الفرع</th><th>المستخدم</th><th>الإجراء</th><th>العنصر</th></tr></thead>
-              <tbody id="ovFeed"><tr><td colspan="5" class="ov-empty">جارٍ التحميل…</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/handover">🚗 تسليم واستلام مركبة</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+<a href="/settings">⚙️ الإعدادات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">🏢 مركز الفروع — نظرة شاملة</h2>
+<div class="ov-wrap">
+<div class="ov-alertbar" id="ovAlerts" style="display:none"></div>
+<div class="ov-cards" id="ovCards"></div>
+<div class="ov-feed">
+<h3>📋 سجل النشاط عبر كل الفروع <span id="ovUpdated" style="font-size:.7rem;font-weight:700;color:var(--text-muted)"></span></h3>
+<div class="ov-scroll">
+<table class="ov-tbl">
+<thead><tr><th>الوقت</th><th>الفرع</th><th>المستخدم</th><th>الإجراء</th><th>العنصر</th></tr></thead>
+<tbody id="ovFeed"><tr><td class="ov-empty" colspan="5">جارٍ التحميل…</td></tr></tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
 <script>
 (function () {
   'use strict';
@@ -145,6 +139,4 @@
   // (الإشعارات المنبثقة + قائمة الجرس أصبحت عامة في app_ux.js لكل الصفحات)
 })();
 </script>
-
-</body>
-</html>
+{% endblock %}

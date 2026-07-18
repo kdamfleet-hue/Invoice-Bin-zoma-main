@@ -1,18 +1,9 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>السجل الشامل للأسطول — BIN ZOMAH INTL.</title>
-    <!-- PWA Settings -->
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#1a1a1a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/static/logo_192.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}السجل الشامل للأسطول — BIN ZOMAH INTL.{% endblock %}
+
+{% block head %}
+<style>
         .registry-container {
             width: 100%;
             background: var(--surface);
@@ -145,129 +136,124 @@
         }
         .modal-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
     </style>
-</head>
-<body class="light-mode">
-    <header class="bz-topbar">
-        <div class="bz-brand">
-            <img src="data:image/png;base64,{{ b64_en }}" alt="Logo" class="bz-logo">
-            <span class="bz-title">السجل الشامل للأسطول</span>
-        </div>
-        <nav class="bz-nav">
-            <a href="/">🏠 الرئيسية</a>
-            <a href="/employees">👥 الموظفين</a>
-            <a href="/schedule">📋 الجدول الأسبوعي</a>
-            <a href="/washing">🚿 الغسيل</a>
-        </nav>
-        <div class="bz-actions">
-            <button class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-            <a href="/logout" class="bz-logout">خروج</a>
-        </div>
-    </header>
+{% endblock %}
 
-    <div class="bz-shell">
-        <h2 class="bz-section-title">🗂️ السجل الشامل للمركبات والسائقين</h2>
-        
-        <div class="stats-cards">
-            <div class="stat-card"><h3>إجمالي السائقين</h3><div class="val" id="statTotal">-</div></div>
-            <div class="stat-card"><h3>مسجلين في الغسيل</h3><div class="val" id="statWash">-</div></div>
-            <div class="stat-card"><h3>مسجلين في الأسبوعي</h3><div class="val" id="statSched">-</div></div>
-            <div class="stat-card"><h3>موظفين (ببيانات HR)</h3><div class="val" id="statEmp">-</div></div>
-        </div>
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="Logo" class="bz-logo" src="data:image/png;base64,{{ b64_en }}"/>
+<span class="bz-title">السجل الشامل للأسطول</span>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/washing">🚿 الغسيل</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">🗂️ السجل الشامل للمركبات والسائقين</h2>
+<div class="stats-cards">
+<div class="stat-card"><h3>إجمالي السائقين</h3><div class="val" id="statTotal">-</div></div>
+<div class="stat-card"><h3>مسجلين في الغسيل</h3><div class="val" id="statWash">-</div></div>
+<div class="stat-card"><h3>مسجلين في الأسبوعي</h3><div class="val" id="statSched">-</div></div>
+<div class="stat-card"><h3>موظفين (ببيانات HR)</h3><div class="val" id="statEmp">-</div></div>
+</div>
+<div class="registry-container">
+<div class="toolbar">
+<div class="search-box">
+<input id="searchInput" oninput="filterTable()" placeholder="🔍 ابحث بالاسم، الإقامة، اللوحة أو الماركة..." type="text"/>
+</div>
+<div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+<button class="btn-primary" onclick="openModal(null)">➕ إضافة سائق</button>
+<button class="btn-outline" onclick="runFullSync()" style="border-color:rgba(96,165,250,.5);color:#60a5fa;">🌐 مزامنة ذكية لجميع التبويبات</button>
+</div>
+</div>
+<div style="overflow-x:auto; max-height: 70vh; border-radius:8px; border:1px solid var(--border); box-shadow:var(--shadow-sm);">
+<table class="bz-table" id="registryTable" style="min-width: 2500px;">
+<thead>
+<tr>
+<th colspan="10" style="text-align:center; background:var(--brand-primary); color:white; border-left:1px solid rgba(255,255,255,0.2);">👤 بيانات الموظف</th>
+<th colspan="11" style="text-align:center; background:var(--brand-orange); color:white; border-left:1px solid rgba(255,255,255,0.2);">🚚 بيانات المركبة</th>
+<th rowspan="2" style="text-align:center; background:var(--brand-navy); min-width:150px;">ترابط البيانات</th>
+<th rowspan="2" style="text-align:center; background:var(--brand-navy);">إجراءات</th>
+</tr>
+<tr>
+<th>الاسم</th>
+<th>الرقم الوظيفي</th>
+<th>الإقامة</th>
+<th>الوظيفة</th>
+<th>بطاقة السائق</th>
+<th>الفحص الطبي</th>
+<th>انتهاء العقد</th>
+<th>الجوال</th>
+<th>الملاحظات</th>
+<th style="border-left:1px solid var(--border);"></th>
+<th>اللوحة</th>
+<th>الموديل</th>
+<th>النوع</th>
+<th>الطبالي</th>
+<th>الحمولة</th>
+<th>التسلسلي</th>
+<th>الفحص الدوري</th>
+<th>رخصة السير</th>
+<th>التشغيل</th>
+<th>بطاقة الوقود</th>
+<th style="border-left:1px solid var(--border);">ملاحظات</th>
+</tr>
+</thead>
+<tbody id="registryBody">
+<tr><td colspan="23" style="text-align:center;padding:2rem;">جاري تحميل البيانات... ⏳</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+ Edit/Add Modal 
+<div class="modal-overlay" id="editModal">
+<div class="modal-content" style="max-width: 800px; width: 95%;">
+<h3 class="modal-title" id="modalTitle">تعديل بيانات السائق والمركبة</h3>
+<input id="editId" type="hidden"/>
+<div style="display:flex; gap:2rem; flex-wrap:wrap;">
+<div style="flex:1; min-width:300px;">
+<h4 style="color:var(--brand-primary); margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">بيانات الموظف</h4>
+<div class="form-group"><label>الرقم الوظيفي</label><input id="editEmpid" type="text"/></div>
+<div class="form-group"><label>اسم السائق</label><input id="editName" type="text"/></div>
+<div class="form-group"><label>رقم الإقامة</label><input id="editIqama" type="text"/></div>
+<div class="form-group"><label>الوظيفة</label><input id="editJob" type="text"/></div>
+<div class="form-group"><label>تاريخ انتهاء بطاقة السائق</label><input id="editDrivercard" type="date"/></div>
+<div class="form-group"><label>تاريخ الفحص الطبي (السائق)</label><input id="editMedicalExp" type="date"/></div>
+<div class="form-group"><label>تاريخ انتهاء العقد</label><input id="editContractExp" type="date"/></div>
+<div class="form-group"><label>رقم الجوال</label><input id="editPhone" type="text"/></div>
+<div class="form-group"><label>الملاحظات</label><input id="editEmpNotes" type="text"/></div>
+</div>
+<div style="flex:1; min-width:300px;">
+<h4 style="color:var(--brand-orange); margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">بيانات المركبة</h4>
+<div class="form-group"><label>رقم اللوحة</label><input id="editPlate" type="text"/></div>
+<div class="form-group"><label>الموديل</label><input id="editModel" type="text"/></div>
+<div class="form-group"><label>نوع المركبة</label><input id="editCar" type="text"/></div>
+<div class="form-group"><label>عدد الطبالي</label><input id="editPallets" type="text"/></div>
+<div class="form-group"><label>الحمولة</label><input id="editLoad" type="text"/></div>
+<div class="form-group"><label>الرقم التسلسلي</label><input id="editVserial" type="text"/></div>
+<div class="form-group"><label>تاريخ انتهاء الفحص الدوري</label><input id="editInspect" type="date"/></div>
+<div class="form-group"><label>تاريخ انتهاء رخصة السير</label><input id="editLicense" type="date"/></div>
+<div class="form-group"><label>تاريخ انتهاء بطاقة التشغيل</label><input id="editOpcard" type="date"/></div>
+<div class="form-group"><label>بطاقة الوقود (فيول كارد)</label><input id="editFuelCard" type="text"/></div>
+<div class="form-group"><label>الملاحظات</label><input id="editNotes" type="text"/></div>
+</div>
+</div>
+<div class="modal-actions" style="margin-top: 1.5rem;">
+<button class="btn-outline" onclick="closeModal()">إلغاء</button>
+<button class="btn-primary" onclick="saveDriver()">💾 حفظ وتحديث السجل</button>
+</div>
+</div>
+</div>
 
-        <div class="registry-container">
-            <div class="toolbar">
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="🔍 ابحث بالاسم، الإقامة، اللوحة أو الماركة..." oninput="filterTable()">
-                </div>
-                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                    <button class="btn-primary" onclick="openModal(null)">➕ إضافة سائق</button>
-                    <button class="btn-outline" style="border-color:rgba(96,165,250,.5);color:#60a5fa;" onclick="runFullSync()">🌐 مزامنة ذكية لجميع التبويبات</button>
-                </div>
-            </div>
-
-            <div style="overflow-x:auto; max-height: 70vh; border-radius:8px; border:1px solid var(--border); box-shadow:var(--shadow-sm);">
-                <table class="bz-table" id="registryTable" style="min-width: 2500px;">
-                    <thead>
-                        <tr>
-                            <th colspan="10" style="text-align:center; background:var(--brand-primary); color:white; border-left:1px solid rgba(255,255,255,0.2);">👤 بيانات الموظف</th>
-                            <th colspan="11" style="text-align:center; background:var(--brand-orange); color:white; border-left:1px solid rgba(255,255,255,0.2);">🚚 بيانات المركبة</th>
-                            <th rowspan="2" style="text-align:center; background:var(--brand-navy); min-width:150px;">ترابط البيانات</th>
-                            <th rowspan="2" style="text-align:center; background:var(--brand-navy);">إجراءات</th>
-                        </tr>
-                        <tr>
-                            <th>الاسم</th>
-                            <th>الرقم الوظيفي</th>
-                            <th>الإقامة</th>
-                            <th>الوظيفة</th>
-                            <th>بطاقة السائق</th>
-                            <th>الفحص الطبي</th>
-                            <th>انتهاء العقد</th>
-                            <th>الجوال</th>
-                            <th>الملاحظات</th>
-                            <th style="border-left:1px solid var(--border);"></th>
-                            <th>اللوحة</th>
-                            <th>الموديل</th>
-                            <th>النوع</th>
-                            <th>الطبالي</th>
-                            <th>الحمولة</th>
-                            <th>التسلسلي</th>
-                            <th>الفحص الدوري</th>
-                            <th>رخصة السير</th>
-                            <th>التشغيل</th>
-                            <th>بطاقة الوقود</th>
-                            <th style="border-left:1px solid var(--border);">ملاحظات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="registryBody">
-                        <tr><td colspan="23" style="text-align:center;padding:2rem;">جاري تحميل البيانات... ⏳</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-        <!-- Edit/Add Modal -->
-    <div class="modal-overlay" id="editModal">
-        <div class="modal-content" style="max-width: 800px; width: 95%;">
-            <h3 class="modal-title" id="modalTitle">تعديل بيانات السائق والمركبة</h3>
-            <input type="hidden" id="editId">
-            <div style="display:flex; gap:2rem; flex-wrap:wrap;">
-                <div style="flex:1; min-width:300px;">
-                    <h4 style="color:var(--brand-primary); margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">بيانات الموظف</h4>
-                    <div class="form-group"><label>الرقم الوظيفي</label><input type="text" id="editEmpid"></div>
-                    <div class="form-group"><label>اسم السائق</label><input type="text" id="editName"></div>
-                    <div class="form-group"><label>رقم الإقامة</label><input type="text" id="editIqama"></div>
-                    <div class="form-group"><label>الوظيفة</label><input type="text" id="editJob"></div>
-                    <div class="form-group"><label>تاريخ انتهاء بطاقة السائق</label><input type="date" id="editDrivercard"></div>
-                    <div class="form-group"><label>تاريخ الفحص الطبي (السائق)</label><input type="date" id="editMedicalExp"></div>
-                    <div class="form-group"><label>تاريخ انتهاء العقد</label><input type="date" id="editContractExp"></div>
-                    <div class="form-group"><label>رقم الجوال</label><input type="text" id="editPhone"></div>
-                    <div class="form-group"><label>الملاحظات</label><input type="text" id="editEmpNotes"></div>
-                </div>
-                <div style="flex:1; min-width:300px;">
-                    <h4 style="color:var(--brand-orange); margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">بيانات المركبة</h4>
-                    <div class="form-group"><label>رقم اللوحة</label><input type="text" id="editPlate"></div>
-                    <div class="form-group"><label>الموديل</label><input type="text" id="editModel"></div>
-                    <div class="form-group"><label>نوع المركبة</label><input type="text" id="editCar"></div>
-                    <div class="form-group"><label>عدد الطبالي</label><input type="text" id="editPallets"></div>
-                    <div class="form-group"><label>الحمولة</label><input type="text" id="editLoad"></div>
-                    <div class="form-group"><label>الرقم التسلسلي</label><input type="text" id="editVserial"></div>
-                    <div class="form-group"><label>تاريخ انتهاء الفحص الدوري</label><input type="date" id="editInspect"></div>
-                    <div class="form-group"><label>تاريخ انتهاء رخصة السير</label><input type="date" id="editLicense"></div>
-                    <div class="form-group"><label>تاريخ انتهاء بطاقة التشغيل</label><input type="date" id="editOpcard"></div>
-                    <div class="form-group"><label>بطاقة الوقود (فيول كارد)</label><input type="text" id="editFuelCard"></div>
-                    <div class="form-group"><label>الملاحظات</label><input type="text" id="editNotes"></div>
-                </div>
-            </div>
-            <div class="modal-actions" style="margin-top: 1.5rem;">
-                <button class="btn-outline" onclick="closeModal()">إلغاء</button>
-                <button class="btn-primary" onclick="saveDriver()">💾 حفظ وتحديث السجل</button>
-            </div>
-        </div>
-    </div>
-    </div>
-
-    <script>
+<script>
         let allData = [];
 
         async function loadRegistry() {
@@ -523,5 +509,4 @@
 
         document.addEventListener('DOMContentLoaded', loadRegistry);
     </script>
-</body>
-</html>
+{% endblock %}

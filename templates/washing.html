@@ -1,14 +1,11 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تحضير جدول الغسيل | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}تحضير جدول الغسيل | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+<style>
         /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
         /* Let bz-fit size each column to its content; allow horizontal scroll on
            very narrow screens instead of clipping header/cell text. */
@@ -107,130 +104,117 @@
             .bz-stats { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-</head>
-<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing" class="active">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-    <a href="/search">🔍 بحث</a>
-    <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
-
-    <datalist id="driversList"></datalist>
-
-    <div class="bz-shell">
-
-    <h2 class="bz-section-title">🚿 تحضير جدول الغسيل — الشهري</h2>
-    <p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">جدول غسيل المركبات الشهري — فرع الدمام 2026</p>
-
-    <!-- Stats -->
-    <div class="bz-stats">
-        <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
-        <div class="bz-stat"><div class="num" id="statWashes">0</div><div class="label">إجمالي الغسلات</div></div>
-        <div class="bz-stat"><div class="num" id="statCurrent">0</div><div class="label">غسلات الشهر الحالي</div></div>
-        <div class="bz-stat"><div class="num" id="statPending">0</div><div class="label">لم تُغسل هذا الشهر</div></div>
-    </div>
-
-    <!-- Monthly-invoice summary (one wash invoice per vehicle per month) -->
-    <div class="month-summary" id="monthSummary" aria-live="polite">
-        <span class="ms-title">فاتورة الشهر الحالي (<span id="msMonthName">—</span>):</span>
-        <span class="ms-pill received">استلم فاتورة <span class="badge" id="msReceived">0</span></span>
-        <span class="ms-pill pending">لم يستلم بعد <span class="badge" id="msPending">0</span></span>
-    </div>
-
-    <!-- Financial summary — automatic wash-price calculator. Two honest scopes:
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a class="active" href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<datalist id="driversList"></datalist>
+<div class="bz-shell">
+<h2 class="bz-section-title">🚿 تحضير جدول الغسيل — الشهري</h2>
+<p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">جدول غسيل المركبات الشهري — فرع الدمام 2026</p>
+<!-- Stats -->
+<div class="bz-stats">
+<div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
+<div class="bz-stat"><div class="num" id="statWashes">0</div><div class="label">إجمالي الغسلات</div></div>
+<div class="bz-stat"><div class="num" id="statCurrent">0</div><div class="label">غسلات الشهر الحالي</div></div>
+<div class="bz-stat"><div class="num" id="statPending">0</div><div class="label">لم تُغسل هذا الشهر</div></div>
+</div>
+<!-- Monthly-invoice summary (one wash invoice per vehicle per month) -->
+<div aria-live="polite" class="month-summary" id="monthSummary">
+<span class="ms-title">فاتورة الشهر الحالي (<span id="msMonthName">—</span>):</span>
+<span class="ms-pill received">استلم فاتورة <span class="badge" id="msReceived">0</span></span>
+<span class="ms-pill pending">لم يستلم بعد <span class="badge" id="msPending">0</span></span>
+</div>
+<!-- Financial summary — automatic wash-price calculator. Two honest scopes:
          (1) cumulative year-to-date total = Σ(price × المجموع) = sum of the المبلغ column;
          (2) THIS month's invoice (one wash/vehicle = its price) split into received vs pending,
          where مُعتمَد + معلّق = فاتورة الشهر. -->
-    <div class="wash-finance" id="washFinance" aria-live="polite">
-        <span class="wf-item total">💰 إجمالي فاتورة الغسيل (تراكمي ٢٠٢٦): <b id="wfTotal">0</b> ر.س</span>
-        <span class="wf-item month">🧾 فاتورة هذا الشهر (<span id="wfMonthName">—</span>): <b id="wfMonth">0</b> ر.س</span>
-        <span class="wf-item paid">✅ مُعتمَد: <b id="wfPaid">0</b> ر.س</span>
-        <span class="wf-item pend">⏳ معلّق: <b id="wfPending">0</b> ر.س</span>
-    </div>
-
-    <!-- Search -->
-    <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." oninput="filterTable()">
-    </div>
-
-    <!-- Table -->
-    <div class="card" id="washPrintArea">
-    <div class="table-wrapper wash-table-wrap">
-        <table id="washTable" class="bz-fit">
-            <colgroup>
-                <col style="width:3%"><col style="width:11%"><col style="width:15%"><col style="width:16%">
-                <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
-                <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
-                <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
-                <col style="width:7%"><col style="width:7%"><col style="width:9%">
-            </colgroup>
-            <thead>
-                <tr>
-                    <th class="col-id">#</th>
-                    <th class="col-plate"><span class="nb">رقم</span> <span class="nb">اللوحة</span></th>
-                    <th class="col-type"><span class="nb">نوع</span> <span class="nb">السيارة</span></th>
-                    <th class="col-driver"><span class="nb">اسم</span> <span class="nb">السائق</span></th>
-                    <th class="col-del" title="حذف">🗑</th>
-                    <th class="col-month" id="mhead-0">1</th><th class="col-month" id="mhead-1">2</th>
-                    <th class="col-month" id="mhead-2">3</th><th class="col-month" id="mhead-3">4</th>
-                    <th class="col-month" id="mhead-4">5</th><th class="col-month" id="mhead-5">6</th>
-                    <th class="col-month" id="mhead-6">7</th><th class="col-month" id="mhead-7">8</th>
-                    <th class="col-month" id="mhead-8">9</th><th class="col-month" id="mhead-9">10</th>
-                    <th class="col-month" id="mhead-10">11</th><th class="col-month" id="mhead-11">12</th>
-                    <th class="col-total"><span class="nb">المجموع</span></th>
-                    <th class="col-price"><span class="nb">سعر</span> <span class="nb">الغسلة</span></th>
-                    <th class="col-amount"><span class="nb">المبلغ</span> <span class="nb">(ر.س)</span></th>
-                </tr>
-            </thead>
-            <tbody id="washBody"></tbody>
-        </table>
-    </div>
-
-    <!-- Legend -->
-    <div class="legend">
-        <div class="legend-item"><div class="legend-dot green">✓</div><span>استلم فاتورة الغسيل لهذا الشهر</span></div>
-        <div class="legend-item"><div class="legend-dot gray">✗</div><span>لم يستلم فاتورة هذا الشهر</span></div>
-        <div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">العمود المظلل بالذهبي ⬇ هو الشهر الحالي — انقر على أي خلية لتغيير الحالة (فاتورة واحدة لكل مركبة شهرياً)</div>
-    </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="actions-bar" style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
-        <button class="btn-primary" onclick="addWashRow()" style="background:linear-gradient(135deg,#1f9d57,#16a34a);">➕ إضافة مركبة</button>
-        <button class="btn-outline" onclick="syncFromFleet()">🔄 تحديث من قاعدة البيانات</button>
-        <button class="btn-outline" style="border-color:rgba(96,165,250,.5);color:#60a5fa;" onclick="fullServerSync()">🌐 مزامنة شاملة من السيرفر</button>
-        <button class="btn-outline" onclick="reauditPlates()">↻ مراجعة اللوحات والأنواع</button>
-        <button class="btn-submit-gold" id="washExportBtn" onclick="exportXlsx()">📥 تصدير Excel</button>
-        <button class="btn-submit-orange" onclick="shareWashing()">📤 مشاركة / تصدير</button>
-        <button class="btn-primary" onclick="saveState()">💾 حفظ التغييرات</button>
-    </div>
-
-    <footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي) — فرع الدمام</footer>
-
-    </div><!-- /bz-shell -->
-
+<div aria-live="polite" class="wash-finance" id="washFinance">
+<span class="wf-item total">💰 إجمالي فاتورة الغسيل (تراكمي ٢٠٢٦): <b id="wfTotal">0</b> ر.س</span>
+<span class="wf-item month">🧾 فاتورة هذا الشهر (<span id="wfMonthName">—</span>): <b id="wfMonth">0</b> ر.س</span>
+<span class="wf-item paid">✅ مُعتمَد: <b id="wfPaid">0</b> ر.س</span>
+<span class="wf-item pend">⏳ معلّق: <b id="wfPending">0</b> ر.س</span>
+</div>
+<!-- Search -->
+<div class="search-bar">
+<input id="searchInput" oninput="filterTable()" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." type="text"/>
+</div>
+<!-- Table -->
+<div class="card" id="washPrintArea">
+<div class="table-wrapper wash-table-wrap">
+<table class="bz-fit" id="washTable">
+<colgroup>
+<col style="width:3%"/><col style="width:11%"/><col style="width:15%"/><col style="width:16%"/>
+<col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
+<col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
+<col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
+<col style="width:7%"/><col style="width:7%"/><col style="width:9%"/>
+</colgroup>
+<thead>
+<tr>
+<th class="col-id">#</th>
+<th class="col-plate"><span class="nb">رقم</span> <span class="nb">اللوحة</span></th>
+<th class="col-type"><span class="nb">نوع</span> <span class="nb">السيارة</span></th>
+<th class="col-driver"><span class="nb">اسم</span> <span class="nb">السائق</span></th>
+<th class="col-del" title="حذف">🗑</th>
+<th class="col-month" id="mhead-0">1</th><th class="col-month" id="mhead-1">2</th>
+<th class="col-month" id="mhead-2">3</th><th class="col-month" id="mhead-3">4</th>
+<th class="col-month" id="mhead-4">5</th><th class="col-month" id="mhead-5">6</th>
+<th class="col-month" id="mhead-6">7</th><th class="col-month" id="mhead-7">8</th>
+<th class="col-month" id="mhead-8">9</th><th class="col-month" id="mhead-9">10</th>
+<th class="col-month" id="mhead-10">11</th><th class="col-month" id="mhead-11">12</th>
+<th class="col-total"><span class="nb">المجموع</span></th>
+<th class="col-price"><span class="nb">سعر</span> <span class="nb">الغسلة</span></th>
+<th class="col-amount"><span class="nb">المبلغ</span> <span class="nb">(ر.س)</span></th>
+</tr>
+</thead>
+<tbody id="washBody"></tbody>
+</table>
+</div>
+<!-- Legend -->
+<div class="legend">
+<div class="legend-item"><div class="legend-dot green">✓</div><span>استلم فاتورة الغسيل لهذا الشهر</span></div>
+<div class="legend-item"><div class="legend-dot gray">✗</div><span>لم يستلم فاتورة هذا الشهر</span></div>
+<div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">العمود المظلل بالذهبي ⬇ هو الشهر الحالي — انقر على أي خلية لتغيير الحالة (فاتورة واحدة لكل مركبة شهرياً)</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="actions-bar" style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+<button class="btn-primary" onclick="addWashRow()" style="background:linear-gradient(135deg,#1f9d57,#16a34a);">➕ إضافة مركبة</button>
+<button class="btn-outline" onclick="syncFromFleet()">🔄 تحديث من قاعدة البيانات</button>
+<button class="btn-outline" onclick="fullServerSync()" style="border-color:rgba(96,165,250,.5);color:#60a5fa;">🌐 مزامنة شاملة من السيرفر</button>
+<button class="btn-outline" onclick="reauditPlates()">↻ مراجعة اللوحات والأنواع</button>
+<button class="btn-submit-gold" id="washExportBtn" onclick="exportXlsx()">📥 تصدير Excel</button>
+<button class="btn-submit-orange" onclick="shareWashing()">📤 مشاركة / تصدير</button>
+<button class="btn-primary" onclick="saveState()">💾 حفظ التغييرات</button>
+</div>
+<footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي) — فرع الدمام</footer>
+</div> /bz-shell 
 <script>
     const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
     const CURRENT_MONTH = new Date().getMonth(); // 0-based index of the active invoice month
@@ -762,6 +746,4 @@
 
     window.addEventListener('load', () => { markCurrentMonthHeader(); init(); });
 </script>
-</body>
-</html>
-
+{% endblock %}

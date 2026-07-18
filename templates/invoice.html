@@ -1,19 +1,12 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منشئ الفواتير الاحترافي | شركة بن زومة</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=32) }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=32) }}"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}منشئ الفواتير الاحترافي | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<style>
         /* Page-specific layout only (tokens from base_styles.css) */
         .header-container {
             display: flex;
@@ -70,14 +63,7 @@
             .header-title { font-size: 1.8rem; }
         }
     </style>
-
-    <!-- ============================================================
-         "Corporate Elegance" luxury skin — charcoal + muted gold.
-         SCOPED to the invoice homepage (body.bz-lux); rethemes via
-         design tokens so all cards/inputs/tables/modals follow along.
-         Brand topbar/sidebar stay navy+gold. NO data/content change.
-         ============================================================ -->
-    <style>
+<style>
       /* Homepage-only luxury touches — the charcoal+gold palette, the <html> canvas, and the
          Cairo typography are now GLOBAL (static/base_styles.css), so they are not redeclared here. */
       body.bz-lux .header-title { font-weight: 300; letter-spacing: .5px; font-size: clamp(1.9rem, 5vw, 2.7rem); color: var(--text-primary); }
@@ -146,197 +132,176 @@
       body.bz-lux #contact a:hover { background: #3f3f3f !important; }
       body.bz-lux footer { color: var(--text-secondary) !important; border-top-color: var(--border) !important; }
     </style>
+{% endblock %}
 
-</head>
-<body>
-
-    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3; display: none;">
-        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
-    </video>
-
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/"{% if show_invoice_title is not defined or not show_invoice_title %} class="active"{% endif %}>🏠 الرئيسية</a>
-        <a href="/invoice"{% if show_invoice_title is defined and show_invoice_title %} class="active"{% endif %}>🧾 الفاتورة الذكية</a>
-        <a href="/dashboard" style="background:var(--brand-gold);color:var(--brand-navy);border-color:var(--brand-gold);font-weight:800;">🎯 لوحة الإدارة</a>
-        <a href="/registry" style="background:linear-gradient(135deg,#0c2340,#1a3a5c);color:white;border-color:#1a3a5c;font-weight:bold;">🗂️ السجل الشامل</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-    <a href="/search">🔍 بحث</a>
-    <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
-
-    <div class="bz-shell">
-
-    
-    <div class="landing-hero">
-        <div class="hero-top">
-            <h1 class="hero-title">سجلٌ واحد، يدير أسطولك بأكمله</h1>
-            <p class="hero-subtitle">كل حقل يُكتب مرة واحدة، ليتردد صداه فوراً في كل قسم من أقسام الموقع — دون تكرار، ودون انتظار.</p>
-            <div class="hero-diamond">◆</div>
-        </div>
-        
-        <div class="hero-stats">
-            <div class="stat-item"><div class="stat-num count-up" data-count="104">١٠٤</div><div class="stat-lbl">مجدولون هذا الأسبوع</div></div>
-            <div class="stat-item"><div class="stat-num count-up" data-count="128">١٢٨</div><div class="stat-lbl">مركبة نشطة</div></div>
-            <div class="stat-item"><div class="stat-num count-up" data-count="91" data-format="٪{n}">٪٩١</div><div class="stat-lbl">إنجاز الغسيل الشهري</div></div>
-            <div class="stat-item"><div class="stat-num count-up" data-count="6">٦</div><div class="stat-lbl">بانتظار التوزيع</div></div>
-        </div>
-    </div>
-
-    <div class="landing-section">
-        <div class="section-label english-tracked">AUTO-TRACE</div>
-        <h2 class="section-title">من اسمٍ واحد... إلى سجلٍ كامل</h2>
-        <div class="hex-grid">
-            <div class="hex-item"><div class="hex-circle"><i data-lucide="shield-check"></i></div><span>اسم السائق</span><p>محمد العتيبي</p></div>
-            <div class="hex-item"><div class="hex-circle"><i data-lucide="rectangle-horizontal"></i></div><span>اللوحة</span><p>أ ب ج ١٢٣٤</p></div>
-            <div class="hex-item"><div class="hex-circle"><i data-lucide="truck"></i></div><span>الموديل</span><p>دينا ٢٠٢٤</p></div>
-            <div class="hex-item"><div class="hex-circle"><i data-lucide="check-circle"></i></div><span>مكتمل</span><p>١٧ / ١٧</p></div>
-            <div class="hex-item"><div class="hex-circle"><i data-lucide="clock"></i></div><span>الفحص</span><p>٢/١١/٢٠٢٦</p></div>
-            <div class="hex-item"><div class="hex-circle"><i data-lucide="credit-card"></i></div><span>الإقامة</span><p>٢٤٧٧xxxxxx</p></div>
-        </div>
-    </div>
-
-    <div class="landing-section">
-        <div class="section-label english-tracked">SECTIONS</div>
-        <h2 class="section-title">أقسام النظام</h2>
-        <div class="sections-list">
-            <div class="sl-item"><div class="sl-num">I</div><div class="sl-text"><h3>السجل الشامل</h3><p>لوحة التحكم المركزية بكل بيانات السائق والمركبة، مع مؤشرات الترابط عبر كل الأقسام.</p></div></div>
-            <div class="sl-item"><div class="sl-num">II</div><div class="sl-text"><h3>الجدول الأسبوعي</h3><p>الجدول الرئيسي، الاسبير، الإجازات، ورادار غير المجدولين تلقائياً.</p></div></div>
-            <div class="sl-item"><div class="sl-num">III</div><div class="sl-text"><h3>جدول الغسيل</h3><p>تتبع دقيق لدورات الغسيل مع تعبئة تلقائية لبيانات اللوحة والسائق.</p></div></div>
-            <div class="sl-item"><div class="sl-num">IV</div><div class="sl-text"><h3>الزيوت والفلاتر</h3><p>متابعة اللترات المستهلكة ونوع الفلاتر لكل مركبة عبر استدعاء اللوحة.</p></div></div>
-            <div class="sl-item"><div class="sl-num">V</div><div class="sl-text"><h3>طلب شراء وإصلاح</h3><p>نماذج وأوامر رسمية بتنسيق طباعة مخصص لحالة المركبة وأجزائها.</p></div></div>
-            <div class="sl-item"><div class="sl-num">VI</div><div class="sl-text"><h3>الحوادث وتسليم العهد</h3><p>توثيق المسؤولية ومحاضر التسليم، مرتبطة مباشرة بالسجل الشامل.</p></div></div>
-            <div class="sl-item"><div class="sl-num">VII</div><div class="sl-text"><h3>التتبع وأبشر</h3><p>استيراد ملف أبشر ومزامنة كافة تبويبات الموقع في لحظة واحدة.</p></div></div>
-            <div class="sl-item"><div class="sl-num">VIII</div><div class="sl-text"><h3>الإحصائيات</h3><p>رسوم بيانية لأداء الفرع: الغسيل، الزيوت، والمصروفات الشهرية.</p></div></div>
-        </div>
-    </div>
-
-    <div class="landing-split">
-        <div class="split-left">
-            <h3 class="split-title">استدعاء مركبة</h3>
-            
-            <div class="clean-form" id="invoiceArea">
-                <div class="cf-row">
-                    <label for="driverName">اسم السائق</label>
-                    <input type="text" id="driverName" list="driversList" placeholder="اكتب للبحث..." onchange="autofillDriver()">
-                    <datalist id="driversList"></datalist>
-                </div>
-                <div class="cf-row">
-                    <label for="plateNum">رقم اللوحة</label>
-                    <input type="text" id="plateNum" list="platesList" placeholder="أ ب ج 1234" onchange="autofillByPlate()">
-                    <datalist id="platesList"></datalist>
-                </div>
-                <div class="cf-row">
-                    <label for="carType">نوع المركبة</label>
-                    <input type="text" id="carType" placeholder="مثال: دينا 2024">
-                </div>
-                <div class="cf-row">
-                    <label for="iqamaNum">رقم الإقامة</label>
-                    <input type="text" id="iqamaNum" placeholder="اكتب للبحث...">
-                </div>
-                
-                <!-- Hidden fields required for existing JS logic to not break -->
-                <div style="display:none;">
-                    <select id="requestType"><option value="أخرى">أخرى</option></select>
-                    <input type="date" id="invoiceDate">
-                    <div id="invoiceBranch">فرع الدمام</div>
-                    <textarea id="desc"></textarea>
-                </div>
-            </div>
-            
-            <div class="clean-actions" style="margin-top: 2.5rem; display: flex; gap: 1rem;">
-                <button class="btn-clean-gold" onclick="generateExcel()">تصدير الفاتورة</button>
-                <button class="btn-clean" onclick="clearInvoiceForm()">إفراغ</button>
-                <button class="btn-clean" onclick="openInvoiceShare()">مشاركة</button>
-            </div>
-        </div>
-        
-        <div class="split-right">
-            <h3 class="split-title">آخر النشاطات</h3>
-            <div class="activity-log">
-                <div class="al-item"><span class="al-time">١٢ د</span><span class="al-desc">مزامنة ملف أبشر — ٣ مركبات جديدة</span></div>
-                <div class="al-item"><span class="al-time">٤٥ د</span><span class="al-desc">تحديث بيانات خالد الشمري</span></div>
-                <div class="al-item"><span class="al-time">٩:١٠ ص</span><span class="al-desc">سائق غير مجدول: سعيد الغامدي</span></div>
-                <div class="al-item"><span class="al-time">أمس</span><span class="al-desc">طباعة أمر شراء — فرع المحطة</span></div>
-            </div>
-        </div>
-    </div>
-    
-    <footer class="landing-footer">
-        .BIN ZOMAH INTERNATIONAL TRADING & DEVELOPMENT CO. LTD
+{% block content %}
+<video autoplay="" loop="" muted="" playsinline="" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3; display: none;">
+<source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4"/>
+</video>
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a %}="" class="active" defined="" endif="" href="/" if="" is="" not="" or="" show_invoice_title="" {%="">🏠 الرئيسية</a>
+<a %}="" and="" class="active" defined="" endif="" href="/invoice" if="" is="" show_invoice_title="" {%="">🧾 الفاتورة الذكية</a>
+<a href="/dashboard" style="background:var(--brand-gold);color:var(--brand-navy);border-color:var(--brand-gold);font-weight:800;">🎯 لوحة الإدارة</a>
+<a href="/registry" style="background:linear-gradient(135deg,#0c2340,#1a3a5c);color:white;border-color:#1a3a5c;font-weight:bold;">🗂️ السجل الشامل</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<div class="landing-hero">
+<div class="hero-top">
+<h1 class="hero-title">سجلٌ واحد، يدير أسطولك بأكمله</h1>
+<p class="hero-subtitle">كل حقل يُكتب مرة واحدة، ليتردد صداه فوراً في كل قسم من أقسام الموقع — دون تكرار، ودون انتظار.</p>
+<div class="hero-diamond">◆</div>
+</div>
+<div class="hero-stats">
+<div class="stat-item"><div class="stat-num count-up" data-count="104">١٠٤</div><div class="stat-lbl">مجدولون هذا الأسبوع</div></div>
+<div class="stat-item"><div class="stat-num count-up" data-count="128">١٢٨</div><div class="stat-lbl">مركبة نشطة</div></div>
+<div class="stat-item"><div class="stat-num count-up" data-count="91" data-format="٪{n}">٪٩١</div><div class="stat-lbl">إنجاز الغسيل الشهري</div></div>
+<div class="stat-item"><div class="stat-num count-up" data-count="6">٦</div><div class="stat-lbl">بانتظار التوزيع</div></div>
+</div>
+</div>
+<div class="landing-section">
+<div class="section-label english-tracked">AUTO-TRACE</div>
+<h2 class="section-title">من اسمٍ واحد... إلى سجلٍ كامل</h2>
+<div class="hex-grid">
+<div class="hex-item"><div class="hex-circle"><i data-lucide="shield-check"></i></div><span>اسم السائق</span><p>محمد العتيبي</p></div>
+<div class="hex-item"><div class="hex-circle"><i data-lucide="rectangle-horizontal"></i></div><span>اللوحة</span><p>أ ب ج ١٢٣٤</p></div>
+<div class="hex-item"><div class="hex-circle"><i data-lucide="truck"></i></div><span>الموديل</span><p>دينا ٢٠٢٤</p></div>
+<div class="hex-item"><div class="hex-circle"><i data-lucide="check-circle"></i></div><span>مكتمل</span><p>١٧ / ١٧</p></div>
+<div class="hex-item"><div class="hex-circle"><i data-lucide="clock"></i></div><span>الفحص</span><p>٢/١١/٢٠٢٦</p></div>
+<div class="hex-item"><div class="hex-circle"><i data-lucide="credit-card"></i></div><span>الإقامة</span><p>٢٤٧٧xxxxxx</p></div>
+</div>
+</div>
+<div class="landing-section">
+<div class="section-label english-tracked">SECTIONS</div>
+<h2 class="section-title">أقسام النظام</h2>
+<div class="sections-list">
+<div class="sl-item"><div class="sl-num">I</div><div class="sl-text"><h3>السجل الشامل</h3><p>لوحة التحكم المركزية بكل بيانات السائق والمركبة، مع مؤشرات الترابط عبر كل الأقسام.</p></div></div>
+<div class="sl-item"><div class="sl-num">II</div><div class="sl-text"><h3>الجدول الأسبوعي</h3><p>الجدول الرئيسي، الاسبير، الإجازات، ورادار غير المجدولين تلقائياً.</p></div></div>
+<div class="sl-item"><div class="sl-num">III</div><div class="sl-text"><h3>جدول الغسيل</h3><p>تتبع دقيق لدورات الغسيل مع تعبئة تلقائية لبيانات اللوحة والسائق.</p></div></div>
+<div class="sl-item"><div class="sl-num">IV</div><div class="sl-text"><h3>الزيوت والفلاتر</h3><p>متابعة اللترات المستهلكة ونوع الفلاتر لكل مركبة عبر استدعاء اللوحة.</p></div></div>
+<div class="sl-item"><div class="sl-num">V</div><div class="sl-text"><h3>طلب شراء وإصلاح</h3><p>نماذج وأوامر رسمية بتنسيق طباعة مخصص لحالة المركبة وأجزائها.</p></div></div>
+<div class="sl-item"><div class="sl-num">VI</div><div class="sl-text"><h3>الحوادث وتسليم العهد</h3><p>توثيق المسؤولية ومحاضر التسليم، مرتبطة مباشرة بالسجل الشامل.</p></div></div>
+<div class="sl-item"><div class="sl-num">VII</div><div class="sl-text"><h3>التتبع وأبشر</h3><p>استيراد ملف أبشر ومزامنة كافة تبويبات الموقع في لحظة واحدة.</p></div></div>
+<div class="sl-item"><div class="sl-num">VIII</div><div class="sl-text"><h3>الإحصائيات</h3><p>رسوم بيانية لأداء الفرع: الغسيل، الزيوت، والمصروفات الشهرية.</p></div></div>
+</div>
+</div>
+<div class="landing-split">
+<div class="split-left">
+<h3 class="split-title">استدعاء مركبة</h3>
+<div class="clean-form" id="invoiceArea">
+<div class="cf-row">
+<label for="driverName">اسم السائق</label>
+<input id="driverName" list="driversList" onchange="autofillDriver()" placeholder="اكتب للبحث..." type="text"/>
+<datalist id="driversList"></datalist>
+</div>
+<div class="cf-row">
+<label for="plateNum">رقم اللوحة</label>
+<input id="plateNum" list="platesList" onchange="autofillByPlate()" placeholder="أ ب ج 1234" type="text"/>
+<datalist id="platesList"></datalist>
+</div>
+<div class="cf-row">
+<label for="carType">نوع المركبة</label>
+<input id="carType" placeholder="مثال: دينا 2024" type="text"/>
+</div>
+<div class="cf-row">
+<label for="iqamaNum">رقم الإقامة</label>
+<input id="iqamaNum" placeholder="اكتب للبحث..." type="text"/>
+</div>
+<!-- Hidden fields required for existing JS logic to not break -->
+<div style="display:none;">
+<select id="requestType"><option value="أخرى">أخرى</option></select>
+<input id="invoiceDate" type="date"/>
+<div id="invoiceBranch">فرع الدمام</div>
+<textarea id="desc"></textarea>
+</div>
+</div>
+<div class="clean-actions" style="margin-top: 2.5rem; display: flex; gap: 1rem;">
+<button class="btn-clean-gold" onclick="generateExcel()">تصدير الفاتورة</button>
+<button class="btn-clean" onclick="clearInvoiceForm()">إفراغ</button>
+<button class="btn-clean" onclick="openInvoiceShare()">مشاركة</button>
+</div>
+</div>
+<div class="split-right">
+<h3 class="split-title">آخر النشاطات</h3>
+<div class="activity-log">
+<div class="al-item"><span class="al-time">١٢ د</span><span class="al-desc">مزامنة ملف أبشر — ٣ مركبات جديدة</span></div>
+<div class="al-item"><span class="al-time">٤٥ د</span><span class="al-desc">تحديث بيانات خالد الشمري</span></div>
+<div class="al-item"><span class="al-time">٩:١٠ ص</span><span class="al-desc">سائق غير مجدول: سعيد الغامدي</span></div>
+<div class="al-item"><span class="al-time">أمس</span><span class="al-desc">طباعة أمر شراء — فرع المحطة</span></div>
+</div>
+</div>
+</div>
+<footer class="landing-footer">
+        .BIN ZOMAH INTERNATIONAL TRADING &amp; DEVELOPMENT CO. LTD
     </footer>
-
-
-    <!-- Email modal is at the bottom of the page with full features -->
-
-    <!-- Modal Drivers Database -->
-    <div class="modal-backdrop" id="driversModal">
-        <div class="modal-content-custom" style="max-width: 1200px !important; width: 95vw !important;">
-            <div class="modal-header-custom">
-                <h2>إدارة قاعدة بيانات السائقين</h2>
-                <button class="close-btn" style="color:white;" onclick="closeCustomModal('driversModal')">✖</button>
-            </div>
-            
-            <div class="modal-body-custom">
-                <div class="add-form">
-                    <input type="text" id="newName" placeholder="الاسم الرباعي (مطلوب)" style="grid-column: span 2;">
-                    <input type="text" id="newEmpid" placeholder="الرقم الوظيفي">
-                    <input type="text" id="newPlate" placeholder="رقم اللوحة">
-                    <input type="text" id="newCar" placeholder="نوع السيارة وموديلها">
-                    <input type="text" id="newIqama" placeholder="رقم الإقامة">
-                    <input type="text" id="newPhone" placeholder="رقم الجوال">
-                    <input type="text" id="newDriverCard" placeholder="تاريخ انتهاء بطاقة السائق">
-                    <button class="btn-add" onclick="addDriver()">إضافة إلى قاعدة البيانات ➕</button>
-                </div>
-
-                <div class="drivers-table-wrapper">
-                    <table class="drivers-table bz-fit">
-                        <thead>
-                            <tr>
-                                <th>الاسم</th>
-                                <th>الرقم الوظيفي</th>
-                                <th>السيارة</th>
-                                <th>اللوحة</th>
-                                <th>الإقامة</th>
-                                <th>بطاقة السائق</th>
-                                <th>الجوال</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="driversTableBody">
-                            <!-- Data here -->
-                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
-                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
-                            <tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div style="text-align:center; margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
-                    <button class="btn-primary" onclick="closeCustomModal('driversModal')" style="padding:12px 60px; font-size:1.1rem; border-radius:12px;">إغلاق ✖</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
+<!-- Email modal is at the bottom of the page with full features -->
+<!-- Modal Drivers Database -->
+<div class="modal-backdrop" id="driversModal">
+<div class="modal-content-custom" style="max-width: 1200px !important; width: 95vw !important;">
+<div class="modal-header-custom">
+<h2>إدارة قاعدة بيانات السائقين</h2>
+<button class="close-btn" onclick="closeCustomModal('driversModal')" style="color:white;">✖</button>
+</div>
+<div class="modal-body-custom">
+<div class="add-form">
+<input id="newName" placeholder="الاسم الرباعي (مطلوب)" style="grid-column: span 2;" type="text"/>
+<input id="newEmpid" placeholder="الرقم الوظيفي" type="text"/>
+<input id="newPlate" placeholder="رقم اللوحة" type="text"/>
+<input id="newCar" placeholder="نوع السيارة وموديلها" type="text"/>
+<input id="newIqama" placeholder="رقم الإقامة" type="text"/>
+<input id="newPhone" placeholder="رقم الجوال" type="text"/>
+<input id="newDriverCard" placeholder="تاريخ انتهاء بطاقة السائق" type="text"/>
+<button class="btn-add" onclick="addDriver()">إضافة إلى قاعدة البيانات ➕</button>
+</div>
+<div class="drivers-table-wrapper">
+<table class="drivers-table bz-fit">
+<thead>
+<tr>
+<th>الاسم</th>
+<th>الرقم الوظيفي</th>
+<th>السيارة</th>
+<th>اللوحة</th>
+<th>الإقامة</th>
+<th>بطاقة السائق</th>
+<th>الجوال</th>
+<th>الإجراءات</th>
+</tr>
+</thead>
+<tbody id="driversTableBody">
+<!-- Data here -->
+<tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
+<tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
+<tr class="skeleton"><td colspan="8">تحميل البيانات...</td></tr>
+</tbody>
+</table>
+</div>
+<div style="text-align:center; margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
+<button class="btn-primary" onclick="closeCustomModal('driversModal')" style="padding:12px 60px; font-size:1.1rem; border-radius:12px;">إغلاق ✖</button>
+</div>
+</div>
+</div>
+</div>
+<script>
         let driversData = [];
 
         async function fetchDrivers() {
@@ -800,8 +765,6 @@
         }
     
 </script>
-
-
 <!-- ═══════════════════════════════════════════ -->
 <!-- فريق العمل (سلايدر كروت) -->
 <!-- ═══════════════════════════════════════════ -->
@@ -826,13 +789,13 @@
 </style>
 {% if show_invoice_title is not defined or not show_invoice_title %}
 <section class="team-section" id="team">
-  <h2>👥 فريق عمل فرع الدمام</h2>
-  <p class="sub">شركة بن زومة الدولية للتجارة والإنماء</p>
-  <div class="team-slider">
-    <button class="team-nav" type="button" onclick="teamMove(-1)" aria-label="السابق">&#10095;</button>
-    <div class="team-track" id="teamTrack"></div>
-    <button class="team-nav" type="button" onclick="teamMove(1)" aria-label="التالي">&#10094;</button>
-  </div>
+<h2>👥 فريق عمل فرع الدمام</h2>
+<p class="sub">شركة بن زومة الدولية للتجارة والإنماء</p>
+<div class="team-slider">
+<button aria-label="السابق" class="team-nav" onclick="teamMove(-1)" type="button">❯</button>
+<div class="team-track" id="teamTrack"></div>
+<button aria-label="التالي" class="team-nav" onclick="teamMove(1)" type="button">❮</button>
+</div>
 </section>
 <script>
   (function () {
@@ -908,141 +871,134 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden) hold(400); });
   })();
 </script>
-
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم من نحن -->
 <!-- ═══════════════════════════════════════════ -->
 <section id="about" style="max-width:900px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
-    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:1.5rem;">🏢 من نحن</h2>
-    <div style="color:#3A4A5A; font-size:1rem; line-height:2; text-align:center;">
-        <p style="margin-bottom:1rem;">
-            <strong style="color:#1A3A5C;">شركة بن زومة للتجارة الدولية والإنماء المحدودة</strong> — فرع الدمام، قسم الحركة والنقل.
+<h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:1.5rem;">🏢 من نحن</h2>
+<div style="color:#3A4A5A; font-size:1rem; line-height:2; text-align:center;">
+<p style="margin-bottom:1rem;">
+<strong style="color:#1A3A5C;">شركة بن زومة للتجارة الدولية والإنماء المحدودة</strong> — فرع الدمام، قسم الحركة والنقل.
         </p>
-        <p style="margin-bottom:1rem;">
+<p style="margin-bottom:1rem;">
             نحن فريق متخصص في إدارة الأسطول والمركبات، نعمل على تقديم حلول ذكية ومتكاملة لإدارة حركة السيارات والسائقين بكفاءة عالية.
         </p>
-        <p style="margin-bottom:1rem;">
+<p style="margin-bottom:1rem;">
             يُدار هذا النظام الإلكتروني بواسطة <strong style="color:#1A3A5C;">قسم الحركة</strong>، ويهدف إلى أتمام جميع العمليات اليومية من فوترة وصيانة وتتبع وجداول، مما يضمن سير العمل بسلاسة ودقة.
         </p>
-        <p style="color:#6B7B8D; font-size:0.9rem;">
-            📍 المملكة العربية السعودية — فرع الدمام<br>
-            الموقع الرسمي للشركة<br>
-            🌐 <a href="https://bz.sa" target="_blank" style="color:#1A3A5C; font-weight:bold;">bz.sa</a>
-        </p>
-    </div>
+<p style="color:#6B7B8D; font-size:0.9rem;">
+            📍 المملكة العربية السعودية — فرع الدمام<br/>
+            الموقع الرسمي للشركة<br/>
+            🌐 <a href="https://bz.sa" style="color:#1A3A5C; font-weight:bold;" target="_blank">bz.sa</a>
+</p>
+</div>
 </section>
-
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم تواصل معنا -->
 <!-- ═══════════════════════════════════════════ -->
 <section id="contact" style="max-width:700px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
-    <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:0.5rem;">📞 تواصل معنا</h2>
-    <p style="text-align:center; color:#6B7B8D; margin-bottom:2rem;">قسم الحركة — مسؤول النظام: خالد بن محمد الغامدي</p>
-    <div style="display:flex; flex-direction:column; gap:1.2rem; align-items:center;">
-        <a href="mailto:damfleet@bz.sa" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''">
-            <span style="font-size:1.8rem;">📧</span>
-            <div>
-                <div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">البريد الإلكتروني</div>
-                <div style="color:#3A4A5A; font-size:1rem; direction:ltr;">damfleet@bz.sa</div>
-            </div>
-        </a>
-        <a href="https://wa.me/966570310909?text=مرحباً" target="_blank" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''">
-            <span style="font-size:1.8rem;">📱</span>
-            <div>
-                <div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">الجوال / واتساب</div>
-                <div style="color:#3A4A5A; font-size:1rem; direction:ltr;">0570310909</div>
-            </div>
-        </a>
-    </div>
+<h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:0.5rem;">📞 تواصل معنا</h2>
+<p style="text-align:center; color:#6B7B8D; margin-bottom:2rem;">قسم الحركة — مسؤول النظام: خالد بن محمد الغامدي</p>
+<div style="display:flex; flex-direction:column; gap:1.2rem; align-items:center;">
+<a href="mailto:damfleet@bz.sa" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;">
+<span style="font-size:1.8rem;">📧</span>
+<div>
+<div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">البريد الإلكتروني</div>
+<div style="color:#3A4A5A; font-size:1rem; direction:ltr;">damfleet@bz.sa</div>
+</div>
+</a>
+<a href="https://wa.me/966570310909?text=مرحباً" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" target="_blank">
+<span style="font-size:1.8rem;">📱</span>
+<div>
+<div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">الجوال / واتساب</div>
+<div style="color:#3A4A5A; font-size:1rem; direction:ltr;">0570310909</div>
+</div>
+</a>
+</div>
 </section>
 {% endif %}
 
 <footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
-
-
-    <div class="modal-backdrop" id="emailModal">
-        <div class="modal-content-custom">
-            <div class="modal-header-custom">
-                <span>📧 إرسال عبر الإيميل</span>
-                <button class="close-btn" style="color:white;" onclick="closeCustomModal('emailModal')">✖</button>
-            </div>
-            <div class="modal-body-custom">
-                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-                    <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
-                    <input type="email" id="targetEmail" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);">
-                </div>
-                <div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة إلى:</label>
-                        <div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
-                            <div class="cc-row" style="display:flex;gap:5px;align-items:center">
-                                <input type="email" class="cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);">
-                                <button type="button" onclick="addCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
-                    <label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
-                    <input type="text" id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);">
-                </div>
-                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-                    <button type="button" onclick="window.bzConfirm('هل تريد حفظه في سطح المكتب؟').then(function(ok){ if(ok){ generateExcel(); } })" class="btn-outline">حفظ في سطح المكتب 💾</button>
-                    <button onclick="closeCustomModal('emailModal')" class="btn-outline" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
-                    <button id="btnSendEmail" onclick="sendExcelEmail()" class="btn-primary">إرسال 🚀</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
+<div class="modal-backdrop" id="emailModal">
+<div class="modal-content-custom">
+<div class="modal-header-custom">
+<span>📧 إرسال عبر الإيميل</span>
+<button class="close-btn" onclick="closeCustomModal('emailModal')" style="color:white;">✖</button>
+</div>
+<div class="modal-body-custom">
+<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
+<input id="targetEmail" placeholder="example@gmail.com" required="" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="email"/>
+</div>
+<div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
+<div style="display:flex;align-items:center;gap:8px">
+<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة إلى:</label>
+<div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
+<div class="cc-row" style="display:flex;gap:5px;align-items:center">
+<input class="cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);" type="email"/>
+<button onclick="addCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center" type="button">+</button>
+</div>
+</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
+<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
+<input id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="text"/>
+</div>
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+<button class="btn-outline" onclick="window.bzConfirm('هل تريد حفظه في سطح المكتب؟').then(function(ok){ if(ok){ generateExcel(); } })" type="button">حفظ في سطح المكتب 💾</button>
+<button class="btn-outline" onclick="closeCustomModal('emailModal')" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+<button class="btn-primary" id="btnSendEmail" onclick="sendExcelEmail()">إرسال 🚀</button>
+</div>
+</div>
+</div>
+</div>
 <!-- Floating macOS-style dock (bottom-left): WhatsApp + Email -->
-<div class="bz-dock" aria-label="إجراءات سريعة">
-    <a class="bz-dock-btn wa" href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" data-label="واتساب" title="تواصل عبر واتساب" aria-label="واتساب">
-        <svg viewBox="0 0 32 32" width="26" height="26" fill="#fff" aria-hidden="true"><path d="M16.04 4C9.96 4 5.02 8.94 5.02 15.02c0 1.96.51 3.86 1.49 5.54L4.9 27l6.6-1.73a11 11 0 0 0 4.54.98h.01c6.08 0 11.02-4.94 11.02-11.02C27.07 8.94 22.12 4 16.04 4zm0 20.18h-.01a9.14 9.14 0 0 1-4.65-1.27l-.33-.2-3.92 1.03 1.05-3.82-.22-.34a9.12 9.12 0 0 1-1.4-4.87c0-5.05 4.11-9.16 9.17-9.16 2.45 0 4.75.96 6.48 2.69a9.1 9.1 0 0 1 2.68 6.48c0 5.05-4.11 9.16-9.16 9.16zm5.03-6.86c-.28-.14-1.63-.8-1.88-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.59.07-.28-.14-1.16-.43-2.21-1.36-.82-.73-1.37-1.63-1.53-1.91-.16-.28-.02-.43.12-.57.13-.13.28-.32.41-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.44-.46-.61-.46l-.52-.01c-.18 0-.46.07-.7.34-.25.28-.93.91-.93 2.22s.96 2.58 1.09 2.76c.14.18 1.88 2.87 4.56 4.02.64.28 1.13.44 1.52.56.64.2 1.22.17 1.68.1.51-.08 1.63-.67 1.86-1.31.23-.64.23-1.19.16-1.31-.07-.12-.25-.19-.53-.33z"/></svg>
-    </a>
-    <button id="composeFab" class="bz-dock-btn mail" onclick="openCustomModal('composeModal')" data-label="إرسال بالإيميل" title="إرسال عبر الإيميل" aria-label="إرسال عبر الإيميل">✉️</button>
+<div aria-label="إجراءات سريعة" class="bz-dock">
+<a aria-label="واتساب" class="bz-dock-btn wa" data-label="واتساب" href="https://wa.me/966570310909?text=مرحباً" rel="noopener" target="_blank" title="تواصل عبر واتساب">
+<svg aria-hidden="true" fill="#fff" height="26" viewbox="0 0 32 32" width="26"><path d="M16.04 4C9.96 4 5.02 8.94 5.02 15.02c0 1.96.51 3.86 1.49 5.54L4.9 27l6.6-1.73a11 11 0 0 0 4.54.98h.01c6.08 0 11.02-4.94 11.02-11.02C27.07 8.94 22.12 4 16.04 4zm0 20.18h-.01a9.14 9.14 0 0 1-4.65-1.27l-.33-.2-3.92 1.03 1.05-3.82-.22-.34a9.12 9.12 0 0 1-1.4-4.87c0-5.05 4.11-9.16 9.17-9.16 2.45 0 4.75.96 6.48 2.69a9.1 9.1 0 0 1 2.68 6.48c0 5.05-4.11 9.16-9.16 9.16zm5.03-6.86c-.28-.14-1.63-.8-1.88-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.59.07-.28-.14-1.16-.43-2.21-1.36-.82-.73-1.37-1.63-1.53-1.91-.16-.28-.02-.43.12-.57.13-.13.28-.32.41-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.44-.46-.61-.46l-.52-.01c-.18 0-.46.07-.7.34-.25.28-.93.91-.93 2.22s.96 2.58 1.09 2.76c.14.18 1.88 2.87 4.56 4.02.64.28 1.13.44 1.52.56.64.2 1.22.17 1.68.1.51-.08 1.63-.67 1.86-1.31.23-.64.23-1.19.16-1.31-.07-.12-.25-.19-.53-.33z"></path></svg>
+</a>
+<button aria-label="إرسال عبر الإيميل" class="bz-dock-btn mail" data-label="إرسال بالإيميل" id="composeFab" onclick="openCustomModal('composeModal')" title="إرسال عبر الإيميل">✉️</button>
 </div>
-
 <div class="modal-backdrop" id="composeModal">
-    <div class="modal-content-custom">
-        <div class="modal-header-custom">
-            <span>✉️ إنشاء رسالة جديدة</span>
-            <button class="close-btn" style="color:white;" onclick="closeCustomModal('composeModal')">✖</button>
-        </div>
-        <form id="composeForm" class="modal-body-custom" style="display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-                <label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
-                <input type="email" name="email" required placeholder="example@gmail.com" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);">
-            </div>
-            <div style="border-bottom:1px solid var(--border);padding-bottom:8px">
-                <div style="display:flex;align-items:center;gap:8px">
-                    <label style="font-weight:bold;color:var(--text-primary);min-width:50px">نسخة:</label>
-                    <div id="composeCcContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
-                        <div class="compose-cc-row" style="display:flex;gap:5px;align-items:center">
-                            <input type="email" class="compose-cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);">
-                            <button type="button" onclick="addComposeCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">+</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-                <label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
-                <input type="text" name="subject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);">
-            </div>
-            <textarea name="body" rows="5" placeholder="اكتب رسالتك هنا..." style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:inherit;font-size:1rem;resize:vertical;outline:none"></textarea>
-            <div style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer" onclick="document.getElementById('composeFile').click()">
-                <span style="font-size:1.3rem">📎</span>
-                <span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو أي ملف آخر</span>
-                <input type="file" id="composeFile" name="attachment" style="display:none" onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'">
-            </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
-                <button type="button" onclick="closeCustomModal('composeModal')" class="btn-outline" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
-                <button type="submit" id="composeSendBtn" class="btn-primary">إرسال 🚀</button>
-            </div>
-        </form>
-    </div>
+<div class="modal-content-custom">
+<div class="modal-header-custom">
+<span>✉️ إنشاء رسالة جديدة</span>
+<button class="close-btn" onclick="closeCustomModal('composeModal')" style="color:white;">✖</button>
 </div>
-
+<form class="modal-body-custom" id="composeForm" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+<label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
+<input name="email" placeholder="example@gmail.com" required="" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="email"/>
+</div>
+<div style="border-bottom:1px solid var(--border);padding-bottom:8px">
+<div style="display:flex;align-items:center;gap:8px">
+<label style="font-weight:bold;color:var(--text-primary);min-width:50px">نسخة:</label>
+<div id="composeCcContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
+<div class="compose-cc-row" style="display:flex;gap:5px;align-items:center">
+<input class="compose-cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);" type="email"/>
+<button onclick="addComposeCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center" type="button">+</button>
+</div>
+</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
+<label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
+<input name="subject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="text"/>
+</div>
+<textarea name="body" placeholder="اكتب رسالتك هنا..." rows="5" style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:inherit;font-size:1rem;resize:vertical;outline:none"></textarea>
+<div onclick="document.getElementById('composeFile').click()" style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer">
+<span style="font-size:1.3rem">📎</span>
+<span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو أي ملف آخر</span>
+<input id="composeFile" name="attachment" onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'" style="display:none" type="file"/>
+</div>
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
+<button class="btn-outline" onclick="closeCustomModal('composeModal')" style="border-color:var(--border-strong);color:var(--text-primary);" type="button">إلغاء</button>
+<button class="btn-primary" id="composeSendBtn" type="submit">إرسال 🚀</button>
+</div>
+</form>
+</div>
+</div>
 <script>
 document.getElementById('composeForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -1069,8 +1025,6 @@ document.getElementById('composeForm').addEventListener('submit', async function
     btn.disabled = false;
 });
 </script>
-
-
 <script>
 
         function addCcRow() {
@@ -1144,12 +1098,8 @@ document.getElementById('composeForm').addEventListener('submit', async function
             container.appendChild(row);
         }
 </script>
-
-    </div><!-- /.bz-shell -->
-
-    <script>
+</div> /.bz-shell 
+<script>
         lucide.createIcons();
     </script>
-</body>
-</html>
-
+{% endblock %}

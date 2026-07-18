@@ -1,14 +1,11 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>التتبع المباشر | Live Tracking — BIN ZOMAH INTL.</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
+{% extends 'base.html' %}
+
+{% block title %}التتبع المباشر | Live Tracking — BIN ZOMAH INTL.{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<style>
         /* Page-unique layout only — colors/fonts/buttons come from base_styles.css */
         .track-layout {
             display: flex;
@@ -110,72 +107,66 @@
             .track-map-wrap { height: 60vh; }
         }
     </style>
-</head>
-<body>
+{% endblock %}
 
-    <header class="bz-topbar">
-      <div class="bz-brand">
-        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-      </div>
-      <nav class="bz-nav">
-        <a href="/">🏠 الرئيسية</a>
-        <a href="/purchase">🛒 طلب شراء</a>
-        <a href="/schedule">📋 الجدول الأسبوعي</a>
-        <a href="/oils">🛢️ الزيوت والفلاتر</a>
-        <a href="/washing">🚿 الغسيل</a>
-        <a href="/workshop">🔧 الورشة</a>
-        <a href="/employees">👥 الموظفين</a>
-    <a href="/search">🔍 بحث</a>
-    <a href="/records">📁 التوثيق</a>
-        <a href="/gps_sync">📡 مزامنة GPS</a>
-        <a href="/tracking" class="active">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-      </nav>
-      <div class="bz-actions">
-        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-        <a href="/logout" class="bz-logout">خروج</a>
-      </div>
-    </header>
-
-    <div class="bz-shell">
-        <h2 class="bz-section-title">🛰️ التتبع المباشر للأسطول</h2>
-
-        <div class="bz-stats" style="margin-bottom:1rem;">
-            <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
-            <div class="bz-stat"><div class="num" id="statOnline">0</div><div class="label">نشطة الآن</div></div>
-            <div class="bz-stat"><div class="num" id="statOffline">0</div><div class="label">متوقفة</div></div>
-        </div>
-
-        <div class="track-layout">
-            <div class="card track-sidebar" id="assetPanel">
-                <div class="side-head">
-                    <h3>📦 مركبات فرع الدمام <span id="assetCount" style="color:var(--text-secondary);font-weight:600;">(0)</span></h3>
-                    <div class="pdf-exclude" style="display:flex;gap:.4rem;">
-                        <button id="shareBtn" class="btn-outline" style="padding:.35rem .6rem;font-size:.8rem;" onclick="shareAssets()">📤 مشاركة / تصدير</button>
-                        <button id="refreshBtn" class="btn-outline" style="padding:.35rem .75rem;font-size:.8rem;" onclick="fetchData()">🔄 تحديث</button>
-                    </div>
-                </div>
-                <div class="track-search pdf-exclude">
-                    <input type="text" id="assetSearch" placeholder="🔍 بحث عن مركبة..." oninput="filterAssets()">
-                </div>
-                <div class="asset-list" id="assetList"></div>
-            </div>
-
-            <div class="card track-map-wrap">
-                <div id="map"></div>
-
-                <div id="mapState" class="map-state">
-                    <div class="spinner"></div>
-                    <h3>جاري الاتصال بأنظمة التتبع…</h3>
-                    <p>يتم الآن جلب مواقع مركبات الأسطول المباشرة.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a class="active" href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">🛰️ التتبع المباشر للأسطول</h2>
+<div class="bz-stats" style="margin-bottom:1rem;">
+<div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
+<div class="bz-stat"><div class="num" id="statOnline">0</div><div class="label">نشطة الآن</div></div>
+<div class="bz-stat"><div class="num" id="statOffline">0</div><div class="label">متوقفة</div></div>
+</div>
+<div class="track-layout">
+<div class="card track-sidebar" id="assetPanel">
+<div class="side-head">
+<h3>📦 مركبات فرع الدمام <span id="assetCount" style="color:var(--text-secondary);font-weight:600;">(0)</span></h3>
+<div class="pdf-exclude" style="display:flex;gap:.4rem;">
+<button class="btn-outline" id="shareBtn" onclick="shareAssets()" style="padding:.35rem .6rem;font-size:.8rem;">📤 مشاركة / تصدير</button>
+<button class="btn-outline" id="refreshBtn" onclick="fetchData()" style="padding:.35rem .75rem;font-size:.8rem;">🔄 تحديث</button>
+</div>
+</div>
+<div class="track-search pdf-exclude">
+<input id="assetSearch" oninput="filterAssets()" placeholder="🔍 بحث عن مركبة..." type="text"/>
+</div>
+<div class="asset-list" id="assetList"></div>
+</div>
+<div class="card track-map-wrap">
+<div id="map"></div>
+<div class="map-state" id="mapState">
+<div class="spinner"></div>
+<h3>جاري الاتصال بأنظمة التتبع…</h3>
+<p>يتم الآن جلب مواقع مركبات الأسطول المباشرة.</p>
+</div>
+</div>
+</div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
         let map = null;
         let markers = {};
         let currentAssets = [];
@@ -350,5 +341,4 @@
             fetchData();
         });
     </script>
-</body>
-</html>
+{% endblock %}

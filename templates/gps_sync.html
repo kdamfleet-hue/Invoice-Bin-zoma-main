@@ -1,15 +1,11 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% extends 'base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مزامنة كشف GPS | شركة بن زومة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
-    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <style>
+{% block title %}مزامنة كشف GPS | شركة بن زومة{% endblock %}
+
+{% block head %}
+<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
         /* Styles unique to this page only — colors/fonts/topbar come from base_styles.css */
         .gps-grid {
             display: grid;
@@ -98,125 +94,112 @@
     @keyframes gpsFade { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
     .gps-frame { width:100%; height:calc(100vh - 230px); min-height:620px; border:1px solid var(--border); border-radius:14px; background:#0d1117; display:block; }
     </style>
-</head>
+{% endblock %}
 
-<body>
-
-    <video autoplay muted loop playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.25;">
-        <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4">
-    </video>
-
-    <header class="bz-topbar">
-        <div class="bz-brand">
-            <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
-            <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-        </div>
-        <nav class="bz-nav">
-            <a href="/">🏠 الرئيسية</a>
-            <a href="/purchase">🛒 طلب شراء</a>
-            <a href="/schedule">📋 الجدول الأسبوعي</a>
-            <a href="/oils">🛢️ الزيوت والفلاتر</a>
-            <a href="/washing">🚿 الغسيل</a>
-            <a href="/workshop">🔧 الورشة</a>
-            <a href="/employees">👥 الموظفين</a>
-    <a href="/search">🔍 بحث</a>
-    <a href="/records">📁 التوثيق</a>
-            <a href="/gps_sync" class="active">📡 مزامنة GPS</a>
-            <a href="/tracking">🛰️ التتبع</a>
-      <a href="/cameras">📹 الكاميرات</a>
-        </nav>
-        <div class="bz-actions">
-            <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-            <a href="/logout" class="bz-logout">خروج</a>
-        </div>
-    </header>
-
-    <div class="bz-shell">
-
-        <h2 class="bz-section-title">📡 كشف ومزامنة أجهزة GPS</h2>
-
-        <div class="gps-subtabs">
-            <button type="button" class="gps-subtab active" onclick="gpsTab('sync', this)">📥 المزامنة</button>
-            <button type="button" class="gps-subtab" onclick="gpsTab('devices', this)">🛰️ كشف أجهزة التتبع</button>
-            <button type="button" class="gps-subtab" onclick="gpsTab('dashboard', this)">📊 لوحة المؤشرات</button>
-        </div>
-
-        <div class="gps-tabpanel active" id="tp-sync">
-        <div class="bz-stats">
-            <div class="bz-stat">
-                <div class="num" id="statMatches">0</div>
-                <div class="label">المركبات المطابقة</div>
-            </div>
-            <div class="bz-stat">
-                <div class="num" id="statUpdates">0</div>
-                <div class="label">الخلايا المحدثة</div>
-            </div>
-            <div class="bz-stat">
-                <div class="num" id="statStatus">—</div>
-                <div class="label">حالة المزامنة</div>
-            </div>
-        </div>
-
-        <div class="gps-grid">
-            <div class="card">
-                <p style="color:var(--text-secondary); font-weight:600; margin-top:0;">
+{% block content %}
+<video autoplay="" loop="" muted="" playsinline="" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.25;">
+<source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4"/>
+</video>
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a class="active" href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">📡 كشف ومزامنة أجهزة GPS</h2>
+<div class="gps-subtabs">
+<button class="gps-subtab active" onclick="gpsTab('sync', this)" type="button">📥 المزامنة</button>
+<button class="gps-subtab" onclick="gpsTab('devices', this)" type="button">🛰️ كشف أجهزة التتبع</button>
+<button class="gps-subtab" onclick="gpsTab('dashboard', this)" type="button">📊 لوحة المؤشرات</button>
+</div>
+<div class="gps-tabpanel active" id="tp-sync">
+<div class="bz-stats">
+<div class="bz-stat">
+<div class="num" id="statMatches">0</div>
+<div class="label">المركبات المطابقة</div>
+</div>
+<div class="bz-stat">
+<div class="num" id="statUpdates">0</div>
+<div class="label">الخلايا المحدثة</div>
+</div>
+<div class="bz-stat">
+<div class="num" id="statStatus">—</div>
+<div class="label">حالة المزامنة</div>
+</div>
+</div>
+<div class="gps-grid">
+<div class="card">
+<p style="color:var(--text-secondary); font-weight:600; margin-top:0;">
                     قم برفع الملف المصدر (البيانات المحدثة) وملف كشف الـ GPS الهدف، وسيقوم النظام بمطابقة المركبات وتحديث الخلايا تلقائياً ثم تنزيل الملف المحدّث.
                 </p>
-                <form id="gpsForm">
-                    <div class="dropzone" id="dzSource">
-                        <label>📥 الملف المصدر — البيانات المحدثة</label>
-                        <input type="file" id="sourceFile" accept=".xlsx, .xls" required>
-                        <p class="dz-hint">صيغ مدعومة: xlsx, xls</p>
-                    </div>
-                    <div class="dropzone" id="dzTarget">
-                        <label>🎯 الملف الهدف — كشف أجهزة GPS للمركبات</label>
-                        <input type="file" id="targetFile" accept=".xlsx, .xls" required>
-                        <p class="dz-hint">سيتم تحديث هذا الملف وتنزيله بعد المطابقة</p>
-                    </div>
-
-                    <button type="submit" id="submitBtn" class="btn-submit-gold" style="width:100%;">
-                        <span>🔄 دمج وتحديث البيانات</span>
-                    </button>
-                </form>
-
-                <div id="resultBox" class="card" style="display:none; margin-top:1.25rem; border-color:var(--accent);">
-                    <h3 style="margin-top:0; color:var(--accent);">✅ اكتملت المزامنة بنجاح</h3>
-                    <p id="matchCount" style="font-weight:700; margin:.35rem 0;">عدد المركبات المطابقة: 0</p>
-                    <p id="updateCount" style="font-weight:700; margin:.35rem 0;">عدد الخلايا المحدثة: 0</p>
-                    <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 10px;">تم تنزيل الملف المحدّث تلقائياً.</p>
-                    <div style="display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.9rem;">
-                        <button type="button" id="downloadBtn" class="btn-outline">📥 تنزيل الملف المحدّث</button>
-                        <button type="button" id="shareBtn" class="btn-submit-orange">📤 مشاركة / تصدير</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3 style="margin-top:0;">طريقة العمل</h3>
-                <ol class="gps-steps">
-                    <li><span class="step-num">1</span><span>ارفع الملف المصدر الذي يحتوي على أحدث بيانات المركبات.</span></li>
-                    <li><span class="step-num">2</span><span>ارفع كشف أجهزة GPS الهدف المراد تحديثه.</span></li>
-                    <li><span class="step-num">3</span><span>اضغط «دمج وتحديث» ليتم مطابقة المركبات وتحديث الخلايا.</span></li>
-                    <li><span class="step-num">4</span><span>سيُنزَّل الملف المحدّث تلقائياً إلى جهازك.</span></li>
-                </ol>
-                <a href="/tracking" class="btn-outline" style="text-decoration:none; display:block; text-align:center; margin-top:1.25rem;">🛰️ الانتقال إلى التتبع المباشر</a>
-            </div>
-        </div>
-        </div><!-- /tp-sync -->
-
-        <div class="gps-tabpanel" id="tp-devices">
-            <iframe class="gps-frame" data-src="/gps_devices" title="كشف أجهزة التتبع"></iframe>
-        </div>
-        <div class="gps-tabpanel" id="tp-dashboard">
-            <iframe class="gps-frame" data-src="/gps_dashboard" title="لوحة مؤشرات GPS"></iframe>
-        </div>
-
-        <footer style="text-align:center; padding: 24px 0; color:var(--text-muted); font-weight:bold; margin-top:32px; border-top: 1px solid var(--border);">
+<form id="gpsForm">
+<div class="dropzone" id="dzSource">
+<label>📥 الملف المصدر — البيانات المحدثة</label>
+<input accept=".xlsx, .xls" id="sourceFile" required="" type="file"/>
+<p class="dz-hint">صيغ مدعومة: xlsx, xls</p>
+</div>
+<div class="dropzone" id="dzTarget">
+<label>🎯 الملف الهدف — كشف أجهزة GPS للمركبات</label>
+<input accept=".xlsx, .xls" id="targetFile" required="" type="file"/>
+<p class="dz-hint">سيتم تحديث هذا الملف وتنزيله بعد المطابقة</p>
+</div>
+<button class="btn-submit-gold" id="submitBtn" style="width:100%;" type="submit">
+<span>🔄 دمج وتحديث البيانات</span>
+</button>
+</form>
+<div class="card" id="resultBox" style="display:none; margin-top:1.25rem; border-color:var(--accent);">
+<h3 style="margin-top:0; color:var(--accent);">✅ اكتملت المزامنة بنجاح</h3>
+<p id="matchCount" style="font-weight:700; margin:.35rem 0;">عدد المركبات المطابقة: 0</p>
+<p id="updateCount" style="font-weight:700; margin:.35rem 0;">عدد الخلايا المحدثة: 0</p>
+<p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 10px;">تم تنزيل الملف المحدّث تلقائياً.</p>
+<div style="display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.9rem;">
+<button class="btn-outline" id="downloadBtn" type="button">📥 تنزيل الملف المحدّث</button>
+<button class="btn-submit-orange" id="shareBtn" type="button">📤 مشاركة / تصدير</button>
+</div>
+</div>
+</div>
+<div class="card">
+<h3 style="margin-top:0;">طريقة العمل</h3>
+<ol class="gps-steps">
+<li><span class="step-num">1</span><span>ارفع الملف المصدر الذي يحتوي على أحدث بيانات المركبات.</span></li>
+<li><span class="step-num">2</span><span>ارفع كشف أجهزة GPS الهدف المراد تحديثه.</span></li>
+<li><span class="step-num">3</span><span>اضغط «دمج وتحديث» ليتم مطابقة المركبات وتحديث الخلايا.</span></li>
+<li><span class="step-num">4</span><span>سيُنزَّل الملف المحدّث تلقائياً إلى جهازك.</span></li>
+</ol>
+<a class="btn-outline" href="/tracking" style="text-decoration:none; display:block; text-align:center; margin-top:1.25rem;">🛰️ الانتقال إلى التتبع المباشر</a>
+</div>
+</div>
+</div><!-- /tp-sync -->
+<div class="gps-tabpanel" id="tp-devices">
+<iframe class="gps-frame" data-src="/gps_devices" title="كشف أجهزة التتبع"></iframe>
+</div>
+<div class="gps-tabpanel" id="tp-dashboard">
+<iframe class="gps-frame" data-src="/gps_dashboard" title="لوحة مؤشرات GPS"></iframe>
+</div>
+<footer style="text-align:center; padding: 24px 0; color:var(--text-muted); font-weight:bold; margin-top:32px; border-top: 1px solid var(--border);">
             أُعدّ بواسطة قسم الحركة — فرع الدمام · شركة بن زومة للتجارة والإنماء
         </footer>
-    </div>
-
-    <script>
+</div>
+<script>
         // Holds the most recent synced Excel file so it can be shared/exported.
         let syncedBlob = null;
         const SYNCED_FILENAME = 'كشف_اجهزة_GPS_محدث_الدمام.xlsx';
@@ -319,7 +302,4 @@
         }
         window.gpsTab = gpsTab;
     </script>
-
-</body>
-
-</html>
+{% endblock %}
