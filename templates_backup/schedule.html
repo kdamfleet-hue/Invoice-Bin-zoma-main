@@ -1,0 +1,2337 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الجدول الأسبوعي | شركة بن زومة</title>
+  <!-- PWA Settings -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#1a1a1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/static/logo_192.png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+  <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ════════════════════════════════════════════════════════════════════
+       PREMIUM DARK NAVY + GOLD RESKIN — scoped to .sched-premium.
+       Visual/presentation only: no data, IDs, handlers, or logic changed.
+       The global nav (.bz-topbar) is left untouched.
+       ════════════════════════════════════════════════════════════════════ */
+    .sched-premium {
+      --navy:#1A1A1A; --navy2:#2D2D2D; --navy3:#363636;
+      --p-blue:#C5A059; --p-gold:#C5A059; --p-gold2:#d8b87a;
+      --p-red:#C0392B; --p-orange:#D35400; --p-green:#1A7A4A; --p-green2:#21A85E;
+      --p-brown:#6B3A1F; --p-text:#F4F4F4; --p-muted:#B0B0B0;
+      --p-card:#2D2D2D; --p-border:#3a3a3a; --p-row-alt:rgba(197,160,89,0.06);
+      font-family:'Tajawal',sans-serif;
+      background:var(--navy); color:var(--p-text);
+      border-radius:16px; padding:20px 22px 28px; margin-top:14px;
+      border:1px solid var(--p-border); box-shadow:0 12px 22px -6px rgba(0,0,0,.5);
+      direction:rtl;
+    }
+    .sched-premium ::-webkit-scrollbar { width:7px; height:7px; }
+    .sched-premium ::-webkit-scrollbar-track { background:var(--navy2); }
+    .sched-premium ::-webkit-scrollbar-thumb { background:var(--p-gold); border-radius:4px; }
+
+    /* page section title */
+    .sched-premium .bz-section-title,
+    .sched-premium #schedTitle {
+      color:var(--p-gold2); font-weight:800; border:none;
+    }
+
+    /* ── BRAND STRIP inside the premium card ─────────────────── */
+    .sp-brandstrip {
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+      background:linear-gradient(135deg,var(--navy2),var(--navy3));
+      border:1px solid var(--p-border); border-radius:12px;
+      padding:12px 18px; margin-bottom:18px; border-bottom:2px solid var(--p-gold);
+    }
+    .sp-brandstrip .sp-bl { display:flex; align-items:center; gap:12px; }
+    .sp-logo { width:42px; height:42px; background:var(--p-gold); border-radius:9px; display:flex;
+      align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+    .sp-bt h1 { font-size:15px; font-weight:800; color:var(--p-text); margin:0; line-height:1.25; }
+    .sp-bt span { font-size:12px; color:var(--p-gold); font-weight:600; }
+    .sp-week { background:rgba(200,155,60,.15); border:1px solid var(--p-border); border-radius:8px;
+      padding:7px 14px; font-size:13px; color:var(--p-gold2); font-weight:700; }
+
+    /* ── TOOLBAR (restyled, IDs/handlers untouched) ──────────── */
+    .sched-premium .sched-toolbar { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin:0 0 18px; }
+    .sched-premium .sched-toolbar .spacer { flex:1; }
+    .sched-premium .sched-date { display:flex; align-items:center; gap:.5rem; font-weight:700; color:var(--p-gold2); }
+    .sched-premium .sched-date input {
+      width:auto; padding:7px 12px; background:rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.15); color:var(--p-text); border-radius:8px; box-shadow:none;
+    }
+    .sched-premium .sched-date input:focus { border-color:var(--p-gold); box-shadow:none; background:rgba(255,255,255,.10); }
+    .sched-premium .hint { font-size:.82rem; color:var(--p-muted); }
+
+    /* premium buttons (re-skin the existing classes ONLY within the card) */
+    .sched-premium .btn-primary,
+    .sched-premium .btn-submit-gold,
+    .sched-premium .btn-submit-orange,
+    .sched-premium .btn-outline {
+      font-family:'Tajawal',sans-serif; font-weight:700; font-size:.86rem;
+      padding:8px 15px; border-radius:9px; cursor:pointer; transition:all .2s;
+      display:inline-flex; align-items:center; gap:6px; box-shadow:none; border:none;
+    }
+    .sched-premium .btn-primary { background:var(--p-gold); color:var(--navy); }
+    .sched-premium .btn-primary:hover { background:var(--p-gold2); box-shadow:none; transform:translateY(-1px); }
+    .sched-premium .btn-submit-gold { background:linear-gradient(135deg,#C5A059,#d8b87a); color:var(--navy); }
+    .sched-premium .btn-submit-gold:hover { background:var(--p-gold2); }
+    .sched-premium .btn-submit-orange { background:linear-gradient(135deg,var(--p-orange),#8B2500); color:#fff; }
+    .sched-premium .btn-submit-orange:hover { filter:brightness(1.12); }
+    .sched-premium .btn-outline { background:rgba(255,255,255,.07); color:var(--p-text); border:1px solid rgba(255,255,255,.15); }
+    .sched-premium .btn-outline:hover { background:rgba(255,255,255,.13); border-color:var(--p-gold); }
+
+    /* ── STAT CARDS (wired to real computed values in JS) ────── */
+    .sp-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:13px; margin-bottom:20px; }
+    .sp-stat { background:var(--p-card); border:1px solid var(--p-border); border-radius:12px;
+      padding:16px 15px; position:relative; overflow:hidden; transition:transform .2s, box-shadow .2s; }
+    .sp-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.3); }
+    .sp-stat::before { content:''; position:absolute; top:0; right:0; width:4px; height:100%;
+      background:var(--sp-accent,var(--p-gold)); border-radius:0 12px 12px 0; }
+    .sp-stat .ico { font-size:22px; margin-bottom:6px; }
+    .sp-stat .val { font-size:30px; font-weight:800; color:var(--p-gold2); line-height:1; }
+    .sp-stat .lbl { font-size:11.5px; color:var(--p-muted); margin-top:4px; font-weight:600; }
+    .sp-stat.blue   { --sp-accent:var(--p-gold); }   .sp-stat.blue .val   { color:#e0c489; }
+    .sp-stat.green  { --sp-accent:var(--p-green2); }  .sp-stat.green .val  { color:#55EFC4; }
+    .sp-stat.orange { --sp-accent:var(--p-orange); }  .sp-stat.orange .val { color:#FF9F43; }
+    .sp-stat.brown  { --sp-accent:var(--p-brown); }   .sp-stat.brown .val  { color:#FDCB6E; }
+    .sp-stat.red    { --sp-accent:var(--p-red); }     .sp-stat.red .val    { color:#FF6B6B; }
+
+    /* ── ALERT BAR ───────────────────────────────────────────── */
+    .sp-alert { background:rgba(192,57,43,.15); border:1px solid rgba(192,57,43,.4); border-radius:10px;
+      padding:10px 16px; margin-bottom:18px; display:flex; align-items:center; gap:10px;
+      font-size:13px; font-weight:700; color:#FF6B6B; }
+    .sp-alert.hidden { display:none; }
+
+    /* ── SECTION TITLES ──────────────────────────────────────── */
+    .sched-premium .sec-title { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin:1.6rem 0 .7rem; }
+    .sched-premium .sec-title h2 { font-size:1.06rem; margin:0; display:flex; align-items:center; gap:.5rem; color:var(--p-gold2); font-weight:700; }
+    .sched-premium .sec-title.spare h2::before { content:''; }
+    .sched-premium .sec-title.vac h2::before { content:''; }
+    .sched-premium .sec-title.spare h2 { color:#FF9F43; }
+    .sched-premium .sec-title.vac h2 { color:#55EFC4; }
+
+    /* ── TABS (every existing table stays reachable) ─────────── */
+    .sp-tabs { display:flex; gap:4px; border-bottom:1px solid var(--p-border); margin-bottom:2px; flex-wrap:wrap; }
+    .sp-tab { padding:9px 16px; font-family:'Tajawal',sans-serif; font-size:13px; font-weight:700;
+      color:var(--p-muted); background:none; border:none; cursor:pointer;
+      border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .2s; }
+    .sp-tab.active { color:var(--p-gold2); border-bottom-color:var(--p-gold); }
+    .sp-tab:hover:not(.active) { color:var(--p-text); }
+    .sp-panel { display:none; }
+    .sp-panel.active { display:block; }
+    .sp-chip { display:inline-flex; align-items:center; justify-content:center; background:rgba(200,155,60,.2);
+      color:var(--p-gold2); border-radius:20px; padding:1px 8px; font-size:11px; font-weight:700; margin-right:4px; }
+    .sp-chip.red { background:rgba(192,57,43,.25); color:#FF6B6B; }
+
+    /* ── TABLES ──────────────────────────────────────────────── */
+    .sched-premium .sched-table-wrap {
+      width:100%; border:1px solid var(--p-border); border-radius:12px;
+      box-shadow:none; background:var(--p-card); overflow-x:auto; overflow-y:visible;
+    }
+    .sched-premium table.sched { border-collapse:collapse; width:100%; }
+    .sched-premium table.sched th,
+    .sched-premium table.sched td { border:1px solid rgba(255,255,255,.07); padding:0; text-align:center; overflow:visible; }
+    .sched-premium table.sched thead th {
+      background:rgba(0,0,0,.28); color:var(--p-gold2); font-weight:700; font-size:.73rem;
+      padding:8px 8px; white-space:normal; line-height:1.35; word-break:keep-all; overflow-wrap:normal;
+      border-bottom:1px solid var(--p-border);
+    }
+    .sched-premium table.sched thead th.grp { font-size:.82rem; font-weight:800; letter-spacing:.3px; padding:7px 2px; }
+    .sched-premium table.sched thead th.grp-emp { background:linear-gradient(90deg,#3a3a3a,#2D2D2D); color:#F4F4F4; }
+    .sched-premium table.sched thead th.grp-veh { background:linear-gradient(135deg,#C5A059,#d8b87a); color:#1A1A1A; }
+    .sched-premium table.sched td { vertical-align:middle; }
+    .sched-premium table.sched td input {
+      width:100%; min-width:0; border:none; background:transparent; text-align:center;
+      padding:7px 2px; font-size:.72rem; color:var(--p-text); box-shadow:none; border-radius:0;
+      font-family:'Tajawal',sans-serif; text-overflow:ellipsis;
+    }
+    .sched-premium table.sched td input::placeholder { color:var(--p-muted); }
+    .sched-premium table.sched td input:focus {
+      background:rgba(200,155,60,.18); outline:2px solid var(--p-gold); outline-offset:-2px;
+      position:relative; z-index:3; color:#fff;
+    }
+    .sched-premium table.sched td.col-idx {
+      background:rgba(0,0,0,.22); font-weight:800; font-size:.74rem; color:var(--p-gold2);
+    }
+    .sched-premium table.sched tbody tr { transition:background .15s; }
+    .sched-premium table.sched tbody tr:nth-child(even) td:not(.col-idx):not(.exp-bad):not(.exp-warn) { background:var(--p-row-alt); }
+    .sched-premium table.sched tbody tr:hover td:not(.exp-bad):not(.exp-warn) { background:rgba(197,160,89,.12); }
+
+    /* Expired / soon — aligned to reference red / orange + days hint */
+    .sched-premium table.sched td.exp-bad  input { background:rgba(192,57,43,.30);  color:#FF8A80; font-weight:800; }
+    .sched-premium table.sched td.exp-warn input { background:rgba(211,84,0,.26);   color:#FFC078; font-weight:800; }
+    .sched-premium table.sched td.exp-soon input { color:#FDE68A; font-weight:700; }
+    .sched-premium td.exp-bad, .sched-premium td.exp-warn, .sched-premium td.exp-soon { position:relative; }
+    .sched-premium td.exp-bad::after, .sched-premium td.exp-warn::after, .sched-premium td.exp-soon::after {
+      content:attr(data-days); position:absolute; bottom:1px; left:3px;
+      font-size:8.5px; font-weight:800; pointer-events:none; opacity:.9;
+    }
+    .sched-premium td.exp-bad::after  { color:#FF8A80; }
+    .sched-premium td.exp-warn::after { color:#FFC078; }
+    .sched-premium td.exp-soon::after { color:#FDE68A; }
+
+    /* job badge styling on the editable <input> (موصل=blue / موزع=green) */
+    .sched-premium table.sched td.job-mosil input { background:rgba(197,160,89,.22); color:#e0c489; font-weight:700; border-radius:14px; }
+    .sched-premium table.sched td.job-mozaa input { background:rgba(26,122,74,.25); color:#7DEFC9; font-weight:700; border-radius:14px; }
+    /* plate badge styling on the editable <input> */
+    .sched-premium table.sched td.plate-cell input {
+      background:rgba(197,160,89,.16); color:#e0c489; font-weight:700; letter-spacing:.5px; border-radius:8px;
+    }
+
+    /* ── ACTION BUTTONS ──────────────────────────────────────── */
+    .sched-premium .col-act-wrap { display:flex; gap:3px; justify-content:center; align-items:center; }
+    .sched-premium .row-notify { background:rgba(33,168,94,.20); color:#7DEFC9; border:none; width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:.85rem; line-height:1; }
+    .sched-premium .row-notify:hover { background:#16a34a; color:#fff; }
+    .sched-premium .row-del { background:rgba(192,57,43,.18); color:#FF8A80; border:none; width:26px; height:26px; border-radius:6px; cursor:pointer; font-weight:800; }
+    .sched-premium .row-del:hover { background:#dc2626; color:#fff; }
+    .sched-premium .row-custody { background:rgba(197,160,89,.20); color:var(--brand-gold,#c5a059); border:none; width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:.85rem; line-height:1; }
+    .sched-premium .row-custody:hover { background:var(--brand-gold,#c5a059); color:#1a1a1a; }
+    /* Custody-transfer modal */
+    #custodyModal .modal-content-custom { max-width:440px; }
+    .custody-current { background:var(--bg,#141414); border:1px solid var(--border,#2e2e2e); border-radius:10px; padding:14px; text-align:center; margin-bottom:1rem; }
+    .custody-current .cc-plate { font-size:1.3rem; font-weight:800; color:#fff; }
+    .custody-current .cc-driver { font-size:.9rem; color:var(--text-secondary,#9ca3af); margin-top:2px; }
+    .custody-field { margin-bottom:1rem; }
+    .custody-field label { display:block; font-size:.85rem; color:var(--text-secondary,#9ca3af); margin-bottom:6px; }
+    .custody-field input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border,#3a3a3a); background:var(--surface-hover,#262626); color:var(--text-primary,#e5e7eb); font-family:inherit; font-size:.95rem; box-sizing:border-box; }
+    .custody-field input:focus { outline:none; border-color:var(--brand-gold,#c5a059); }
+
+    /* ── LEGEND ──────────────────────────────────────────────── */
+    .sched-premium .exp-legend { display:flex; gap:1rem; flex-wrap:wrap; font-size:.8rem; color:var(--p-muted); margin:.4rem 0 .2rem; }
+    .sched-premium .exp-legend span { display:inline-flex; align-items:center; gap:5px; }
+    .sched-premium .exp-legend i { width:14px; height:14px; border-radius:3px; display:inline-block; }
+
+    /* (green «ملخص الأعداد» summary card removed — counts shown in the stat cards above) */
+
+    /* ── SIGNATURE / FOOTER ──────────────────────────────────── */
+    .sched-premium .sign-block { margin-top:1.5rem; text-align:center; color:var(--p-muted);
+      border-top:1px solid var(--p-border); padding-top:16px; }
+    .sched-premium .sign-block .dept { font-weight:800; color:var(--p-gold2); margin-top:6px; }
+
+    /* "Send to all via WhatsApp" modal */
+    .wa-all-list { display:flex; flex-direction:column; gap:.45rem; max-height:55vh; overflow-y:auto; }
+    .wa-all-row { display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+      border:1px solid var(--border); border-radius:10px; padding:8px 12px; background:var(--surface); }
+    .wa-all-info { display:flex; flex-direction:column; gap:2px; text-align:start; }
+    .wa-all-info strong { font-size:.92rem; }
+
+    @media print {
+      /* ── Company header appears only on print ── */
+      .print-only-header { display: block !important; }
+      /* ── Reset body/page ── */
+      body { background: #fff !important; margin: 0; padding: 0; }
+      .bz-topbar, .bz-nav, .bz-actions, .bz-dock { display: none !important; }
+      .bz-shell { padding: 0 !important; margin: 0 !important; }
+      .sched-premium {
+        background: #fff !important; color: #000 !important;
+        border: none !important; box-shadow: none !important;
+        padding: 10px !important; margin: 0 !important;
+      }
+      /* ── Hide UI controls ── */
+      .sched-toolbar, .sp-tabs, .col-act,
+      #vehBulkDel, #vehSelAll, .vehChk, .row-del, .row-notify,
+      button, .sp-alert, .exp-legend { display: none !important; }
+      /* ── Show all sections (don't hide non-active tabs) ── */
+      .sp-panel { display: block !important; page-break-inside: avoid; margin-bottom: 18px; }
+      #spPanel-vehicles .sched th:first-child, #spPanel-vehicles .sched td:first-child { display: none !important; }
+      /* ── Table styling for print ── */
+      .sched-table-wrap { overflow: visible !important; max-height: none !important; }
+      table.sched { width: 100% !important; border-collapse: collapse !important; font-size: 8.5pt; }
+      table.sched th, table.sched td {
+        border: 1px solid #888 !important; padding: 3px 5px !important;
+        background: #fff !important; color: #000 !important;
+      }
+      table.sched thead th { background: #1a1a1a !important; color: #fff !important; font-weight: bold; }
+      table.sched tbody tr:nth-child(even) td { background: #f5f5f5 !important; }
+      table.sched input, table.sched select { border: none !important; background: transparent !important; color: #000 !important; font-size: 8pt !important; width: 100%; padding: 0; }
+      /* ── Stat cards ── */
+      .sp-stats { display: none !important; }
+      /* ── Print brand strip ── */
+      .sp-brandstrip { background: #fff !important; border: 2px solid #c5a059 !important; border-radius: 4px !important; }
+      .sp-brandstrip * { color: #000 !important; }
+      /* ── Section titles ── */
+      .sec-title { border-top: 2px solid #c5a059 !important; margin-top: 10px; padding-top: 6px; }
+      .sec-title h2 { color: #000 !important; font-size: 11pt !important; }
+      /* ── Sign block ── */
+      .sign-block { border-top: 1px solid #888 !important; margin-top: 14px !important; }
+    }
+    @media (max-width:768px) {
+      .sched-premium { padding:14px; }
+      .sp-stats { grid-template-columns:repeat(2,1fr); }
+    }
+  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css', v=31) }}">
+</head>
+<body>
+
+  <header class="bz-topbar">
+    <div class="bz-brand">
+      <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+      <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+    </div>
+    <nav class="bz-nav">
+      <a href="/">🏠 الرئيسية</a>
+      <a href="/purchase">🛒 طلب شراء</a>
+      <a href="/schedule" class="active">📋 الجدول الأسبوعي</a>
+      <a href="/oils">🛢️ الزيوت والفلاتر</a>
+      <a href="/washing">🚿 الغسيل</a>
+      <a href="/workshop">🔧 الورشة</a>
+      <a href="/employees">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
+      <a href="/gps_sync">📡 مزامنة GPS</a>
+      <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
+    </nav>
+    <div class="bz-actions">
+      <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+      <a href="/logout" class="bz-logout">خروج</a>
+    </div>
+  </header>
+
+  <div class="bz-shell">
+    <div class="sched-premium">
+    <!-- Branded strip (presentation only) -->
+    <div class="sp-brandstrip">
+      <div class="sp-bl">
+        <div class="sp-logo">🚛</div>
+        <div class="sp-bt">
+          <h1 id="schedTitle" class="bz-section-title">جدول تحديث المركبات والسائقين الأسبوعي - فرع الدمام 2026</h1>
+          <span>قسم الحركة — فرع الدمام — BIN ZOMAH INTL.</span>
+        </div>
+      </div>
+      <div class="sp-week" id="schedWeekBadge">📅 الجدول الأسبوعي</div>
+    </div>
+
+    <div class="sched-toolbar">
+      <div class="sched-date">📅 تاريخ الجدول: <input type="date" id="schedDate"></div>
+      <span class="spacer"></span>
+      <span class="hint" id="saveHint">يُحفظ تلقائياً</span>
+      <button class="btn-neon" onclick="addRow('main')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> إضافة سائق</button>
+      <button class="btn-neon" onclick="exportExcel()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> تصدير Excel</button>
+      <button class="btn-neon" onclick="document.getElementById('excelImport').click()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> استيراد Excel</button>
+      <input type="file" id="excelImport" accept=".xlsx" style="display:none;" onchange="importExcel(event)">
+      <button class="btn-neon" onclick="shareSchedule()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> مشاركة</button>
+      <button class="btn-outline" onclick="sendScheduleSummaryWa()" title="إرسال ملخص الجدول كاملاً عبر واتساب" style="background:rgba(37,211,102,.12);border-color:rgba(37,211,102,.4);color:#21c766;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> ملخص واتساب</button>
+      <button class="btn-outline" onclick="openWaAll()" title="إرسال رسالة لكل سائق فردياً">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> إرسال للجميع</button>
+      <button class="btn-outline" onclick="openFleetModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> استدعاء مركبة</button>
+      <button class="btn-outline" onclick="window.print()" title="طباعة / تصدير PDF">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> طباعة</button>
+    </div>
+
+    <!-- STAT CARDS (wired to real computed values in updateSummary / refreshStats) -->
+    
+
+    <!-- TABS — every existing table stays reachable and editable -->
+    <div class="sp-tabs">
+      <button class="sp-tab active" id="tabBtnDashboard" onclick="switchSchedTab('dashboard',this)">📊 لوحة المعلومات</button>
+      <button class="sp-tab" id="tabBtnMain" onclick="switchSchedTab('main',this)">🚚 المركبات النشطة <span class="sp-chip" id="chipMain">0</span></button>
+      <button class="sp-tab" id="tabBtnSpare" onclick="switchSchedTab('spare',this)">🔧 الأسبير والمعطلة <span class="sp-chip red" id="chipSpare">0</span></button>
+      <button class="sp-tab" id="tabBtnVac" onclick="switchSchedTab('vacation',this)">🏖️ السائقون في إجازة <span class="sp-chip" id="chipVac">0</span></button>
+      
+      <!-- Hidden legacy tabs to prevent JS errors if they are referenced -->
+      <button class="sp-tab" id="tabBtnUnscheduled" onclick="switchSchedTab('unscheduled',this)" style="display:none;">⚠️ غير المجدولة <span class="sp-chip red" id="chipUnscheduled">0</span></button>
+      <button class="sp-tab" id="tabBtnExp" onclick="switchSchedTab('expired',this)" style="display:none;">🔴 تنبيهات الانتهاء <span class="sp-chip red" id="chipExp">0</span></button>
+      <button class="sp-tab" id="tabBtnVeh" onclick="switchSchedTab('vehicles',this)" style="display:none;">🚗 جميع مركبات الفرع <span class="sp-chip" id="chipVeh">0</span></button>
+    </div>
+
+    
+    <!-- TAB: DASHBOARD -->
+    <div class="sp-panel active" id="spPanel-dashboard" style="background:#fff; color:#000; padding:26px; font-family:Arial, sans-serif; border-radius:14px; direction:rtl; max-width:1360px; margin:0 auto; box-shadow:0 4px 24px rgba(0,0,0,.25);">
+      <!-- Title row -->
+      <div style="background:#1F3864; color:white; text-align:center; padding:16px 12px; font-weight:bold; font-size:24px; border-radius:8px; margin-bottom: 14px;">
+        لوحة معلومات أسطول المركبات - فرع الدمام
+      </div>
+
+      <!-- Date row -->
+      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom: 22px; font-weight:bold; font-size: 14px; color:#000;">
+        <div>
+          <span>تاريخ آخر تحديث:</span>
+          <span style="margin-right:10px;" id="excelLastUpdate"></span>
+        </div>
+        <div>
+          <span>تاريخ اليوم:</span>
+          <span style="margin-right:10px;" id="excelTodayDate"></span>
+        </div>
+      </div>
+
+      <!-- KPIs row (editable) -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:16px; padding-bottom: 24px; margin-bottom: 24px; border-bottom: 1px solid #ddd;">
+         <div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
+           <div style="background:#4F81BD; color:white; padding:10px 6px; font-weight:bold; font-size:14px;">إجمالي عدد السائقين</div>
+           <input type="number" id="excelTotalDrivers" value="0" data-kpi="drivers" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#2E5597; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
+         </div>
+         <div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
+           <div style="background:#D6E3BC; color:black; padding:10px 6px; font-weight:bold; font-size:14px;">عدد الموصلين</div>
+           <input type="number" id="excelDelivery" value="0" data-kpi="delivery" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#2E7D32; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
+         </div>
+         <div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
+           <div style="background:#C0504D; color:white; padding:10px 6px; font-weight:bold; font-size:14px;">عدد الموزعين</div>
+           <input type="number" id="excelDistributors" value="0" data-kpi="distributors" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#C62828; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
+         </div>
+         <div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
+           <div style="background:#E5DFEC; color:black; padding:10px 6px; font-weight:bold; font-size:14px;">سائقون في إجازة</div>
+           <input type="number" id="excelVacation" value="0" data-kpi="vacation" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#8E24AA; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
+         </div>
+         <div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
+           <div style="background:#EF6C00; color:white; padding:10px 6px; font-weight:bold; font-size:14px;">مركبات أسبير/معطلة</div>
+           <input type="number" id="excelSpare" value="0" data-kpi="spare" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#EF6C00; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" />
+         </div>
+      </div>
+
+      <!-- Main Layout: 2 Columns -->
+      <div style="display:flex; flex-wrap:wrap; gap: 24px; align-items:flex-start;">
+
+         <!-- Right Column in RTL (Expiring Documents Table) -->
+         <div style="flex:1 1 420px; min-width:0; border-radius:10px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.12);">
+            <div style="background:#C62828; color:white; padding:12px; font-weight:bold; text-align:center; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px;">
+               <span>⚠️ المستندات التي تنتهي خلال 30 يومًا أو منتهية</span>
+               <button type="button" onclick="recalcExpiring()" title="إعادة الحساب من تبويب المركبات النشطة" style="background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;">🔄</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; min-width:0; border-collapse:collapse; font-size:13.5px; text-align:center; background:#fff;">
+                 <thead>
+                    <tr style="background:#4F81BD; font-weight:bold;">
+                       <th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">م</th>
+                       <th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">الاسم</th>
+                       <th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">رقم اللوحة</th>
+                       <th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">نوع المستند</th>
+                       <th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">تاريخ الانتهاء</th>
+                       <th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">الأيام المتبقية</th>
+                    </tr>
+                 </thead>
+                 <tbody id="excelExpiringBody">
+                 </tbody>
+              </table>
+            </div>
+         </div>
+
+         <!-- Left Column in RTL (summary tables, exactly like the Excel sheet) -->
+         <div style="flex:1 1 380px; min-width:0; display:flex; flex-direction:column; gap:20px;">
+            <!-- موصل / موزع -->
+            <div style="border-radius:10px; padding:16px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.12);">
+               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                 <div style="font-weight:bold; font-size:16px; color:#000;">توزيع السائقين: موصل / موزع</div>
+                 <button type="button" onclick="recalcJobSplit()" title="إعادة الحساب من تبويب المركبات النشطة" style="background:#eef1f6; border:1px solid #dde3ee; color:#444; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;">🔄</button>
+               </div>
+               <div style="position:relative; height:180px; width:100%; display:flex; justify-content:center; margin-bottom:14px;">
+                 <canvas id="pieChartDrivers" style="max-height:180px;"></canvas>
+               </div>
+               <table style="width:100%; min-width:0; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:right; background:#fff;">
+                 <tbody id="excelJobSplitTable"></tbody>
+               </table>
+            </div>
+
+            <!-- عدد المركبات حسب النوع -->
+            <div style="border-radius:10px; padding:16px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.12);">
+               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                 <div style="font-weight:bold; font-size:16px; color:#000;">عدد المركبات حسب النوع</div>
+                 <button type="button" onclick="recalcVehicleTypes()" title="إعادة الحساب من تبويب المركبات النشطة" style="background:#eef1f6; border:1px solid #dde3ee; color:#444; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;">🔄</button>
+               </div>
+               <div style="position:relative; height:200px; width:100%; margin-bottom:14px;">
+                 <canvas id="barChartVehicles"></canvas>
+               </div>
+               <table style="width:100%; min-width:0; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:right; background:#fff;">
+                 <tbody id="excelVehicleTable"></tbody>
+               </table>
+               <div style="font-size:10px; color:gray; text-align:left; margin-top:8px; font-style:italic;">إعداد / إدارة قسم الحركة</div>
+            </div>
+         </div>
+
+      </div>
+    </div>
+
+    <!-- TAB: MAIN -->
+    <div class="sp-panel" id="spPanel-main">
+      <div class="sec-title"><h2>📋 الجدول الرئيسي</h2></div>
+      <div class="exp-legend">
+        <span><i style="background:rgba(192,57,43,.5);border:1px solid #FF8A80;"></i> تاريخ منتهٍ</span>
+        <span><i style="background:rgba(211,84,0,.5);border:1px solid #FFC078;"></i> ينتهي خلال 30 يوماً</span>
+        <span><i style="background:rgba(253,230,138,.4);border:1px solid #FDE68A;"></i> خلال 90 يوماً</span>
+        <span>📲 إشعار السائق ببياناته عبر واتساب</span>
+      </div>
+      <div class="sched-table-wrap" id="mainPrintArea">
+        <table class="sched bz-fit"><thead id="headMain"></thead><tbody id="bodyMain"></tbody></table>
+      </div>
+    </div>
+
+    <!-- TAB: SPARE / broken -->
+    <div class="sp-panel" id="spPanel-spare">
+      <div class="sec-title spare"><h2>بيان المركبات الأسبير والمعطلة</h2>
+        <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="addRow('spare')">➕ إضافة</button></div>
+      <div class="sched-table-wrap">
+        <table class="sched bz-fit"><thead id="headSpare"></thead><tbody id="bodySpare"></tbody></table>
+      </div>
+    </div>
+
+    <!-- TAB: VACATION -->
+    <div class="sp-panel" id="spPanel-vacation">
+      <div class="sec-title vac"><h2>السائقون في إجازة (هذا الأسبوع)</h2>
+        <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="addRow('vacation')">➕ إضافة سائق في إجازة</button></div>
+      <p class="hint" style="margin:-4px 0 8px;">أضف سائقاً وعدّل بياناته — يزداد العدد تلقائياً في الملخص.</p>
+      <div class="sched-table-wrap">
+        <table class="sched bz-fit"><thead id="headVac"></thead><tbody id="bodyVac"></tbody></table>
+      </div>
+    </div>
+
+    <!-- TAB: EXPIRED (computed view derived from existing main+spare data) -->
+    <div class="sp-panel" id="spPanel-expired">
+      <div class="sec-title"><h2>🔴 الوثائق المنتهية أو القريبة من الانتهاء (خلال 90 يوماً)</h2></div>
+      <div class="sched-table-wrap">
+        <table class="sched">
+          <thead><tr>
+            <th>السائق</th><th>الرقم الوظيفي</th><th>اللوحة</th>
+            <th>نوع الوثيقة</th><th>تاريخ الانتهاء</th><th>الحالة</th><th>أيام متبقية</th>
+          </tr></thead>
+          <tbody id="bodyExp"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: ALL BRANCH VEHICLES -->
+    <div class="sp-panel" id="spPanel-vehicles">
+      <div class="sec-title"><h2>🚗 جميع مركبات الفرع</h2>
+        <button class="btn-outline" style="padding:6px 14px;font-size:.85rem;" onclick="window.print()">🖨️ طباعة / تصدير PDF</button>
+      </div>
+      <p class="hint" style="margin:-4px 0 10px;">جميع الموظفين الذين لديهم مركبة في هذا الفرع (المصدر: سجل السائقين).</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+        <div class="bz-smart-search" style="margin-bottom:0; flex:1; min-width:240px;">
+          <input id="vehSearch" type="text" oninput="filterVehicles(this.value)" placeholder="ابحث بالاسم / اللوحة / الرقم الوظيفي / الجوال">
+          <span class="search-icon">🔍</span>
+        </div>
+        <span class="hint" id="vehCount">0 مركبة</span>
+        <button class="btn-outline" id="vehBulkDel" type="button" onclick="bulkDeleteVehicles()" style="padding:8px 14px;font-size:.85rem;font-weight:800;color:#ef4444;border-color:rgba(239,68,68,.4);display:none;">🗑 حذف المحدد (<span id="vehSelCount">0</span>)</button>
+      </div>
+      <div class="sched-table-wrap" id="vehPrintArea">
+        <table class="sched">
+          <thead><tr>
+            <th style="width:36px;text-align:center"><input type="checkbox" id="vehSelAll" title="تحديد الكل" style="width:16px;height:16px;cursor:pointer;accent-color:var(--p-accent,#c5a059)"></th>
+            <th>#</th><th>الاسم</th><th>الرقم الوظيفي</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>رقم الجوال</th>
+          </tr></thead>
+          <tbody id="bodyVeh"><tr><td colspan="7" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">جارٍ التحميل…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: UNSCHEDULED VEHICLES -->
+    <div class="sp-panel" id="spPanel-unscheduled">
+      <div class="sec-title"><h2>⚠️ المركبات المستبعدة / غير المجدولة</h2></div>
+      <p class="hint" style="margin:-4px 0 10px;">يعرض هذا القسم تلقائياً أي مركبة مسجلة في الأسطول وليست موجودة في الجدول الرئيسي أو الاسبير أو الإجازات. يمكنك إضافتها للجدول بضغطة زر لتجنب نسيانها.</p>
+      <div class="sched-table-wrap">
+        <table class="sched">
+          <thead><tr>
+            <th>الاسم</th><th>الإقامة</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>إجراء سريع</th>
+          </tr></thead>
+          <tbody id="bodyUnscheduled"><tr><td colspan="5" style="text-align:center;padding:1.4rem;">جارٍ المقارنة بالأسطول...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- تم إلغاء تفويضهم (من مزامنة أبشر) — يظهر دائماً أسفل الجدول، قابل للتعديل والحذف والتصدير -->
+    <div class="sec-title" style="margin-top:2rem;"><h2 style="color:#FF6B6B;">🚫 تم إلغاء تفويضهم</h2>
+      <span class="sp-chip red" id="deauthCount">0</span></div>
+    <p class="hint" style="margin:-6px 0 10px;">سائقون لم يعودوا المستخدم الفعلي لأي مركبة في آخر تحديث من أبشر. يمكنك <b>التعديل والحذف</b> مباشرةً، والبيانات الناقصة (الجوال/الرقم الوظيفي) تُكمَّل تلقائياً من بيانات الموظفين.</p>
+    <div class="sched-toolbar" style="margin-bottom:10px;">
+      <button class="btn-neon" onclick="exportDeauthorized()">📥 تصدير Excel</button>
+      <button class="btn-outline" onclick="deauthAddRow()">➕ إضافة صف</button>
+      <span class="hint" id="deauthSaveHint" style="margin-inline-start:auto;"></span>
+    </div>
+    <div class="sched-table-wrap" id="deauthPrintArea">
+      <table class="sched bz-fit">
+        <thead><tr><th>#</th><th>الاسم</th><th>الرقم الوظيفي</th><th>رقم الإقامة</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>رقم الجوال</th><th>إجراء</th></tr></thead>
+        <tbody id="deauthBody"><tr><td colspan="8" style="text-align:center;padding:1.2rem;color:var(--p-muted,#94a3b8)">لا يوجد.</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="sign-block">
+      <div>تم إعداد هذا الجدول بواسطة قسم الحركة</div>
+      <div class="dept">قسم الحركة</div>
+      <div>خالد بن محمد الغامدي</div>
+    </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Fleet Select Modal -->
+  <div class="modal-overlay" id="fleetModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:9999;">
+    <div style="background:var(--surface);padding:2rem;border-radius:12px;width:90%;max-width:400px;">
+      <h3 style="margin-top:0;color:var(--brand-navy);">🚚 استدعاء مركبة من الأسطول</h3>
+      <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:1rem;">اختر رقم اللوحة أو اسم السائق لإضافته للجدول الرئيسي فوراً.</p>
+      <div style="margin-bottom:1rem;">
+        <input type="text" id="fleetSearchInput" list="driverNames" placeholder="اكتب أو اختر السائق / اللوحة" style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);font-size:1rem;" onkeydown="if(event.key==='Enter') confirmFleetCall()">
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;">
+        <button class="btn-outline" onclick="closeFleetModal()">إلغاء</button>
+        <button class="btn-neon" onclick="confirmFleetCall()">➕ إضافة للجدول</button>
+      </div>
+    </div>
+  </div>
+
+  <datalist id="driverNames"></datalist>
+
+  <!-- Custody-transfer modal: reassign a vehicle's row to a different driver, with an
+       auditable note. Vehicle data (plate/model/etc) stays fixed — only the driver box
+       changes, reusing the exact same protection autofillRow() already guarantees. -->
+  <div class="modal-backdrop" id="custodyModal">
+    <div class="modal-content-custom">
+      <div class="modal-header-custom">
+        <h2>🔄 نقل عهدة المركبة الفعلي</h2>
+        <button class="close-btn" onclick="closeCustodyModal()">✕</button>
+      </div>
+      <div class="modal-body-custom">
+        <div class="custody-current">
+          <div class="cc-plate" id="custodyPlate">—</div>
+          <div class="cc-driver" id="custodyOldDriver">—</div>
+        </div>
+        <div class="custody-field">
+          <label>السائق المستلم (الجديد)</label>
+          <input type="text" id="custodyNewDriver" list="driverNames" placeholder="اكتب السائق أو اكتب 'الشركة'">
+        </div>
+        <div class="custody-field" style="display:flex; gap:15px; margin-bottom:15px; padding:10px; background:var(--surface-hover,#262626); border-radius:8px;">
+          <label style="margin:0; font-weight:bold; color:#fff;">حالة العهدة:</label>
+          <label style="cursor:pointer; margin:0;"><input type="radio" name="custodyCond" id="condOk" value="سليمة" checked> ✅ سليمة</label>
+          <label style="cursor:pointer; margin:0;"><input type="radio" name="custodyCond" id="condBad" value="بها ملاحظات"> ⚠️ بها ملاحظات</label>
+        </div>
+        <div class="custody-field">
+          <label>ملاحظات النقل (اختياري)</label>
+          <input type="text" id="custodyNote" placeholder="مثال: تسليم بموجب تفويض إدارة الحركة">
+        </div>
+        <div style="display:flex;gap:.75rem;justify-content:flex-end;">
+          <button class="btn-outline" onclick="closeCustodyModal()">إلغاء</button>
+          <button class="btn-neon" onclick="confirmCustodyTransfer()">✍️ تأكيد واعتماد النقل</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Column model — two groups: employee data (7) + vehicle data (10) =====
+    const LS_KEY = 'binZomahScheduleData';
+    const MAIN_COLS = [
+      { key: 'empid',      label: 'الرقم الوظيفي',            w: 5 },
+      { key: 'name',       label: 'اسم السائق',               w: 12 },
+      { key: 'iqama',      label: 'رقم الإقامة',              w: 6 },
+      { key: 'job',        label: 'الوظيفة',                  w: 5 },
+      { key: 'plate',      label: 'رقم اللوحة',               w: 5 },
+      { key: 'model',      label: 'الموديل',                  w: 4 },
+      { key: 'vtype',      label: 'نوع المركبة',              w: 6 },
+      { key: 'pallets',    label: 'عدد الطبالي',              w: 4 },
+      { key: 'load',       label: 'الحمولة',                  w: 4 },
+      { key: 'vserial',    label: 'الرقم التسلسلي',           w: 5 },
+      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 6, date: true },
+      { key: 'rem_days1',  label: 'الأيام المتبقية',          w: 4, readonly: true },
+      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   w: 6, date: true },
+      { key: 'rem_days2',  label: 'الأيام المتبقية',          w: 4, readonly: true },
+      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق', w: 6, date: true },
+      { key: 'rem_days3',  label: 'الأيام المتبقية',          w: 4, readonly: true },
+      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', w: 6, date: true },
+      { key: 'rem_days4',  label: 'الأيام المتبقية',          w: 4, readonly: true },
+      { key: 'empNotes',   label: 'الملاحظات',                w: 6 },
+      { key: 'phone',      label: 'رقم الجوال',               w: 5 }
+    ];
+
+    const SPARE_COLS = [
+      { key: 'status',     label: 'الحالة',                   w: 7 },
+      { key: 'plate',      label: 'رقم اللوحة',               w: 6 },
+      { key: 'model',      label: 'الموديل',                  w: 5 },
+      { key: 'vtype',      label: 'نوع المركبة',              w: 8 },
+      { key: 'pallets',    label: 'عدد الطبالي',              w: 5 },
+      { key: 'load',       label: 'الحمولة',                  w: 5 },
+      { key: 'vserial',    label: 'الرقم التسلسلي',           w: 7 },
+      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 7, date: true },
+      { key: 'rem_days1',  label: 'الأيام المتبقية',          w: 5, readonly: true },
+      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   w: 7, date: true },
+      { key: 'rem_days2',  label: 'الأيام المتبقية',          w: 5, readonly: true },
+      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', w: 7, date: true },
+      { key: 'rem_days3',  label: 'الأيام المتبقية',          w: 5, readonly: true },
+      { key: 'empNotes',   label: 'الملاحظات',                w: 9 }
+    ];
+
+    const VAC_COLS = [
+      { key: 'empid',      label: 'الرقم الوظيفي',            w: 8 },
+      { key: 'name',       label: 'اسم السائق',               w: 16 },
+      { key: 'iqama',      label: 'رقم الإقامة',              w: 10 },
+      { key: 'job',        label: 'الوظيفة',                  w: 8 },
+      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق', w: 10, date: true },
+      { key: 'rem_days1',  label: 'الأيام المتبقية',          w: 8, readonly: true },
+      { key: 'phone',      label: 'رقم الجوال',               w: 10 },
+      { key: 'empNotes',   label: 'الملاحظات',                w: 12 }
+    ];
+
+    function colsFor(section) {
+      if (section === 'main') return MAIN_COLS;
+      if (section === 'spare') return SPARE_COLS;
+      if (section === 'vacation') return VAC_COLS;
+      return MAIN_COLS;
+    }
+
+    let state = { title: '', date: '', main: [], spare: [], vacation: [], summary: {} };
+    let DRIVER_REG = {};   // learned per-driver memory: iqama(digits) → {empid,phone,job,drivercard,empNotes}
+    let VEH_REG = {};      // learned per-vehicle memory: normalizePlate(plate) → {model,vtype,pallets,load,vserial,inspect,license,opcard,notes}
+    let saveTimer = null;
+    // True only once GET /api/schedule_data has actually responded OK in this session. While
+    // false, scheduleSave() refuses to POST — otherwise a page that silently fell back to a
+    // stale/empty localStorage snapshot (server down, network error) would overwrite real
+    // server data with that stale snapshot on the very next edit.
+    let serverLoadOk = false;
+
+    function blankRow(section) { const o = {}; colsFor(section).forEach(c => o[c.key] = ''); o.empNotes = ''; return o; }
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    async function init() {
+      buildHead('headMain', 'main'); buildHead('headSpare', 'spare'); buildHead('headVac', 'vacation');
+      await loadData();
+      try { await FleetData.load(); FleetData.fillDatalist('driverNames'); } catch (e) {}
+      await loadDriverRegistry();   // learned card-expiry/job memory, keyed by iqama
+      await loadVehicleRegistry();  // learned vehicle-spec memory, keyed by plate
+      renderAll();
+      loadVehicles();        // «جميع مركبات الفرع»
+      loadDeauthorized();    // «تم إلغاء تفويضهم»
+    }
+
+    // Two-row header: group headers (بيانات الموظف / بيانات المركبات) over the column headers.
+    function buildHead(id, section) {
+      const thead = document.getElementById(id);
+      const cols = colsFor(section);
+      
+      const nbLabel = s => escapeHtml(s).split(' ').map(w => `<span class="nb">${w}</span>`).join(' ');
+      
+      let h = '<tr><th class="col-idx">م</th>';
+      h += cols.map(c => `<th>${nbLabel(c.label)}</th>`).join('');
+      h += '<th class="col-act">⚙</th></tr>';
+      
+      thead.innerHTML = h;
+
+      const table = thead.closest('table');
+      const old = table.querySelector('colgroup'); if (old) old.remove();
+      const cg = document.createElement('colgroup');
+      cg.innerHTML = [2, ...cols.map(c => c.w), 5].map(w => `<col style="width:${w}%">`).join('');
+      table.insertBefore(cg, table.firstChild);
+    }
+
+    async function loadData() {
+      // detect workstation sandbox locally (robust against script timing)
+      const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+      // 1) server  2) localStorage  3) static default file
+      let data = null;
+      try {
+        const r = await fetch('/api/schedule_data');
+        if (r.ok) {
+          serverLoadOk = true;
+          const j = await r.json(); if (j.success && j.data) data = j.data;
+        } else if (r.status === 401) {
+          // Session expired — surface it instead of silently falling back to a possibly
+          // stale localStorage/static snapshot with no indication anything is wrong.
+          let msg = 'انتهت صلاحية الجلسة — يرجى تحديث الصفحة وتسجيل الدخول مجدداً';
+          try { const j = await r.json(); if (j.error) msg = j.error; } catch (e) {}
+          if (window.showToast) showToast(msg, 'error');
+          const hint = document.getElementById('saveHint');
+          if (hint) hint.textContent = '⚠️ ' + msg;
+        }
+      } catch (e) {}
+      // WS: skip localStorage & static-file fallbacks so an empty server response stays EMPTY
+      if (!data && !WS) {
+        const ls = localStorage.getItem(LS_KEY);
+        if (ls) { try { data = JSON.parse(ls); } catch (e) {} }
+      }
+      if (!data && !WS) {
+        try { const r = await fetch('/static/schedule_data.json'); if (r.ok) data = await r.json(); } catch (e) {}
+      }
+      if (!data) data = { title: document.getElementById('schedTitle').textContent, date: '', main: [], spare: [], vacation: [], summary: {} };
+      state.title = data.title || document.getElementById('schedTitle').textContent;
+      state.date = data.date || '';
+      state.main = (data.main || []).map(x => Object.assign(blankRow('main'), x));
+      state.spare = (data.spare || []).map(x => Object.assign(blankRow('spare'), x));
+      state.vacation = (data.vacation || []).map(x => Object.assign(blankRow('vacation'), x));
+      // seed vacation rows to match the file's vacation count when none are stored yet
+      const seedVac = parseInt((data.summary && data.summary.vacation) || '0', 10) || 0;
+      if (state.vacation.length === 0 && seedVac > 0) for (let i = 0; i < seedVac; i++) state.vacation.push(blankRow('vacation'));
+      state.summary = data.summary || {};
+    }
+
+    function renderAll() {
+      document.getElementById('schedTitle').textContent = state.title;
+      document.getElementById('schedDate').value = state.date || '';
+      renderBody('bodyMain', state.main, 'main');
+      renderBody('bodySpare', state.spare, 'spare');
+      renderBody('bodyVac', state.vacation, 'vacation');
+      updateSummary();
+      renderUnscheduled();
+    }
+
+    function renderBody(bodyId, rows, section) {
+      const tb = document.getElementById(bodyId);
+      const cols = colsFor(section);
+      tb.innerHTML = '';
+      rows.forEach((row, idx) => {
+        const tr = document.createElement('tr');
+        let html = `<td class="col-idx">${idx + 1}</td>`;
+        cols.forEach((c, cIdx) => {
+          let v = escapeHtml(row[c.key] || '');
+          
+          // Calculate remaining days automatically for readonly rem_days columns
+          if (c.readonly && c.key.startsWith('rem_days') && cIdx > 0) {
+            const dateCol = cols[cIdx - 1];
+            if (dateCol && dateCol.date) {
+              const diff = dateDiffDays(row[dateCol.key]);
+              v = diff !== null ? diff : '';
+            }
+          }
+
+          const listAttr = (c.key === 'name' || c.key === 'empid' || c.key === 'plate' || c.key === 'iqama') ? ' list="driverNames"' : '';
+          const readonlyAttr = c.readonly ? ' readonly tabindex="-1"' : '';
+          
+          // presentation-only cell classes: date status (with days hint) + job/plate badge look
+          let cls = '';
+          let dataAttr = '';
+          if (c.date) {
+            cls = dateStatusVal(row[c.key]);
+            const dh = daysHint(row[c.key]);
+            if (cls && dh) dataAttr = ` data-days="${dh}"`;
+          } else if (c.key === 'job') {
+            const j = (row.job || '').trim();
+            cls = j === 'موصل' ? 'job-mosil' : j === 'موزع' ? 'job-mozaa' : '';
+          } else if (c.key === 'plate') {
+            cls = (row.plate || '').trim() ? 'plate-cell' : '';
+          }
+          html += `<td class="${cls}"${dataAttr}><input type="text" value="${v}" data-sec="${section}" data-i="${idx}" data-k="${c.key}"${listAttr}${readonlyAttr}></td>`;
+        });
+        html += `<td class="col-act"><div class="col-act-wrap"><button class="row-custody" title="نقل عهدة المركبة لسائق آخر" onclick="openCustodyModal('${section}',${idx})">🔄</button><button class="row-notify" title="إشعار السائق عبر واتساب" onclick="notifyDriver('${section}',${idx})">📲</button><button class="row-del" title="حذف" onclick="deleteRow('${section}',${idx})">✕</button></div></td>`;
+        tr.innerHTML = html;
+        tb.appendChild(tr);
+      });
+    }
+
+    function cap(s) { return s === 'main' ? 'Main' : s === 'spare' ? 'Spare' : 'Vac'; }
+
+    // ---- editing ----
+    document.addEventListener('input', (e) => {
+      const t = e.target;
+      if (t.tagName !== 'INPUT' || !t.dataset.sec) return;
+      const arr = state[t.dataset.sec];
+      const row = arr && arr[+t.dataset.i];
+      if (!row) return;
+      row[t.dataset.k] = t.value;
+      // Learn personal fields as they're typed so the same driver auto-fills them next time.
+      if (REG_FIELDS.indexOf(t.dataset.k) !== -1) regRemember(row.iqama, t.dataset.k, t.value);
+      // When the iqama becomes known, back-fill the registry from any personal fields already
+      // typed on this row — so same-session reuse works regardless of column entry order.
+      else if (t.dataset.k === 'iqama') REG_FIELDS.forEach(f => regRemember(row.iqama, f, row[f]));
+      // Symmetric learning for the vehicle box, keyed by plate instead of iqama.
+      if (VEH_REG_FIELDS.indexOf(t.dataset.k) !== -1) vehRegRemember(row.plate, t.dataset.k, t.value);
+      else if (t.dataset.k === 'plate') VEH_REG_FIELDS.forEach(f => vehRegRemember(row.plate, f, row[f]));
+      if (t.dataset.k !== 'name' && t.dataset.k !== 'iqama' && t.dataset.k !== 'plate') { updateSummary(); scheduleSave(); }
+    });
+    // autofill triggers on change (after picking from datalist / leaving field)
+    document.addEventListener('change', async (e) => {
+      const t = e.target;
+      if (t.tagName !== 'INPUT' || !t.dataset.sec) return;
+      if (t.dataset.k === 'name' || t.dataset.k === 'iqama' || t.dataset.k === 'empid') autofillRow(t.dataset.sec, +t.dataset.i, t.dataset.k);
+      else if (t.dataset.k === 'plate') autofillVehicleRow(t.dataset.sec, +t.dataset.i);
+
+      // ── التحديث الشامل: عند تغيير اسم السائق أو رقم اللوحة ──────────────────
+      // إذا كان هناك أكثر من صف يحمل القيمة القديمة، نسأل المستخدم هل يريد التحديث الشامل
+      if (t.dataset.k === 'name' || t.dataset.k === 'plate') {
+        const sec = t.dataset.sec;
+        const idx = +t.dataset.i;
+        const newVal = t.value.trim();
+        const oldVal = t.dataset.oldVal;
+        if (oldVal && newVal && oldVal !== newVal) {
+          // ابحث عن الصفوف المطابقة في جميع الأقسام (main, spare, vacation)
+          const allSections = ['main', 'spare', 'vacation'];
+          const matchingRows = [];
+          allSections.forEach(s => {
+            (state[s] || []).forEach((r, i) => {
+              if (s === sec && i === idx) return; // تخطّ الصف الحالي
+              if (String(r[t.dataset.k] || '').trim() === oldVal) matchingRows.push({s, i, r});
+            });
+          });
+          if (matchingRows.length > 0) {
+            const fieldLabel = t.dataset.k === 'name' ? 'اسم السائق' : 'رقم اللوحة';
+            const confirmed = await window.bzConfirm(
+              `تم تغيير "${fieldLabel}" من "${oldVal}" إلى "${newVal}".\n` +
+              `يوجد ${matchingRows.length} صف آخر بنفس القيمة القديمة.\n` +
+              `هل تريد تحديث جميعها تلقائياً؟`
+            );
+            if (confirmed) {
+              matchingRows.forEach(({s, i, r}) => { r[t.dataset.k] = newVal; });
+              // أعد رسم الجداول المتأثرة
+              allSections.forEach(s => {
+                const bodyMap = {main:'bodyMain', spare:'bodySpare', vacation:'bodyVac'};
+                renderBody(bodyMap[s], state[s], s);
+              });
+              showToast(`✅ تم تحديث ${matchingRows.length} صف بنجاح`, 'success');
+            }
+          }
+        }
+      }
+
+      updateSummary(); scheduleSave();
+    });
+
+    // حفظ القيمة القديمة قبل التعديل (لكشف التغيير الشامل لاحقاً)
+    document.addEventListener('focus', (e) => {
+      const t = e.target;
+      if (t.tagName === 'INPUT' && t.dataset.sec && (t.dataset.k === 'name' || t.dataset.k === 'plate')) {
+        t.dataset.oldVal = t.value.trim();
+      }
+    }, true);
+
+    // ---- learned driver registry: iqama(digits) → {empid,phone,job,drivercard,empNotes} ----
+    const regKey = v => String(v || '').replace(/\D/g, '');
+    const REG_FIELDS = ['empid', 'phone', 'job', 'drivercard', 'empNotes'];
+    const REG_MAXLEN = { empid: 40, phone: 40, job: 40, drivercard: 40, empNotes: 200 };
+    async function loadDriverRegistry() {
+      try {
+        const r = await fetch('/api/driver_registry');
+        if (r.ok) { const j = await r.json(); if (j && j.success && j.data && typeof j.data === 'object') DRIVER_REG = j.data; }
+      } catch (e) {}
+    }
+    // Remember a personal field the instant the admin types it (reusable within the session;
+    // the server also harvests it on save for future sessions). A blank never erases memory.
+    function regRemember(iqama, key, val) {
+      const k = regKey(iqama);
+      if (!k || REG_FIELDS.indexOf(key) === -1) return;
+      const v = String(val || '').trim().slice(0, REG_MAXLEN[key] || 40);
+      if (!v) return;
+      if (!DRIVER_REG[k] || typeof DRIVER_REG[k] !== 'object') DRIVER_REG[k] = {};
+      DRIVER_REG[k][key] = v;
+    }
+
+    // ---- learned vehicle registry: normalizePlate(plate) → {model,vtype,pallets,load,vserial,inspect,license,opcard,notes} ----
+    const vehRegKey = v => (window.normalizePlate ? normalizePlate(v) : String(v || ''));
+    const VEH_REG_FIELDS = ['model', 'vtype', 'pallets', 'load', 'vserial', 'inspect', 'license', 'opcard', 'notes'];
+    const VEH_REG_MAXLEN = { model: 20, vtype: 40, pallets: 10, load: 20, vserial: 40, inspect: 40, license: 40, opcard: 40, notes: 300 };
+    async function loadVehicleRegistry() {
+      try {
+        const r = await fetch('/api/vehicle_registry');
+        if (r.ok) { const j = await r.json(); if (j && j.success && j.data && typeof j.data === 'object') VEH_REG = j.data; }
+      } catch (e) {}
+    }
+    // Remember a technical-spec field the instant the admin types it (mirrors regRemember).
+    function vehRegRemember(plate, key, val) {
+      const k = vehRegKey(plate);
+      if (!k || VEH_REG_FIELDS.indexOf(key) === -1) return;
+      const v = String(val || '').trim().slice(0, VEH_REG_MAXLEN[key] || 40);
+      if (!v) return;
+      if (!VEH_REG[k] || typeof VEH_REG[k] !== 'object') VEH_REG[k] = {};
+      VEH_REG[k][key] = v;
+    }
+    // Resolves the vehicle box for a plate from FleetData (master) + VEH_REG (learned).
+    //   mode 'replace'  — clear-and-fill every field (an explicit plate change: a genuine swap)
+    //   mode 'courtesy' — only fill fields that are currently blank (a driver pick incidentally
+    //                     set a blank row's plate; the vehicle box otherwise stays untouched)
+    function resolveVehicleFields(row, mode) {
+      const rec = window.FleetData ? FleetData.byPlate(row.plate) : null;
+      const reg = VEH_REG[vehRegKey(row.plate)] || {};
+      const carStr = (rec && rec.car) || reg.vtype || '';
+      const ym = carStr.match(/\b(19|20)\d{2}\b/);
+      const values = {
+        vtype: (rec && rec.car) || reg.vtype || '',
+        model: (ym ? ym[0] : '') || reg.model || '',
+        pallets: reg.pallets || '', load: reg.load || '', vserial: reg.vserial || '',
+        inspect: reg.inspect || '', license: reg.license || '', opcard: reg.opcard || '', notes: reg.notes || '',
+      };
+      Object.keys(values).forEach(k => {
+        if (mode === 'replace') row[k] = values[k];
+        else if (!String(row[k] || '').trim()) row[k] = values[k];
+      });
+    }
+
+    // ===== Vehicle swap =====
+    function autofillVehicleRow(section, idx) {
+      const row = state[section][idx];
+      if (!row) return;
+      const normPlate = vehRegKey(row.plate);
+      if (!normPlate) return;
+      const rec = window.FleetData ? FleetData.byPlate(row.plate) : null;
+      const reg = VEH_REG[normPlate] || {};
+      const resolvedVtype = (rec && rec.car) || reg.vtype || '';
+      // ── تعبئة بيانات المركبة
+      resolveVehicleFields(row, 'replace');
+      // ── تعبئة بيانات السائق من سجل اللوحة (فقط إذا كانت حقول السائق فارغة)
+      if (rec && rec.name) {
+        if (!String(row.name || '').trim())       row.name       = rec.name;
+        if (!String(row.iqama || '').trim())      row.iqama      = rec.iqama || '';
+        if (!String(row.empid || '').trim())      row.empid      = rec.empid || '';
+        if (!String(row.phone || '').trim())      row.phone      = rec.phone || '';
+        // fill learned driver registry fields too
+        const recIqama = String(rec.iqama || '').replace(/\D/g, '');
+        const drReg = recIqama ? (DRIVER_REG[recIqama] || {}) : {};
+        if (!String(row.job || '').trim())        row.job        = drReg.job || '';
+        if (!String(row.drivercard || '').trim()) row.drivercard = drReg.drivercard || '';
+        if (!String(row.empNotes || '').trim())   row.empNotes   = drReg.empNotes || '';
+      }
+      renderBody('body' + cap(section), state[section], section);
+    }
+
+    // ===== Driver swap = total separation of the two data "boxes" (per the branch spec) =====
+    //  • Employee box (DYNAMIC): picking/replacing a driver name clears the previous person's
+    //    employee data on that row and writes the new driver's master data. Fields with no
+    //    master source (الوظيفة / بطاقة السائق / الملاحظات) are CLEARED so a stale value from the
+    //    old driver never lingers on the new person (and بطاقة السائق never shows the wrong
+    //    expiry colour) — the admin re-enters them as needed.
+    //  • Vehicle box (PROTECTED): a driver swap NEVER touches رقم اللوحة/الموديل/نوع المركبة or any
+    //    technical spec (الطبالي/الحمولة/التسلسلي/الفحص/الرخصة/بطاقة التشغيل). The only courtesy is
+    //    auto-filling a brand-new BLANK row; an already-assigned vehicle stays exactly as-is.
+    function autofillRow(section, idx, byKey) {
+      const row = state[section][idx];
+      if (!row || !window.FleetData) return;
+      const rec = byKey === 'iqama' ? FleetData.byIqama(row.iqama) : (byKey === 'empid' ? FleetData.byEmpid(row.empid) : FleetData.byName(row.name));
+      if (!rec) return;
+      // Identity guard: iqama is the unique key (present for every record). If the row already
+      // reflects this exact driver, the event is just a blur/re-fire — do nothing, so we never
+      // clobber a manual correction the admin made after the first autofill.
+      const recIqama = String(rec.iqama || '').replace(/\D/g, '');
+      const rowIqama = String(row.iqama || '').replace(/\D/g, '');
+      if (recIqama && recIqama === rowIqama &&
+          String(row.name || '').trim() === String(rec.name || '').trim()) return;
+      // Employee box — clear-and-replace. FleetData (the imported master) is authoritative for
+      // the fields it carries (empid/phone); the LEARNED registry (DRIVER_REG, keyed by iqama)
+      // supplies the fields no master holds — بطاقة السائق / الوظيفة / الملاحظات — and back-fills
+      // empid/phone when the master is blank. Anything still unknown is cleared (no stale carry).
+      const reg = DRIVER_REG[recIqama] || {};
+      const setEmp = (k, val) => { row[k] = (val == null ? '' : String(val)); };
+      // rec.name can be blank (a plate-only fleet record with no driver name yet) — never let
+      // that clobber a name the admin already typed into this row.
+      if (rec.name) setEmp('name', rec.name);
+      setEmp('iqama', rec.iqama);
+      setEmp('empid', rec.empid || reg.empid || '');
+      setEmp('phone', rec.phone || reg.phone || '');
+      setEmp('job', reg.job || '');
+      setEmp('drivercard', reg.drivercard || '');
+      setEmp('empNotes', reg.empNotes || '');
+      // Vehicle box intentionally untouched per user request (strict separation of Employee/Vehicle data entry).
+      renderBody('body' + cap(section), state[section], section);
+    }
+
+    // ---- date expiry diff in days (Gregorian only; null when not a valid date) ----
+    function dateDiffDays(val) {
+      const m = String(val || '').trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!m) return null;
+      const y = +m[1]; if (y < 2000 || y > 2100) return null;
+      const d = new Date(y, +m[2] - 1, +m[3]); if (isNaN(d.getTime())) return null;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return Math.round((d - today) / 86400000);
+    }
+    // ---- date expiry status (presentation classes) ----
+    // exp-bad (منتهٍ) / exp-warn (≤30) kept as before; exp-soon (≤90) added for the gold tier
+    function dateStatusVal(val) {
+      const diff = dateDiffDays(val);
+      if (diff === null) return '';
+      if (diff < 0) return 'exp-bad';
+      if (diff <= 30) return 'exp-warn';
+      if (diff <= 90) return 'exp-soon';
+      return '';
+    }
+    // ---- small days-remaining hint shown under a date cell ----
+    function daysHint(val) {
+      const diff = dateDiffDays(val);
+      if (diff === null) return '';
+      if (diff < 0) return 'منتهٍ';
+      if (diff <= 90) return diff + 'ي';
+      return '';
+    }
+
+    // ---- custody transfer: reassign a row's vehicle to a different driver ----
+    let _custodyTarget = null;
+    function openCustodyModal(section, idx) {
+      const r = state[section][idx]; if (!r) return;
+      _custodyTarget = { section, idx };
+      document.getElementById('custodyPlate').textContent = r.plate || 'بدون لوحة';
+      document.getElementById('custodyOldDriver').textContent = 'المُسلِّم الحالي: ' + (r.name || 'الشركة');
+      document.getElementById('custodyNewDriver').value = '';
+      document.getElementById('custodyNote').value = '';
+      if(document.getElementById('condOk')) document.getElementById('condOk').checked = true;
+      document.getElementById('custodyModal').classList.add('show');
+      setTimeout(() => document.getElementById('custodyNewDriver').focus(), 100);
+    }
+    function closeCustodyModal() {
+      document.getElementById('custodyModal').classList.remove('show');
+      _custodyTarget = null;
+    }
+    async function confirmCustodyTransfer() {
+      if (!_custodyTarget) return;
+      const { section, idx } = _custodyTarget;
+      const r = state[section][idx];
+      if (!r) { closeCustodyModal(); return; }
+      const newName = document.getElementById('custodyNewDriver').value.trim();
+      const note = document.getElementById('custodyNote').value.trim();
+      let condition = 'سليمة';
+      if(document.getElementById('condBad') && document.getElementById('condBad').checked) {
+          condition = 'بها ملاحظات';
+      }
+      
+      if (!newName) { if (window.showToast) showToast('يرجى اختيار السائق المستلم أو "الشركة"', 'error'); return; }
+      const oldName = r.name || 'الشركة';
+      const plate = r.plate || '';
+      // Clear the OLD driver's identifying fields first so, if the new name has no
+      // FleetData/registry match, none of the previous driver's iqama/phone/job linger
+      // on the new name. autofillRow() then re-fills everything it can actually resolve.
+      r.name = newName;
+      r.iqama = ''; r.empid = ''; r.phone = ''; r.job = ''; r.drivercard = ''; r.empNotes = '';
+      autofillRow(section, idx, 'name');
+      renderBody('body' + cap(section), state[section], section);
+      updateSummary();
+      scheduleSave();
+      closeCustodyModal();
+      try {
+        await fetch('/api/vehicle_custody_transfer', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plate: plate, oldDriver: oldName, newDriver: newName, note: note, condition: condition })
+        });
+      } catch (e) { /* best-effort audit trail only — the transfer itself already saved above */ }
+      if (window.showToast) showToast('✅ تم توثيق نقل العهدة وتحديث الجدول', 'success');
+    }
+
+    // ---- notify a driver of their info via WhatsApp ----
+    function notifyDriver(section, idx) {
+      const r = state[section][idx]; if (!r) return;
+      const link = waLink(r.phone, driverWaMessage(r));
+      if (!link) { if (window.showToast) showToast('لا يوجد رقم جوال لهذا السائق', 'error'); return; }
+      window.open(link, '_blank');
+    }
+
+    function addRow(section) {
+      state[section].push(blankRow(section));
+      renderBody('body' + cap(section), state[section], section);
+      updateSummary(); scheduleSave();
+    }
+    async function deleteRow(section, idx) {
+      if (!(await window.bzConfirm('حذف هذا الصف؟'))) return;
+      state[section].splice(idx, 1);
+      renderBody('body' + cap(section), state[section], section);
+      updateSummary(); scheduleSave();
+    }
+
+    // ---- summary ----
+    function computeCounts() {
+      const m = state.main;
+      const has = (s, sub) => (s || '').indexOf(sub) !== -1;
+      return {
+        drivers: m.length,
+        dinas: m.filter(r => has(r.vtype, 'دينا')).length,
+        lorries: m.filter(r => has(r.vtype, 'لوري')).length,
+        delivery: m.filter(r => (r.job || '').trim() === 'موصل').length,
+        distributors: m.filter(r => (r.job || '').trim() === 'موزع').length,
+        vacation: state.vacation.length,
+      };
+    }
+    function updateSummary() {
+      // vacation always reflects the editable vacation table; others prefer stored value, fall back to computed
+      const c = computeCounts();
+      const s = state.summary || {};
+      state.summary = Object.assign({}, s, { vacation: String(c.vacation) });
+      refreshStatsAndAlerts(c, state.summary);
+    }
+
+    // ---- premium stat cards + alert bar + expired tab (presentation only) ----
+    // includeSpare=true (default) powers the "🔴 تنبيهات الانتهاء" utility tab (main + spare,
+    // more complete). includeSpare=false powers the exact-Excel-replica dashboard table, which
+    // — like the source workbook's own alert list — only tracks documents for the active/assigned
+    // fleet (state.main), not anonymous spare/broken vehicles.
+    function expiringList(includeSpare) {
+      if (includeSpare === undefined) includeSpare = true;
+      // documents in main (+ spare when requested) expiring within 90 days (incl. expired)
+      const docs = [
+        { k: 'drivercard', lbl: 'بطاقة السائق' },
+        { k: 'inspect',    lbl: 'الفحص الدوري' },
+        { k: 'license',    lbl: 'رخصة السير' },
+        { k: 'opcard',     lbl: 'بطاقة التشغيل' },
+      ];
+      const out = [];
+      const scan = rows => rows.forEach(r => docs.forEach(d => {
+        const diff = dateDiffDays(r[d.k]);
+        if (diff !== null && diff <= 90) {
+          out.push({ name: r.name || '—', empid: r.empid || '—', plate: r.plate || '—',
+            doc: d.lbl, date: r[d.k], days: diff });
+        }
+      }));
+      scan(state.main); if (includeSpare) scan(state.spare);
+      out.sort((a, b) => a.days - b.days);
+      return out;
+    }
+
+    // Animate a stat-card value from its current number to the new one (Latin digits, matching
+    // this page's existing table/date formatting — unlike the homepage's Arabic-Indic KPIs).
+    function animateStatValue(el, newVal) {
+      const target = parseInt(newVal, 10);
+      if (isNaN(target)) { el.textContent = newVal; return; }
+      const start = parseInt(el.textContent, 10) || 0;
+      if (start === target) { el.textContent = String(target); return; }
+      const duration = 500;
+      const t0 = performance.now();
+      (function step(now) {
+        const progress = Math.min((now - t0) / duration, 1);
+        const ease = 1 - Math.pow(1 - progress, 3);
+        el.textContent = String(Math.round(start + (target - start) * ease));
+        if (progress < 1) requestAnimationFrame(step);
+      })(t0);
+    }
+
+    // Save a dashboard KPI input to state.summary when user edits it
+    function saveDashKpi(el) {
+      const key = el.dataset.kpi;
+      if (!key) return;
+      if (!state.summary) state.summary = {};
+      state.summary[key] = el.value;
+      scheduleSave();
+      renderExcelSummaryTables();
+    }
+
+    // Both dashboard summary tables (موصل/موزع split, vehicle types) behave like real Excel
+    // cells: they start out computed from state.main, but once the user types over a cell that
+    // edit sticks (state.summary.jobSplit / vehicleTypes) exactly like typing over a formula
+    // cell in Excel — it no longer updates itself. The 🔄 button re-derives it from state.main.
+    function computedJobSplit() {
+      const m = state.main || [];
+      let delivery = m.filter(r => (r.job || '').trim() === 'موصل').length;
+      let dist = m.filter(r => (r.job || '').trim() === 'موزع').length;
+      if (!delivery && !dist) {
+        delivery = parseInt(document.getElementById('excelDelivery').value) || 0;
+        dist = parseInt(document.getElementById('excelDistributors').value) || 0;
+      }
+      return { 'موصل': delivery, 'موزع': dist };
+    }
+    function computedVehicleTypes() {
+      const vTypes = {};
+      (state.main || []).forEach(r => {
+        const t = (r.vtype || '').trim();
+        if (t) vTypes[t] = (vTypes[t] || 0) + 1;
+      });
+      if (!Object.keys(vTypes).length) {
+        // Default Excel dummy data (used only when there's no fleet data at all yet)
+        vTypes['ايسوزو دينا'] = 4;
+        vTypes['ايسوزو لوري'] = 13;
+        vTypes['متسوبيشي دينا'] = 8;
+        vTypes['متسوبيشي لوري'] = 3;
+        vTypes['هينو  دينا'] = 1;
+      }
+      return vTypes;
+    }
+
+    let excelPieChart = null;
+    let excelBarChart = null;
+
+    function renderExcelSummaryTables() {
+       const s = state.summary || {};
+
+       if (!s.jobSplit) s.jobSplit = computedJobSplit();
+       const jsBody = document.getElementById('excelJobSplitTable');
+       if (jsBody) {
+         jsBody.innerHTML = Object.entries(s.jobSplit).map(([label, val]) => `
+           <tr>
+             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid #dde3ee; padding:8px 10px; background:#DBE5F1; font-weight:bold; color:#000; outline:none;">${escapeHtml(label)}</td>
+             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid #dde3ee; padding:8px 10px; background:#DBE5F1; font-weight:bold; color:#000; width:70px; outline:none;">${val}</td>
+           </tr>`).join('');
+       }
+
+       if (!s.vehicleTypes || !Object.keys(s.vehicleTypes).length) s.vehicleTypes = computedVehicleTypes();
+       const sortedTypes = Object.entries(s.vehicleTypes).sort((a, b) => b[1] - a[1]);
+       const vtBody = document.getElementById('excelVehicleTable');
+       if (vtBody) {
+         vtBody.innerHTML = sortedTypes.map(([type, count]) => `
+           <tr>
+             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid #dde3ee; padding:8px 10px; width:44px; background:#D9E1F2; font-weight:bold; color:#000; outline:none;">${count}</td>
+             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid #dde3ee; padding:8px 10px; font-weight:bold; color:#000; outline:none;">${escapeHtml(type)}</td>
+           </tr>`).join('');
+       }
+
+       state.summary = s;
+
+       // Charts mirror the same jobSplit/vehicleTypes data as the editable tables above —
+       // the reference Excel sheet has both a pie chart and a bar chart embedded alongside
+       // these exact cells, so editing a table cell updates its chart too.
+       if (window.Chart) {
+         const jsEntries = Object.entries(s.jobSplit);
+         const ctxPie = document.getElementById('pieChartDrivers');
+         if (ctxPie) {
+           if (excelPieChart) {
+             excelPieChart.data.labels = jsEntries.map(e => e[0]);
+             excelPieChart.data.datasets[0].data = jsEntries.map(e => e[1]);
+             excelPieChart.update();
+           } else {
+             excelPieChart = new Chart(ctxPie, {
+               type: 'pie',
+               data: {
+                 labels: jsEntries.map(e => e[0]),
+                 datasets: [{ data: jsEntries.map(e => e[1]), backgroundColor: ['#4F81BD', '#C0504D'] }]
+               },
+               options: { responsive: true, maintainAspectRatio: false,
+                 plugins: { legend: { position: 'bottom', labels: { color: '#000' } } } }
+             });
+           }
+         }
+
+         const ctxBar = document.getElementById('barChartVehicles');
+         if (ctxBar) {
+           if (excelBarChart) {
+             excelBarChart.data.labels = sortedTypes.map(x => x[0]);
+             excelBarChart.data.datasets[0].data = sortedTypes.map(x => x[1]);
+             excelBarChart.update();
+           } else {
+             excelBarChart = new Chart(ctxBar, {
+               type: 'bar',
+               data: {
+                 labels: sortedTypes.map(x => x[0]),
+                 datasets: [{ label: 'Series1', data: sortedTypes.map(x => x[1]), backgroundColor: '#4F81BD' }]
+               },
+               options: {
+                 responsive: true, maintainAspectRatio: false,
+                 plugins: { legend: { display: false } },
+                 scales: {
+                   y: { beginAtZero: true, ticks: { stepSize: 1, color: '#000' } },
+                   x: { ticks: { color: '#000' } }
+                 }
+               }
+             });
+           }
+         }
+       }
+    }
+
+    // Rebuild state.summary.jobSplit / vehicleTypes straight from whatever's currently
+    // shown on screen (works regardless of row order, no index bookkeeping needed).
+    function onJobSplitEdit() {
+      const body = document.getElementById('excelJobSplitTable');
+      if (!body) return;
+      const obj = {};
+      Array.from(body.querySelectorAll('tr')).forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        const label = (tds[0]?.textContent || '').trim();
+        const val = parseInt((tds[1]?.textContent || '').trim(), 10) || 0;
+        if (label) obj[label] = val;
+      });
+      if (!state.summary) state.summary = {};
+      state.summary.jobSplit = obj;
+      renderExcelSummaryTables();
+      scheduleSave();
+    }
+    function onVehicleTypeEdit() {
+      const body = document.getElementById('excelVehicleTable');
+      if (!body) return;
+      const obj = {};
+      Array.from(body.querySelectorAll('tr')).forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        const count = parseInt((tds[0]?.textContent || '').trim(), 10) || 0;
+        const type = (tds[1]?.textContent || '').trim();
+        if (type) obj[type] = count;
+      });
+      if (!state.summary) state.summary = {};
+      state.summary.vehicleTypes = obj;
+      renderExcelSummaryTables();
+      scheduleSave();
+    }
+    function recalcJobSplit() {
+      if (!state.summary) state.summary = {};
+      state.summary.jobSplit = computedJobSplit();
+      renderExcelSummaryTables();
+      scheduleSave();
+      if (window.showToast) showToast('تم إعادة الحساب من الجدول الرئيسي', 'success');
+    }
+    function recalcVehicleTypes() {
+      if (!state.summary) state.summary = {};
+      state.summary.vehicleTypes = computedVehicleTypes();
+      renderExcelSummaryTables();
+      scheduleSave();
+      if (window.showToast) showToast('تم إعادة الحساب من الجدول الرئيسي', 'success');
+    }
+    // Same pattern for the expiry-alert list: sticks once edited, 🔄 re-derives from dates
+    // on the "المركبات النشطة" rows.
+    function onExpiringEdit() {
+      const body = document.getElementById('excelExpiringBody');
+      if (!body) return;
+      const rows = Array.from(body.querySelectorAll('tr')).map(tr => {
+        const tds = tr.querySelectorAll('td');
+        return {
+          name: (tds[1]?.textContent || '').trim(),
+          plate: (tds[2]?.textContent || '').trim(),
+          doc: (tds[3]?.textContent || '').trim(),
+          date: (tds[4]?.textContent || '').trim(),
+          days: parseInt((tds[5]?.textContent || '').trim(), 10) || 0,
+        };
+      });
+      if (!state.summary) state.summary = {};
+      state.summary.expiringOverride = rows;
+      scheduleSave();
+    }
+    function recalcExpiring() {
+      if (!state.summary) state.summary = {};
+      delete state.summary.expiringOverride;
+      updateSummary();
+      scheduleSave();
+      if (window.showToast) showToast('تم إعادة الحساب من الجدول الرئيسي', 'success');
+    }
+
+    function refreshStatsAndAlerts(c, s) {
+      const pick = (v, comp) => (v != null && v !== '' ? v : comp);
+      const setInput = (id, v) => {
+        const el = document.getElementById(id);
+        if (el && el.tagName === 'INPUT') { el.value = v; }
+        else if (el) { el.textContent = v; }
+      };
+      
+      // Set KPI input values — prefer saved summary value, fallback to computed
+      const getKpi = (saved, computed, dummy) => {
+        let val = pick(saved, computed);
+        if (val === undefined || val === null || val === '') return dummy;
+        return val;
+      };
+
+      setInput('excelTotalDrivers', getKpi(s.drivers, c.drivers, 29));
+      setInput('excelDelivery', getKpi(s.delivery, c.delivery, 16));
+      setInput('excelDistributors', getKpi(s.distributors, c.distributors, 13));
+      setInput('excelVacation', getKpi(s.vacation, c.vacation, 0));
+      setInput('excelSpare', getKpi(s.spare, state.spare.length, 0));
+      
+      // Tab chips
+      const setChip = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      setChip('chipMain', state.main.length);
+      setChip('chipSpare', state.spare.length);
+      setChip('chipVac', state.vacation.length);
+      
+      const exp = expiringList();
+      setChip('chipExp', exp.length);
+
+      // Dates
+      const todayEl = document.getElementById('excelTodayDate');
+      if (todayEl) todayEl.textContent = new Date().toISOString().split('T')[0];
+      const schedDate = document.getElementById('schedDate') ? document.getElementById('schedDate').value : '';
+      const lastEl = document.getElementById('excelLastUpdate');
+      if (lastEl) lastEl.textContent = schedDate || new Date().toISOString().split('T')[0];
+
+      renderExpiredTab(exp, expiringList(false));
+      renderExcelSummaryTables();
+    }
+
+    function renderExpiredTab(exp, expMainOnly) {
+      const tbOld = document.getElementById('bodyExp');
+      if (tbOld) {
+        tbOld.innerHTML = '';
+        exp.forEach(r => {
+          const cls = r.days < 0 ? 'exp-bad' : r.days <= 30 ? 'exp-warn' : 'exp-soon';
+          const status = r.days < 0 ? '🔴 منتهٍ' : r.days <= 30 ? '🟠 عاجل' : '🟡 قريب';
+          const daysTxt = r.days < 0 ? `منتهٍ منذ ${Math.abs(r.days)} يوم` : `${r.days} يوم`;
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            `<td style="padding:8px 10px;font-weight:700;">${escapeHtml(r.name)}</td>` +
+            `<td style="padding:8px 10px;">${escapeHtml(r.empid)}</td>` +
+            `<td style="padding:8px 10px;"><span style="background:rgba(197,160,89,.16);color:#e0c489;border-radius:8px;padding:3px 10px;font-weight:700;">${escapeHtml(r.plate)}</span></td>` +
+            `<td style="padding:8px 10px;font-weight:600;">${escapeHtml(r.doc)}</td>` +
+            `<td class="${cls}" style="padding:8px 10px;font-weight:800;">${escapeHtml(r.date)}</td>` +
+            `<td style="padding:8px 10px;">${status}</td>` +
+            `<td style="padding:8px 10px;font-weight:700;color:var(--p-gold2);">${daysTxt}</td>`;
+          tbOld.appendChild(tr);
+        });
+        if (!exp.length) {
+          tbOld.innerHTML = `<tr><td colspan="7" style="padding:16px;color:var(--p-muted);">لا توجد وثائق منتهية أو قريبة من الانتهاء خلال 90 يوماً ✅</td></tr>`;
+        }
+      }
+      
+      const tbNew = document.getElementById('excelExpiringBody');
+      if (!tbNew) return;
+      tbNew.innerHTML = '';
+
+      // Sticks once edited — exactly like typing over a formula cell in Excel — via
+      // state.summary.expiringOverride (cleared by the 🔄 button, see recalcExpiring()).
+      const s = state.summary || {};
+      let displayExp = (s.expiringOverride && s.expiringOverride.length) ? s.expiringOverride : (expMainOnly || []);
+      if (!displayExp.length) {
+        // Dummy data exactly matching the reference Excel file (تحديث الاسبوعي 2026-7-14)
+        displayExp = [
+          { name: 'كابيل مياه', plate: 'ا س ح  8714', doc: 'بطاقة السائق', date: '2026-06-25', days: -19 },
+          { name: 'انفير كاريماري عمير', plate: 'أ س ر 8873', doc: 'رخصة السير', date: '2026-07-18', days: 4 },
+          { name: 'احمد دنقل', plate: 'ا ص ا 7810', doc: 'الفحص الدوري', date: '2026-08-24', days: 41 },
+          { name: 'شوكت علي', plate: 'ا س ق 7920', doc: 'بطاقة التشغيل', date: '2026-08-25', days: 42 },
+          { name: 'ابراهيم محمد ابوزيد محمد', plate: 'ا ر ع 2232', doc: 'رخصة السير', date: '2026-08-31', days: 48 },
+          { name: 'تنفير حسين', plate: 'ا ر ع  2234', doc: 'رخصة السير', date: '2026-09-07', days: 55 },
+          { name: 'علي محمد ابوزيد محمد', plate: 'ا ر ع 2240', doc: 'رخصة السير', date: '2026-09-07', days: 55 }
+        ];
+      }
+
+      displayExp.forEach((r, i) => {
+        let daysColor = '';
+        if (r.days < 0) daysColor = 'background:#FFC7CE; color:#9C0006; font-weight:bold;';
+        else if (r.days <= 30) daysColor = 'background:#FFC7CE; color:#9C0006; font-weight:bold;';
+        else daysColor = 'background:#FFEB9C; color:#9C6500; font-weight:bold;';
+
+        const tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#f7f9fc';
+        tr.innerHTML =
+          `<td style="border:1px solid #dde3ee; padding:8px 6px; color:#000;">${i + 1}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; color:#000; outline:none;">${escapeHtml(r.name)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000; outline:none;">${escapeHtml(r.plate)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; color:#000; outline:none;">${escapeHtml(r.doc)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000; outline:none;">${escapeHtml(r.date)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; ${daysColor} outline:none;">${r.days}</td>`;
+        tbNew.appendChild(tr);
+      });
+    }
+
+    // ---- premium tabs (every existing table stays reachable & editable) ----
+    function switchSchedTab(name, btn) {
+      document.querySelectorAll('.sp-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.sp-panel').forEach(p => p.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const panel = document.getElementById('spPanel-' + name);
+      if (panel) panel.classList.add('active');
+      if (name === 'vehicles') loadVehicles();
+    }
+
+    // ===== «جميع مركبات الفرع» — كل من لديه مركبة من سجل سائقي الفرع =====
+    function vesc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+    function renderVehicles(rows) {
+      const body = document.getElementById('bodyVeh'); if (!body) return;
+      const cnt = document.getElementById('vehCount'); if (cnt) cnt.textContent = rows.length + ' مركبة';
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">لا توجد مركبات مسجّلة لهذا الفرع.</td></tr>'; vehSyncSelUI(); return; }
+      body.innerHTML = rows.map(function (d, i) {
+        return '<tr><td style="text-align:center"><input type="checkbox" class="vehChk" data-id="' + vesc(d.id) + '" style="width:16px;height:16px;cursor:pointer;accent-color:var(--p-accent,#c5a059)"></td>' +
+          '<td>' + (i + 1) + '</td>' +
+          '<td>' + vesc(d.name) + '</td>' +
+          '<td style="direction:ltr;unicode-bidi:plaintext">' + vesc(d.empid) + '</td>' +
+          '<td style="font-weight:700">' + vesc(d.plate) + '</td>' +
+          '<td>' + vesc(d.car) + '</td>' +
+          '<td style="direction:ltr;unicode-bidi:plaintext">' + vesc(d.phone) + '</td></tr>';
+      }).join('');
+      vehSyncSelUI();
+    }
+
+    // bulk selection + admin-code-protected delete (all-or-nothing)
+    function vehSelectedIds() {
+      return Array.prototype.map.call(document.querySelectorAll('#bodyVeh .vehChk:checked'), function (c) { return parseInt(c.getAttribute('data-id'), 10); }).filter(function (n) { return !isNaN(n); });
+    }
+    function vehSyncSelUI() {
+      var chks = document.querySelectorAll('#bodyVeh .vehChk');
+      var sel = document.querySelectorAll('#bodyVeh .vehChk:checked').length;
+      var cntEl = document.getElementById('vehSelCount'); if (cntEl) cntEl.textContent = sel;
+      var btn = document.getElementById('vehBulkDel'); if (btn) btn.style.display = sel ? 'inline-block' : 'none';
+      var all = document.getElementById('vehSelAll');
+      if (all) { all.checked = chks.length > 0 && sel === chks.length; all.indeterminate = sel > 0 && sel < chks.length; }
+    }
+    document.addEventListener('change', function (e) {
+      var t = e.target; if (!t) return;
+      if (t.id === 'vehSelAll') {
+        var on = t.checked;
+        document.querySelectorAll('#bodyVeh .vehChk').forEach(function (c) { c.checked = on; });
+        vehSyncSelUI();
+      } else if (t.classList && t.classList.contains('vehChk')) {
+        vehSyncSelUI();
+      }
+    });
+    window.bulkDeleteVehicles = async function () {
+      var ids = vehSelectedIds();
+      if (!ids.length) { await window.bzAlert('حدّد عنصراً واحداً على الأقل أولاً.'); return; }
+      var code = await window.bzPrompt('تأكيد حذف ' + ids.length + ' عنصراً نهائياً.\nأدخل رمز الأدمن السري للمتابعة:', '', { password: true });
+      if (code == null || code === '') return;
+      try {
+        var r = await fetch('/api/drivers/bulk_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids, lock: code }) });
+        var d = await r.json().catch(function () { return {}; });
+        if (r.ok && d.success) {
+          if (window.showToast) showToast('تم حذف ' + (d.deleted != null ? d.deleted : ids.length) + ' عنصراً ✓', 'success');
+          var all = document.getElementById('vehSelAll'); if (all) { all.checked = false; all.indeterminate = false; }
+          await loadVehicles();
+        } else if (d.reason === 'locked') {
+          await window.bzAlert('الرمز السري غير صحيح — لم يُحذف أي شيء.');
+        } else {
+          await window.bzAlert('تعذّر الحذف: ' + (d.error || 'خطأ غير معروف'));
+        }
+      } catch (e) { await window.bzAlert('تعذّر الاتصال بالخادم.'); }
+    };
+    window.filterVehicles = function (q) {
+      q = (q || '').trim().toLowerCase();
+      const all = window.__vehAll || [];
+      renderVehicles(q ? all.filter(function (d) {
+        return [d.name, d.empid, d.plate, d.car, d.phone].some(function (v) { return String(v == null ? '' : v).toLowerCase().indexOf(q) >= 0; });
+      }) : all);
+    };
+    async function loadVehicles() {
+      const body = document.getElementById('bodyVeh'); if (!body) return;
+      let list = [];
+      try { const r = await fetch('/api/drivers', { headers: { 'Accept': 'application/json' } }); if (r.ok) list = await r.json(); } catch (e) {}
+      if (!Array.isArray(list)) list = [];
+      const veh = list.filter(function (d) { return d && ((d.plate && String(d.plate).trim()) || (d.car && String(d.car).trim())); });
+      window.__vehAll = veh;
+      const chip = document.getElementById('chipVeh'); if (chip) chip.textContent = veh.length;
+      const s = document.getElementById('vehSearch');
+      renderVehicles(veh);
+      if (s && s.value.trim()) window.filterVehicles(s.value);
+    }
+
+    // ===== «تم إلغاء تفويضهم» — قابل للتعديل/الحذف/التصدير (بلوب deauthorized_data) =====
+    async function loadDeauthorized() {
+      let rows = [];
+      try { const r = await fetch('/api/deauthorized', { headers: { 'Accept': 'application/json' } }); if (r.ok) { const j = await r.json(); rows = (j && j.rows) || []; } } catch (e) {}
+      window.__deauthAll = rows;
+      renderDeauth();
+    }
+    function renderDeauth() {
+      const body = document.getElementById('deauthBody'); if (!body) return;
+      const rows = window.__deauthAll || [];
+      const chip = document.getElementById('deauthCount'); if (chip) chip.textContent = rows.length;
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:1.2rem;color:var(--p-muted,#94a3b8)">لا يوجد — كل السائقين مفوّضون ✓</td></tr>'; return; }
+      function inp(i, k, v, ltr) { return '<input class="deauth-in" data-i="' + i + '" data-k="' + k + '" value="' + vesc(v) + '"' + (ltr ? ' style="direction:ltr;unicode-bidi:plaintext"' : '') + '>'; }
+      body.innerHTML = rows.map(function (d, i) {
+        return '<tr><td>' + (i + 1) + '</td>' +
+          '<td>' + inp(i, 'name', d.name) + '</td>' +
+          '<td>' + inp(i, 'empid', d.empid, true) + '</td>' +
+          '<td>' + inp(i, 'iqama', d.iqama, true) + '</td>' +
+          '<td>' + inp(i, 'plate', d.plate) + '</td>' +
+          '<td>' + inp(i, 'car', d.car) + '</td>' +
+          '<td>' + inp(i, 'phone', d.phone, true) + '</td>' +
+          '<td><button class="btn-outline" style="padding:4px 11px;color:#FF6B6B;border-color:#FF6B6B" onclick="deauthDelete(' + i + ')">🗑 حذف</button></td></tr>';
+      }).join('');
+    }
+    document.addEventListener('input', function (e) {
+      var t = e.target;
+      if (t && t.classList && t.classList.contains('deauth-in')) {
+        var i = +t.getAttribute('data-i'), k = t.getAttribute('data-k');
+        if (window.__deauthAll && window.__deauthAll[i]) { window.__deauthAll[i][k] = t.value; deauthSaveDebounced(); }
+      }
+    });
+    window.deauthDelete = function (i) {
+      window.bzConfirm('حذف هذا الاسم من القائمة؟').then(function (ok) {
+        if (!ok) return;
+        (window.__deauthAll || []).splice(i, 1); renderDeauth(); saveDeauthorized();
+      });
+    };
+    window.deauthAddRow = function () {
+      (window.__deauthAll = window.__deauthAll || []).push({ name: '', empid: '', iqama: '', plate: '', car: '', phone: '' });
+      renderDeauth();
+    };
+    var _deauthT = null;
+    function deauthSaveDebounced() { clearTimeout(_deauthT); _deauthT = setTimeout(saveDeauthorized, 700); }
+    function saveDeauthorized() {
+      var hint = document.getElementById('deauthSaveHint'); if (hint) hint.textContent = 'جارٍ الحفظ…';
+      fetch('/api/deauthorized', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: window.__deauthAll || [] }) })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { if (hint) hint.textContent = (j && j.success) ? '✓ تم الحفظ' : 'تعذّر الحفظ'; })
+        .catch(function () { if (hint) hint.textContent = 'تعذّر الاتصال'; });
+    }
+    async function exportDeauthorized() {
+      var rows = window.__deauthAll || [];
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('تم إلغاء تفويضهم', { views: [{ rightToLeft: true, showGridLines: false }] });
+      var heads = ['#', 'الاسم', 'الرقم الوظيفي', 'رقم الإقامة', 'رقم اللوحة', 'نوع المركبة', 'رقم الجوال'];
+      [6, 30, 14, 16, 16, 22, 16].forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
+      ws.mergeCells(1, 1, 1, heads.length);
+      var t = ws.getCell('A1');
+      t.value = 'تم إلغاء تفويضهم — فرع ' + (window.BZ_BRANCH || 'الدمام') + ' ' + new Date().getFullYear();
+      t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0C2340' } };
+      t.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+      t.alignment = { horizontal: 'center', vertical: 'center' }; ws.getRow(1).height = 22;
+      var hr = ws.getRow(2);
+      heads.forEach(function (h, i) {
+        var c = hr.getCell(i + 1); c.value = h;
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC9A227' } };
+        c.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0C2340' } };
+        c.alignment = { horizontal: 'center', vertical: 'center' };
+        c.border = { top: { style: 'thin' }, bottom: { style: 'medium', color: { argb: 'FF0C2340' } }, left: { style: 'thin' }, right: { style: 'thin' } };
+      });
+      hr.height = 18;
+      rows.forEach(function (d, i) {
+        var r = ws.getRow(i + 3);
+        [i + 1, d.name || '', d.empid || '', d.iqama || '', d.plate || '', d.car || '', d.phone || ''].forEach(function (v, ci) {
+          var c = r.getCell(ci + 1); c.value = v;
+          c.alignment = { horizontal: 'center', vertical: 'center' };
+          c.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+          if (i % 2) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F2E6' } };
+        });
+      });
+      var fr = rows.length + 4; ws.mergeCells(fr, 1, fr, heads.length);
+      var fc = ws.getCell(fr, 1);
+      fc.value = 'أُعدّ بواسطة قسم الحركة — فرع ' + (window.BZ_BRANCH || 'الدمام') + '   |   ' + new Date().toISOString().slice(0, 10);
+      fc.alignment = { horizontal: 'center' }; fc.font = { name: 'Calibri', size: 11, bold: true };
+      try { var buf = await wb.xlsx.writeBuffer(); saveAs(new Blob([buf]), 'تم_الغاء_تفويضهم_' + new Date().toISOString().slice(0, 10) + '.xlsx'); }
+      catch (e) { if (window.showToast) showToast('تعذّر التصدير', 'error'); }
+    }
+    window.exportDeauthorized = exportDeauthorized;
+
+    // ---- persistence ----
+    let sessionReason = null;
+    function scheduleSave() {
+      if (!sessionReason) {
+        sessionReason = prompt("يرجى إدخال مسوّغ التعديل (إلزامي للتوثيق في سجل التدقيق):");
+        if (!sessionReason || sessionReason.length < 5) {
+          sessionReason = null;
+          const hint = document.getElementById('saveHint');
+          if (hint) hint.textContent = '⚠️ لم يُحفظ التعديل: السبب إلزامي (5 أحرف على الأقل).';
+          return;
+        }
+      }
+      state.reason = sessionReason;
+      localStorage.setItem(LS_KEY, JSON.stringify(state));
+      const hint = document.getElementById('saveHint');
+      // The initial GET never succeeded this session — we can't tell if this state reflects a
+      // real (possibly newer) server copy or a stale local fallback, so refuse to overwrite the
+      // server and tell the user plainly instead of silently claiming a local save.
+      if (!serverLoadOk) {
+        hint.textContent = '⚠️ تعذّر الاتصال بالخادم — أعد تحميل الصفحة قبل المتابعة (لم يُحفظ على الخادم)';
+        return;
+      }
+      hint.textContent = 'جارٍ الحفظ…';
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        try {
+          const r = await fetch('/api/schedule_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) });
+          if (r.ok) {
+            hint.textContent = '✓ تم الحفظ';
+          } else {
+            const d = await r.json().catch(() => ({}));
+            hint.textContent = d.error ? '⚠️ ' + d.error : 'تعذّر الحفظ على الخادم';
+          }
+        } catch (e) { hint.textContent = 'تعذّر الحفظ على الخادم'; }
+      }, 700);
+    }
+
+    // bind date input after DOM ready
+    document.addEventListener('DOMContentLoaded', () => {
+      const d = document.getElementById('schedDate');
+      if (d) d.addEventListener('change', (e) => { state.date = e.target.value; scheduleSave(); });
+    });
+
+    // ===== Excel export — matches the company's real weekly-update workbook format =====
+    // Column order/labels/colors/fonts mirror the reference file "تحديث الاسبوعي" exactly:
+    // an interleaved employee+vehicle order (NOT the on-screen EMP_COLS-then-VEH_COLS grouping
+    // used above for driver/vehicle-swap isolation), single شared "الملاحظات" column, رقم الجوال
+    // last. Deliberate anomalies found in the reference (a duplicated/relocated spare-table
+    // header, stray borders, an outlier off-brand title font/color) are normalized rather than
+    // reproduced — they read as one-off glitches in that file, not a design intent to copy.
+    const EXPORT_COLS = [
+      { key: 'empid',      label: 'الرقم الوظيفي' },
+      { key: 'name',       label: 'اسم السائق' },
+      { key: 'iqama',      label: 'رقم الإقامة' },
+      { key: 'job',        label: 'الوظيفة' },
+      { key: 'plate',      label: 'رقم اللوحة' },
+      { key: 'model',      label: 'الموديل' },
+      { key: 'vtype',      label: 'نوع المركبة' },
+      { key: 'pallets',    label: 'عدد الطبالي' },
+      { key: 'load',       label: 'الحمولة' },
+      { key: 'vserial',    label: 'الرقم التسلسلي' },
+      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', date: true },
+      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   date: true },
+      { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق',  date: true },
+      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', date: true },
+      { key: 'notes',      label: 'الملاحظات' },
+      { key: 'phone',      label: 'رقم الجوال' },
+    ];
+    // م + 16 data columns, widths taken from the reference workbook's own column widths
+    const EXPORT_COL_WIDTHS = [3.125, 9.0, 20.125, 12.125, 5.75, 11.625, 6.125, 12.875, 8.125, 11.0, 15.125, 18.125, 16.125, 17.125, 17.125, 12.75, 22.0];
+    const EXPORT_TOTAL_COLS = 1 + EXPORT_COLS.length;
+
+    const XL_BLUE = 'FFBDD7EE', XL_NAVY_TXT = 'FF0F2747', XL_GOLD = 'FFC9A227',
+          XL_SUMMARY_FILL = 'FFD9E2F3', XL_RED = 'FFEB3D3D', XL_YELLOW = 'FFFFFF00', XL_BLACK = 'FF000000';
+
+    function xThin() { return { style: 'thin', color: { argb: XL_BLACK } }; }
+    function xMed() { return { style: 'medium', color: { argb: XL_BLACK } }; }
+    function xAllThin() { return { top: xThin(), bottom: xThin(), left: xThin(), right: xThin() }; }
+    // Frames a merged banner/title row: top+bottom on every cell, left only on the first,
+    // right only on the last — avoids stray internal vertical dividers inside the merge.
+    function xBoxMergedRow(ws, rowNum, span, side) {
+      for (let c = 1; c <= span; c++) {
+        const b = { top: side(), bottom: side() };
+        if (c === 1) b.left = side();
+        if (c === span) b.right = side();
+        ws.getCell(rowNum, c).border = b;
+      }
+    }
+
+    // Combines the employee-notes and vehicle-notes fields into the single "الملاحظات"
+    // column the reference file uses (our on-screen table keeps them as two separate fields).
+    function exportCellValue(row, col) {
+      if (col.key === 'notes') {
+        const a = String(row.empNotes || '').trim(), b = String(row.notes || '').trim();
+        return a && b ? (a + ' | ' + b) : (a || b);
+      }
+      return row[col.key] || '';
+    }
+    // Red = already expired, yellow = expiring within 30 days — reuses this app's own
+    // document-expiry thresholds (the reference file's manual highlights had no single
+    // consistent day-count rule to copy, per the extracted build spec).
+    function expiryFillFor(dateStr) {
+      const m = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      const d = new Date(+m[1], +m[2] - 1, +m[3]);
+      const days = Math.floor((d - new Date(new Date().toDateString())) / 86400000);
+      if (days < 0) return XL_RED;
+      if (days <= 30) return XL_YELLOW;
+      return null;
+    }
+
+    function writeExportHeader(ws, rowNum) {
+      ws.getRow(rowNum).height = 24;
+      const h = ws.getCell(rowNum, 1);
+      h.value = bzTL('م');
+      h.font = { name: 'DIN Condensed', size: 10, color: { argb: XL_BLACK } };
+      h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      h.border = { top: xMed(), bottom: xThin(), left: xMed(), right: xMed() };
+      EXPORT_COLS.forEach((c, i) => {
+        const cell = ws.getCell(rowNum, i + 2);
+        cell.value = bzTL(c.label);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_BLUE } };
+        cell.font = { name: 'Calibri', size: 11, bold: false, color: { argb: XL_NAVY_TXT } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = { top: xMed(), bottom: xThin(), left: xThin(), right: xThin() };
+      });
+    }
+    function writeExportDataRow(ws, rowNum, serial, row) {
+      ws.getRow(rowNum).height = 19.5;
+      const idx = ws.getCell(rowNum, 1);
+      idx.value = serial;
+      idx.font = { name: 'DIN Condensed', size: 10, bold: true, color: { argb: XL_BLACK } };
+      idx.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      idx.border = { top: xThin(), bottom: xThin(), left: xMed(), right: xMed() };
+      EXPORT_COLS.forEach((c, i) => {
+        const cell = ws.getCell(rowNum, i + 2);
+        const v = exportCellValue(row, c);
+        cell.value = v;
+        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: XL_BLACK } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = xAllThin();
+        if (c.date && v) {
+          cell.numFmt = 'mm-dd-yy';
+          const fill = expiryFillFor(v);
+          if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+        }
+      });
+    }
+    // Closes a table with a medium bottom rule across every column (matches the reference's
+    // "last row of the table gets a medium bottom border" convention).
+    function closeExportTable(ws, rowNum) {
+      for (let c = 1; c <= EXPORT_TOTAL_COLS; c++) {
+        const cell = ws.getCell(rowNum, c);
+        cell.border = Object.assign({}, cell.border, { bottom: xMed() });
+      }
+    }
+    function exportSectionTitle(ws, rowNum, text, span, size) {
+      ws.mergeCells(rowNum, 1, rowNum, span);
+      const cell = ws.getCell(rowNum, 1);
+      cell.value = bzTL(text);
+      cell.font = { name: 'DIN Condensed', size: size || 13, bold: true, color: { argb: XL_BLACK } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      xBoxMergedRow(ws, rowNum, span, xMed); // section titles: bottom+sides only (no top)
+      for (let c = 1; c <= span; c++) delete ws.getCell(rowNum, c).border.top;
+    }
+
+    // builds the workbook and returns an Excel Blob (used by both download and share)
+    async function buildScheduleBlob() {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('الجدول الأسبوعي', { views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 4 }] });
+      EXPORT_COL_WIDTHS.forEach((w, i) => ws.getColumn(i + 1).width = w);
+
+      // Company logo — reserved row above the title (the reference workbook anchors its own
+      // logo image the same way, above the date/title row rather than overlapping it).
+      ws.getRow(1).height = 46;
+      const logoB64 = "{{ b64_en }}";
+      if (logoB64 && logoB64 !== '') {
+        try {
+          const logoId = wb.addImage({ base64: 'data:image/png;base64,' + logoB64, extension: 'png' });
+          ws.addImage(logoId, { tl: { col: 0.2, row: 0.1 }, ext: { width: 110, height: 42 } });
+        } catch (e) { console.error('Logo error', e); }
+      }
+
+      // Title bar — date + report title, plain text (no banner fill), matches the reference
+      ws.mergeCells(2, 2, 2, 3);
+      const dcell = ws.getCell(2, 2);
+      dcell.value = state.date || '';
+      dcell.font = { name: 'DIN Condensed', size: 12, bold: true };
+      dcell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      ws.mergeCells(2, 4, 2, EXPORT_TOTAL_COLS);
+      const tcell = ws.getCell(2, 4);
+      tcell.value = state.title || bzTL('الجدول الأسبوعي');
+      tcell.font = { name: 'DIN Condensed', size: 14, bold: true };
+      tcell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      ws.getRow(2).height = 22;
+
+      let r = 4;
+      writeExportHeader(ws, r); r++;
+      state.main.forEach((row, i) => { writeExportDataRow(ws, r, i + 1, row); r++; });
+      if (state.main.length) closeExportTable(ws, r - 1);
+
+      r += 1;
+      exportSectionTitle(ws, r, 'بيان المركبات الأسبير والمعطلة', EXPORT_TOTAL_COLS, 9); r += 1;
+      writeExportHeader(ws, r); r++;
+      state.spare.forEach((row, i) => { writeExportDataRow(ws, r, i + 1, row); r++; });
+      if (state.spare.length) closeExportTable(ws, r - 1);
+
+      // Summary + on-leave drivers — two mini-tables side by side (matches the reference)
+      r += 1;
+      const vac = state.vacation.filter(v => Object.values(v).some(x => String(x || '').trim()));
+      const sumSpan = 8, vacStartCol = sumSpan + 2, vacSpan = 1 + EMP_COLS.length;
+      exportSectionTitle(ws, r, 'ملخص الأعداد', sumSpan, 13);
+      if (vac.length) {
+        ws.mergeCells(r, vacStartCol, r, vacStartCol + vacSpan - 1);
+        const vcell = ws.getCell(r, vacStartCol);
+        vcell.value = bzTL('السائقون في إجازة (هذا الأسبوع)');
+        vcell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_SUMMARY_FILL } };
+        vcell.font = { name: 'Calibri', size: 11, bold: true };
+        vcell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        for (let c = vacStartCol; c < vacStartCol + vacSpan; c++) ws.getCell(r, c).border = xAllThin();
+      }
+      r += 1;
+      const sumHdr = ['م', 'عدد السائقين', 'عدد الدينات', 'عدد اللواري', 'عدد الموصلين', 'عدد الموزعين', 'عدد السائقين في إجازة'];
+      ws.mergeCells(r, 7, r, sumSpan);
+      sumHdr.forEach((h, i) => {
+        const cell = ws.getCell(r, i + 1);
+        cell.value = bzTL(h);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_BLUE } };
+        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: XL_NAVY_TXT } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = xAllThin();
+      });
+      ws.getCell(r, sumSpan).border = xAllThin();
+      const vHdrLabels = ['م', 'الرقم الوظيفي', 'اسم السائق', 'رقم الإقامة', 'الوظيفة', 'تاريخ انتهاء بطاقة السائق', 'رقم الجوال', 'الملاحظات'];
+      if (vac.length) {
+        vHdrLabels.forEach((h, i) => {
+          const cell = ws.getCell(r, vacStartCol + i);
+          cell.value = bzTL(h);
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_BLUE } };
+          cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: XL_NAVY_TXT } };
+          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.border = xAllThin();
+        });
+      }
+      const sumHdrRow = r;
+      r += 1;
+      const s = state.summary || {};
+      const sumVals = ['1', s.drivers || '', s.dinas || '', s.lorries || '', s.delivery || '', s.distributors || '', s.vacation || ''];
+      ws.mergeCells(r, 7, r, sumSpan);
+      sumVals.forEach((v, i) => {
+        const cell = ws.getCell(r, i + 1);
+        cell.value = v;
+        cell.font = { name: 'Arial', size: 12, bold: true };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = xAllThin();
+      });
+      ws.getCell(r, sumSpan).border = xAllThin();
+      if (vac.length) {
+        vac.forEach((row, i) => {
+          const rr = sumHdrRow + 1 + i;
+          const vRow = [i + 1, row.empid, row.name, row.iqama, row.job, row.drivercard, row.phone, row.empNotes];
+          const DRIVERCARD_CI = 5;
+          vRow.forEach((val, ci) => {
+            const cell = ws.getCell(rr, vacStartCol + ci);
+            cell.value = val || '';
+            cell.font = { name: 'Arial', size: 11, bold: true };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = xAllThin();
+            if (ci === DRIVERCARD_CI && val) {
+              cell.numFmt = 'mm-dd-yy';
+              const fill = expiryFillFor(val);
+              if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+            }
+          });
+        });
+        r = Math.max(r, sumHdrRow + vac.length);
+      }
+
+      // Footer + signature (plain DIN Condensed banner + caption, matches the reference)
+      r += 2;
+      xBoxMergedRow(ws, r, EXPORT_TOTAL_COLS, xMed);
+      ws.mergeCells(r, 1, r, EXPORT_TOTAL_COLS);
+      const f = ws.getCell(r, 1);
+      f.value = bzTL('تم إعداد هذا الجدول بواسطة قسم الحركة');
+      f.font = { name: 'DIN Condensed', size: 15, bold: true };
+      f.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      r += 2;
+      ws.mergeCells(r, 1, r, 3);
+      ws.getCell(r, 1).value = bzTL('قسم الحركة');
+      ws.getCell(r, 1).font = { name: 'DIN Condensed', size: 16, bold: true };
+      ws.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle' };
+      r += 1;
+      ws.mergeCells(r, 1, r, 3);
+      ws.getCell(r, 1).value = 'خالد بن محمد الغامدي';
+      ws.getCell(r, 1).font = { name: 'DIN Condensed', size: 16, bold: true };
+      ws.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+
+      const buf = await wb.xlsx.writeBuffer();
+      return new Blob([buf]);
+    }
+
+    function scheduleFileName() {
+      const dt = (state.date || '').replace(/[^0-9-]/g, '') || 'الجدول';
+      return `الجدول_الاسبوعي_${dt}.xlsx`;
+    }
+
+    async function importExcel(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!window.ExcelJS) {
+        if (window.showToast) showToast('مكتبة الإكسل غير متوفرة', 'error');
+        return;
+      }
+      try {
+        const wb = new ExcelJS.Workbook();
+        const arrayBuffer = await file.arrayBuffer();
+        await wb.xlsx.load(arrayBuffer);
+        const ws = wb.worksheets[0];
+        if (!ws) throw new Error("لا توجد أوراق عمل في الملف");
+        
+        let currentSection = 'main';
+        const newMain = [];
+        const newSpare = [];
+        
+        ws.eachRow((row, rowNumber) => {
+          const firstCell = row.getCell(1).value;
+          if (typeof firstCell === 'string') {
+            if (firstCell.includes('المركبات الاسبير') || firstCell.includes('المعطلة')) {
+              currentSection = 'spare';
+            } else if (firstCell.includes('المركبات الأساسية') || firstCell.includes('الجدول الأسبوعي')) {
+              currentSection = 'main';
+            }
+          }
+          
+          const idx = row.getCell(1).value;
+          // Row is considered data if first column is a number (index)
+          if (idx && (typeof idx === 'number' || !isNaN(parseInt(idx)))) {
+            let hasData = false;
+            const obj = {};
+            EXPORT_COLS.forEach((c, i) => {
+              let v = row.getCell(i + 2).value;
+              if (v && v instanceof Date) {
+                const y = v.getFullYear();
+                const m = String(v.getMonth()+1).padStart(2,'0');
+                const d = String(v.getDate()).padStart(2,'0');
+                v = `${y}-${m}-${d}`;
+              } else if (v && typeof v === 'object' && v.result) {
+                v = v.result;
+              } else if (v && typeof v === 'object' && v.text) {
+                v = v.text;
+              }
+              v = String(v || '').trim();
+              if (v && v !== '—') hasData = true;
+              if (v === '—') v = '';
+              obj[c.key] = v;
+            });
+            if (hasData) {
+              if (currentSection === 'spare') newSpare.push(obj);
+              else newMain.push(obj);
+            }
+          }
+        });
+        
+        state.main = newMain;
+        state.spare = newSpare;
+        renderAll();
+        scheduleSave();
+        if (window.showToast) showToast('تم استيراد بيانات الإكسل بنجاح', 'success');
+      } catch(err) {
+        console.error(err);
+        if (window.showToast) showToast('حدث خطأ أثناء قراءة الملف: ' + err.message, 'error');
+      }
+      e.target.value = ''; // Reset input
+    }
+
+    async function exportExcel() {
+      try {
+        if (window.showToast) showToast('جاري التصدير...', 'info');
+        const s = state.summary || {};
+        // Send the *effective* dashboard values (override if the user edited it, otherwise
+        // whatever's currently computed/shown on screen) so the exported "لوحة المعلومات"
+        // sheet matches exactly what's visible on the site, not just the main/spare/vacation
+        // row data.
+        const dashboard = {
+          kpis: {
+            drivers: document.getElementById('excelTotalDrivers')?.value || '',
+            delivery: document.getElementById('excelDelivery')?.value || '',
+            distributors: document.getElementById('excelDistributors')?.value || '',
+            vacation: document.getElementById('excelVacation')?.value || '',
+            spare: document.getElementById('excelSpare')?.value || '',
+          },
+          jobSplit: s.jobSplit || computedJobSplit(),
+          vehicleTypes: s.vehicleTypes || computedVehicleTypes(),
+          expiring: (s.expiringOverride && s.expiringOverride.length) ? s.expiringOverride : expiringList(false),
+        };
+        const res = await fetch('/api/export_schedule_exact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({}, state, { dashboard }))
+        });
+        const d = await res.json();
+        if (d.success && d.file_b64) {
+          const bs = atob(d.file_b64);
+          const ab = new ArrayBuffer(bs.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < bs.length; i++) ia[i] = bs.charCodeAt(i);
+          const blob = new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = scheduleFileName();
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          
+          if (window.showToast) showToast('تم تصدير الجدول بنجاح', 'success');
+        } else {
+          throw new Error(d.error || 'Unknown error');
+        }
+      } catch (err) {
+        console.error(err);
+        if (window.showToast) showToast('تعذّر التصدير: ' + err.message, 'error');
+      }
+    }
+
+    // ===== WhatsApp Full Schedule Summary (single message with all sections) =====
+    function sendScheduleSummaryWa() {
+      const title = state.title || 'الجدول الأسبوعي';
+      const date  = document.getElementById('schedDate')?.value || '';
+      const dateStr = date ? ` — ${date}` : '';
+
+      const rowLine = r => {
+        const name  = (r.name  || '').trim();
+        const plate = (r.plate || '').trim();
+        const vtype = (r.vtype || '').trim();
+        if (!name && !plate) return null;
+        return `• ${name || '---'} | ${plate || '---'}${vtype ? ' | ' + vtype : ''}`;
+      };
+
+      const mainRows = state.main.map(rowLine).filter(Boolean);
+      const spareRows = state.spare.map(r => {
+        const name = (r.name || '').trim();
+        const plate = (r.plate || '').trim();
+        if (!name && !plate) return null;
+        return `• ${name || '---'} | ${plate || '---'}`;
+      }).filter(Boolean);
+      const vacRows = state.vacation.map(r => {
+        const name = (r.name || '').trim();
+        if (!name) return null;
+        return `• ${name}`;
+      }).filter(Boolean);
+
+      let msg = [
+        `🚛 *${title}*${dateStr}`,
+        `🏢 شركة بن زومة — فرع الدمام`,
+        ``,
+        `📋 *الجدول الرئيسي* (${mainRows.length} سائق)`,
+        `—————————————`,
+        ...mainRows,
+      ];
+
+      if (spareRows.length) {
+        msg.push(``, `🛠️ *الاسبير والمعطلة* (${spareRows.length})`);
+        msg.push(`—————————————`, ...spareRows);
+      }
+      if (vacRows.length) {
+        msg.push(``, `🌴 *في إجازة* (${vacRows.length})`);
+        msg.push(`—————————————`, ...vacRows);
+      }
+
+      msg.push(``, `✅ إجمالي السائقين العاملين: *${mainRows.length}*`);
+      msg.push(`📊 قسم الحركة — ${new Date().toLocaleDateString('ar-SA')}`);
+
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(msg.join('\n'))}`;
+      window.open(waUrl, '_blank');
+    }
+
+    // ===== Share / export (Excel + PDF via email / WhatsApp) =====
+    function shareSchedule() {
+      // ensure the main table panel is visible so the PDF (mainPrintArea) renders correctly
+      const mainBtn = document.getElementById('tabBtnMain');
+      switchSchedTab('main', mainBtn);
+      bzShare(buildScheduleBlob, {
+        filename: scheduleFileName(),
+        subject: state.title || 'الجدول الأسبوعي — شركة بن زومة',
+        pdfElement: 'mainPrintArea',
+        pdfOrientation: 'landscape',
+        waMessage: (state.title || 'الجدول الأسبوعي') + ' — شركة بن زومة (فرع الدمام)'
+      });
+    }
+
+    // ===== Build a WhatsApp message for a single driver row =====
+    function driverWaMessage(r) {
+      const tag = v => { const s = dateStatusVal(v); return s === 'exp-bad' ? ' (منتهية ⚠️)' : s === 'exp-warn' ? ' (قاربت الانتهاء ⏳)' : ''; };
+      const line = (lbl, v) => `${lbl}: ${v || '—'}${tag(v)}`;
+      return [
+        `السلام عليكم ${r.name || ''}`,
+        'بيانات مركبتك لدى قسم الحركة — فرع الدمام (شركة بن زومة):',
+        `رقم اللوحة: ${r.plate || '—'}`,
+        `نوع المركبة: ${r.vtype || '—'}`,
+        `الرقم التسلسلي: ${r.vserial || '—'}`,
+        '',
+        'تنبيهات انتهاء المستندات:',
+        line('رخصة السير', r.license),
+        line('الفحص الدوري', r.inspect),
+        line('بطاقة السائق', r.drivercard),
+        line('بطاقة التشغيل', r.opcard),
+        '',
+        'يرجى مراجعة قسم الحركة عند اقتراب أي انتهاء.'
+      ].join('\n');
+    }
+    function waLink(phone, msg) {
+      let ph = String(phone || '').replace(/\D/g, '');
+      if (!ph) return null;
+      if (ph.charAt(0) === '0') ph = ph.slice(1);
+      if (ph.indexOf('966') !== 0) ph = '966' + ph;
+      return `https://wa.me/${ph}?text=${encodeURIComponent(msg)}`;
+    }
+
+    // ===== "Send to all" modal — one WhatsApp button per driver (browser blocks bulk auto-open) =====
+    function openWaAll() {
+      const rows = state.main.filter(r => String(r.name || '').trim());
+      let items;
+      if (!rows.length) {
+        items = `<p class="hint" style="padding:10px;">لا يوجد سائقون في الجدول الرئيسي.</p>`;
+      } else {
+        items = rows.map(r => {
+          const link = waLink(r.phone, driverWaMessage(r));
+          const name = escapeHtml(r.name || '—');
+          const phone = escapeHtml(r.phone || '');
+          const btn = link
+            ? `<a class="btn-neon" style="padding:6px 14px;font-size:.85rem;text-decoration:none;" href="${escapeHtml(link)}" target="_blank" rel="noopener">📲 إرسال</a>`
+            : `<span class="hint">لا يوجد جوال</span>`;
+          return `<div class="wa-all-row"><div class="wa-all-info"><strong>${name}</strong><span class="hint">${phone || '—'}</span></div>${btn}</div>`;
+        }).join('');
+      }
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-backdrop show';
+      overlay.style.zIndex = 3000;
+      overlay.innerHTML =
+        '<div class="modal-content-custom" style="max-width:480px;">' +
+        '<div class="modal-header-custom"><h2>📲 إرسال للجميع عبر واتساب</h2>' +
+        '<button class="close-btn" data-x>✕</button></div>' +
+        '<div class="modal-body-custom"><p class="hint" style="margin:.2rem 0 .8rem;">المتصفح يحجب الفتح الجماعي التلقائي — أرسل لكل سائق على حدة:</p>' +
+        '<div class="wa-all-list">' + items + '</div></div></div>';
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.hasAttribute('data-x')) overlay.remove(); });
+    }
+    // --- Fleet Modal Logic ---
+    function openFleetModal() {
+      document.getElementById('fleetModal').style.display = 'flex';
+      document.getElementById('fleetSearchInput').value = '';
+      document.getElementById('fleetSearchInput').focus();
+    }
+    function closeFleetModal() {
+      document.getElementById('fleetModal').style.display = 'none';
+    }
+    function confirmFleetCall() {
+      const val = document.getElementById('fleetSearchInput').value.trim();
+      if (!val) {
+        showToast('يرجى إدخال اللوحة أو اسم السائق', 'error');
+        return;
+      }
+      if (!window.FleetData) {
+        showToast('بيانات الأسطول غير متوفرة', 'error');
+        return;
+      }
+      let rec = window.FleetData.byName(val) || window.FleetData.byPlate(val);
+      if (!rec) {
+        rec = window.FleetData.all().find(d => (d.name && d.name.includes(val)) || (d.plate && d.plate.includes(val)));
+      }
+      if (rec) {
+        const row = blankRow('main');
+        row.name = rec.name;
+        row.plate = rec.plate;
+        row.vtype = rec.car;
+        row.iqama = rec.iqama;
+        state.main.push(row);
+        renderAll();
+        scheduleSave();
+        closeFleetModal();
+        // rec.name can be blank (a plate-only fleet record) — flag it instead of a silent success,
+        // so a nameless row never gets mistaken for a driver whose name vanished.
+        if (rec.name) showToast('✅ تم إضافة السائق للجدول', 'success');
+        else showToast('⚠️ تمت الإضافة بدون اسم سائق — يرجى تعبئته يدوياً', 'error');
+      } else {
+        showToast('لم يتم العثور على السائق', 'error');
+      }
+    }
+
+    // --- Unscheduled Vehicles Logic ---
+    function renderUnscheduled() {
+      if (!window.FleetData) return;
+      const allFleet = window.FleetData.all() || [];
+      const scheduledPlates = new Set();
+      const scheduledNames = new Set();
+      // Only key a scheduled row by driver name when it has no plate to key on instead —
+      // otherwise two distinct fleet records that happen to share a driver name would make a
+      // genuinely unscheduled vehicle disappear just because its namesake is scheduled elsewhere.
+      ['main', 'spare', 'vacation'].forEach(sec => {
+        (state[sec] || []).forEach(r => {
+          if (r.plate) scheduledPlates.add(FleetData.normalizePlate(r.plate));
+          else if (r.name) scheduledNames.add(r.name.trim());
+        });
+      });
+
+      const unscheduled = allFleet.filter(d => {
+        if (!d.plate && !d.name) return false;
+        if (d.plate) return !scheduledPlates.has(FleetData.normalizePlate(d.plate));
+        return !(d.name && scheduledNames.has(d.name.trim()));
+      });
+      
+      const chip = document.getElementById('chipUnscheduled');
+      if(chip) chip.innerText = unscheduled.length;
+      
+      let html = '';
+      unscheduled.forEach(d => {
+        const nm = (d.name||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const pl = (d.plate||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const cr = (d.car||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const iq = (d.iqama||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        
+        html += `<tr>
+          <td style="font-weight:bold;color:var(--brand-navy)">${nm || '---'}</td>
+          <td>${iq || '---'}</td>
+          <td style="direction:ltr;text-align:right;">${pl || '---'}</td>
+          <td>${cr || '---'}</td>
+          <td style="text-align:center;">
+            <button class="btn-neon" style="padding:4px 10px;font-size:0.8rem;" onclick="addUnscheduledToMain('${nm}','${pl}','${cr}','${iq}')">➕ للجدول</button>
+          </td>
+        </tr>`;
+      });
+      if (unscheduled.length === 0) {
+        html = `<tr><td colspan="5" style="text-align:center;padding:1.4rem;color:#16a34a;font-weight:bold;">✅ جميع مركبات الأسطول مجدولة!</td></tr>`;
+      }
+      const tbody = document.getElementById('bodyUnscheduled');
+      if(tbody) tbody.innerHTML = html;
+    }
+
+    function addUnscheduledToMain(name, plate, car, iqama) {
+      const row = blankRow('main');
+      row.name = name;
+      row.plate = plate;
+      row.vtype = car;
+      row.iqama = iqama;
+      state.main.push(row);
+      renderAll();
+      scheduleSave();
+      // name can be blank (a plate-only fleet record) — flag it instead of a silent success,
+      // so a nameless row never gets mistaken for a driver whose name vanished.
+      if (name) showToast('✅ تم نقل المركبة للجدول', 'success');
+      else showToast('⚠️ تمت الإضافة بدون اسم سائق — يرجى تعبئته يدوياً', 'error');
+    }
+
+    // Call renderUnscheduled when FleetData finishes loading. This inline script runs during
+    // initial parsing, before the deferred app_ux.js (which defines window.FleetData) has
+    // executed — so the wrap has to wait for DOMContentLoaded, same as everything else that
+    // depends on FleetData existing.
+    document.addEventListener('DOMContentLoaded', () => {
+      const oldFleetLoad = window.FleetData ? window.FleetData.load : null;
+      if (window.FleetData) {
+        window.FleetData.load = async function() {
+          if (oldFleetLoad) await oldFleetLoad.apply(this, arguments);
+          renderUnscheduled();
+        };
+      }
+    });
+  </script>
+</body>
+</html>

@@ -102,6 +102,66 @@ def run_migration():
         except Exception as e:
             logger.warning(f"⚠️ Could not migrate documents_data: {e}")
 
+        from models.schema import FuelRecord, WashingRecord, ScheduleData, Snapshot
+        from datetime import datetime
+        
+        try:
+            fuel_rows = conn.execute("SELECT data FROM fuel_data").fetchall()
+            fuel_count = 0
+            for r in fuel_rows:
+                data = json.loads(r['data'])
+                if isinstance(data, list):
+                    for item in data:
+                        date_str = item.get('date', '2026-01-01')
+                        try:
+                            parsed_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                        except:
+                            parsed_date = datetime.now().date()
+                        
+                        fuel = FuelRecord(
+                            branch_id=branch_id,
+                            date=parsed_date,
+                            notes=str(item)
+                        )
+                        db.session.add(fuel)
+                        fuel_count += 1
+            db.session.commit()
+            logger.info(f"✅ Migrated {fuel_count} fuel records.")
+        except Exception as e:
+            db.session.rollback()
+            logger.warning(f"⚠️ Could not migrate fuel_data: {e}")
+
+        try:
+            washing_rows = conn.execute("SELECT data FROM washing_schedule").fetchall()
+            wash_count = 0
+            for r in washing_rows:
+                data = json.loads(r['data'])
+                if isinstance(data, list):
+                    for item in data:
+                        wash = WashingRecord(
+                            branch_id=branch_id,
+                            date=datetime.now().date(),
+                            notes=str(item)
+                        )
+                        db.session.add(wash)
+                        wash_count += 1
+            db.session.commit()
+            logger.info(f"✅ Migrated {wash_count} washing records.")
+        except Exception as e:
+            db.session.rollback()
+            logger.warning(f"⚠️ Could not migrate washing_schedule: {e}")
+
+        try:
+            schedule_rows = conn.execute("SELECT data FROM schedule_data").fetchall()
+            for r in schedule_rows:
+                snap = Snapshot(data=r['data'])
+                db.session.add(snap)
+            db.session.commit()
+            logger.info("✅ Saved schedule_data into Snapshots for 100% data guarantee.")
+        except Exception as e:
+            db.session.rollback()
+            logger.warning(f"⚠️ Could not migrate schedule_data: {e}")
+
         logger.info("🎉 Migration script completed successfully. Your data is now in SQLAlchemy models!")
         conn.close()
 

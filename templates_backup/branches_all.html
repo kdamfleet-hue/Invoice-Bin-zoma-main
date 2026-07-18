@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جميع الفروع | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        .ab-wrap { max-width: 1200px; margin: 0 auto; }
+        .ab-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .ab-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.1rem 1.3rem; }
+        .ab-card .lbl { font-size: .82rem; color: var(--text-secondary); font-weight: 700; margin-bottom: 6px; }
+        .ab-card .val { font-size: 1.7rem; font-weight: 800; color: var(--brand-gold); font-variant-numeric: tabular-nums; }
+        .ab-card .sub2 { font-size: .78rem; color: var(--text-muted); margin-top: 2px; }
+        .ab-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); overflow: hidden; }
+        .ab-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+        .ab-head h3 { margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--text-primary); }
+        .ab-print { background: rgba(197,160,89,.14); color: var(--brand-gold); border: 1px solid rgba(197,160,89,.35); border-radius: 9px; padding: 8px 16px; font-weight: 800; cursor: pointer; font-size: .82rem; }
+        .ab-print:hover { background: var(--brand-gold); color: #1a1a1a; }
+        .ab-scroll { overflow-x: auto; }
+        .ab-tbl { width: 100%; border-collapse: collapse; white-space: nowrap; }
+        .ab-tbl th, .ab-tbl td { padding: 11px 13px; text-align: center; border-bottom: 1px solid var(--border); font-size: .84rem; }
+        .ab-tbl thead th { background: var(--surface-hover); color: var(--text-secondary); font-weight: 800; position: sticky; top: 0; z-index: 1; }
+        .ab-tbl .br { text-align: right; font-weight: 800; color: var(--brand-gold); position: sticky; inset-inline-start: 0; background: var(--surface); }
+        .ab-tbl tbody tr:hover td { background: var(--surface-hover); }
+        .ab-tbl .num { font-variant-numeric: tabular-nums; color: var(--text-primary); }
+        .ab-tbl .num.zero { color: var(--text-muted); }
+        .ab-tbl .tot { font-weight: 800; color: var(--text-primary); background: rgba(197,160,89,.06); }
+        .ab-tbl .uname { font-family: monospace; direction: ltr; unicode-bidi: plaintext; color: var(--text-secondary); font-size: .78rem; }
+        .ab-tbl .ts { color: var(--text-muted); font-size: .78rem; direction: ltr; unicode-bidi: plaintext; }
+        .ab-tbl tfoot td { font-weight: 800; color: var(--text-primary); background: var(--surface-hover); border-top: 2px solid var(--accent); }
+        .ab-open { background: rgba(197,160,89,.12); color: var(--brand-gold); border: 1px solid rgba(197,160,89,.4); border-radius: 8px; padding: 5px 12px; font-weight: 800; cursor: pointer; font-size: .78rem; white-space: nowrap; }
+        .ab-open:hover { background: var(--brand-gold); color: #1a1a1a; }
+        .ab-empty { text-align: center; color: var(--text-muted); padding: 2rem; font-weight: 700; }
+        @media print { .bz-topbar, .bz-sidebar, .bz-dock, .bz-clockline, .ab-print, .ab-open { display: none !important; } body { background: #fff !important; } }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/handover">🚗 تسليم واستلام مركبة</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/search">🔍 بحث</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+        <a href="/cameras">📹 الكاميرات</a>
+        <a href="/settings">⚙️ الإعدادات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">📊 جميع الفروع — بيانات شاملة</h2>
+      <div class="ab-wrap">
+        <div class="ab-cards" id="abCards"></div>
+        <div class="ab-panel">
+          <div class="ab-head">
+            <h3>📋 مصفوفة بيانات الفروع</h3>
+            <button class="ab-print" onclick="window.print()">🖨️ طباعة / تصدير PDF</button>
+          </div>
+          <div class="ab-scroll">
+            <table class="ab-tbl" id="abTbl">
+              <thead><tr id="abHead"><th class="br">الفرع</th></tr></thead>
+              <tbody id="abBody"><tr><td class="ab-empty" colspan="14">جارٍ التحميل…</td></tr></tbody>
+              <tfoot id="abFoot"></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+  window.abOpenBranch = async function (id, name) {
+    if (!(await window.bzConfirm('فتح فرع «' + name + '»؟ سيتم تبديل العرض إلى بياناته.'))) return;
+    fetch('/api/branch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) { if (res && res.success) { location.href = '/'; } else if (window.showToast) showToast('تعذّر فتح الفرع', 'error'); })
+      .catch(function () { if (window.showToast) showToast('تعذّر الاتصال', 'error'); });
+  };
+
+  function load() {
+    fetch('/api/branches_overview', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.success) { $('abBody').innerHTML = '<tr><td class="ab-empty" colspan="14">غير متاح.</td></tr>'; return; }
+        var cats = j.categories || [], branches = j.branches || [], totals = j.totals || {};
+        var colspan = cats.length + 3;
+
+        // summary cards
+        var active = branches.filter(function (b) { return b.username; }).length;
+        var top = branches.slice().sort(function (a, b) { return b.total - a.total; })[0];
+        $('abCards').innerHTML =
+          card('عدد الفروع', branches.length, '') +
+          card('إجمالي السجلات', j.grand_total || 0, 'عبر كل الفروع والفئات') +
+          card('فروع مُفعّلة', active + ' / ' + branches.length, 'لديها حساب دخول') +
+          card('الأكثر بيانات', top ? ('فرع ' + esc(top.name)) : '—', top ? (top.total + ' سجل') : '');
+
+        // header
+        $('abHead').innerHTML = '<th class="br">الفرع</th>' +
+          cats.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('') +
+          '<th class="tot">الإجمالي</th><th>آخر نشاط</th><th>إجراء</th>';
+
+        // body
+        $('abBody').innerHTML = branches.map(function (b) {
+          var cells = cats.map(function (c) {
+            var n = (b.counts || {})[c.key] || 0;
+            return '<td class="num' + (n ? '' : ' zero') + '">' + n + '</td>';
+          }).join('');
+          return '<tr><td class="br">🏢 فرع ' + esc(b.name) +
+            '<div class="uname">' + (b.username ? esc(b.username) : '— لا حساب') + '</div></td>' +
+            cells +
+            '<td class="tot num">' + (b.total || 0) + '</td>' +
+            '<td class="ts">' + (b.last_ts ? esc(b.last_ts) : '—') + '</td>' +
+            '<td><button class="ab-open" onclick="abOpenBranch(' + b.id + ',\'' + esc(b.name) + '\')">↪ فتح</button></td></tr>';
+        }).join('');
+
+        // totals footer
+        $('abFoot').innerHTML = '<tr><td class="br">الإجمالي</td>' +
+          cats.map(function (c) { return '<td class="num">' + (totals[c.key] || 0) + '</td>'; }).join('') +
+          '<td class="num">' + (j.grand_total || 0) + '</td><td></td><td></td></tr>';
+      })
+      .catch(function () { $('abBody').innerHTML = '<tr><td class="ab-empty" colspan="14">تعذّر الاتصال بالخادم.</td></tr>'; });
+  }
+
+  function card(lbl, val, sub) {
+    return '<div class="ab-card"><div class="lbl">' + esc(lbl) + '</div><div class="val">' + (typeof val === 'number' ? val : esc(val)) + '</div>' +
+      (sub ? '<div class="sub2">' + esc(sub) + '</div>' : '') + '</div>';
+  }
+
+  load();
+})();
+</script>
+
+</body>
+</html>

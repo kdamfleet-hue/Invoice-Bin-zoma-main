@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بحث سريع | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+
+    <style>
+        /* Page-specific layout only — colors/fonts/buttons come from base_styles.css tokens. */
+        .search-hero {
+            max-width: 1200px;
+            margin: 0 auto 1.25rem;
+            padding: 0 20px;
+        }
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-box .search-icon {
+            position: absolute;
+            inset-inline-start: 18px;
+            font-size: 1.5rem;
+            pointer-events: none;
+            opacity: .7;
+        }
+        #searchInput {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 18px 56px 18px 20px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            background: var(--surface);
+            border: 2px solid var(--border-strong);
+            border-radius: 14px;
+            outline: none;
+            box-shadow: var(--shadow-sm);
+            transition: var(--trans);
+        }
+        #searchInput:focus {
+            border-color: var(--brand-gold);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        .search-toolbar {
+            display: flex;
+            gap: .6rem;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            margin: 1rem auto 0;
+            max-width: 1200px;
+            padding: 0 20px;
+        }
+        .filter-pills { display: flex; gap: .5rem; flex-wrap: wrap; }
+        .filter-pill {
+            cursor: pointer;
+            border: 1.5px solid var(--border-strong);
+            background: var(--surface);
+            color: var(--text-primary);
+            font-family: 'Tajawal', sans-serif;
+            font-weight: 700;
+            font-size: .95rem;
+            padding: 9px 18px;
+            border-radius: 999px;
+            transition: var(--trans);
+        }
+        .filter-pill:hover { border-color: var(--brand-gold); }
+        .filter-pill.active {
+            background: var(--brand-navy);
+            color: #fff;
+            border-color: var(--brand-navy);
+        }
+
+        .result-count {
+            text-align: center;
+            font-weight: 700;
+            color: var(--text-secondary, var(--text-primary));
+            margin: 1rem auto;
+            font-size: 1rem;
+        }
+        .result-count strong { color: var(--brand-gold); font-size: 1.15rem; }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+            gap: 1.1rem;
+            max-width: 1200px;
+            margin: 0 auto 2rem;
+            padding: 0 20px;
+        }
+
+        .vehicle-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            transition: var(--trans);
+        }
+        .vehicle-card:hover { box-shadow: var(--shadow-md, var(--shadow-sm)); transform: translateY(-2px); }
+        .vc-head {
+            background: var(--brand-navy);
+            color: #fff;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .vc-name { font-weight: 800; font-size: 1.1rem; min-width: 0; overflow-wrap: anywhere; }
+        .vc-plate {
+            font-weight: 800;
+            font-size: 1.05rem;
+            letter-spacing: 1px;
+            background: var(--brand-gold);
+            color: var(--brand-navy);
+            padding: 4px 12px;
+            border-radius: 8px;
+            white-space: nowrap;
+            direction: ltr;
+            unicode-bidi: plaintext;
+        }
+        .vc-kind {
+            display: inline-block;
+            font-size: .8rem;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.18);
+            color: #fff;
+        }
+        .vc-body {
+            padding: 12px 16px 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 14px;
+        }
+        .vc-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .vc-field.full { grid-column: 1 / -1; }
+        .vc-label { font-size: .72rem; font-weight: 700; color: var(--text-secondary, #6b7280); word-break: keep-all; overflow-wrap: normal; }
+        .vc-value { font-size: .95rem; font-weight: 600; color: var(--text-primary); word-break: keep-all; overflow-wrap: anywhere; }
+        .vc-value.expired { color: var(--danger, #d92d20); font-weight: 800; }
+        .vc-value.expired::after { content: " ⚠"; }
+
+        .empty-state {
+            text-align: center;
+            max-width: 600px;
+            margin: 2rem auto;
+            color: var(--text-secondary, var(--text-primary));
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+        .empty-state .big { font-size: 2.4rem; display: block; margin-bottom: .5rem; opacity: .7; }
+
+        @media (max-width: 480px) {
+            .vc-body { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/search" class="active">🔍 بحث</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <div class="bz-shell">
+
+        <h2 class="bz-section-title">🔍 بحث سريع — بيانات الموظفين</h2>
+
+        <div class="bz-stats">
+            <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي الموظفين</div></div>
+            <div class="bz-stat"><div class="num" id="statWithVehicle">0</div><div class="label">لديهم مركبة</div></div>
+            <div class="bz-stat"><div class="num" id="statExpired">0</div><div class="label">إقامات منتهية</div></div>
+        </div>
+
+        <div class="search-hero">
+            <div class="search-box">
+                <span class="search-icon">🔎</span>
+                <input type="search" id="searchInput" autocomplete="off"
+                       placeholder="اكتب اسم الموظف أو رقم الإقامة..." disabled>
+            </div>
+        </div>
+
+        <div class="result-count" id="resultCount">جارٍ تحميل البيانات...</div>
+
+        <div class="results-grid" id="resultsGrid"></div>
+
+        <div class="empty-state" id="emptyState" style="display:none;"></div>
+
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // ── Employee row column indexes (46-column rows) ──────────────
+            var COL = {
+                empid:      0,   // الرقم الوظيفي
+                iqama:      1,   // رقم الإقامة
+                name:       2,   // الاسم (عربي)
+                job:        6,   // الوظيفة
+                phone:      7,   // الجوال
+                plate:      9,   // رقم اللوحة
+                iqamaExp:  10,   // تاريخ انتهاء الإقامة
+                make:      36,   // الماركة
+                kind:      37,   // الطراز
+                model:     38    // الموديل
+            };
+
+            var DISPLAY_LIMIT = 100;
+            var allEmployees = [];   // normalized objects
+            var dataReady = false;
+            // Workstation sandbox: start EMPTY and let the user add entries that persist on the server.
+            var WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+            var inputEl = document.getElementById('searchInput');
+            var gridEl  = document.getElementById('resultsGrid');
+            var countEl = document.getElementById('resultCount');
+            var emptyEl = document.getElementById('emptyState');
+
+            // Safe HTML escaper — prefer the shared global, fall back if app_ux.js not yet loaded.
+            function esc(v) {
+                if (typeof window.escapeHtml === 'function') return window.escapeHtml(v);
+                return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+                });
+            }
+            function normPlate(v) {
+                if (typeof window.normalizePlate === 'function') return window.normalizePlate(v);
+                return String(v == null ? '' : v).replace(/\s+/g, '');
+            }
+            function normIqama(v) {
+                return String(v == null ? '' : v).replace(/\D/g, '');
+            }
+            function cell(row, idx) {
+                var v = row[idx];
+                return v == null ? '' : String(v).trim();
+            }
+
+            // Returns true only for Gregorian YYYY-MM-DD dates (year 20xx) strictly before today.
+            // Hijri dates (14xx-...) are ignored intentionally.
+            function isExpired(dateStr) {
+                var s = String(dateStr == null ? '' : dateStr).trim();
+                var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+                if (!m) return false;
+                if (!/^20\d{2}$/.test(m[1])) return false;
+                var d = new Date(m[1] + '-' + m[2] + '-' + m[3] + 'T00:00:00');
+                if (isNaN(d.getTime())) return false;
+                var today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return d.getTime() < today.getTime();
+            }
+
+            // Map a raw 46-column row into the fields this tab displays.
+            function toEmployee(row) {
+                if (!Array.isArray(row)) return null;
+                return {
+                    empid:    cell(row, COL.empid),
+                    iqama:    cell(row, COL.iqama),
+                    name:     cell(row, COL.name),
+                    job:      cell(row, COL.job),
+                    phone:    cell(row, COL.phone),
+                    plate:    cell(row, COL.plate),
+                    iqamaExp: cell(row, COL.iqamaExp),
+                    make:     cell(row, COL.make),
+                    kind:     cell(row, COL.kind),
+                    model:    cell(row, COL.model)
+                };
+            }
+
+            function field(label, value, opts) {
+                opts = opts || {};
+                var val = (value == null || String(value).trim() === '') ? '—' : value;
+                var cls = 'vc-value' + (opts.expired ? ' expired' : '');
+                var fullCls = opts.full ? ' full' : '';
+                return '<div class="vc-field' + fullCls + '">' +
+                       '<span class="vc-label">' + esc(label) + '</span>' +
+                       '<span class="' + cls + '">' + esc(val) + '</span>' +
+                       '</div>';
+            }
+
+            function cardHtml(e) {
+                var name  = e.name ? e.name : 'غير مسجَّل';
+                var plate = e.plate ? e.plate : '—';
+
+                var iqExp = isExpired(e.iqamaExp);
+
+                // Vehicle (make / kind / model) shown together when available.
+                var vehicleParts = [e.make, e.kind, e.model].filter(function (p) { return p; });
+                var vehicleText  = vehicleParts.length ? vehicleParts.join(' — ') : '—';
+
+                var html = '<article class="vehicle-card">';
+                html += '<div class="vc-head">';
+                html += '<span class="vc-name">' + esc(name) + '</span>';
+                html += '<span class="vc-plate">' + esc(plate) + '</span>';
+                if (e.job) html += '<span class="vc-kind">' + esc(e.job) + '</span>';
+                html += '</div>';
+
+                html += '<div class="vc-body">';
+                html += field('الرقم الوظيفي', e.empid);
+                html += field('رقم الإقامة', e.iqama);
+                html += field('الوظيفة', e.job);
+                html += field('الجوال', e.phone);
+                html += field('رقم اللوحة', e.plate);
+                html += field('المركبة (ماركة/طراز/موديل)', vehicleText, { full: true });
+                html += field('انتهاء الإقامة', e.iqamaExp, { expired: iqExp, full: true });
+                html += '</div>';
+
+                html += '</article>';
+                return html;
+            }
+
+            function matches(e, query) {
+                // Name (partial, case-insensitive)
+                var name = String(e.name == null ? '' : e.name).toLowerCase();
+                if (query.raw && name.indexOf(query.raw) !== -1) return true;
+                // Iqama (digits-only partial)
+                if (query.digits && normIqama(e.iqama).indexOf(query.digits) !== -1) return true;
+                return false;
+            }
+
+            function buildQuery(rawValue) {
+                return {
+                    raw: rawValue.trim().toLowerCase(),
+                    digits: String(rawValue).replace(/[^\d٠-٩]/g, '').replace(/[٠-٩]/g, function (d) {
+                        return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);
+                    })
+                };
+            }
+
+            function render() {
+                if (!dataReady) return;
+
+                var rawVal = inputEl.value;
+                var hasQuery = rawVal.trim().length > 0;
+                var query = buildQuery(rawVal);
+
+                var list = allEmployees.filter(function (e) {
+                    if (!hasQuery) return true;
+                    return matches(e, query);
+                });
+
+                var total = list.length;
+
+                if (total === 0) {
+                    gridEl.innerHTML = '';
+                    gridEl.style.display = 'none';
+                    emptyEl.style.display = 'block';
+                    emptyEl.innerHTML = hasQuery
+                        ? '<span class="big">🔍</span>لا توجد نتائج مطابقة لبحثك. جرّب اسماً آخر أو رقم إقامة.'
+                        : '<span class="big">👥</span>ابدأ بكتابة اسم الموظف أو رقم الإقامة لعرض النتائج.';
+                    countEl.innerHTML = hasQuery ? 'لا توجد نتائج' : '';
+                    return;
+                }
+
+                emptyEl.style.display = 'none';
+                gridEl.style.display = 'grid';
+
+                var shown = total;
+                var note = '';
+                if (!hasQuery && total > DISPLAY_LIMIT) {
+                    shown = DISPLAY_LIMIT;
+                    note = ' — يُعرض أول ' + DISPLAY_LIMIT + ' فقط، اكتب للتضييق';
+                }
+
+                var slice = list.slice(0, shown);
+                var out = '';
+                for (var i = 0; i < slice.length; i++) out += cardHtml(slice[i]);
+                gridEl.innerHTML = out;
+
+                countEl.innerHTML = 'عدد النتائج: <strong>' + total + '</strong>' + esc(note);
+            }
+
+            function setStats() {
+                var withVehicle = 0, expired = 0;
+                for (var i = 0; i < allEmployees.length; i++) {
+                    var e = allEmployees[i];
+                    if (e.plate || e.make || e.model) withVehicle++;
+                    if (isExpired(e.iqamaExp)) expired++;
+                }
+                document.getElementById('statTotal').textContent       = allEmployees.length;
+                document.getElementById('statWithVehicle').textContent = withVehicle;
+                document.getElementById('statExpired').textContent     = expired;
+            }
+
+            function ingest(rows) {
+                var out = [];
+                if (Array.isArray(rows)) {
+                    for (var i = 0; i < rows.length; i++) {
+                        var e = toEmployee(rows[i]);
+                        // Keep only rows that carry at least a name or an iqama.
+                        if (e && (e.name || e.iqama)) out.push(e);
+                    }
+                }
+                return out;
+            }
+
+            // Live filter as the user types
+            inputEl.addEventListener('input', render);
+
+            function activate(rows) {
+                allEmployees = ingest(rows);
+                dataReady = true;
+                inputEl.disabled = false;
+                setStats();
+                render();
+                inputEl.focus();
+            }
+
+            // Load employees: server first, then static seed file.
+            // In the workstation the static seed is SKIPPED so the tab starts EMPTY.
+            function loadData() {
+                fetch('/api/employees', { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (data) {
+                        if (data && data.success && Array.isArray(data.rows) && data.rows.length) {
+                            activate(data.rows);
+                            return;
+                        }
+                        if (WS) { activate([]); return; } // workstation: empty start, no static seed
+                        // Fallback to the static seed file (main site only).
+                        fetch('/static/employees_default.json')
+                            .then(function (r) { return r.ok ? r.json() : []; })
+                            .then(function (rows) { activate(rows); })
+                            .catch(loadFailed);
+                    })
+                    .catch(function () {
+                        if (WS) { activate([]); return; } // workstation: empty start even on error
+                        fetch('/static/employees_default.json')
+                            .then(function (r) { return r.ok ? r.json() : []; })
+                            .then(function (rows) { activate(rows); })
+                            .catch(loadFailed);
+                    });
+            }
+
+            // ── Workstation-only: add an employee record in the same card format ──────────
+            // Appends a 46-column row to the shared server store (/api/employees, id=2) so it
+            // persists and is immediately searchable (and shared with the Employees tab).
+            function injectAddUI() {
+                var hero = document.querySelector('.search-hero');
+                if (!hero || document.getElementById('addEntryWrap')) return;
+                var wrap = document.createElement('div');
+                wrap.id = 'addEntryWrap';
+                wrap.style.cssText = 'max-width:1200px;margin:0 auto 1.25rem;padding:0 20px;';
+                var fields = [
+                    ['af_name', 'الاسم'], ['af_iqama', 'رقم الإقامة'], ['af_empid', 'الرقم الوظيفي'],
+                    ['af_job', 'الوظيفة'], ['af_phone', 'الجوال'], ['af_plate', 'رقم اللوحة'],
+                    ['af_make', 'الماركة'], ['af_kind', 'الطراز'], ['af_model', 'الموديل'],
+                    ['af_iqamaExp', 'تاريخ انتهاء الإقامة']
+                ];
+                var inputs = fields.map(function (f) {
+                    var type = f[0] === 'af_iqamaExp' ? 'date' : 'text';
+                    return '<div class="vc-field"><span class="vc-label">' + esc(f[1]) + '</span>' +
+                        '<input id="' + f[0] + '" type="' + type + '" style="padding:8px 10px;border:1.5px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text-primary);font-family:inherit;font-size:.95rem;"></div>';
+                }).join('');
+                wrap.innerHTML =
+                    '<button id="addEntryToggle" type="button" class="filter-pill" style="background:var(--brand-gold);color:var(--brand-navy);border-color:var(--brand-gold);font-size:1rem;">➕ إضافة بيانات</button>' +
+                    '<div id="addEntryForm" style="display:none;margin-top:1rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm);">' +
+                    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px 14px;">' + inputs + '</div>' +
+                    '<div style="display:flex;gap:.6rem;justify-content:flex-start;margin-top:14px;">' +
+                    '<button id="addEntrySave" type="button" class="btn-submit-gold">💾 حفظ وإضافة</button>' +
+                    '<button id="addEntryCancel" type="button" class="filter-pill">إلغاء</button>' +
+                    '</div></div>';
+                hero.parentNode.insertBefore(wrap, hero.nextSibling);
+                var form = document.getElementById('addEntryForm');
+                document.getElementById('addEntryToggle').addEventListener('click', function () {
+                    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+                });
+                document.getElementById('addEntryCancel').addEventListener('click', function () { form.style.display = 'none'; });
+                document.getElementById('addEntrySave').addEventListener('click', addEntry);
+            }
+
+            function addEntry() {
+                var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+                var row = new Array(46).fill('');
+                row[COL.empid] = g('af_empid'); row[COL.iqama] = g('af_iqama'); row[COL.name] = g('af_name');
+                row[COL.job] = g('af_job'); row[COL.phone] = g('af_phone'); row[COL.plate] = g('af_plate');
+                row[COL.iqamaExp] = g('af_iqamaExp'); row[COL.make] = g('af_make'); row[COL.kind] = g('af_kind'); row[COL.model] = g('af_model');
+                if (!row[COL.name] && !row[COL.iqama]) {
+                    if (window.showToast) showToast('أدخل الاسم أو رقم الإقامة على الأقل', 'error');
+                    return;
+                }
+                // Read current rows, append, and persist the whole set back to the server.
+                fetch('/api/employees', { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (d) {
+                        var rows = (d && d.success && Array.isArray(d.rows)) ? d.rows : [];
+                        rows.push(row);
+                        return fetch('/api/employees', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ rows: rows })
+                        }).then(function () { return rows; });
+                    })
+                    .then(function (rows) {
+                        activate(rows);
+                        ['af_name', 'af_iqama', 'af_empid', 'af_job', 'af_phone', 'af_plate', 'af_make', 'af_kind', 'af_model', 'af_iqamaExp']
+                            .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+                        if (window.showToast) showToast('تمت إضافة البيانات وحفظها على الخادم', 'success');
+                    })
+                    .catch(function () { if (window.showToast) showToast('تعذّر حفظ البيانات على الخادم', 'error'); });
+            }
+
+            function loadFailed() {
+                dataReady = true;
+                inputEl.disabled = false;
+                countEl.textContent = '';
+                emptyEl.style.display = 'block';
+                emptyEl.innerHTML = '<span class="big">⚠️</span>تعذّر تحميل بيانات الموظفين. حدّث الصفحة وحاول مرة أخرى.';
+                if (typeof window.showToast === 'function') {
+                    window.showToast('تعذّر تحميل بيانات الموظفين', 'error');
+                }
+            }
+
+            function start() {
+                if (WS) injectAddUI();   // workstation only: show the "add data" form
+                loadData();
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', start);
+            } else {
+                start();
+            }
+        })();
+    </script>
+
+</body>
+</html>

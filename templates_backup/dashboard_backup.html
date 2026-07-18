@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الإدارة التنفيذية — BIN ZOMAH INTL.</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <!-- washing fallback seed (provides window.WASHING_VEHICLES if the API is empty) -->
+    <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        /* ============================================================
+           Executive Dashboard — deep-dark premium identity (read-only).
+           All tokens scoped to .bz-dash so the rest of the site is untouched.
+           ============================================================ */
+        .bz-dash {
+            --d-bg: #080C14; --d-bg2: #0B111E; --d-card: #111726; --d-card-2: #0e1421;
+            --d-border: rgba(255,255,255,0.08); --d-border-2: rgba(255,255,255,0.04);
+            --d-text: #eaf1ff; --d-text-2: #c2cde3; --d-muted: #8593ad;
+            --gold: #c9a227; --gold-soft: #e3c766; --navy: #0C2340; --navy-2: #16335c;
+            --green: #10b981; --amber: #f59e0b; --yellow: #eab308; --red: #ef4444; --blue: #3b82f6;
+            margin: 0; background: var(--d-bg); color: var(--d-text);
+            font-family: 'Tajawal','Cairo',system-ui,sans-serif; min-height: 100vh;
+        }
+        .bz-dash * { box-sizing: border-box; }
+
+        /* ---- Top bar ---- */
+        .dash-top {
+            position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 1rem;
+            padding: .7rem 1.25rem; background: rgba(11,17,30,0.82); backdrop-filter: blur(18px);
+            border-bottom: 1px solid var(--d-border); border-bottom: 2px solid var(--gold);
+        }
+        .dash-top .brand { display: flex; align-items: center; gap: .7rem; }
+        .dash-top .brand img { height: 42px; width: auto; background: #fff; border-radius: 8px; padding: 3px; }
+        .dash-top .brand b { font-size: 1rem; font-weight: 800; letter-spacing: .3px; display: block; }
+        .dash-top .brand span { font-size: .68rem; color: var(--gold-soft); font-weight: 600; }
+        .dash-top .spacer { flex: 1; }
+        .dash-top .meta { text-align: left; font-size: .72rem; color: var(--d-muted); line-height: 1.5; white-space: nowrap; }
+        .dash-top .meta b { color: var(--d-text); }
+        .dash-top .tbtn {
+            width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--d-border);
+            background: rgba(255,255,255,.05); color: var(--d-text); cursor: pointer; font-size: 1rem;
+            display: inline-flex; align-items: center; justify-content: center; transition: .15s;
+        }
+        .dash-top .tbtn:hover { background: rgba(255,255,255,.12); }
+        .dash-top .back-link {
+            text-decoration: none; color: var(--navy); background: var(--gold); font-weight: 800;
+            font-size: .8rem; padding: 8px 14px; border-radius: 10px; transition: .15s; white-space: nowrap;
+        }
+        .dash-top .back-link:hover { background: var(--gold-soft); }
+        .dash-burger { display: none; }
+
+        /* ---- Layout ---- */
+        .dash-layout { display: flex; align-items: flex-start; }
+        .dash-side {
+            width: 248px; flex: 0 0 248px; position: sticky; top: 58px; align-self: flex-start;
+            height: calc(100vh - 58px); overflow-y: auto; padding: 1rem .8rem; background: var(--d-bg2);
+            border-inline-start: 1px solid var(--d-border);
+        }
+        .dash-side .side-title { font-size: .68rem; color: var(--d-muted); font-weight: 700; margin: 1rem .6rem .4rem; letter-spacing: .5px; }
+        .dash-side a {
+            display: flex; align-items: center; gap: .65rem; padding: 10px 14px; margin-bottom: 3px;
+            color: var(--d-text-2); text-decoration: none; border-radius: 11px; font-size: .86rem; font-weight: 600;
+            transition: .15s; border-inline-start: 3px solid transparent;
+        }
+        .dash-side a:hover { background: rgba(255,255,255,.05); color: #fff; }
+        .dash-side a.active { background: rgba(201,162,39,.12); color: var(--gold-soft); border-inline-start-color: var(--gold); }
+        .dash-side a .ic { font-size: 1.05rem; width: 22px; text-align: center; }
+
+        .dash-main { flex: 1; min-width: 0; padding: 1.4rem clamp(1rem, 3vw, 2.2rem) 4rem; }
+        .dash-h {
+            display: flex; align-items: center; gap: .6rem; font-size: 1.15rem; font-weight: 800; color: #fff;
+            margin: 2rem 0 1rem; padding-bottom: .55rem; border-bottom: 1px solid var(--d-border);
+        }
+        .dash-h:first-child { margin-top: .3rem; }
+        .dash-h::before { content: ''; width: 5px; height: 1.15rem; background: var(--gold); border-radius: 3px; }
+        .dash-h .sub { font-size: .72rem; font-weight: 600; color: var(--d-muted); margin-inline-start: auto; }
+
+        /* ---- KPI cards ---- */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: .9rem; }
+        .kpi {
+            background: linear-gradient(160deg, var(--d-card) 0%, var(--d-card-2) 100%);
+            border: 1px solid var(--d-border); border-radius: 16px; padding: 16px 18px; position: relative; overflow: hidden;
+        }
+        .kpi::after { content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 4px; background: var(--accent, var(--gold)); opacity: .9; }
+        .kpi .k-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+        .kpi .k-label { font-size: .78rem; color: var(--d-muted); font-weight: 600; }
+        .kpi .k-ic { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; background: rgba(255,255,255,.05); }
+        .kpi .k-num { font-size: 2rem; font-weight: 900; margin-top: 8px; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+        .kpi .k-foot { font-size: .72rem; color: var(--d-muted); margin-top: 6px; }
+        .kpi.k-gold { --accent: var(--gold); } .kpi.k-green { --accent: var(--green); }
+        .kpi.k-red { --accent: var(--red); } .kpi.k-amber { --accent: var(--amber); }
+        .kpi.k-blue { --accent: var(--blue); } .kpi.k-navy { --accent: var(--navy-2); }
+        .kpi.k-red .k-num { color: #fca5a5; } .kpi.k-amber .k-num { color: #fcd34d; }
+        .kpi.k-green .k-num { color: #6ee7b7; }
+
+        /* ---- Cards / panels ---- */
+        .panel { background: var(--d-card); border: 1px solid var(--d-border); border-radius: 16px; padding: 1rem 1.1rem; }
+        .grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.1rem; align-items: start; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 1.1rem; }
+
+        /* ---- Alert center ---- */
+        .filters { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .9rem; align-items: center; }
+        .chip {
+            border: 1px solid var(--d-border); background: rgba(255,255,255,.04); color: var(--d-text-2);
+            padding: 6px 13px; border-radius: 999px; font-size: .78rem; font-weight: 700; cursor: pointer; transition: .15s;
+        }
+        .chip:hover { background: rgba(255,255,255,.09); }
+        .chip.on { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+        .chip .c-n { opacity: .7; font-weight: 800; margin-inline-start: 4px; }
+
+        .dtable-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--d-border); }
+        table.dtable { width: 100%; border-collapse: collapse; font-size: .82rem; }
+        table.dtable thead th {
+            background: var(--d-bg2); color: var(--d-text-2); font-weight: 700; text-align: right; padding: 11px 12px;
+            position: sticky; top: 0; white-space: nowrap; word-break: keep-all; overflow-wrap: normal;
+            border-bottom: 1px solid var(--d-border);
+        }
+        table.dtable tbody td { padding: 10px 12px; border-bottom: 1px solid var(--d-border-2); color: var(--d-text); vertical-align: middle; }
+        table.dtable tbody tr:hover td { background: rgba(255,255,255,.03); }
+        table.dtable .plate { font-family: monospace; direction: ltr; unicode-bidi: plaintext; display: inline-block; font-weight: 700; }
+        .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; }
+        .st-expired { background: rgba(239,68,68,.15); color: #fca5a5; }
+        .st-d30 { background: rgba(245,158,11,.16); color: #fcd34d; }
+        .st-d90 { background: rgba(234,179,8,.14); color: #fde68a; }
+        .st-valid { background: rgba(16,185,129,.15); color: #6ee7b7; }
+        .st-unknown { background: rgba(255,255,255,.07); color: var(--d-muted); }
+        .days-left { font-variant-numeric: tabular-nums; font-size: .72rem; color: var(--d-muted); }
+
+        /* ---- Charts ---- */
+        .bar-row { display: flex; align-items: center; gap: .6rem; margin-bottom: .55rem; font-size: .8rem; }
+        .bar-row .bl { width: 96px; flex: 0 0 96px; color: var(--d-text-2); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .bar-row .bt { flex: 1; height: 14px; background: rgba(255,255,255,.05); border-radius: 7px; overflow: hidden; }
+        .bar-row .bf { height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--navy-2), var(--gold)); }
+        .bar-row .bv { width: 34px; flex: 0 0 34px; text-align: left; font-weight: 800; color: var(--d-text); font-variant-numeric: tabular-nums; }
+        .donut-wrap { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
+        .donut { width: 150px; height: 150px; border-radius: 50%; flex: 0 0 150px; position: relative; }
+        .donut::after { content: ''; position: absolute; inset: 26px; border-radius: 50%; background: var(--d-card); }
+        .donut .d-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; }
+        .donut .d-c b { font-size: 1.5rem; font-weight: 900; color: #fff; }
+        .donut .d-c span { font-size: .66rem; color: var(--d-muted); }
+        .legend { display: flex; flex-direction: column; gap: .4rem; font-size: .8rem; }
+        .legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; margin-inline-end: 7px; }
+        .legend div { display: flex; align-items: center; }
+        .legend b { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+
+        /* ---- Search ---- */
+        .search-bar { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1rem; }
+        .search-bar input, .search-bar select {
+            background: var(--d-bg2); border: 1px solid var(--d-border); color: var(--d-text);
+            border-radius: 11px; padding: 11px 14px; font: inherit; font-size: .85rem; outline: none;
+        }
+        .search-bar input { flex: 1; min-width: 220px; }
+        .search-bar input:focus, .search-bar select:focus { border-color: var(--gold); }
+        .search-bar select { min-width: 150px; cursor: pointer; }
+
+        /* ---- History timeline ---- */
+        .timeline { position: relative; padding-inline-start: 22px; }
+        .timeline::before { content: ''; position: absolute; inset-inline-start: 6px; top: 4px; bottom: 4px; width: 2px; background: var(--d-border); }
+        .tl-item { position: relative; padding: 0 0 1.1rem 0; }
+        .tl-item::before { content: ''; position: absolute; inset-inline-start: -20px; top: 4px; width: 11px; height: 11px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(201,162,39,.15); }
+        .tl-item.base::before { background: var(--blue); box-shadow: 0 0 0 4px rgba(59,130,246,.15); }
+        .tl-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+        .tl-date { font-weight: 800; color: #fff; font-size: .86rem; }
+        .tl-time { font-size: .72rem; color: var(--d-muted); }
+        .tl-tag { font-size: .7rem; font-weight: 800; padding: 2px 9px; border-radius: 999px; background: rgba(201,162,39,.15); color: var(--gold-soft); }
+        .tl-note { font-size: .8rem; color: var(--d-text-2); margin: 5px 0 7px; }
+        .tl-acts { display: flex; gap: .4rem; flex-wrap: wrap; }
+        .tl-acts button {
+            border: 1px solid var(--d-border); background: rgba(255,255,255,.04); color: var(--d-text-2);
+            padding: 5px 11px; border-radius: 9px; font-size: .74rem; font-weight: 700; cursor: pointer; transition: .15s;
+        }
+        .tl-acts button:hover { background: rgba(255,255,255,.1); color: #fff; }
+        .tl-acts button.restore:hover { background: rgba(239,68,68,.2); color: #fca5a5; border-color: rgba(239,68,68,.4); }
+
+        .muted-note { font-size: .76rem; color: var(--d-muted); line-height: 1.7; }
+        .empty-hint { color: var(--d-muted); font-size: .85rem; padding: 1.5rem; text-align: center; }
+        .pct-bar { height: 8px; border-radius: 6px; background: rgba(255,255,255,.06); overflow: hidden; margin-top: 8px; }
+        .pct-bar > i { display: block; height: 100%; border-radius: 6px; }
+
+        /* ---- GPS live map ---- */
+        .gps-stats { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: .85rem; }
+        .gps-stat { background: var(--d-card-2); border: 1px solid var(--d-border); border-radius: 12px; padding: 10px 16px; min-width: 130px; }
+        .gps-stat b { font-size: 1.5rem; font-weight: 900; display: block; line-height: 1; font-variant-numeric: tabular-nums; }
+        .gps-stat span { font-size: .72rem; color: var(--d-muted); }
+        .gps-wrap { position: relative; }
+        #dashMap { position: relative; z-index: 1; height: 400px; width: 100%; border-radius: 12px; border: 1px solid var(--d-border); background: var(--d-bg2); }
+        .gps-overlay {
+            position: absolute; inset: 0; z-index: 500; display: flex; flex-direction: column; gap: .7rem;
+            align-items: center; justify-content: center; text-align: center; padding: 1.5rem;
+            background: rgba(8,12,20,.82); border-radius: 12px; color: var(--d-text);
+        }
+        .gps-overlay.hidden { display: none; }
+        .gps-overlay .gi { font-size: 2.4rem; }
+        .gps-spinner { width: 38px; height: 38px; border: 4px solid var(--d-border); border-top-color: var(--gold); border-radius: 50%; animation: bz-spin .9s linear infinite; }
+        @keyframes bz-spin { to { transform: rotate(360deg); } }
+        .leaflet-popup-content { font-family: 'Tajawal','Cairo',sans-serif; }
+        .dmark { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 10px; color: #fff; }
+
+        @media (max-width: 900px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .dash-burger { display: inline-flex; }
+            .dash-side {
+                position: fixed; inset-inline-start: 0; top: 56px; z-index: 55; height: calc(100vh - 56px);
+                transform: translateX(110%); transition: transform .25s; box-shadow: -12px 0 40px rgba(0,0,0,.5);
+            }
+            html[dir="rtl"] .dash-side { transform: translateX(-110%); }
+            .dash-side.open { transform: translateX(0); }
+            .dash-top .meta { display: none; }
+        }
+    </style>
+</head>
+<body class="bz-dash">
+
+    <!-- ===== Top bar ===== -->
+    <header class="dash-top">
+        <button class="tbtn dash-burger" onclick="document.querySelector('.dash-side').classList.toggle('open')" title="القائمة">☰</button>
+        <div class="brand">
+            <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+            <div><b>BIN ZOMAH INTL.</b><span>لوحة الإدارة التنفيذية — فرع الدمام</span></div>
+        </div>
+        <div class="spacer"></div>
+        <div class="meta" id="topMeta">—</div>
+        <button class="tbtn" onclick="if(window.toggleDarkMode)toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a class="back-link" id="backLink" href="/">← الموقع</a>
+    </header>
+
+    <div class="dash-layout">
+        <!-- ===== Sidebar ===== -->
+        <aside class="dash-side" id="side">
+            <div class="side-title">الأقسام</div>
+            <a href="#overview" class="active"><span class="ic">📊</span> نظرة عامة</a>
+            <a href="#alerts"><span class="ic">🚨</span> مركز التنبيهات</a>
+            <a href="#gps"><span class="ic">🛰️</span> التتبع المباشر</a>
+            <a href="#charts"><span class="ic">📈</span> الرسوم البيانية</a>
+            <a href="#search"><span class="ic">🔎</span> البحث والفلاتر</a>
+            <a href="#history"><span class="ic">🕒</span> سجل التحديثات</a>
+            <a href="#audit"><span class="ic">📝</span> سجل التدقيق</a>
+            <div class="side-title">التبويبات</div>
+            <nav id="quickLinks"></nav>
+        </aside>
+
+        <!-- ===== Main ===== -->
+        <main class="dash-main">
+
+            <!-- Overview / KPIs -->
+            <div class="dash-h" id="overview">نظرة عامة تنفيذية <span class="sub" id="ovSub">جارٍ التحميل…</span></div>
+            <section class="kpi-grid" id="kpiGrid"></section>
+
+            <div class="grid-2" style="margin-top:1.1rem;">
+                <div class="panel">
+                    <div style="font-weight:800;margin-bottom:.7rem;">مؤشرات الجاهزية</div>
+                    <div id="readiness"></div>
+                </div>
+                <div class="panel">
+                    <div style="font-weight:800;margin-bottom:.7rem;">تكوين الأسطول</div>
+                    <div id="fleetMini" class="muted-note">—</div>
+                </div>
+            </div>
+
+            <!-- Alerts -->
+            <div class="dash-h" id="alerts">🚨 مركز تنبيهات الوثائق <span class="sub" id="alSub"></span></div>
+            <section class="panel">
+                <div id="alMailBar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.7rem .8rem;background:var(--d-card-2);border:1px solid var(--d-border);border-radius:12px;">
+                    <span style="font-weight:700;font-size:.84rem;">📧 إرسال تنبيهات الوثائق بالبريد:</span>
+                    <input id="alMailTo" type="text" placeholder="بريد المستلمين (افصل بفاصلة)" style="flex:1;min-width:220px;background:var(--d-bg2);border:1px solid var(--d-border);color:var(--d-text);border-radius:9px;padding:8px 12px;font:inherit;font-size:.82rem;outline:none;">
+                    <button class="chip on" id="alMailBtn" onclick="sendExpiryMail()">إرسال الآن</button>
+                    <span class="muted-note" id="alMailHint" style="width:100%;margin-top:2px;">…</span>
+                </div>
+                <div class="filters" id="alFilters"></div>
+                <div class="dtable-wrap">
+                    <table class="dtable">
+                        <thead><tr>
+                            <th>الاسم</th><th>رقم اللوحة</th><th>الوثيقة</th><th>تاريخ الانتهاء</th><th>المتبقي</th><th>الحالة</th>
+                        </tr></thead>
+                        <tbody id="alBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- GPS live map -->
+            <div class="dash-h" id="gps">🛰️ التتبع المباشر للأسطول <span class="sub" id="gpsSub"></span></div>
+            <section class="panel">
+                <div class="gps-stats">
+                    <div class="gps-stat"><b id="gpsTotal" style="color:#fff">0</b><span>مركبات على الخريطة</span></div>
+                    <div class="gps-stat"><b id="gpsOnline" style="color:#6ee7b7">0</b><span>🟢 نشطة الآن</span></div>
+                    <div class="gps-stat"><b id="gpsOffline" style="color:#fca5a5">0</b><span>🔴 متوقفة</span></div>
+                    <div class="gps-stat" style="flex:1;min-width:auto;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;background:transparent;border:none;">
+                        <button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>
+                        <a class="chip" id="gpsFull" href="/tracking" style="text-decoration:none;">↗ التتبع الكامل</a>
+                    </div>
+                </div>
+                <div class="gps-wrap">
+                    <div id="dashMap"></div>
+                    <div class="gps-overlay" id="gpsOverlay"><div class="gps-spinner"></div><div>جارٍ تجهيز الخريطة…</div></div>
+                </div>
+            </section>
+
+            <!-- Charts -->
+            <div class="dash-h" id="charts">📈 الرسوم البيانية</div>
+            <section class="grid-3">
+                <div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">توزيع الوظائف</div><div id="chJobs"></div></div>
+                <div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">المركبات حسب النوع</div><div id="chTypes"></div></div>
+                <div class="panel"><div style="font-weight:800;margin-bottom:.9rem;">حالة الوثائق</div><div class="donut-wrap"><div class="donut" id="chDonut"><div class="d-c" id="donutCenter"></div></div><div class="legend" id="donutLegend"></div></div></div>
+            </section>
+
+            <!-- Search -->
+            <div class="dash-h" id="search">🔎 البحث والفلاتر المتقدمة <span class="sub" id="seSub"></span></div>
+            <section class="panel">
+                <div class="search-bar">
+                    <input type="text" id="seInput" placeholder="ابحث بالاسم، رقم اللوحة، الرقم الوظيفي، الإقامة، أو الجوال…">
+                    <select id="seJob"><option value="">كل الوظائف</option></select>
+                    <select id="seType"><option value="">كل أنواع المركبات</option></select>
+                    <select id="seStatus">
+                        <option value="">كل حالات الوثائق</option>
+                        <option value="expired">منتهية</option>
+                        <option value="d30">تنتهي خلال 30 يوم</option>
+                        <option value="d90">تنتهي خلال 90 يوم</option>
+                        <option value="valid">سارية</option>
+                    </select>
+                </div>
+                <div class="dtable-wrap">
+                    <table class="dtable">
+                        <thead><tr>
+                            <th>الاسم</th><th>الرقم الوظيفي</th><th>الإقامة</th><th>الجوال</th><th>رقم اللوحة</th><th>الوظيفة</th><th>المركبة</th><th>حالة الوثائق</th>
+                        </tr></thead>
+                        <tbody id="seBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- History -->
+            <div class="dash-h" id="history">🕒 سجل التحديثات واستعادة النسخ</div>
+            <section class="grid-2">
+                <div class="panel">
+                    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;">
+                        <div style="font-weight:800;">الخط الزمني</div>
+                        <button class="chip" onclick="downloadCurrentBackup()" style="margin-inline-start:auto;">📥 تنزيل نسخة كاملة الآن</button>
+                    </div>
+                    <div class="timeline" id="timeline"></div>
+                </div>
+                <div class="panel">
+                    <div style="font-weight:800;margin-bottom:.7rem;">كيف يعمل سجل التحديثات؟</div>
+                    <div class="muted-note">
+                        • تُلتقط نسخة تلقائية من بياناتك (الجدول الأسبوعي، الغسيل، التوثيق، الموظفون) في كل مرة تتغيّر فيها البيانات — <b>تُحفظ محلياً في متصفحك فقط</b> ولا تُرسل لأي جهة.<br>
+                        • كل نسخة تُظهر <b>ما الذي تغيّر</b> (إضافة/حذف/تعديل) مقارنةً بالسابقة.<br>
+                        • <b>📥 تنزيل</b>: يحفظ نسخة احتياطية كاملة (JSON) تقدر ترجعها وقت ما تبي.<br>
+                        • <b>↩️ استعادة</b>: يعيد البيانات لتلك النسخة (الجدول/الغسيل/التوثيق/الموظفون) بعد تأكيد صريح.<br>
+                        • تُحفظ آخر 6 نسخ كاملة قابلة للاستعادة؛ والأقدم يبقى كسجل (تاريخ + ملخص التغييرات).<br>
+                        <span style="color:var(--gold-soft)">ملاحظة:</span> هذه اللوحة <b>تقرأ بياناتك فقط</b> ولا تعدّلها أبداً إلا عند ضغطك زر «استعادة».
+                    </div>
+                </div>
+            </section>
+
+            <!-- Audit log (server-side, immutable) -->
+            <div class="dash-h" id="audit">📝 سجل التدقيق (Audit Log) <span class="sub" id="auSub"></span></div>
+            <section class="panel">
+                <div class="muted-note" style="margin-bottom:.85rem;">
+                    سجل <b>غير قابل للحذف أو التعديل</b> — يوثّق كل عملية حفظ على الخادم: <b>مَن</b> غيّر <b>ماذا</b> و<b>متى</b>.
+                    (يُحفظ على الخادم بشكل منفصل عن «سجل التحديثات» المحلي أعلاه، وتُجمَّع عمليات الحفظ المتتالية للسجل نفسه في سطر واحد.)
+                </div>
+                <div class="dtable-wrap">
+                    <table class="dtable">
+                        <thead><tr>
+                            <th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>السجل المتأثر</th><th>التفاصيل</th>
+                        </tr></thead>
+                        <tbody id="auBody"><tr><td colspan="5" class="empty-hint">جارٍ التحميل…</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  // ---------- context ----------
+  var WS = location.pathname.indexOf('/importantworkstation') === 0;
+  var PREFIX = WS ? '/importantworkstation' : '';
+  var TODAY = new Date(); TODAY.setHours(0, 0, 0, 0);
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  function $(id) { return document.getElementById(id); }
+  function num(x) { var n = parseInt(String(x == null ? '' : x).replace(/[^\d-]/g, ''), 10); return isNaN(n) ? 0 : n; }
+
+  // ---------- data state ----------
+  var DATA = { drivers: [], employees: [], schedule: null, washing: [], records: [] };
+
+  // ---------- loaders (GET only; static fallback only on the main site) ----------
+  function getJSON(url) { return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+
+  function loadDrivers() {
+    return getJSON('/api/drivers').then(function (j) {
+      var arr = Array.isArray(j) ? j : [];
+      if (arr.length || WS) return arr;
+      return getJSON('/static/fleet_data.json').then(function (f) {
+        return (Array.isArray(f) ? f : []).filter(function (d) { return d && d.name !== 'اسم العامل'; });
+      });
+    });
+  }
+  function loadEmployees() {
+    return getJSON('/api/employees').then(function (j) {
+      var rows = (j && j.rows) ? j.rows : [];
+      if (rows.length || WS) return rows;
+      return getJSON('/static/employees_default.json').then(function (f) { return Array.isArray(f) ? f : []; });
+    });
+  }
+  function loadSchedule() {
+    return getJSON('/api/schedule_data').then(function (j) {
+      var d = (j && j.data) ? j.data : null;
+      if ((d && ((d.main && d.main.length) || (d.spare && d.spare.length))) || WS) return d || { main: [], spare: [], vacation: [], summary: {} };
+      return getJSON('/static/schedule_data.json').then(function (f) { return f || { main: [], spare: [], vacation: [], summary: {} }; });
+    });
+  }
+  function loadWashing() {
+    return getJSON('/api/washing_data').then(function (j) {
+      var v = (j && j.vehicles) ? j.vehicles : [];
+      if (v.length || WS) return v;
+      // washing_data.js declares `const WASHING_VEHICLES` (a global lexical binding, NOT a window prop)
+      return (typeof WASHING_VEHICLES !== 'undefined' && WASHING_VEHICLES.length) ? WASHING_VEHICLES : [];
+    });
+  }
+  function loadRecords() {
+    return getJSON('/api/records').then(function (j) { return (j && j.rows) ? j.rows : []; });
+  }
+
+  // ---------- date / status ----------
+  function parseISO(s) {
+    if (typeof s !== 'string') return null;
+    var m = s.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    var y = +m[1], mo = +m[2], da = +m[3];
+    if (y < 2000 || y > 2100 || mo < 1 || mo > 12 || da < 1 || da > 31) return null; // skip Hijri / dirty
+    var d = new Date(y, mo - 1, da); d.setHours(0, 0, 0, 0); return d;
+  }
+  function statusOf(s) {
+    var d = parseISO(s);
+    if (!d) return { key: 'unknown', label: 'غير محدد', cls: 'st-unknown', rank: 5, days: null };
+    var days = Math.floor((d - TODAY) / 86400000);
+    if (days < 0) return { key: 'expired', label: 'منتهي', cls: 'st-expired', rank: 0, days: days };
+    if (days <= 30) return { key: 'd30', label: '≤ 30 يوم', cls: 'st-d30', rank: 1, days: days };
+    if (days <= 90) return { key: 'd90', label: '≤ 90 يوم', cls: 'st-d90', rank: 2, days: days };
+    return { key: 'valid', label: 'ساري', cls: 'st-valid', rank: 3, days: days };
+  }
+  function fmtDays(st) {
+    if (st.days == null) return '—';
+    if (st.days < 0) return 'منذ ' + Math.abs(st.days) + ' يوم';
+    if (st.days === 0) return 'اليوم';
+    return 'خلال ' + st.days + ' يوم';
+  }
+
+  // ---------- schedule helpers ----------
+  function schedRows() {
+    if (!DATA.schedule) return [];
+    return [].concat(DATA.schedule.main || [], DATA.schedule.spare || []);
+  }
+  var VDOCS = [
+    { key: 'inspect', label: 'الفحص الدوري' },
+    { key: 'license', label: 'رخصة السير' },
+    { key: 'opcard', label: 'بطاقة التشغيل' },
+    { key: 'drivercard', label: 'بطاقة السائق' }
+  ];
+
+  // ---------- alerts ----------
+  var ALERTS = [];
+  function buildAlerts() {
+    ALERTS = [];
+    schedRows().forEach(function (r) {
+      if (!r) return;
+      VDOCS.forEach(function (doc) {
+        var v = r[doc.key];
+        if (!v) return;
+        ALERTS.push({ name: r.name || '—', plate: r.plate || '', doc: doc.label, date: v, st: statusOf(v) });
+      });
+    });
+    // employees: iqama (idx10) + passport (idx11)
+    (DATA.employees || []).forEach(function (row) {
+      if (!Array.isArray(row)) return;
+      var nm = row[2] || row[3] || '—', pl = row[9] || '';
+      [['10', 'انتهاء الإقامة'], ['11', 'انتهاء الجواز']].forEach(function (p) {
+        var v = row[+p[0]];
+        if (!v) return;
+        ALERTS.push({ name: nm, plate: pl, doc: p[1], date: v, st: statusOf(v) });
+      });
+    });
+    ALERTS.sort(function (a, b) { return a.st.rank - b.st.rank || ((a.st.days == null ? 1e9 : a.st.days) - (b.st.days == null ? 1e9 : b.st.days)); });
+  }
+
+  var alFilter = 'attention'; // attention = expired+d30+d90
+  function renderAlerts() {
+    var counts = { expired: 0, d30: 0, d90: 0, valid: 0, unknown: 0 };
+    ALERTS.forEach(function (a) { counts[a.st.key]++; });
+    var defs = [
+      { k: 'attention', t: 'تحتاج إجراء', n: counts.expired + counts.d30 + counts.d90 },
+      { k: 'expired', t: '🔴 منتهية', n: counts.expired },
+      { k: 'd30', t: '🟠 ≤ 30 يوم', n: counts.d30 },
+      { k: 'd90', t: '🟡 ≤ 90 يوم', n: counts.d90 },
+      { k: 'valid', t: '🟢 سارية', n: counts.valid },
+      { k: 'all', t: 'الكل', n: ALERTS.length }
+    ];
+    $('alFilters').innerHTML = defs.map(function (d) {
+      return '<span class="chip ' + (alFilter === d.k ? 'on' : '') + '" data-k="' + d.k + '">' + d.t + '<span class="c-n">' + d.n + '</span></span>';
+    }).join('');
+    Array.prototype.forEach.call($('alFilters').querySelectorAll('.chip'), function (c) {
+      c.onclick = function () { alFilter = c.getAttribute('data-k'); renderAlerts(); };
+    });
+    var list = ALERTS.filter(function (a) {
+      if (alFilter === 'all') return true;
+      if (alFilter === 'attention') return a.st.rank <= 2;
+      return a.st.key === alFilter;
+    });
+    $('alSub').textContent = list.length + ' وثيقة';
+    if (!list.length) { $('alBody').innerHTML = '<tr><td colspan="6" class="empty-hint">لا توجد وثائق في هذا التصنيف ✓</td></tr>'; return; }
+    $('alBody').innerHTML = list.slice(0, 400).map(function (a) {
+      return '<tr><td>' + esc(a.name) + '</td><td><span class="plate">' + esc(a.plate || '—') + '</span></td><td>' + esc(a.doc) +
+        '</td><td>' + esc(a.date) + '</td><td class="days-left">' + fmtDays(a.st) + '</td><td><span class="badge ' + a.st.cls + '">' + a.st.label + '</span></td></tr>';
+    }).join('');
+  }
+
+  // ---------- KPIs ----------
+  function renderKPIs() {
+    var rows = schedRows();
+    var empCount = (DATA.employees || []).length;
+    var drvCount = (DATA.drivers || []).length;
+    var people = empCount || drvCount;
+    var vehicles = (DATA.washing || []).length || rows.length;
+    var summary = (DATA.schedule && DATA.schedule.summary) || {};
+    var vacation = num(summary.vacation) || (DATA.schedule && DATA.schedule.vacation ? DATA.schedule.vacation.length : 0);
+    var delivery = rows.filter(function (r) { return r && r.job === 'موصل'; }).length;
+    var distrib = rows.filter(function (r) { return r && r.job === 'موزع'; }).length;
+
+    var expired = 0, d30 = 0, d90 = 0;
+    ALERTS.forEach(function (a) { if (a.st.key === 'expired') expired++; else if (a.st.key === 'd30') d30++; else if (a.st.key === 'd90') d90++; });
+
+    // washing current-month KPIs
+    var cm = TODAY.getMonth();
+    var washedThis = (DATA.washing || []).filter(function (v) { return v && v.m && v.m[cm] === 1; }).length;
+    var pendingThis = (DATA.washing || []).length - washedThis;
+
+    var cards = [
+      { c: 'k-gold', ic: '🚚', label: 'إجمالي المركبات', num: vehicles, foot: (rows.length ? (rows.length + ' في الجدول الأسبوعي') : '') },
+      { c: 'k-blue', ic: '👷', label: 'إجمالي الموظفين/السائقين', num: people, foot: (empCount ? 'سجل الموظفين' : 'سجل السائقين') },
+      { c: 'k-green', ic: '🛵', label: 'موصلون', num: delivery, foot: 'موزعون: ' + distrib },
+      { c: 'k-navy', ic: '🏖️', label: 'في إجازة', num: vacation, foot: 'حسب ملخص الجدول' },
+      { c: 'k-red', ic: '⛔', label: 'وثائق منتهية', num: expired, foot: 'تحتاج تجديد فوري' },
+      { c: 'k-amber', ic: '⚠️', label: 'تنتهي خلال 30 يوم', num: d30, foot: 'متابعة عاجلة' },
+      { c: 'k-amber', ic: '🗓️', label: 'تنتهي خلال 90 يوم', num: d90, foot: 'تخطيط للتجديد' },
+      { c: 'k-green', ic: '🧼', label: 'غُسلت هذا الشهر', num: washedThis, foot: 'لم تُغسل: ' + (pendingThis < 0 ? 0 : pendingThis) }
+    ];
+    $('kpiGrid').innerHTML = cards.map(function (k) {
+      return '<div class="kpi ' + k.c + '"><div class="k-top"><span class="k-label">' + k.label + '</span><span class="k-ic">' + k.ic + '</span></div>' +
+        '<div class="k-num">' + k.num + '</div><div class="k-foot">' + esc(k.foot) + '</div></div>';
+    }).join('');
+
+    // readiness
+    var totalDocs = 0, validDocs = 0;
+    ALERTS.forEach(function (a) { if (a.st.key !== 'unknown') { totalDocs++; if (a.st.key === 'valid') validDocs++; } });
+    var docPct = totalDocs ? Math.round(validDocs / totalDocs * 100) : 0;
+    var washPct = (DATA.washing || []).length ? Math.round(washedThis / DATA.washing.length * 100) : 0;
+    function pctRow(label, pct, color) {
+      return '<div style="margin-bottom:1rem;"><div style="display:flex;justify-content:space-between;font-size:.82rem;"><span>' + label + '</span><b>' + pct + '%</b></div>' +
+        '<div class="pct-bar"><i style="width:' + pct + '%;background:' + color + ';"></i></div></div>';
+    }
+    $('readiness').innerHTML =
+      pctRow('نسبة الوثائق السارية', docPct, 'linear-gradient(90deg,#0C2340,#10b981)') +
+      pctRow('إنجاز غسيل هذا الشهر', washPct, 'linear-gradient(90deg,#0C2340,#c9a227)');
+
+    // fleet mini
+    var byType = {};
+    rows.forEach(function (r) { if (r && r.vtype) { var k = String(r.vtype).split(' ')[0]; byType[k] = (byType[k] || 0) + 1; } });
+    var parts = Object.keys(byType).sort(function (a, b) { return byType[b] - byType[a]; }).slice(0, 6)
+      .map(function (k) { return esc(k) + ': <b>' + byType[k] + '</b>'; });
+    $('fleetMini').innerHTML = parts.length ? parts.join(' &nbsp;•&nbsp; ') : '—';
+
+    $('ovSub').textContent = 'آخر قراءة: ' + new Date().toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
+  // ---------- charts ----------
+  function bars(el, pairs, fmt) {
+    var max = Math.max.apply(null, pairs.map(function (p) { return p[1]; }).concat([1]));
+    el.innerHTML = pairs.map(function (p) {
+      var w = Math.round(p[1] / max * 100);
+      return '<div class="bar-row"><span class="bl" title="' + esc(p[0]) + '">' + esc(p[0]) + '</span>' +
+        '<span class="bt"><span class="bf" style="width:' + w + '%"></span></span><span class="bv">' + p[1] + '</span></div>';
+    }).join('') || '<div class="empty-hint">لا توجد بيانات</div>';
+  }
+  function renderCharts() {
+    var rows = schedRows();
+    // jobs
+    var jobs = {};
+    rows.forEach(function (r) { if (r) { var j = r.job || 'غير محدد'; jobs[j] = (jobs[j] || 0) + 1; } });
+    bars($('chJobs'), Object.keys(jobs).map(function (k) { return [k, jobs[k]]; }).sort(function (a, b) { return b[1] - a[1]; }));
+    // types
+    var types = {};
+    rows.forEach(function (r) { if (r && r.vtype) { var k = String(r.vtype).split(' ').slice(0, 2).join(' '); types[k] = (types[k] || 0) + 1; } });
+    bars($('chTypes'), Object.keys(types).map(function (k) { return [k, types[k]]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 8));
+    // donut
+    var c = { expired: 0, d30: 0, d90: 0, valid: 0, unknown: 0 };
+    ALERTS.forEach(function (a) { c[a.st.key]++; });
+    var segs = [
+      { k: 'منتهية', n: c.expired, col: '#ef4444' },
+      { k: '≤ 30 يوم', n: c.d30, col: '#f59e0b' },
+      { k: '≤ 90 يوم', n: c.d90, col: '#eab308' },
+      { k: 'سارية', n: c.valid, col: '#10b981' },
+      { k: 'غير محدد', n: c.unknown, col: '#64748b' }
+    ];
+    var total = segs.reduce(function (s, x) { return s + x.n; }, 0);
+    var acc = 0, stops = [];
+    segs.forEach(function (s) { if (s.n > 0) { var a = acc / (total || 1) * 360, b = (acc + s.n) / (total || 1) * 360; stops.push(s.col + ' ' + a + 'deg ' + b + 'deg'); acc += s.n; } });
+    $('chDonut').style.background = total ? ('conic-gradient(' + stops.join(',') + ')') : 'rgba(255,255,255,.05)';
+    $('donutCenter').innerHTML = '<b>' + total + '</b><span>وثيقة</span>';
+    $('donutLegend').innerHTML = segs.map(function (s) {
+      return '<div><i style="background:' + s.col + '"></i>' + s.k + '<b>' + s.n + '</b></div>';
+    }).join('');
+  }
+
+  // ---------- search ----------
+  var PEOPLE = [];
+  function buildPeople() {
+    var byKey = {};
+    function up(rec) {
+      var key = (rec.iqama && String(rec.iqama).trim()) || (rec.name && String(rec.name).trim()) || Math.random().toString(36);
+      var cur = byKey[key];
+      if (!cur) { byKey[key] = rec; cur = rec; }
+      else { ['empid', 'iqama', 'phone', 'plate', 'job', 'vehicle'].forEach(function (f) { if (!cur[f] && rec[f]) cur[f] = rec[f]; }); cur.dates = cur.dates.concat(rec.dates); }
+    }
+    schedRows().forEach(function (r) {
+      if (!r) return;
+      up({ name: r.name || '', empid: r.empid || '', iqama: r.iqama || '', phone: r.phone || '', plate: r.plate || '', job: r.job || '', vehicle: r.vtype || '', dates: [r.inspect, r.license, r.opcard, r.drivercard] });
+    });
+    (DATA.employees || []).forEach(function (row) {
+      if (!Array.isArray(row)) return;
+      up({ name: row[2] || row[3] || '', empid: row[0] || '', iqama: row[1] || '', phone: row[7] || '', plate: row[9] || '', job: row[6] || '', vehicle: [row[36], row[37], row[38]].filter(Boolean).join(' '), dates: [row[10], row[11]] });
+    });
+    (DATA.drivers || []).forEach(function (d) {
+      if (!d) return;
+      up({ name: d.name || '', empid: d.empid || '', iqama: d.iqama || '', phone: d.phone || '', plate: d.plate || '', job: '', vehicle: d.car || '', dates: [d.drivercard] });
+    });
+    PEOPLE = Object.keys(byKey).map(function (k) {
+      var p = byKey[k];
+      var worst = { rank: 9, key: 'none', label: '—', cls: 'st-unknown' };
+      (p.dates || []).forEach(function (dt) { if (!dt) return; var st = statusOf(dt); if (st.key !== 'unknown' && st.rank < worst.rank) worst = st; });
+      p.worst = worst;
+      return p;
+    }).filter(function (p) { return p.name; });
+
+    // populate filter selects
+    var jobs = {}, types = {};
+    PEOPLE.forEach(function (p) { if (p.job) jobs[p.job] = 1; if (p.vehicle) types[String(p.vehicle).split(' ')[0]] = 1; });
+    $('seJob').innerHTML = '<option value="">كل الوظائف</option>' + Object.keys(jobs).sort().map(function (j) { return '<option>' + esc(j) + '</option>'; }).join('');
+    $('seType').innerHTML = '<option value="">كل أنواع المركبات</option>' + Object.keys(types).sort().map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
+  }
+  function norm(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase(); }
+  function renderSearch() {
+    var q = norm($('seInput').value), jb = $('seJob').value, tp = $('seType').value, stt = $('seStatus').value;
+    var list = PEOPLE.filter(function (p) {
+      if (jb && p.job !== jb) return false;
+      if (tp && String(p.vehicle).split(' ')[0] !== tp) return false;
+      if (stt && p.worst.key !== stt) return false;
+      if (q) {
+        var hay = norm([p.name, p.plate, p.empid, p.iqama, p.phone].join(' '));
+        if (hay.indexOf(q) < 0) return false;
+      }
+      return true;
+    });
+    $('seSub').textContent = list.length + ' نتيجة من ' + PEOPLE.length;
+    if (!list.length) { $('seBody').innerHTML = '<tr><td colspan="8" class="empty-hint">لا نتائج مطابقة</td></tr>'; return; }
+    $('seBody').innerHTML = list.slice(0, 300).map(function (p) {
+      var b = p.worst.key === 'none' ? '<span class="badge st-unknown">—</span>' : '<span class="badge ' + p.worst.cls + '">' + p.worst.label + '</span>';
+      return '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.empid || '—') + '</td><td>' + esc(p.iqama || '—') + '</td><td>' + esc(p.phone || '—') +
+        '</td><td><span class="plate">' + esc(p.plate || '—') + '</span></td><td>' + esc(p.job || '—') + '</td><td>' + esc(p.vehicle || '—') + '</td><td>' + b + '</td></tr>';
+    }).join('');
+  }
+
+  // ---------- update history ----------
+  var HKEY = 'bz_dash_history_v1';
+  function hashStr(s) { var h = 5381, i = s.length; while (i) { h = (h * 33) ^ s.charCodeAt(--i); } return (h >>> 0).toString(36); }
+  function loadHist() { try { return JSON.parse(localStorage.getItem(HKEY)) || []; } catch (e) { return []; } }
+  function saveHist(h) { try { localStorage.setItem(HKEY, JSON.stringify(h)); } catch (e) {} }
+  function snapData() { return { schedule: DATA.schedule, washing: DATA.washing, records: DATA.records, employees: DATA.employees }; }
+  function counts() {
+    return {
+      employees: (DATA.employees || []).length,
+      vehicles: (DATA.washing || []).length,
+      scheduleMain: (DATA.schedule && DATA.schedule.main ? DATA.schedule.main.length : 0),
+      scheduleSpare: (DATA.schedule && DATA.schedule.spare ? DATA.schedule.spare.length : 0),
+      records: (DATA.records || []).length,
+      washes: (DATA.washing || []).reduce(function (s, v) { return s + ((v && v.m) ? v.m.reduce(function (a, b) { return a + (b === 1 ? 1 : 0); }, 0) : 0); }, 0)
+    };
+  }
+  function nameSet(rows, getter) { var s = {}; (rows || []).forEach(function (r) { var n = getter(r); if (n) s[n] = 1; }); return s; }
+  function diffNames(a, b) { var added = [], removed = []; Object.keys(b).forEach(function (k) { if (!a[k]) added.push(k); }); Object.keys(a).forEach(function (k) { if (!b[k]) removed.push(k); }); return { added: added, removed: removed }; }
+  function computeDiff(prev, cur) {
+    var pc = prev.counts, cc = cur.counts, d = { parts: [], total: 0 };
+    function add(label, delta) { if (delta) { d.parts.push(label + ' ' + (delta > 0 ? '+' : '') + delta); d.total += Math.abs(delta); } }
+    add('الموظفون', cc.employees - pc.employees);
+    add('مركبات الغسيل', cc.vehicles - pc.vehicles);
+    add('الجدول (أساسي)', cc.scheduleMain - pc.scheduleMain);
+    add('الجدول (احتياطي)', cc.scheduleSpare - pc.scheduleSpare);
+    add('التوثيق', cc.records - pc.records);
+    add('غسلات', cc.washes - pc.washes);
+    // value-level changes (data edited without count change) detected by sig
+    if (!d.total && prev.sig !== cur.sig) { d.parts.push('تعديل بيانات قائمة'); d.total = 1; }
+    return d;
+  }
+  function trimHist(h) {
+    // keep full .data only for the last 6 entries to respect localStorage quota
+    for (var i = 0; i < h.length - 6; i++) { if (h[i].data) delete h[i].data; }
+    return h;
+  }
+  function captureSnapshot() {
+    var sig = hashStr(JSON.stringify(snapData()));
+    var h = loadHist();
+    var last = h[h.length - 1];
+    if (!last) {
+      h.push({ ts: Date.now(), sig: sig, counts: counts(), data: snapData(), base: true, note: 'النسخة الأساسية (خط البداية)' });
+      saveHist(trimHist(h));
+    } else if (last.sig !== sig) {
+      var cur = { ts: Date.now(), sig: sig, counts: counts(), data: snapData() };
+      cur.diff = computeDiff(last, cur);
+      cur.note = cur.diff.parts.length ? cur.diff.parts.join(' • ') : 'تحديث';
+      h.push(cur);
+      saveHist(trimHist(h));
+    }
+    renderHistory();
+  }
+  function renderHistory() {
+    var h = loadHist().slice().reverse();
+    if (!h.length) { $('timeline').innerHTML = '<div class="empty-hint">لا يوجد سجل بعد</div>'; return; }
+    $('timeline').innerHTML = h.map(function (e, i) {
+      var dt = new Date(e.ts);
+      var canRestore = !!e.data;
+      var tag = e.base ? '<span class="tl-tag" style="background:rgba(59,130,246,.15);color:#93c5fd">خط البداية</span>'
+        : (e.diff ? '<span class="tl-tag">' + e.diff.total + ' تغيير</span>' : '');
+      var acts = '<div class="tl-acts">' +
+        (canRestore ? '<button onclick="dlSnap(' + (h.length - 1 - i) + ')">📥 تنزيل</button>' : '') +
+        (canRestore && !e.base ? '<button class="restore" onclick="restoreSnap(' + (h.length - 1 - i) + ')">↩️ استعادة</button>' : '') +
+        '</div>';
+      return '<div class="tl-item ' + (e.base ? 'base' : '') + '"><div class="tl-head"><span class="tl-date">' +
+        dt.toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' }) + '</span><span class="tl-time">' +
+        dt.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) + '</span>' + tag + '</div>' +
+        '<div class="tl-note">' + esc(e.note || '') + '</div>' + acts + '</div>';
+    }).join('');
+  }
+  function download(name, obj) {
+    var blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+  }
+  window.dlSnap = function (idx) { var e = loadHist()[idx]; if (e && e.data) download('bin-zomah-backup-' + new Date(e.ts).toISOString().slice(0, 10) + '.json', e.data); };
+  window.downloadCurrentBackup = function () { download('bin-zomah-backup-' + new Date().toISOString().slice(0, 10) + '.json', snapData()); };
+  window.restoreSnap = function (idx) {
+    var e = loadHist()[idx]; if (!e || !e.data) return;
+    var when = new Date(e.ts).toLocaleString('ar-EG');
+    if (!confirm('استعادة بيانات النسخة بتاريخ ' + when + '؟\n\nسيُستبدل المحتوى الحالي للجدول الأسبوعي والغسيل والتوثيق والموظفين ببيانات هذه النسخة.\nننصح بتنزيل نسخة احتياطية من الوضع الحالي أولاً.\n\nاضغط موافق للمتابعة.')) return;
+    var jobs = [];
+    if (e.data.schedule) jobs.push(fetch('/api/schedule_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e.data.schedule) }));
+    if (e.data.washing) jobs.push(fetch('/api/washing_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicles: e.data.washing }) }));
+    if (e.data.records) jobs.push(fetch('/api/records', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: e.data.records }) }));
+    if (e.data.employees) jobs.push(fetch('/api/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: e.data.employees }) }));
+    Promise.all(jobs).then(function () {
+      if (window.showToast) showToast('تمت الاستعادة بنجاح ✓', 'success'); else alert('تمت الاستعادة بنجاح');
+      setTimeout(function () { location.reload(); }, 900);
+    }).catch(function () { alert('تعذّرت الاستعادة. حاول مرة أخرى.'); });
+  };
+
+  // ---------- expiry email alerts ----------
+  function loadMailPreview() {
+    getJSON('/api/expiry_alerts_preview').then(function (j) {
+      var hint = $('alMailHint'); if (!hint || !j) return;
+      var dr = (j.default_recipients && j.default_recipients.length) ? j.default_recipients.join('، ') : '';
+      if (dr && $('alMailTo') && !$('alMailTo').value) $('alMailTo').value = dr;
+      var parts = [(j.total || 0) + ' وثيقة تحتاج إجراءً الآن'];
+      if (!j.mail_configured) parts.push('<span style="color:#fca5a5">⚠ البريد غير مُهيّأ على الخادم (اضبط MAIL_USERNAME / MAIL_PASSWORD)</span>');
+      else parts.push('للإرسال التلقائي اليومي: اضبط ALERT_RECIPIENTS و ALERT_CRON_KEY وشغّل مجدولاً على <code>/api/cron/expiry_alerts?key=…</code>');
+      hint.innerHTML = parts.join(' • ');
+    });
+  }
+  window.sendExpiryMail = function () {
+    var to = (($('alMailTo') && $('alMailTo').value) || '').trim();
+    var btn = $('alMailBtn'), hint = $('alMailHint');
+    if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
+    fetch('/api/send_expiry_alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients: to }) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        var msg;
+        if (res.success) msg = '<span style="color:#6ee7b7">✓ أُرسل التنبيه (' + (res.count || 0) + ' وثيقة) إلى: ' + esc((res.recipients || []).join('، ')) + '</span>';
+        else if (res.reason === 'mail_not_configured') msg = '<span style="color:#fca5a5">⚠ البريد غير مُهيّأ على الخادم — اضبط MAIL_USERNAME و MAIL_PASSWORD.</span>';
+        else if (res.reason === 'no_recipients') msg = '<span style="color:#fcd34d">أدخل بريد مستلم واحد على الأقل.</span>';
+        else if (res.reason === 'no_alerts') msg = '<span style="color:#6ee7b7">لا توجد وثائق تحتاج تنبيهاً حالياً ✓</span>';
+        else msg = '<span style="color:#fca5a5">تعذّر الإرسال' + (res.error ? ': ' + esc(res.error) : '') + '</span>';
+        if (hint) hint.innerHTML = msg;
+        if (window.showToast && res.success) showToast('تم إرسال التنبيه بالبريد', 'success');
+      })
+      .catch(function () { if (hint) hint.innerHTML = '<span style="color:#fca5a5">تعذّر الاتصال بالخادم.</span>'; })
+      .finally(function () { if (btn) { btn.disabled = false; btn.textContent = 'إرسال الآن'; } });
+  };
+
+  // ---------- audit log (server-side, read-only, append-only) ----------
+  function loadAudit() {
+    getJSON('/api/audit_log').then(function (j) {
+      var rows = (j && j.rows) ? j.rows : [];
+      var body = $('auBody'); if (!body) return;
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="empty-hint">لا توجد عمليات مُسجّلة بعد — ستظهر هنا تلقائياً عند أي حفظ.</td></tr>'; $('auSub').textContent = ''; return; }
+      $('auSub').textContent = rows.length + ' عملية';
+      body.innerHTML = rows.slice().reverse().slice(0, 300).map(function (e) {
+        var hits = (e.hits && e.hits > 1) ? ' <span class="days-left">(' + e.hits + ' حفظ)</span>' : '';
+        var det = (e.count != null) ? ('عدد العناصر: ' + e.count) : (e.detail || '—');
+        return '<tr><td class="days-left">' + esc(e.ts || '') + '</td><td>' + esc(e.user || '—') +
+          '</td><td><span class="badge st-valid">' + esc(e.action || '') + '</span></td><td>' + esc(e.target || '') +
+          '</td><td>' + esc(det) + hits + '</td></tr>';
+      }).join('');
+    });
+  }
+
+  // ---------- top meta + quick links ----------
+  function weekNo(d) { var t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7)); var w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7); }
+  function topMeta() {
+    var now = new Date();
+    $('topMeta').innerHTML = 'التاريخ: <b>' + now.toLocaleDateString('ar-EG', { dateStyle: 'medium' }) + '</b> &nbsp;|&nbsp; الأسبوع <b>' + weekNo(now) + '</b>';
+    $('backLink').href = PREFIX + '/';
+  }
+  function quickLinks() {
+    var tabs = [
+      ['schedule', '📅 الجدول الأسبوعي'], ['employees', '👥 الموظفون'], ['washing', '🧼 الغسيل'],
+      ['oils', '🛢️ الزيوت والفلاتر'], ['workshop', '🔧 الورشة'], ['purchase', '🧾 أمر الشراء'],
+      ['records', '🗂️ التوثيق'], ['incidents', '🚨 الحوادث والمخالفات'], ['search', '🔍 البحث']
+    ];
+    $('quickLinks').innerHTML = tabs.map(function (t) { return '<a href="' + PREFIX + '/' + t[0] + '"><span class="ic"></span>' + t[1] + '</a>'; }).join('');
+  }
+  // sidebar active-section highlight + smooth scroll
+  function wireNav() {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.dash-side a[href^="#"]'));
+    links.forEach(function (a) { a.addEventListener('click', function () { document.querySelector('.dash-side').classList.remove('open'); }); });
+    window.addEventListener('scroll', function () {
+      var secs = ['overview', 'alerts', 'gps', 'charts', 'search', 'history', 'audit'], cur = secs[0];
+      secs.forEach(function (s) { var el = $(s); if (el && el.getBoundingClientRect().top < 140) cur = s; });
+      links.forEach(function (a) { a.classList.toggle('active', a.getAttribute('href') === '#' + cur); });
+    }, { passive: true });
+  }
+
+  // ---------- init ----------
+  function init() {
+    topMeta(); quickLinks(); wireNav(); loadAudit();
+    if (WS) { var mb = $('alMailBar'); if (mb) mb.style.display = 'none'; } else loadMailPreview();
+    $('seInput').addEventListener('input', renderSearch);
+    ['seJob', 'seType', 'seStatus'].forEach(function (id) { $(id).addEventListener('change', renderSearch); });
+
+    Promise.all([loadDrivers(), loadEmployees(), loadSchedule(), loadWashing(), loadRecords()]).then(function (res) {
+      DATA.drivers = res[0] || []; DATA.employees = res[1] || []; DATA.schedule = res[2] || { main: [], spare: [], vacation: [], summary: {} };
+      DATA.washing = res[3] || []; DATA.records = res[4] || [];
+      buildAlerts(); renderKPIs(); renderAlerts(); renderCharts(); buildPeople(); renderSearch(); captureSnapshot();
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
+<!-- ===== GPS live map (reuses /api/gps; read-only; gracefully degrades) ===== -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+  var WS = location.pathname.indexOf('/importantworkstation') === 0;
+  var PREFIX = WS ? '/importantworkstation' : '';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  var map = null, markers = [];
+  var full = $('gpsFull'); if (full) full.href = PREFIX + '/tracking';
+
+  function overlay(html) { var o = $('gpsOverlay'); if (!o) return; if (!html) { o.classList.add('hidden'); return; } o.classList.remove('hidden'); o.innerHTML = html; }
+  function initMap() {
+    if (map || typeof L === 'undefined') return;
+    map = L.map('dashMap', { zoomControl: true, attributionControl: true }).setView([26.4207, 50.0888], 10);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(map);
+  }
+  function norm(it) {
+    var lat = it.lat != null ? it.lat : it.latitude, lng = it.lng != null ? it.lng : it.longitude;
+    var online = !!(it.online || it.is_online || it.status === 'moving' || it.status === 'idling');
+    return { id: (it.id != null ? it.id : (it.asset_id != null ? it.asset_id : '')), name: (it.name || it.plate_number || it.plate || 'مركبة'), lat: lat, lng: lng, online: online };
+  }
+  function render(items) {
+    markers.forEach(function (m) { try { map.removeLayer(m); } catch (e) {} }); markers = [];
+    var assets = (items || []).map(norm);
+    var online = assets.filter(function (a) { return a.online; }).length;
+    $('gpsTotal').textContent = assets.length; $('gpsOnline').textContent = online; $('gpsOffline').textContent = assets.length - online;
+    $('gpsSub').textContent = assets.length + ' مركبة';
+    var pts = [];
+    assets.forEach(function (a) {
+      if (a.lat != null && a.lng != null && map) {
+        var col = a.online ? '#10b981' : '#ef4444';
+        var ic = L.divIcon({ className: '', html: '<div class="dmark" style="background:' + col + '">' + esc(String(a.id)) + '</div>' });
+        markers.push(L.marker([a.lat, a.lng], { icon: ic }).addTo(map).bindPopup('<b>' + esc(a.name) + '</b><br>الحالة: ' + (a.online ? 'نشط 🟢' : 'متوقف 🔴')));
+        pts.push([a.lat, a.lng]);
+      }
+    });
+    if (pts.length) { try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 }); } catch (e) {} }
+    return assets.length;
+  }
+  window.gpsRefresh = function () {
+    if (!map) return;
+    overlay('<div class="gps-spinner"></div><div>جارٍ جلب مواقع الأسطول…</div>');
+    fetch('/api/gps', { headers: { 'Accept': 'application/json' } }).then(function (r) {
+      return r.json().then(function (d) { return { ok: r.ok, d: d }; }).catch(function () { return { ok: r.ok, d: null }; });
+    }).then(function (res) {
+      if (!res.ok || (res.d && res.d.error)) {
+        var msg = (res.d && res.d.error) ? res.d.error : 'تعذّر جلب المواقع';
+        overlay('<div class="gi">📡</div><div style="font-weight:800">تعذّر عرض الخريطة</div><div style="color:var(--d-muted);font-size:.82rem;max-width:340px">' + esc(msg) + '</div><button class="chip" onclick="gpsRefresh()">🔄 إعادة المحاولة</button>');
+        return;
+      }
+      var items = Array.isArray(res.d) ? res.d : (res.d && (Array.isArray(res.d.assets) ? res.d.assets : Array.isArray(res.d.items) ? res.d.items : []));
+      var n = render(items || []);
+      if (!n) overlay('<div class="gi">🚗</div><div style="font-weight:800">لا توجد مركبات لعرضها الآن</div><button class="chip" onclick="gpsRefresh()">🔄 تحديث</button>');
+      else overlay(null);
+    }).catch(function () {
+      overlay('<div class="gi">📡</div><div style="font-weight:800">تعذّر الاتصال بخدمة التتبع</div><button class="chip" onclick="gpsRefresh()">🔄 إعادة المحاولة</button>');
+    });
+  };
+  function start() {
+    if (WS) {
+      // tracking is a password-locked tab in the workstation — keep the dashboard consistent with that lock.
+      overlay('<div class="gi">🔒</div><div style="font-weight:800">التتبع المباشر مُقفل في محطة العمل</div><div style="color:var(--d-muted);font-size:.82rem">افتحه من تبويب «التتبع» بكلمة المرور.</div>');
+      return;
+    }
+    initMap();
+    if (!map) { overlay('<div class="gi">🗺️</div><div>تعذّر تحميل الخريطة</div>'); return; }
+    setTimeout(function () { try { map.invalidateSize(); } catch (e) {} }, 250);
+    window.gpsRefresh();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أرشيف الوثائق | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        .dc-intro { max-width: 1000px; margin: -.25rem auto 1.2rem; padding: .9rem 1.2rem; border: 1px solid var(--border); border-right: 4px solid var(--accent, #c5a059); border-radius: 12px; background: var(--surface); color: var(--text-secondary); font-size: .88rem; line-height: 1.9; }
+        .dc-intro strong { color: var(--text-primary); }
+        .dc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; max-width: 1000px; margin: 0 auto 1.2rem; }
+        .dc-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+        .dc-stat .v { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .dc-stat .v.red { color: #ef4444; } .dc-stat .v.amber { color: #f59e0b; } .dc-stat .v.gold { color: var(--brand-gold, #c5a059); }
+        .dc-stat .l { font-size: .74rem; color: var(--text-secondary); font-weight: 700; margin-top: 3px; }
+        .dc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.12)); padding: 1.3rem 1.4rem; margin: 0 auto 1.3rem; max-width: 1000px; }
+        .dc-card h3 { margin: 0 0 12px; font-size: 1.05rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
+        .dc-seg { display: inline-flex; background: var(--surface-hover); border: 1px solid var(--border); border-radius: 11px; padding: 3px; margin-bottom: 14px; }
+        .dc-seg button { border: none; background: transparent; color: var(--text-secondary); font-family: inherit; font-weight: 800; font-size: .86rem; padding: 8px 18px; border-radius: 9px; cursor: pointer; }
+        .dc-seg button.on { background: var(--accent-gradient, linear-gradient(135deg,#C5A059,#d8b87a)); color: #1a1a1a; }
+        .dc-row { display: flex; flex-wrap: wrap; gap: 14px; }
+        .dc-fld { flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .dc-fld > span { font-size: .8rem; font-weight: 800; color: var(--text-secondary); }
+        .dc-fld input, .dc-fld select, .dc-fld textarea { width: 100%; padding: 11px 13px; border: 1px solid var(--border-strong, #4d4d4d); border-radius: 11px; background: var(--bg-color, #1a1a1a); color: var(--text-primary); font-family: inherit; font-size: .92rem; outline: none; box-sizing: border-box; }
+        .dc-fld input:focus, .dc-fld select:focus, .dc-fld textarea:focus { border-color: var(--accent, #c5a059); box-shadow: 0 0 0 3px var(--accent-glow, rgba(197,160,89,.26)); }
+        .dc-drop { border: 2px dashed var(--accent, #c5a059); border-radius: 12px; padding: 18px; text-align: center; color: var(--accent); font-weight: 800; cursor: pointer; background: rgba(197,160,89,.06); font-size: .9rem; }
+        .dc-drop:hover { background: rgba(197,160,89,.14); }
+        .dc-drop small { display: block; color: var(--text-muted); font-weight: 600; margin-top: 4px; font-size: .76rem; }
+        .dc-up { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+        .dc-btn { padding: 12px 22px; border-radius: 11px; font-weight: 800; font-size: .92rem; cursor: pointer; border: none; font-family: inherit; background: var(--accent-gradient, linear-gradient(135deg,#C5A059,#d8b87a)); color: #1a1a1a; }
+        .dc-btn:disabled { opacity: .5; cursor: default; }
+        .dc-msg { font-weight: 800; min-height: 1.2rem; font-size: .86rem; }
+        .dc-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; max-width: 1000px; margin: 0 auto 1rem; }
+        .dc-toolbar input, .dc-toolbar select { padding: 10px 13px; border: 1px solid var(--border-strong, #4d4d4d); border-radius: 10px; background: var(--bg-color, #1a1a1a); color: var(--text-primary); font-family: inherit; font-size: .88rem; }
+        .dc-toolbar input { flex: 1 1 220px; }
+        .dc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; max-width: 1000px; margin: 0 auto; }
+        .dc-doc { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.08)); display: flex; flex-direction: column; }
+        .dc-thumb { height: 130px; background: var(--surface-hover); display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; position: relative; }
+        .dc-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .dc-thumb .ic { font-size: 2.6rem; color: var(--text-muted); }
+        .dc-body { padding: 11px 13px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+        .dc-body .ref { font-weight: 800; color: var(--text-primary); font-size: .9rem; }
+        .dc-body .typ { font-size: .78rem; color: var(--text-secondary); font-weight: 700; }
+        .dc-body .nm { font-size: .72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dc-pill { align-self: flex-start; font-size: .7rem; font-weight: 800; padding: 2px 9px; border-radius: 20px; }
+        .dc-pill.expired { background: rgba(239,68,68,.16); color: #ef4444; } .dc-pill.d30 { background: rgba(245,158,11,.16); color: #f59e0b; }
+        .dc-pill.d90 { background: rgba(197,160,89,.16); color: var(--brand-gold, #c5a059); } .dc-pill.valid { background: rgba(16,185,129,.16); color: #10b981; } .dc-pill.none { background: var(--surface-hover); color: var(--text-muted); }
+        .dc-acts { display: flex; gap: 6px; padding: 9px 13px; border-top: 1px solid var(--border); }
+        .dc-acts a, .dc-acts button { flex: 1; text-align: center; text-decoration: none; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); border-radius: 8px; padding: 7px; font-family: inherit; font-weight: 700; font-size: .76rem; cursor: pointer; }
+        .dc-acts a:hover, .dc-acts button:hover { background: var(--surface-hover); }
+        .dc-acts .del:hover { background: rgba(239,68,68,.14); color: #ef4444; border-color: rgba(239,68,68,.3); }
+        .dc-empty { text-align: center; color: var(--text-muted, #94a3b8); padding: 2.5rem 1rem; font-weight: 700; }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      </nav>
+      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <datalist id="dcPlates"></datalist>
+    <datalist id="dcNames"></datalist>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">📂 أرشيف الوثائق</h2>
+      <div class="dc-intro">
+        <strong>أرشيف مركزي لوثائق الأسطول.</strong>
+        ارفع صور أو ملفات PDF للاستمارة والتأمين والفحص ورخصة السير وبطاقة التشغيل (للمركبات) والإقامة والجواز (للموظفين) مع تاريخ الانتهاء — وتظهر تواريخ الانتهاء تلقائياً في <b>التنبيهات اليومية</b> ولوحة التحليلات. الحد الأقصى للملف 2.5 ميجابايت.
+      </div>
+
+      <div class="dc-stats">
+        <div class="dc-stat"><div class="v" id="stTotal">0</div><div class="l">إجمالي الوثائق</div></div>
+        <div class="dc-stat"><div class="v red" id="stExpired">0</div><div class="l">منتهية</div></div>
+        <div class="dc-stat"><div class="v amber" id="stSoon">0</div><div class="l">تنتهي ≤ 30 يوم</div></div>
+        <div class="dc-stat"><div class="v" id="stValid" style="color:#10b981">0</div><div class="l">سارية</div></div>
+      </div>
+
+      <div class="dc-card">
+        <h3>➕ رفع وثيقة جديدة</h3>
+        <div class="dc-seg" id="dcSeg">
+          <button type="button" data-et="vehicle" class="on">🚗 مركبة</button>
+          <button type="button" data-et="employee">👤 موظف</button>
+        </div>
+        <div class="dc-row">
+          <label class="dc-fld"><span id="refLbl">المركبة (رقم اللوحة)</span><input id="dcRef" list="dcPlates" placeholder="مثال: أ ب ج 1234"></label>
+          <label class="dc-fld"><span>نوع الوثيقة</span><select id="dcType"></select></label>
+          <label class="dc-fld"><span>تاريخ الانتهاء</span><input id="dcExp" type="date"></label>
+        </div>
+        <div class="dc-row">
+          <label class="dc-fld"><span>رقم الوثيقة (اختياري)</span><input id="dcNum" placeholder="رقم الاستمارة/البوليصة…"></label>
+          <label class="dc-fld"><span>ملاحظات (اختياري)</span><input id="dcNotes" placeholder="ملاحظة قصيرة"></label>
+        </div>
+        <label class="dc-drop" for="dcFile" id="dcDrop">📎 اختر صورة أو ملف PDF للوثيقة<small id="dcFileName">لم يُختر ملف بعد · حتى 2.5MB</small></label>
+        <input id="dcFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" style="display:none">
+        <div class="dc-up">
+          <button class="dc-btn" id="dcUpload" type="button" disabled>📤 رفع وحفظ</button>
+          <span class="dc-msg" id="dcMsg"></span>
+        </div>
+      </div>
+
+      <div class="dc-toolbar">
+        <input id="dcSearch" type="search" placeholder="🔍 بحث بالمرجع/النوع/الملاحظات…">
+        <select id="dcFltEntity"><option value="">كل الأنواع</option><option value="vehicle">مركبات</option><option value="employee">موظفون</option></select>
+        <select id="dcFltStatus"><option value="">كل الحالات</option><option value="expired">منتهية</option><option value="d30">≤ 30 يوم</option><option value="d90">≤ 90 يوم</option><option value="valid">سارية</option><option value="none">بدون تاريخ</option></select>
+      </div>
+
+      <div class="dc-grid" id="dcGrid"></div>
+      <div class="dc-empty" id="dcEmpty" style="display:none">لا توجد وثائق مطابقة بعد — ابدأ برفع وثيقة من الأعلى.</div>
+      <div class="dc-empty" id="dcLoad">⏳ جارٍ التحميل…</div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  var docs = [], entity = 'vehicle';
+  var IMG = { 'image/jpeg': 1, 'image/png': 1, 'image/webp': 1, 'image/gif': 1 };
+  var TYPES = {
+    vehicle: ['استمارة', 'تأمين', 'الفحص الدوري', 'رخصة السير', 'بطاقة التشغيل', 'بطاقة السائق', 'عقد', 'أخرى'],
+    employee: ['الإقامة', 'جواز السفر', 'رخصة قيادة', 'بطاقة السائق', 'عقد', 'أخرى']
+  };
+  function fillTypes() { $('dcType').innerHTML = TYPES[entity].map(function (t) { return '<option>' + esc(t) + '</option>'; }).join(''); }
+  fillTypes();
+
+  fetch('/api/documents', { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(function (j) {
+    docs = (j && j.rows) || []; $('dcLoad').style.display = 'none'; render();
+  }).catch(function () { $('dcLoad').textContent = 'تعذّر التحميل.'; });
+
+  fetch('/api/drivers', { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(function (j) {
+    var list = (j && (j.drivers || j.rows)) || (Array.isArray(j) ? j : []);
+    if (!Array.isArray(list)) list = [];
+    var plates = {}, names = {};
+    list.forEach(function (d) { if (d && d.plate) plates[String(d.plate).trim()] = 1; if (d && d.name) names[String(d.name).trim()] = 1; if (d && d.empid) names[String(d.empid).trim()] = 1; });
+    $('dcPlates').innerHTML = Object.keys(plates).map(function (p) { return '<option value="' + esc(p) + '">'; }).join('');
+    $('dcNames').innerHTML = Object.keys(names).map(function (p) { return '<option value="' + esc(p) + '">'; }).join('');
+  }).catch(function () {});
+
+  // entity toggle
+  $('dcSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    entity = b.getAttribute('data-et');
+    Array.prototype.forEach.call(this.children, function (c) { c.classList.toggle('on', c === b); });
+    $('refLbl').textContent = entity === 'vehicle' ? 'المركبة (رقم اللوحة)' : 'الموظف (الاسم/الرقم الوظيفي)';
+    $('dcRef').setAttribute('list', entity === 'vehicle' ? 'dcPlates' : 'dcNames');
+    $('dcRef').placeholder = entity === 'vehicle' ? 'مثال: أ ب ج 1234' : 'اسم الموظف';
+    fillTypes();
+  });
+
+  // drag & drop onto the drop zone (routes through the same change handler)
+  ['dragover', 'dragenter'].forEach(function (ev) { $('dcDrop').addEventListener(ev, function (e) { e.preventDefault(); this.style.background = 'rgba(197,160,89,.2)'; }); });
+  ['dragleave', 'dragend', 'drop'].forEach(function (ev) { $('dcDrop').addEventListener(ev, function (e) { e.preventDefault(); this.style.background = ''; }); });
+  $('dcDrop').addEventListener('drop', function (e) {
+    var dt = e.dataTransfer; if (dt && dt.files && dt.files.length) { try { $('dcFile').files = dt.files; } catch (x) { } $('dcFile').dispatchEvent(new Event('change')); }
+  });
+
+  // file pick
+  var picked = null;
+  $('dcFile').addEventListener('change', function () {
+    var f = this.files && this.files[0]; picked = null;
+    if (!f) { $('dcFileName').textContent = 'لم يُختر ملف بعد · حتى 2.5MB'; $('dcUpload').disabled = true; return; }
+    if (f.size > 2.6 * 1024 * 1024) { showToast('الملف أكبر من 2.5 ميجابايت', 'error'); this.value = ''; return; }
+    var reader = new FileReader();
+    reader.onload = function (e) { picked = { name: f.name, mime: f.type || 'application/octet-stream', size: f.size, data: e.target.result }; $('dcFileName').textContent = f.name + ' · ' + Math.round(f.size / 1024) + 'KB'; $('dcUpload').disabled = false; };
+    reader.readAsDataURL(f);
+  });
+
+  $('dcUpload').addEventListener('click', function () {
+    if (!picked) { showToast('اختر ملفاً أولاً', 'error'); return; }
+    var ref = $('dcRef').value.trim();
+    if (!ref) { $('dcMsg').textContent = 'حدّد المركبة/الموظف.'; $('dcMsg').style.color = '#ef4444'; return; }
+    var btn = $('dcUpload'); btn.disabled = true; $('dcMsg').style.color = 'var(--text-secondary)'; $('dcMsg').textContent = 'جارٍ الرفع…';
+    fetch('/api/documents', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entity_type: entity, entity_ref: ref, doc_type: $('dcType').value, expiry: $('dcExp').value, number: $('dcNum').value, notes: $('dcNotes').value, file: picked }) })
+      .then(function (r) { return r.json(); }).then(function (j) {
+        btn.disabled = false;
+        if (j && j.success) {
+          docs.unshift(j.row); render();
+          picked = null; $('dcFile').value = ''; $('dcFileName').textContent = 'لم يُختر ملف بعد · حتى 2.5MB';
+          $('dcRef').value = ''; $('dcExp').value = ''; $('dcNum').value = ''; $('dcNotes').value = ''; $('dcUpload').disabled = true;
+          $('dcMsg').style.color = 'var(--ok-fg,#10b981)'; $('dcMsg').textContent = '✅ تم الرفع والحفظ.';
+          if (window.showToast) showToast('حُفظت الوثيقة', 'success');
+        } else { $('dcMsg').style.color = '#ef4444'; $('dcMsg').textContent = '⚠ ' + ((j && j.error) || 'تعذّر الرفع'); }
+      }).catch(function () { btn.disabled = false; $('dcMsg').style.color = '#ef4444'; $('dcMsg').textContent = 'تعذّر الاتصال بالخادم'; });
+  });
+
+  function statusOf(exp) {
+    if (!exp) return { k: 'none', t: 'بدون تاريخ', days: null };
+    var d = new Date(exp); if (isNaN(d)) return { k: 'none', t: 'بدون تاريخ', days: null };
+    var days = Math.ceil((d - new Date().setHours(0, 0, 0, 0)) / 86400000);
+    if (days < 0) return { k: 'expired', t: 'منتهية منذ ' + Math.abs(days) + ' يوم', days: days };
+    if (days <= 30) return { k: 'd30', t: 'تنتهي خلال ' + days + ' يوم', days: days };
+    if (days <= 90) return { k: 'd90', t: 'خلال ' + days + ' يوم', days: days };
+    return { k: 'valid', t: 'سارية', days: days };
+  }
+
+  async function del(id, label) {
+    if (!(await window.bzConfirm('حذف هذه الوثيقة؟\n' + (label || '')))) return;
+    fetch('/api/documents/' + encodeURIComponent(id), { method: 'DELETE' }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.success) { docs = docs.filter(function (d) { return d.id !== id; }); render(); if (window.showToast) showToast('حُذفت الوثيقة', 'success'); }
+      else showToast('تعذّر الحذف', 'error');
+    }).catch(function () { showToast('تعذّر الحذف', 'error'); });
+  }
+
+  function render() {
+    var q = ($('dcSearch').value || '').toLowerCase().trim();
+    var fe = $('dcFltEntity').value, fs = $('dcFltStatus').value;
+    var ex = 0, soon = 0, valid = 0;
+    docs.forEach(function (d) { var s = statusOf(d.expiry).k; if (s === 'expired') ex++; else if (s === 'd30') soon++; else if (s === 'valid') valid++; });
+    $('stTotal').textContent = docs.length; $('stExpired').textContent = ex; $('stSoon').textContent = soon; $('stValid').textContent = valid;
+
+    var shown = docs.filter(function (d) {
+      if (fe && d.entity_type !== fe) return false;
+      if (fs && statusOf(d.expiry).k !== fs) return false;
+      if (q && [d.entity_ref, d.doc_type, d.number, d.notes, (d.file || {}).name].join(' ').toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+    if (shown.length) { $('dcEmpty').style.display = 'none'; }
+    else { $('dcEmpty').style.display = 'block'; $('dcEmpty').textContent = docs.length ? 'لا توجد وثائق مطابقة لبحثك أو تصفيتك — جرّب كلمات أخرى أو أعد ضبط المرشّحات.' : 'لا توجد وثائق بعد — ابدأ برفع وثيقة من الأعلى.'; }
+    $('dcGrid').innerHTML = shown.map(function (d) {
+      var s = statusOf(d.expiry), isImg = IMG[(d.file || {}).mime], url = '/api/documents/' + encodeURIComponent(d.id) + '/file';
+      var thumb = isImg ? '<img src="' + esc(url) + '" loading="lazy" alt="">' : '<span class="ic">📄</span>';
+      var et = d.entity_type === 'vehicle' ? '🚗' : '👤';
+      return '<div class="dc-doc">' +
+        '<div class="dc-thumb" data-view="' + esc(url) + '">' + thumb + '</div>' +
+        '<div class="dc-body"><span class="dc-pill ' + s.k + '">' + esc(s.t) + '</span>' +
+        '<div class="ref">' + et + ' ' + esc(d.entity_ref) + '</div>' +
+        '<div class="typ">' + esc(d.doc_type) + (d.number ? ' · ' + esc(d.number) : '') + '</div>' +
+        '<div class="nm">' + esc((d.file || {}).name || '') + '</div></div>' +
+        '<div class="dc-acts"><a href="' + esc(url) + '" target="_blank" rel="noopener">عرض</a>' +
+        '<a href="' + esc(url) + '" download="' + esc((d.file || {}).name || 'doc') + '">تنزيل</a>' +
+        '<button class="del" type="button" data-id="' + esc(d.id) + '" data-label="' + esc(d.doc_type + ' — ' + d.entity_ref) + '">حذف</button></div></div>';
+    }).join('');
+  }
+
+  $('dcGrid').addEventListener('click', function (e) {
+    var t = e.target.closest('.dc-thumb'); if (t && t.getAttribute('data-view')) { window.open(t.getAttribute('data-view'), '_blank'); return; }
+    var b = e.target.closest('.del'); if (b) del(b.getAttribute('data-id'), b.getAttribute('data-label'));
+  });
+  ['dcSearch', 'dcFltEntity', 'dcFltStatus'].forEach(function (id) { $(id).addEventListener('input', render); });
+})();
+</script>
+
+</body>
+</html>

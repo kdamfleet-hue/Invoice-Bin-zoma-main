@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تنبيهات الوثائق التلقائية | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        .al-wrap { max-width: 760px; margin: 0 auto; }
+        .al-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.12)); padding: 1.4rem 1.5rem; margin-bottom: 1.3rem; }
+        .al-card h3 { margin: 0 0 6px; font-size: 1.1rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
+        .al-card .sub { color: var(--text-secondary); font-size: .88rem; line-height: 1.9; margin-bottom: 1rem; }
+        .al-row { display: flex; flex-wrap: wrap; gap: 1rem; }
+        .al-fld { flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .al-fld > span { font-size: .82rem; font-weight: 800; color: var(--text-secondary); }
+        .al-fld input, .al-fld textarea, .al-fld select { width: 100%; padding: 11px 13px; border: 1px solid var(--border-strong, #4d4d4d); border-radius: 11px; background: var(--bg-color, #1a1a1a); color: var(--text-primary); font-family: inherit; font-size: .92rem; outline: none; box-sizing: border-box; }
+        .al-fld input:focus, .al-fld textarea:focus, .al-fld select:focus { border-color: var(--accent, #c5a059); box-shadow: 0 0 0 3px var(--accent-glow, rgba(197,160,89,.26)); }
+        .al-fld textarea { resize: vertical; min-height: 84px; direction: ltr; text-align: left; }
+        .al-toggle { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface-hover); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; }
+        .al-switch { position: relative; width: 50px; height: 28px; flex: 0 0 auto; }
+        .al-switch input { opacity: 0; width: 0; height: 0; }
+        .al-slider { position: absolute; inset: 0; background: var(--border-strong, #4d4d4d); border-radius: 28px; cursor: pointer; transition: .25s; }
+        .al-slider::before { content: ''; position: absolute; height: 22px; width: 22px; right: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .25s; }
+        .al-switch input:checked + .al-slider { background: var(--accent, #c5a059); }
+        .al-switch input:checked + .al-slider::before { transform: translateX(-22px); }
+        .al-toggle .tt b { color: var(--text-primary); font-weight: 800; font-size: .96rem; }
+        .al-toggle .tt span { color: var(--text-secondary); font-size: .8rem; display: block; margin-top: 2px; }
+        .al-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 4px 0 14px; }
+        .al-kpi { background: var(--surface-hover); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+        .al-kpi .v { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--brand-gold, #c5a059); }
+        .al-kpi .v.red { color: #ef4444; } .al-kpi .v.ok { color: #10b981; }
+        .al-kpi .l { font-size: .76rem; color: var(--text-secondary); font-weight: 700; margin-top: 4px; }
+        .al-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+        .al-btn { padding: 12px 22px; border-radius: 11px; font-weight: 800; font-size: .92rem; cursor: pointer; border: none; font-family: inherit; }
+        .al-btn.save { background: var(--accent-gradient, linear-gradient(135deg,#C5A059,#d8b87a)); color: #1a1a1a; }
+        .al-btn.test { background: rgba(197,160,89,.14); color: var(--brand-gold); border: 1px solid rgba(197,160,89,.4); }
+        .al-btn:disabled { opacity: .5; cursor: default; }
+        .al-msg { font-weight: 800; margin-top: 12px; min-height: 1.2rem; font-size: .88rem; }
+        .al-warn { display: flex; gap: 10px; align-items: flex-start; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 12px; padding: 12px 14px; color: var(--text-secondary); font-size: .84rem; line-height: 1.8; margin-bottom: 14px; }
+        .al-note { color: var(--text-muted); font-size: .78rem; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/dashboard">📊 لوحة الإدارة</a>
+      </nav>
+      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">🔔 تنبيهات الوثائق التلقائية</h2>
+      <div class="al-wrap">
+        <div class="al-card">
+          <h3>① التفعيل والمستلمون</h3>
+          <div class="sub">يُرسل النظام <b>تلقائياً كل يوم</b> رسالة بريد واحدة بجميع الوثائق المنتهية أو القريبة من الانتهاء (الفحص، الرخصة، بطاقة التشغيل، الإقامة، الجواز) عبر <b>كل الفروع</b> إلى المستلمين أدناه. لا حاجة لأي إعداد خارجي.</div>
+
+          <div class="al-warn" id="alMailWarn" style="display:none">⚠️ <span>لم يتم ضبط بريد الإرسال على الخادم (MAIL_USERNAME / MAIL_PASSWORD)، فلن تُرسَل التنبيهات حتى يُضبط.</span></div>
+
+          <div class="al-toggle">
+            <label class="al-switch"><input type="checkbox" id="alEnabled"><span class="al-slider"></span></label>
+            <div class="tt"><b>تشغيل التنبيهات اليومية التلقائية</b><span>عند الإيقاف، لن تُرسل أي رسائل تلقائية.</span></div>
+          </div>
+
+          <div class="al-fld">
+            <span>المستلمون (بريد إلكتروني — افصل بفاصلة أو سطر)</span>
+            <textarea id="alRecipients" placeholder="manager@bz.sa&#10;fleet@bz.sa"></textarea>
+          </div>
+
+          <div class="al-row">
+            <div class="al-fld">
+              <span>ساعة الإرسال يومياً</span>
+              <select id="alHour"></select>
+            </div>
+            <div class="al-fld">
+              <span>نطاق التنبيه (الأيام قبل الانتهاء)</span>
+              <input id="alWindow" type="number" min="1" max="180" inputmode="numeric" value="30">
+            </div>
+          </div>
+
+          <div class="al-actions">
+            <button class="al-btn save" id="alSave" type="button">💾 حفظ الإعدادات</button>
+            <button class="al-btn test" id="alTest" type="button">📨 إرسال تجريبي الآن</button>
+          </div>
+          <div class="al-msg" id="alMsg"></div>
+          <div class="al-note" id="alLast"></div>
+        </div>
+
+        <div class="al-card">
+          <h3>② الوضع الحالي للوثائق (كل الفروع)</h3>
+          <div class="al-kpis">
+            <div class="al-kpi"><div class="v" id="alPreview">—</div><div class="l">وثائق تحتاج تنبيهاً الآن</div></div>
+            <div class="al-kpi"><div class="v" id="alState">—</div><div class="l">حالة التنبيهات</div></div>
+          </div>
+          <div class="sub">هذا العدد ضمن النطاق المختار أعلاه. اضبط النطاق ثم احفظ لتحديثه.</div>
+        </div>
+      </div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  var hourSel = $('alHour');
+  for (var h = 0; h < 24; h++) { var o = document.createElement('option'); o.value = h; o.textContent = (h < 10 ? '0' + h : h) + ':00'; hourSel.appendChild(o); }
+
+  function load() {
+    fetch('/api/alert_settings', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.success) return;
+        var s = j.settings || {};
+        $('alEnabled').checked = !!s.enabled;
+        $('alRecipients').value = (s.recipients || []).join('\n');
+        hourSel.value = s.hour != null ? s.hour : 7;
+        $('alWindow').value = s.window_days || 30;
+        $('alMailWarn').style.display = s.mail_configured ? 'none' : 'flex';
+        $('alPreview').textContent = (s.preview_count != null ? s.preview_count : '—');
+        $('alPreview').className = 'v ' + (s.preview_count > 0 ? 'red' : 'ok');
+        $('alState').textContent = s.enabled ? 'مُفعّلة' : 'مُعطّلة';
+        $('alState').className = 'v ' + (s.enabled ? 'ok' : '');
+        $('alLast').textContent = s.last_sent ? ('آخر إرسال تلقائي: ' + s.last_sent) : 'لم يُرسَل تلقائياً بعد.';
+      }).catch(function () {});
+  }
+
+  function payload() {
+    return {
+      enabled: $('alEnabled').checked,
+      recipients: $('alRecipients').value,
+      hour: parseInt(hourSel.value, 10),
+      window_days: parseInt($('alWindow').value, 10) || 30
+    };
+  }
+
+  function busy(b) { $('alSave').disabled = b; $('alTest').disabled = b; }
+  function msg(t, ok) { var m = $('alMsg'); m.textContent = t; m.style.color = ok ? 'var(--ok-fg,#10b981)' : (ok === false ? 'var(--bad-fg,#ef4444)' : 'var(--text-secondary)'); }
+
+  $('alSave').addEventListener('click', function () {
+    busy(true); msg('جارٍ الحفظ…');
+    fetch('/api/alert_settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload()) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { busy(false); if (j && j.success) { msg('تم حفظ الإعدادات ✓', true); if (window.showToast) showToast('حُفظت إعدادات التنبيهات', 'success'); load(); } else { msg('تعذّر الحفظ', false); } })
+      .catch(function () { busy(false); msg('تعذّر الاتصال بالخادم', false); });
+  });
+
+  $('alTest').addEventListener('click', function () {
+    busy(true); msg('جارٍ إرسال رسالة تجريبية…');
+    var p = payload(); p.action = 'test';
+    fetch('/api/alert_settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        busy(false);
+        if (j && j.success) { msg('✅ أُرسلت رسالة تجريبية (' + (j.count || 0) + ' وثيقة) إلى المستلمين.', true); }
+        else {
+          var why = { no_recipients: 'أضف مستلماً واحداً على الأقل.', mail_not_configured: 'بريد الإرسال غير مضبوط على الخادم.', no_alerts: 'لا توجد وثائق تحتاج تنبيهاً ضمن النطاق الحالي ✓', send_error: 'فشل الإرسال — تحقّق من إعداد البريد.' }[(j && j.reason)] || 'تعذّر الإرسال.';
+          msg(why, (j && j.reason === 'no_alerts') ? null : false);
+        }
+      })
+      .catch(function () { busy(false); msg('تعذّر الاتصال بالخادم', false); });
+  });
+
+  document.addEventListener('DOMContentLoaded', load);
+})();
+</script>
+
+</body>
+</html>

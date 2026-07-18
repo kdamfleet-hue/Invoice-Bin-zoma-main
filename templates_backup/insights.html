@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التحليلات الذكية | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        .ins-intro { max-width: 960px; margin: -.25rem auto 1.4rem; padding: 1rem 1.25rem; border: 1px solid var(--border); border-right: 4px solid var(--accent, #c5a059); border-radius: 12px; background: var(--surface); color: var(--text-secondary); font-size: .9rem; line-height: 1.9; }
+        .ins-intro strong { color: var(--text-primary); }
+        .ins-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem; max-width: 1100px; margin: 0 auto 1.3rem; padding: 1.4rem 1.6rem; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.12)); }
+        .ins-gauge { position: relative; width: 150px; height: 150px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--g-col) calc(var(--g-val) * 1%), rgba(255,255,255,.07) 0); }
+        .ins-gauge::after { content: ''; position: absolute; inset: 12px; border-radius: 50%; background: var(--surface); }
+        .ins-gauge .gv { position: relative; z-index: 1; text-align: center; }
+        .ins-gauge .gv b { font-size: 2.5rem; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1; }
+        .ins-gauge .gv span { display: block; font-size: .72rem; color: var(--text-secondary); margin-top: 3px; }
+        .ins-hero-info { flex: 1 1 320px; min-width: 280px; }
+        .ins-hero-info h3 { margin: 0 0 6px; font-size: 1.2rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ins-grade { font-size: .8rem; font-weight: 800; padding: 4px 12px; border-radius: 20px; }
+        .ins-grade.good { background: rgba(16,185,129,.16); color: #10b981; } .ins-grade.ok { background: rgba(197,160,89,.16); color: var(--brand-gold, #c5a059); }
+        .ins-grade.warn { background: rgba(245,158,11,.16); color: #f59e0b; } .ins-grade.bad { background: rgba(239,68,68,.16); color: #ef4444; }
+        .ins-hero-info p { color: var(--text-secondary); font-size: .86rem; line-height: 1.9; margin: 6px 0 0; }
+        .ins-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1.1rem; max-width: 1300px; margin: 0 auto; }
+        .ins-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.2rem 1.3rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.08)); }
+        .ins-card h4 { margin: 0 0 10px; font-size: 1.02rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
+        .ins-src { font-size: .72rem; color: var(--text-muted, #94a3b8); font-weight: 700; margin-top: 12px; padding-top: 9px; border-top: 1px dashed var(--border); }
+        .ins-nums { display: flex; gap: 12px; flex-wrap: wrap; }
+        .ins-num { flex: 1 1 70px; text-align: center; background: var(--surface-hover); border: 1px solid var(--border); border-radius: 12px; padding: 12px 6px; }
+        .ins-num b { display: block; font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+        .ins-num span { font-size: .72rem; color: var(--text-secondary); font-weight: 700; margin-top: 5px; display: block; }
+        .ins-num.red b { color: #ef4444; } .ins-num.amber b { color: #f59e0b; } .ins-num.gold b { color: var(--brand-gold, #c5a059); } .ins-num.green b { color: #10b981; } .ins-num.blue b { color: #3b82f6; }
+        .ins-tbl { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: 4px; }
+        .ins-tbl th, .ins-tbl td { padding: 7px 9px; text-align: right; border-bottom: 1px solid var(--border); }
+        .ins-tbl th { background: var(--surface-hover); color: var(--text-secondary); font-weight: 800; }
+        .ins-tbl td { color: var(--text-primary); }
+        .ins-pill { font-size: .7rem; font-weight: 800; padding: 2px 9px; border-radius: 20px; white-space: nowrap; }
+        .ins-pill.expired { background: rgba(239,68,68,.16); color: #ef4444; } .ins-pill.d30 { background: rgba(245,158,11,.16); color: #f59e0b; } .ins-pill.d90 { background: rgba(197,160,89,.16); color: var(--brand-gold, #c5a059); }
+        .ins-mod { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 11px; margin-bottom: 7px; text-decoration: none; color: var(--text-primary); transition: var(--trans, .15s); }
+        .ins-mod:hover { background: var(--surface-hover); border-color: rgba(197,160,89,.4); }
+        .ins-mod .mn { font-weight: 700; font-size: .86rem; display: flex; align-items: center; gap: 8px; }
+        .ins-mod .mc { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--brand-gold, #c5a059); }
+        .ins-empty { text-align: center; color: var(--text-muted, #94a3b8); padding: 14px; font-weight: 700; font-size: .82rem; }
+        .ins-refresh { display: block; margin: 1.5rem auto .5rem; background: var(--surface); color: var(--brand-gold, #c5a059); border: 1px solid rgba(197,160,89,.4); border-radius: 12px; padding: 10px 22px; font-family: inherit; font-weight: 800; font-size: .88rem; cursor: pointer; }
+        .ins-refresh:hover { background: rgba(197,160,89,.1); }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand"><img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة"><div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div></div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/tracking">🛰️ التتبع</a>
+        <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions"><button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button><a href="/logout" class="bz-logout">خروج</a></div>
+    </header>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">🧠 التحليلات الذكية — مؤشرات الأسطول</h2>
+
+      <div class="ins-intro">
+        <strong>تحليلات حقيقية، لا تقديرات وهمية.</strong>
+        كل رقم في هذه الصفحة محسوب مباشرةً من بيانات <b id="insBranch">الفرع النشط</b> الموجودة في النظام (الجدول الأسبوعي، الموظفون، السائقون، الحوادث، الورشة…) وفق قواعد واضحة ومُعلنة — بدون أي ذكاء اصطناعي تخميني أو بيانات مُفبركة. يمكنك إرسال أي جدول هنا بالبريد عبر زر <b>📤</b> أسفل الشاشة.
+      </div>
+
+      <div id="insBody" style="display:none">
+        <div class="ins-hero">
+          <div class="ins-gauge" id="insGauge"><div class="gv"><b id="insScore">—</b><span>مؤشر الصحة</span></div></div>
+          <div class="ins-hero-info">
+            <h3>الصحة التشغيلية للأسطول <span class="ins-grade" id="insGrade">—</span></h3>
+            <p id="insScoreNote">مؤشر شفّاف من 100: يبدأ من 100 وتُخصم نقاط مرئية لكل خطر ظاهر (وثائق منتهية، حوادث مفتوحة، مركبات متكررة الحوادث). كلما ارتفع الرقم كان الأسطول أسلم.</p>
+          </div>
+        </div>
+
+        <div class="bz-stats" style="max-width:1300px;margin:0 auto 1.2rem;">
+          <div class="bz-stat"><div class="num" id="kExpired" style="color:#ef4444">0</div><div class="label">وثائق منتهية</div></div>
+          <div class="bz-stat"><div class="num" id="kD30" style="color:#f59e0b">0</div><div class="label">تنتهي ≤ 30 يوم</div></div>
+          <div class="bz-stat"><div class="num" id="kVehicles">0</div><div class="label">مركبات</div></div>
+          <div class="bz-stat"><div class="num" id="kDrivers">0</div><div class="label">سائقون</div></div>
+          <div class="bz-stat"><div class="num" id="kOpenInc" style="color:#ef4444">0</div><div class="label">حوادث مفتوحة</div></div>
+        </div>
+
+        <div class="ins-grid">
+          <div class="ins-card" style="grid-column:1/-1">
+            <h4>📄 مخاطر الوثائق — الأقرب انتهاءً</h4>
+            <div class="ins-nums" style="margin-bottom:12px">
+              <div class="ins-num red"><b id="dExpired">0</b><span>منتهية</span></div>
+              <div class="ins-num amber"><b id="dD30">0</b><span>≤ 30 يوم</span></div>
+              <div class="ins-num gold"><b id="dD90">0</b><span>≤ 90 يوم</span></div>
+            </div>
+            <table class="ins-tbl" id="docTable"><thead><tr><th>الاسم</th><th>اللوحة</th><th>الوثيقة</th><th>تاريخ الانتهاء</th><th>الحالة</th></tr></thead><tbody id="docRows"></tbody></table>
+            <div class="ins-src">المصدر: تبويب «الجدول الأسبوعي» + «الموظفون» (تواريخ الفحص/الرخصة/بطاقة التشغيل/الإقامة/الجواز).</div>
+          </div>
+
+          <div class="ins-card">
+            <h4>🚛 تركيبة الأسطول</h4>
+            <div class="ins-nums">
+              <div class="ins-num blue"><b id="fDrivers">0</b><span>سائقون</span></div>
+              <div class="ins-num green"><b id="fWith">0</b><span>لديهم مركبة</span></div>
+              <div class="ins-num amber"><b id="fWithout">0</b><span>بلا مركبة</span></div>
+              <div class="ins-num gold"><b id="fVehicles">0</b><span>مركبات مميّزة</span></div>
+            </div>
+            <div class="ins-src">المصدر: سجل السائقين للفرع النشط (اللوحة = مركبة مُسندة).</div>
+          </div>
+
+          <div class="ins-card">
+            <h4>🚨 الحوادث والمخالفات</h4>
+            <div class="ins-nums" style="margin-bottom:10px">
+              <div class="ins-num"><b id="iTotal">0</b><span>إجمالي</span></div>
+              <div class="ins-num red"><b id="iOpen">0</b><span>مفتوحة</span></div>
+              <div class="ins-num amber"><b id="iRepeat">0</b><span>مركبات متكررة</span></div>
+            </div>
+            <div id="repeatWrap"><div class="ins-src" style="border:0;padding:0;margin:0 0 6px">مركبات لها أكثر من واقعة:</div><div id="repeatList"></div></div>
+            <div class="ins-src">المصدر: تبويب «الحوادث والمخالفات».</div>
+          </div>
+
+          <div class="ins-card">
+            <h4>📊 حجم العمليات</h4>
+            <a class="ins-mod" href="/workshop"><span class="mn">🔧 الورشة</span><span class="mc" id="vWorkshop">0</span></a>
+            <a class="ins-mod" href="/oils"><span class="mn">🛢️ الزيوت والفلاتر</span><span class="mc" id="vOils">0</span></a>
+            <a class="ins-mod" href="/purchase"><span class="mn">🛒 طلبات الشراء</span><span class="mc" id="vPurchase">0</span></a>
+            <a class="ins-mod" href="/washing"><span class="mn">🚿 الغسيل</span><span class="mc" id="vWashing">0</span></a>
+            <a class="ins-mod" href="/records"><span class="mn">📁 التوثيق</span><span class="mc" id="vRecords">0</span></a>
+            <a class="ins-mod" href="/employees"><span class="mn">👥 الموظفون</span><span class="mc" id="vEmployees">0</span></a>
+            <div class="ins-src">المصدر: عدد السجلات الفعلي في كل تبويب.</div>
+          </div>
+
+          <div class="ins-card">
+            <h4>⚡ النشاط الأخير</h4>
+            <div class="ins-nums">
+              <div class="ins-num gold"><b id="aToday">0</b><span>تغييرات اليوم</span></div>
+              <div class="ins-num blue"><b id="aWeek">0</b><span>آخر 7 أيام</span></div>
+              <div class="ins-num"><b id="aTotal">0</b><span>إجمالي السجل</span></div>
+            </div>
+            <div class="ins-src">آخر تغيير: <b id="aLast">—</b> · المصدر: سجل العمليات (Audit).</div>
+          </div>
+        </div>
+
+        <button class="ins-refresh" id="insRefresh" type="button">🔄 تحديث المؤشرات</button>
+      </div>
+
+      <div id="insLoad" class="ins-empty" style="padding:3rem">⏳ جارٍ حساب المؤشرات من بيانات الفرع…</div>
+      <div id="insErr" class="ins-empty" style="display:none;color:#ef4444"></div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  var GAUGE = { good: '#10b981', ok: '#c5a059', warn: '#f59e0b', bad: '#ef4444' };
+
+  function daysTxt(d) {
+    if (d == null) return '—';
+    if (d < 0) return 'منذ ' + Math.abs(d) + ' يوم';
+    if (d === 0) return 'اليوم';
+    return 'خلال ' + d + ' يوم';
+  }
+
+  function render(ins) {
+    $('insLoad').style.display = 'none';
+    $('insErr').style.display = 'none';
+    $('insBody').style.display = 'block';
+    if (ins.branch) $('insBranch').textContent = 'فرع ' + ins.branch;
+
+    var sc = ins.score || {};
+    $('insScore').textContent = sc.value != null ? sc.value : '—';
+    var g = $('insGrade'); g.textContent = sc.label || '—'; g.className = 'ins-grade ' + (sc.grade || 'ok');
+    var gauge = $('insGauge');
+    gauge.style.setProperty('--g-val', sc.value || 0);
+    gauge.style.setProperty('--g-col', GAUGE[sc.grade] || GAUGE.ok);
+    var baseNote = 'مؤشر شفّاف من 100: يبدأ من 100 وتُخصم نقاط مرئية لكل خطر ظاهر (وثائق منتهية، حوادث مفتوحة، مركبات متكررة الحوادث). كلما ارتفع الرقم كان الأسطول أسلم.';
+    $('insScoreNote').innerHTML = baseNote + (sc.penalty ? ' <b>(مجموع الخصم الحالي: ' + sc.penalty + ' نقطة)</b>' : '');
+
+    var d = ins.documents || {};
+    $('kExpired').textContent = $('dExpired').textContent = d.expired || 0;
+    $('kD30').textContent = $('dD30').textContent = d.d30 || 0;
+    $('dD90').textContent = d.d90 || 0;
+
+    var rows = ins.documents_top || [];
+    $('docRows').innerHTML = rows.length ? rows.map(function (r) {
+      return '<tr><td>' + esc(r.name) + '</td><td style="direction:ltr;unicode-bidi:plaintext">' + esc(r.plate) +
+        '</td><td>' + esc(r.doc) + '</td><td style="direction:ltr;unicode-bidi:plaintext">' + esc(r.date) +
+        '</td><td><span class="ins-pill ' + esc(r.key) + '">' + daysTxt(r.days) + '</span></td></tr>';
+    }).join('') : '<tr><td colspan="5" class="ins-empty">لا توجد وثائق قريبة الانتهاء ✓</td></tr>';
+
+    var f = ins.fleet || {};
+    $('kVehicles').textContent = $('fVehicles').textContent = f.vehicles || 0;
+    $('kDrivers').textContent = $('fDrivers').textContent = f.drivers || 0;
+    $('fWith').textContent = f.with_vehicle || 0;
+    $('fWithout').textContent = f.without_vehicle || 0;
+
+    var inc = ins.incidents || {};
+    $('kOpenInc').textContent = $('iOpen').textContent = inc.open || 0;
+    $('iTotal').textContent = inc.total || 0;
+    var rep = inc.repeat || [];
+    $('iRepeat').textContent = rep.length;
+    $('repeatList').innerHTML = rep.length ? rep.map(function (x) {
+      return '<a class="ins-mod" href="/incidents"><span class="mn">🚗 <span style="direction:ltr;unicode-bidi:plaintext">' + esc(x.plate) + '</span></span><span class="mc">' + x.count + ' وقائع</span></a>';
+    }).join('') : '<div class="ins-empty" style="padding:6px">لا مركبات متكررة ✓</div>';
+
+    var v = ins.volume || {};
+    $('vWorkshop').textContent = v.workshop || 0;
+    $('vOils').textContent = v.oils || 0;
+    $('vPurchase').textContent = v.purchase || 0;
+    $('vWashing').textContent = v.washing || 0;
+    $('vRecords').textContent = v.records || 0;
+    $('vEmployees').textContent = v.employees || 0;
+
+    var a = ins.activity || {};
+    $('aToday').textContent = a.today || 0;
+    $('aWeek').textContent = a.week || 0;
+    $('aTotal').textContent = a.total || 0;
+    $('aLast').textContent = a.last_ts || '—';
+  }
+
+  function load() {
+    $('insLoad').style.display = 'block';
+    $('insBody').style.display = 'none';
+    $('insErr').style.display = 'none';
+    fetch('/api/insights', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.success && j.insights) render(j.insights);
+        else { $('insLoad').style.display = 'none'; $('insErr').style.display = 'block'; $('insErr').textContent = '⚠ تعذّر حساب المؤشرات: ' + ((j && j.error) || 'خطأ غير معروف'); }
+      })
+      .catch(function () { $('insLoad').style.display = 'none'; $('insErr').style.display = 'block'; $('insErr').textContent = '⚠ تعذّر الاتصال بالخادم.'; });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    load();
+    var b = $('insRefresh'); if (b) b.addEventListener('click', load);
+  });
+})();
+</script>
+
+</body>
+</html>

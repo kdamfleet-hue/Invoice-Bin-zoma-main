@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بيانات موظفين الفرع — BIN ZOMAH INTL.</title>
+    <!-- PWA Settings -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/static/logo_192.png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+
+    <style>
+        /* Page-specific layout only — colors/fonts/topbar come from base_styles.css */
+        .excel-table-container {
+            width: 100%;
+            overflow-x: auto;
+            background: var(--surface);
+            padding: 1rem;
+            border-radius: var(--radius, 12px);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+        }
+        #employeesTable {
+            border-collapse: collapse;
+            /* table-layout:auto + wrapping inherited from .bz-fit so every header
+               (e.g. الموديل / الحمولة) is fully readable — no clipping, no mid-word cut */
+            white-space: normal;
+            min-width: 100%;
+        }
+        /* Compact view (default): fit all key columns to page width, no side scroll.
+           Keep table-layout:auto so each column sizes to its own header/content
+           (fixed layout forced narrow columns that cut single-word headers). */
+        #employeesTable.compact { width: 100%; min-width: 0; white-space: normal; }
+        #employeesTable.compact input { min-width: 0; }
+        #employeesTable th,
+        #employeesTable td {
+            border: 1px solid var(--border);
+            padding: 6px 8px;
+            text-align: center;
+            font-size: 0.78rem;
+            /* never clip; wrap multi-word headers at spaces, keep single words whole */
+            white-space: normal;
+            word-break: normal;
+            overflow: visible;
+            overflow-wrap: break-word;
+        }
+        #employeesTable thead th {
+            background-color: var(--brand-navy, #0C2340);
+            color: #fff;
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            /* single-word titles (الموديل / الطراز / الماركة / الحمولة) never break mid-word —
+               the column grows to fit them; long phrases wrap cleanly at spaces to keep the table compact */
+            font-size: 0.76rem;
+            line-height: 1.35;
+            white-space: normal;
+            word-break: keep-all;
+            overflow: visible;
+            overflow-wrap: normal;
+        }
+        #employeesTable thead tr:first-child th {
+            position: static;
+        }
+        #employeesTable .group-header {
+            background-color: #16315a;
+            font-size: 0.95rem;
+            border-bottom: 2px solid var(--brand-gold, #c9a227);
+        }
+        #employeesTable .idx-cell {
+            font-weight: 700;
+            background: var(--surface-hover, #f5f7fa);
+            color: var(--text-primary);
+        }
+        #employeesTable input {
+            width: 100%;
+            min-width: 110px;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: var(--text-primary);
+            font: inherit;
+            text-align: center;
+        }
+        #employeesTable input:focus {
+            background: var(--surface-hover, #eef2f7);
+            border-radius: 4px;
+        }
+        .emp-toolbar {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .actions-column .btn-delete {
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 700;
+            background: var(--danger, #e74c3c);
+            color: #fff;
+        }
+        /* Compact (key columns only) vs full (all 46) view */
+        #employeesTable.compact .nk { display: none; }
+        #employeesTable.compact .group-row { display: none; }
+        .only-compact { display: none; }
+        #employeesTable.compact .only-compact { display: table-cell; }
+        /* Freeze the م column while scrolling sideways (RTL → start = right) */
+        #employeesTable .idx-cell, #employeesTable .idx-head {
+            position: sticky; right: 0; z-index: 3;
+        }
+        #employeesTable thead .idx-head { z-index: 6; background-color: var(--brand-navy, #0C2340); color:#fff; }
+        /* override the static-positioning of the group header row for the م cell so it freezes sideways */
+        #employeesTable thead tr:first-child th.idx-head { position: sticky; right: 0; }
+        .emp-search { flex: 1; min-width: 200px; max-width: 360px; }
+        .emp-search input { padding: 9px 14px; }
+        .emp-filter { min-width: 170px; max-width: 250px; }
+        .emp-filter select { padding: 9px 14px; cursor: pointer; }
+        .emp-count { font-weight: 700; color: var(--text-secondary); white-space: nowrap; }
+        .emp-hint { font-size: .82rem; color: var(--text-muted); margin: -.4rem 0 .8rem; }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees" class="active">👥 الموظفين</a>
+    <a href="/search">🔍 بحث</a>
+    <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+      <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <div class="bz-shell">
+        <h2 class="bz-section-title">بيانات جميع الموظفين في الفرع</h2>
+
+        <div class="emp-toolbar">
+            <div class="bz-smart-search" style="margin-bottom:0;">
+                <input type="text" id="empSearch" placeholder="ابحث باسم الموظف، الإقامة، أو اللوحة..." oninput="filterEmployees()">
+                <span class="search-icon">🔍</span>
+            </div>
+            <div class="emp-filter"><select id="empJobFilter" onchange="filterEmployees()" title="فلترة حسب الوظيفة"><option value="">كل الوظائف</option></select></div>
+            <button class="btn-primary" id="viewToggleBtn" onclick="toggleView()">📊 عرض كامل (كل الأعمدة)</button>
+            <span class="emp-count" id="empCount"></span>
+            <span style="flex:1"></span>
+            <button class="btn-primary" onclick="addEmployeeRow()">+ إضافة صف</button>
+            <button class="btn-primary" style="background-color: #9b59b6;" onclick="openPasteModal()">📋 لصق من إكسل</button>
+            <button class="btn-submit-gold" onclick="exportToExcel()">📥 تصدير Excel</button>
+            <button class="btn-submit-orange" onclick="shareEmployees()">📤 مشاركة / تصدير</button>
+            <button class="btn-outline" data-action-required="true" data-callback="saveToServer">💾 حفظ على الخادم</button>
+            <button class="btn-outline" style="border-color:rgba(96,165,250,.5);color:#60a5fa;" onclick="updateVehiclesFromFleet()">🔄 تحديث المركبات</button>
+        </div>
+        <p class="emp-hint">العرض المختصر يُظهر الأعمدة الأساسية فقط (بدون تمرير جانبي). اضغط «عرض كامل» لكل الأعمدة الـ46، واستخدم البحث للوصول لأي موظف بسرعة. عمود «م» والترويسة يبقيان ثابتين أثناء التمرير.</p>
+
+        <div class="excel-table-container">
+            <table id="employeesTable" class="bz-fit">
+                <thead>
+                    <tr class="group-row">
+                        <th rowspan="2" class="idx-head">م</th>
+                        <th class="group-header" colspan="10">بيانات الموظف العامة</th>
+                        <th class="group-header" colspan="6">مقيم</th>
+                        <th class="group-header" colspan="9">قوى</th>
+                        <th class="group-header" colspan="5">مسيرات الشركة</th>
+                        <th class="group-header" colspan="2">البصمة</th>
+                        <th class="group-header" colspan="8">المركبة</th>
+                        <th class="group-header" colspan="6">السكن والسند والتامين</th>
+                        <th rowspan="2">إجراءات</th>
+                    </tr>
+                    <tr id="empColHeaderRow">
+                        <!-- 46 column headers injected by JS from COLS to stay in sync with export -->
+                    </tr>
+                </thead>
+                <tbody id="employeesBody">
+                    <!-- Rows will be populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <datalist id="empNames"></datalist>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        // The 46 data columns, in exact table/export order. Index 2 = اسم العامل (name).
+        const COLS = [
+            'الرقم الوظيفي', 'الإقامة - البطاقة', 'اسم العامل', 'الاسم بالانجليزي', 'الفرع',
+            'الجنسية', 'المسمى الوظيفي', 'رقم الجوال', 'الايميل', 'الايبان',
+            'تاريخ انتهاء الاقامة', 'تاريخ انتهاء الجواز', 'تاريخ الميلاد', 'العمر', 'المهنة',
+            'رقم صاحب العمل', 'تاريخ التعيين', 'تاريخ انتهاء العقد', 'التامينات', 'الاساسي في قوى',
+            'بدل السكن في قوى', 'النقل في قوى', 'اخرى في قوى', 'المنشأة', 'التنبيه بتجديد العقد',
+            'في الشركة الاساسي', 'في الشركة بدل السكن', 'بدل نقل', 'بدل اتصال', 'ملاحظات الرواتب',
+            'رقم البصمة', 'الدخول', 'الرخصة', 'رقم اللوحة', 'نوع النقل',
+            'حمولة المركبة (عدد الركاب)', 'الماركة', 'الطراز', 'الموديل', 'رقم الهيكل',
+            'السكن', 'سند امر', 'كرت البلدية', 'الكرت الوظيفي', 'حالة التامين', 'الاستحقاقات السنوية'
+        ];
+        const TOTAL_COLS = COLS.length; // 46
+        const LS_EMPLOYEES_KEY = 'excel_employees_data_v6';
+
+        // Column indexes used by autofill (within the 46-col row)
+        const COL_EMPID = 0, COL_IQAMA = 1, COL_NAME = 2, COL_PLATE = 33, COL_CAR = 36, COL_PHONE = 7;
+        // COL_CAR=36 الماركة | COL_MODEL_TYPE=37 الطراز | COL_MODEL_YEAR=38 الموديل
+        const COL_CAR_TYPE = 37, COL_MODEL_YEAR = 38;
+        // Key columns shown in the compact view (no horizontal scrolling needed)
+        const KEY_COLS = new Set([0, 1, 2, 6, 7, 33, 10, 36, 37, 38]);
+
+        const esc = (v) => (window.escapeHtml ? window.escapeHtml(v) : String(v == null ? '' : v));
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            buildHeaderRow();
+            await loadEmployees();
+            if (document.getElementById('employeesBody').children.length === 0) {
+                for (let i = 0; i < 50; i++) addEmployeeRow(false);
+                persistLocal();
+            }
+            if (window.FleetData) {
+                FleetData.fillDatalist('empNames');
+            }
+            document.getElementById('employeesTable').classList.add('compact'); // start compact = no side scroll
+            updateCount();
+            populateJobFilter();
+        });
+
+        function buildHeaderRow() {
+            const row = document.getElementById('empColHeaderRow');
+            const heads = COLS.map((c, i) => `<th class="sortable ${KEY_COLS.has(i) ? '' : 'nk'}" onclick="sortEmployees(${i})">${esc(c)}</th>`).join('');
+            row.innerHTML = `<th class="idx-head only-compact">م</th>${heads}<th class="only-compact">إجراءات</th>`;
+        }
+
+        let sortCol = -1;
+        let sortAsc = true;
+        function sortEmployees(colIdx) {
+            if (sortCol === colIdx) {
+                sortAsc = !sortAsc;
+            } else {
+                sortCol = colIdx;
+                sortAsc = true;
+            }
+            document.querySelectorAll('#empColHeaderRow th.sortable').forEach((th, i) => {
+                th.classList.remove('asc', 'desc');
+                if (i === colIdx) th.classList.add(sortAsc ? 'asc' : 'desc');
+            });
+            const tbody = document.getElementById('employeesBody');
+            const rowsArray = Array.from(tbody.querySelectorAll('tr'));
+            
+            rowsArray.sort((a, b) => {
+                const aInp = a.querySelector(`input[data-col="${colIdx}"]`);
+                const bInp = b.querySelector(`input[data-col="${colIdx}"]`);
+                const aVal = (aInp ? aInp.value : '').toLowerCase().trim();
+                const bVal = (bInp ? bInp.value : '').toLowerCase().trim();
+                
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+                if (!isNaN(aNum) && !isNaN(bNum) && aVal === String(aNum) && bVal === String(bNum)) {
+                    return sortAsc ? (aNum - bNum) : (bNum - aNum);
+                }
+                if (aVal < bVal) return sortAsc ? -1 : 1;
+                if (aVal > bVal) return sortAsc ? 1 : -1;
+                return 0;
+            });
+            rowsArray.forEach(tr => tbody.appendChild(tr));
+            // Re-assign row indexes
+            rowsArray.forEach((tr, i) => {
+                const idxTd = tr.querySelector('td:first-child');
+                if (idxTd) idxTd.textContent = i + 1;
+            });
+        }
+
+        function buildRowHtml(idx, values) {
+            const v = values || [];
+            let html = `<td class="idx-cell">${idx}</td>`;
+            for (let i = 0; i < TOTAL_COLS; i++) {
+                const isName = (i === COL_NAME);
+                const listAttr = isName ? ' list="empNames"' : '';
+                const nk = KEY_COLS.has(i) ? '' : ' class="nk"';
+                html += `<td${nk}><input type="text"${listAttr} data-col="${i}" value="${esc(v[i] || '')}"></td>`;
+            }
+            html += `<td class="actions-column"><button class="btn-delete" onclick="deleteRow(this)">✕</button></td>`;
+            return html;
+        }
+
+        function toggleView() {
+            const t = document.getElementById('employeesTable');
+            const compact = t.classList.toggle('compact');
+            document.getElementById('viewToggleBtn').textContent = compact ? '📊 عرض كامل (كل الأعمدة)' : '📋 عرض مختصر';
+        }
+
+        function filterEmployees() {
+            const q = (document.getElementById('empSearch').value || '').trim().toLowerCase();
+            const jobSel = document.getElementById('empJobFilter');
+            const job = jobSel ? jobSel.value : '';
+            let shown = 0;
+            document.querySelectorAll('#employeesBody tr').forEach(tr => {
+                let match = !q;
+                if (q) match = Array.from(tr.querySelectorAll('input')).some(inp => (inp.value || '').toLowerCase().indexOf(q) !== -1);
+                if (match && job) {
+                    const jinp = tr.querySelector('input[data-col="6"]'); // 6 = المسمى الوظيفي
+                    match = !!jinp && (jinp.value || '').trim() === job;
+                }
+                tr.style.display = match ? '' : 'none';
+                if (match) shown++;
+            });
+            updateCount(shown);
+        }
+
+        // Auto-populate the job filter from the actual data (column 6 = المسمى الوظيفي),
+        // with a count per job, sorted in Arabic. Keeps the current selection if still valid.
+        function populateJobFilter() {
+            const sel = document.getElementById('empJobFilter');
+            if (!sel) return;
+            const prev = sel.value;
+            const counts = {};
+            document.querySelectorAll('#employeesBody tr').forEach(tr => {
+                const inp = tr.querySelector('input[data-col="6"]');
+                const job = inp ? (inp.value || '').trim() : '';
+                if (job) counts[job] = (counts[job] || 0) + 1;
+            });
+            const jobs = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'ar'));
+            sel.innerHTML = '<option value="">كل الوظائف</option>' +
+                jobs.map(j => `<option value="${esc(j)}">${esc(j)} (${counts[j]})</option>`).join('');
+            sel.value = (prev && counts[prev]) ? prev : '';
+        }
+
+        function updateCount(visible) {
+            const rows = document.querySelectorAll('#employeesBody tr');
+            const all = rows.length;
+            const vis = (visible == null)
+                ? Array.from(rows).filter(tr => tr.style.display !== 'none').length
+                : visible;
+            const el = document.getElementById('empCount');
+            if (el) el.textContent = `الموظفون: ${vis}${vis !== all ? ' / ' + all : ''}`;
+        }
+
+        // skipCount lets bulk callers (paste of many rows) defer the O(n) recount to a
+        // single call at the end, instead of rescanning the whole table after every row.
+        function addEmployeeRow(save = true, skipCount = false) {
+            const tbody = document.getElementById('employeesBody');
+            const tr = document.createElement('tr');
+            const idx = tbody.children.length + 1;
+            tr.innerHTML = buildRowHtml(idx, []);
+            tbody.appendChild(tr);
+            if (save) { persistLocal(); autoSaveServer(); } // WS-only server autosave
+            if (!skipCount) updateCount();
+            return tr;
+        }
+
+        async function deleteRow(btn) {
+            if (!(await window.bzConfirm('هل أنت متأكد من حذف هذا الصف؟'))) return;
+            btn.closest('tr').remove();
+            reindex();
+            persistLocal();
+            autoSaveServer(); // WS-only server autosave
+            updateCount();
+        }
+
+        function reindex() {
+            document.querySelectorAll('#employeesBody tr').forEach((row, i) => {
+                row.cells[0].textContent = i + 1;
+            });
+        }
+
+        function collectRows() {
+            const data = [];
+            document.querySelectorAll('#employeesBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (!inputs.length) return;
+                const rowData = Array.from(inputs).map(inp => inp.value);
+                if (rowData.some(val => val.trim() !== '')) data.push(rowData);
+            });
+            return data;
+        }
+
+        function persistLocal() {
+            try {
+                localStorage.setItem(LS_EMPLOYEES_KEY, JSON.stringify(collectRows()));
+            } catch (e) { /* quota / private mode */ }
+        }
+
+        function renderRows(rows) {
+            const tbody = document.getElementById('employeesBody');
+            tbody.innerHTML = '';
+            rows.forEach((r, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = buildRowHtml(idx + 1, r);
+                tbody.appendChild(tr);
+            });
+            updateCount();
+        }
+
+        // Load order: server (POST contract) -> static default -> localStorage cache.
+        async function loadEmployees() {
+            // WS = workstation sandbox; computed locally for robust script-timing detection
+            const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+            let rows = null;
+
+            // 1) Server is the source of truth (empty in WS on first load)
+            try {
+                const res = await fetch('/api/employees', { headers: { 'Accept': 'application/json' } });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.success && Array.isArray(data.rows)) rows = data.rows;
+                }
+            } catch (e) { /* backend may not be ready yet */ }
+
+            // 2) Static seed file — skipped in WS so the tab starts empty
+            if ((!rows || rows.length === 0) && !WS) {
+                try {
+                    const res = await fetch('/static/employees_default.json');
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (Array.isArray(json) && json.length) rows = json;
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
+            // 3) Local cache fallback — skipped in WS so the tab starts empty
+            if ((!rows || rows.length === 0) && !WS) {
+                try {
+                    const saved = localStorage.getItem(LS_EMPLOYEES_KEY);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (Array.isArray(parsed) && parsed.length) rows = parsed;
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
+            if (rows && rows.length) {
+                renderRows(rows);
+                persistLocal();
+            }
+        }
+
+        // WS-only debounced server autosave: POSTs current rows to the isolated
+        // workstation store (id=2). On main site (WS false) this is a no-op so
+        // behavior stays byte-for-byte unchanged.
+        let _autoSaveTimer = null;
+        function autoSaveServer() {
+            const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+            if (!WS) return; // main site: unchanged, no autosave
+            clearTimeout(_autoSaveTimer);
+            _autoSaveTimer = setTimeout(() => {
+                fetch('/api/employees', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ branch_id: window.BZ_BRANCH_ID, data: collectRows(), reason: 'auto-save' })
+                }).catch(() => { /* best-effort autosave */ });
+            }, 700); // debounce ~700ms like the other tabs
+        }
+
+        async function saveToServer(auditReason) {
+            if (!auditReason || auditReason.length < 5) {
+                if (window.showToast) showToast('⚠️ لم يُحفظ التعديل: السبب إلزامي (5 أحرف على الأقل).', 'error');
+                else alert('⚠️ لم يُحفظ التعديل: السبب إلزامي (5 أحرف على الأقل).');
+                return;
+            }
+            const rows = collectRows();
+            persistLocal();
+            try {
+                const res = await fetch('/api/employees', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rows, reason })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.success) {
+                    showToast('تم حفظ بيانات الموظفين على الخادم', 'success');
+                } else {
+                    showToast('تعذر الحفظ على الخادم — حُفظت نسخة محلية مؤقتة', 'error');
+                }
+            } catch (e) {
+                showToast('تعذر الاتصال بالخادم — حُفظت نسخة محلية مؤقتة', 'error');
+            }
+        }
+
+        // Auto-save (local) on edit + keep server-cache fresh locally
+        document.addEventListener('input', (e) => {
+            if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' &&
+                e.target.closest('#employeesBody')) {
+                persistLocal();
+                autoSaveServer(); // WS-only server autosave (debounced)
+                maybeAutofill(e.target);
+            }
+        });
+
+        // Keep the job filter list in sync when a job cell (col 6) is edited or a row added/removed
+        document.addEventListener('change', (e) => {
+            if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' &&
+                e.target.closest('#employeesBody') && Number(e.target.dataset.col) === 6) {
+                populateJobFilter();
+            }
+        });
+
+        // Autofill the rest of a row when a known employee is identified —
+        // either by typing the name (COL_NAME -> FleetData.byName) or the
+        // iqama/ID (COL_IQAMA -> FleetData.byIqama). Existing non-empty cells
+        // are never overwritten.
+        function maybeAutofill(input) {
+            if (!window.FleetData) return;
+            const col = Number(input.dataset.col);
+            let rec = null;
+            if (col === COL_NAME) {
+                rec = FleetData.byName(input.value);
+            } else if (col === COL_IQAMA) {
+                rec = FleetData.byIqama(input.value);
+            } else {
+                return;
+            }
+            if (!rec) return;
+
+            const tr = input.closest('tr');
+            const setIfEmpty = (c, val) => {
+                if (val == null || val === '') return;
+                const cell = tr.querySelector(`input[data-col="${c}"]`);
+                if (cell && !cell.value.trim()) cell.value = val;
+            };
+            setIfEmpty(COL_EMPID, rec.empid);
+            setIfEmpty(COL_IQAMA, rec.iqama);
+            setIfEmpty(COL_NAME, rec.name);
+            setIfEmpty(COL_PLATE, rec.plate);
+            setIfEmpty(COL_CAR, rec.car);
+            setIfEmpty(COL_PHONE, rec.phone);
+            persistLocal();
+        }
+
+        // ── تحديث بيانات المركبات لكل الموظفين من أسطول الفرع ──────────────────
+        // يمر على كل صف ويبحث عن السائق بالاسم أو الإقامة في FleetData،
+        // ثم يُحدّث: رقم اللوحة (9) + الماركة (36) + الطراز (37) + الموديل (38).
+        // لا يمسح بيانات موجودة أبداً — فقط يملأ الفارغ أو يصحح القديم إذا اختلف.
+        async function updateVehiclesFromFleet() {
+            if (!window.FleetData) { if (window.showToast) showToast('بيانات الأسطول غير متاحة', 'error'); return; }
+            await FleetData.load();
+            const rows = document.querySelectorAll('#employeesBody tr');
+            let updated = 0;
+
+            rows.forEach(tr => {
+                const nameInp  = tr.querySelector('input[data-col="2"]');
+                const iqamaInp = tr.querySelector('input[data-col="1"]');
+                if (!nameInp && !iqamaInp) return;
+
+                // البحث بالإقامة أولاً (أدق)، ثم بالاسم
+                let rec = null;
+                if (iqamaInp && iqamaInp.value.trim()) rec = FleetData.byIqama(iqamaInp.value);
+                if (!rec && nameInp && nameInp.value.trim()) rec = FleetData.byName(nameInp.value);
+                if (!rec) return;
+
+                // دالة لتحديث حقل (حتى لو كان ممتلئاً، لأننا نريد تحديث وليس فقط ملء)
+                const setVal = (col, val) => {
+                    if (!val || val === 'None') return false;
+                    const inp = tr.querySelector(`input[data-col="${col}"]`);
+                    if (inp && inp.value !== val) { inp.value = val; return true; }
+                    return false;
+                };
+
+                // استخراج الماركة والطراز والموديل من حقل car (مثل: "ايسوزو صندوق 2023")
+                const carStr = rec.car || '';
+                const yearMatch = carStr.match(/\b(19|20)\d{2}\b/);
+                const year = yearMatch ? yearMatch[0] : '';
+                const typeStr = carStr.replace(year, '').trim();
+
+                let rowChanged = false;
+                if (setVal(COL_PLATE, rec.plate)) rowChanged = true;
+                if (setVal(COL_CAR, typeStr || carStr)) rowChanged = true;
+                if (setVal(COL_CAR_TYPE, typeStr || carStr)) rowChanged = true;
+                if (year && setVal(COL_MODEL_YEAR, year)) rowChanged = true;
+                if (rowChanged) updated++;
+            });
+
+            if (updated > 0) {
+                persistLocal();
+                if (window.showToast) showToast(`✅ تم تحديث بيانات المركبة لـ ${updated} موظف`, 'success');
+            } else {
+                if (window.showToast) showToast('البيانات محدّثة بالفعل أو لا يوجد تطابق ✓', 'info');
+            }
+        }
+
+        // Smart paste (Excel/Sheets tab-separated). escapeHtml is applied at render time;
+        // here we only assign .value (no innerHTML), which is XSS-safe by construction.
+        document.addEventListener('paste', function (e) {
+            const target = e.target;
+            if (!target.tagName || target.tagName.toLowerCase() !== 'input') return;
+            const tbody = target.closest('tbody');
+            if (!tbody || tbody.id !== 'employeesBody') return;
+
+            const clipboardData = e.clipboardData || window.clipboardData;
+            const pastedData = clipboardData.getData('Text');
+            if (!pastedData) return;
+
+            const rows = pastedData.split(/\r?\n/);
+            if (rows.length <= 1 && rows[0].split('\t').length <= 1) return;
+
+            e.preventDefault();
+
+            const startTr = target.closest('tr');
+            // Track rows in a local array (extended in-place as new rows are added) instead
+            // of re-querying tbody.querySelectorAll('tr') on every iteration — with a few
+            // hundred employee rows that repeated full-table rescan is what made a real
+            // paste visibly freeze the tab.
+            const allTrs = Array.from(tbody.querySelectorAll('tr'));
+            let startRowIdx = allTrs.indexOf(startTr);
+            const startColIdx = Number(target.dataset.col) || 0;
+
+            for (let i = 0; i < rows.length; i++) {
+                const rowStr = rows[i].replace(/\r$/, '');
+                if (!rowStr.trim() && i === rows.length - 1) continue;
+
+                const cells = rowStr.split('\t');
+                let targetTr = allTrs[startRowIdx + i];
+                if (!targetTr) {
+                    targetTr = addEmployeeRow(false, true); // skip per-row recount
+                    allTrs.push(targetTr);
+                }
+
+                // One DOM query for all of this row's inputs, then index by column — instead
+                // of a separate input[data-col="X"] query per pasted cell.
+                const inputs = targetTr.querySelectorAll('input');
+                for (let j = 0; j < cells.length; j++) {
+                    const col = startColIdx + j;
+                    if (col >= TOTAL_COLS) break;
+                    if (inputs[col]) inputs[col].value = cells[j].trim();
+                }
+            }
+            updateCount();
+            persistLocal();
+            autoSaveServer(); // WS-only server autosave
+        });
+
+        // Translate helper (Arabic header -> English when EN is active)
+        const tl = (v) => (window.bzTL ? window.bzTL(v) : v);
+        const EXPORT_FILENAME = 'بيان_بيانات_الموظفين_الدمام.xlsx';
+
+        // ---- Build the corporate Excel workbook and return a Blob ----
+        // (single fixed header row of 46 columns)
+        async function buildEmployeesBlob() {
+            const dataRows = collectRows();
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = 'BIN ZOMAH INTL.';
+            const sheet = workbook.addWorksheet('بيانات الموظفين', {
+                views: [{ rightToLeft: true, state: 'frozen', ySplit: 2 }]
+            });
+
+            const totalCols = 1 + TOTAL_COLS; // index column + 46 data columns
+            const navy = 'FF0C2340', gold = 'FFC9A227', zebra = 'FFF5F7FA', borderGray = 'FFD9D9D9';
+            const thin = { style: 'thin', color: { argb: borderGray } };
+
+            // Title row (row 1) — merged across full width
+            const titleRow = sheet.addRow([tl('بيان بيانات الموظفين') + ' — ' + tl('شركة بن زومة للتجارة والإنماء') + ' — BIN ZOMAH INTL.']);
+            sheet.mergeCells(1, 1, 1, totalCols);
+            const titleCell = titleRow.getCell(1);
+            titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+            titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } };
+            titleRow.height = 30;
+
+            // Header row (row 2) — headers translated for EN export
+            const headerRow = sheet.addRow([tl('م')].concat(COLS.map(tl)));
+            headerRow.height = 26;
+            headerRow.eachCell((cell) => {
+                cell.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } };
+                cell.border = { top: thin, left: thin, right: thin,
+                                bottom: { style: 'medium', color: { argb: gold } } };
+            });
+
+            // Data rows (row 3+)
+            dataRows.forEach((r, i) => {
+                const rowVals = [i + 1];
+                for (let c = 0; c < TOTAL_COLS; c++) rowVals.push(r[c] != null ? r[c] : '');
+                const row = sheet.addRow(rowVals);
+                row.height = 22;
+                const stripe = (i % 2 === 1);
+                row.eachCell((cell, col) => {
+                    cell.font = { name: 'Tajawal', size: 10, color: { argb: 'FF1A1A1A' } };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                    cell.border = { top: thin, left: thin, right: thin, bottom: thin };
+                    if (stripe) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra } };
+                    if (col === 1) cell.font = { name: 'Tajawal', size: 10, bold: true, color: { argb: 'FF0C2340' } };
+                });
+            });
+
+            // Column widths
+            sheet.getColumn(1).width = 6;
+            for (let c = 0; c < TOTAL_COLS; c++) {
+                const header = COLS[c] || '';
+                sheet.getColumn(c + 2).width = Math.min(34, Math.max(14, header.length + 4));
+            }
+
+            // Print setup (B&W safe, wide table -> landscape)
+            sheet.pageSetup = {
+                fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
+                orientation: 'landscape',
+                margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+            };
+
+            // Footer row
+            const footerRowIdx = sheet.rowCount + 1;
+            const footer = sheet.addRow([tl('أُعدّ بواسطة قسم الحركة — فرع الدمام') + `    |    ${new Date().toISOString().slice(0, 10)}`]);
+            sheet.mergeCells(footerRowIdx, 1, footerRowIdx, totalCols);
+            const fCell = footer.getCell(1);
+            fCell.font = { name: 'Tajawal', size: 10, italic: true, color: { argb: 'FF555555' } };
+            fCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            footer.height = 22;
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            return new Blob([buffer]);
+        }
+
+        // Download button — keeps the existing direct-download behavior
+        async function exportToExcel() {
+            try {
+                const blob = await buildEmployeesBlob();
+                if (window.bzDownload) bzDownload(blob, EXPORT_FILENAME);
+                else saveAs(blob, EXPORT_FILENAME);
+                showToast('تم تصدير ملف Excel بنجاح', 'success');
+            } catch (e) {
+                showToast('تعذّر تصدير ملف Excel', 'error');
+            }
+        }
+
+        // Share / export menu — Excel + PDF via email / WhatsApp
+        function shareEmployees() {
+            if (!window.bzShare) { exportToExcel(); return; }
+            bzShare(buildEmployeesBlob, {
+                filename: EXPORT_FILENAME,
+                subject: 'بيان بيانات الموظفين — فرع الدمام',
+                waMessage: 'مرفق بيان بيانات الموظفين — فرع الدمام',
+                pdfElement: document.getElementById('employeesTable'),
+                pdfOrientation: 'landscape'
+            });
+        }
+    </script>
+
+    <!-- Modal for Pasting Excel Data -->
+    <div class="modal-backdrop" id="pasteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="modal-content-custom" style="background: var(--surface, #fff); padding: 2rem; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <h2 style="margin-top: 0; color: var(--brand-navy, #0c2340);">لصق بيانات الإكسل</h2>
+            <p style="color: var(--text-secondary, #5a6a7a); margin-bottom: 1rem;">قم بنسخ الخلايا من ملف الإكسل والصقها في المربع أدناه (اضغط Ctrl+V):</p>
+            <textarea id="pasteArea" rows="8" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border, #d9d9d9); background: var(--surface-hover, #f1f5f9); color: var(--text-primary, #1a2b49); font-family: inherit; margin-bottom: 1rem; resize: vertical;" placeholder="الصق البيانات هنا..."></textarea>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn-outline" onclick="closePasteModal()">إلغاء</button>
+                <button class="btn-primary" onclick="processPasteArea()">إضافة البيانات</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openPasteModal() {
+            document.getElementById('pasteModal').style.display = 'flex';
+            document.getElementById('pasteArea').value = '';
+            setTimeout(() => document.getElementById('pasteArea').focus(), 100);
+        }
+        function closePasteModal() {
+            document.getElementById('pasteModal').style.display = 'none';
+        }
+        function processPasteArea() {
+            const pastedData = document.getElementById('pasteArea').value;
+            if (!pastedData.trim()) {
+                if (window.showToast) showToast('لم يتم إدخال بيانات', 'error');
+                return;
+            }
+            const rows = pastedData.split(/\r?\n/);
+            let added = 0;
+
+            for (let i = 0; i < rows.length; i++) {
+                const rowStr = rows[i].replace(/\r$/, '');
+                if (!rowStr.trim()) continue;
+                const cells = rowStr.split('\t');
+
+                // skip the per-row recount + read this row's inputs in one query — with a
+                // real Excel-sized paste (dozens to hundreds of rows), doing either per row
+                // is what made this visibly freeze the tab.
+                const targetTr = addEmployeeRow(false, true);
+                const inputs = targetTr.querySelectorAll('input');
+                for (let j = 0; j < cells.length; j++) {
+                    if (j >= TOTAL_COLS) break;
+                    if (inputs[j]) inputs[j].value = cells[j].trim();
+                }
+                added++;
+            }
+            if (added > 0) {
+                updateCount();
+                persistLocal();
+                if (typeof autoSaveServer === 'function') autoSaveServer();
+                if (window.showToast) showToast(`تم إضافة ${added} صفوف بنجاح`, 'success');
+                closePasteModal();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,51 +1,80 @@
 import os
-import re
+from bs4 import BeautifulSoup
 
 TEMPLATE_DIR = 'templates'
 BACKUP_DIR = 'templates_backup'
 
-# Create backup dir
 if not os.path.exists(BACKUP_DIR):
     os.makedirs(BACKUP_DIR)
 
 def process_template(filepath):
     filename = os.path.basename(filepath)
-    if filename in ['base.html', 'login.html']:
-        return # Skip base and login
-        
+    if filename in ['base.html', 'login.html', 'index.html', 'absher_import.html']:
+        return # Skip base, login, and already processed index.html
+
     with open(filepath, 'r', encoding='utf-8') as f:
-        content = f.read()
+        html = f.read()
+
+    if '{% extends' in html:
+        return
 
     # Backup
     with open(os.path.join(BACKUP_DIR, filename), 'w', encoding='utf-8') as f:
-        f.write(content)
+        f.write(html)
 
-    if '{% extends' in content:
-        return # Already processed
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    # 1. Extract Head content
+    head_content = []
+    if soup.head:
+        for tag in soup.head.find_all(recursive=False):
+            if tag.name in ['title', 'meta']:
+                continue
+            if tag.name == 'link':
+                href = tag.get('href', '')
+                if 'manifest.json' in href or 'base_styles.css' in href or 'theme.css' in href or 'logo_192' in href or 'fonts.' in href:
+                    continue
+            if tag.name == 'script':
+                src = tag.get('src', '')
+                if 'app_ux.js' in src or 'lucide' in src:
+                    continue
+            head_content.append(str(tag))
 
-    # Extract style block if exists
-    style_match = re.search(r'<style>(.*?)</style>', content, re.DOTALL)
-    styles = style_match.group(0) if style_match else ""
-    
-    # Remove everything from <!DOCTYPE to </head>
-    content = re.sub(r'<!DOCTYPE html>.*?</head>', '', content, flags=re.DOTALL)
-    
-    # Remove <body> and </body> </html>
-    content = re.sub(r'<body[^>]*>', '', content)
-    content = content.replace('</body>', '').replace('</html>', '')
-    
-    # Build new content
-    new_content = "{% extends 'base.html' %}\n"
-    if styles:
-        new_content += "{% block head %}\n" + styles + "\n{% endblock %}\n"
-        content = content.replace(styles, '')
+    head_str = "\n".join(head_content)
 
-    new_content += "\n{% block content %}\n"
-    new_content += content.strip()
-    new_content += "\n{% endblock %}\n"
+    # 2. Extract Body content
+    body_content = ""
+    if soup.body:
+        # Get inner HTML of body
+        body_content = "".join(str(c) for c in soup.body.contents)
+    else:
+        # Fallback if no body tag
+        body_content = html
+
+    # Clean up inline styles that might be setting background again if needed (skip for now)
+
+    # 3. Rebuild with Jinja tags
+    new_html = "{% extends 'base.html' %}\n\n"
+    
+    # Title extraction
+    title = "شركة بن زومة"
+    if soup.title:
+        title = soup.title.string
+
+    new_html += f"{{% block title %}}{title}{{% endblock %}}\n\n"
+
+    if head_str.strip():
+        new_html += "{% block head %}\n"
+        new_html += head_str
+        new_html += "\n{% endblock %}\n\n"
+
+    new_html += "{% block content %}\n"
+    new_html += body_content.strip()
+    new_html += "\n{% endblock %}\n"
 
     with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(new_content)
+        f.write(new_html)
+    print(f"Processed {filename}")
 
 for root, _, files in os.walk(TEMPLATE_DIR):
     for file in files:

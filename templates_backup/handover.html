@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نموذج تسليم واستلام مركبة | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        /* Vehicle handover form — page-local layout only (charcoal/gold tokens from base_styles.css) */
+        .ho-wrap { max-width: 760px; margin: 0 auto; }
+        .ho-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); overflow: hidden; }
+        .ho-head { padding: 22px 20px; text-align: center; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,.04), transparent); }
+        .ho-head .logo-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .ho-head .co { font-size: .72rem; color: var(--text-secondary); font-weight: 700; flex: 1; }
+        .ho-head .co.en { direction: ltr; text-align: left; }
+        .ho-head .co.ar { text-align: right; }
+        .ho-head img { height: 46px; width: auto; background: #fff; border-radius: 8px; padding: 4px; flex: 0 0 auto; }
+        .ho-title { font-size: 1.35rem; font-weight: 800; color: var(--text-primary); }
+        .ho-title small { display: block; font-size: .82rem; font-weight: 600; color: var(--brand-gold); margin-top: 4px; }
+        .ho-sec { padding: 20px; border-bottom: 1px solid var(--border); }
+        .ho-sec-title { font-size: 1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 9px; }
+        .ho-sec-title::before { content: ''; width: 5px; height: 18px; background: var(--accent); border-radius: 3px; flex: 0 0 auto; }
+        .ho-grp { margin-bottom: 14px; }
+        .ho-grp:last-child { margin-bottom: 0; }
+        .ho-row { display: flex; gap: 14px; flex-wrap: wrap; }
+        .ho-row .ho-grp { flex: 1; min-width: 160px; }
+        .ho-grp > label { display: block; font-size: .82rem; font-weight: 700; margin-bottom: 6px; color: var(--text-secondary); }
+        .ho-up label.up { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border: 2px dashed var(--accent); border-radius: 10px; cursor: pointer; font-size: .84rem; color: var(--accent); font-weight: 700; background: rgba(197,160,89,.06); transition: var(--trans, .2s); }
+        .ho-up label.up:hover { background: rgba(197,160,89,.14); }
+        .ho-up input[type=file] { display: none; }
+        .ho-up .fname { font-size: .76rem; color: var(--text-muted); margin-top: 6px; text-align: center; }
+        /* signatures */
+        .ho-sigs { display: flex; gap: 18px; flex-wrap: wrap; padding: 20px; border-bottom: 1px solid var(--border); }
+        .ho-sig { flex: 1; min-width: 240px; display: flex; flex-direction: column; }
+        .ho-pad-lbl { font-size: .8rem; font-weight: 700; color: var(--text-secondary); margin: 6px 0; }
+        .ho-pad { border: 1px solid var(--border-strong); background: #ffffff; border-radius: 10px; height: 140px; width: 100%; display: block; touch-action: none; cursor: crosshair; box-shadow: inset 0 1px 4px rgba(0,0,0,.08); }
+        .ho-clear { background: none; border: none; color: #ef4444; font-size: .78rem; font-weight: 700; cursor: pointer; text-decoration: underline; align-self: flex-start; padding: 4px 0; margin-top: 2px; }
+        .ho-actions { padding: 22px 20px 8px; display: flex; gap: 12px; flex-wrap: wrap; }
+        .ho-actions button { flex: 1; min-width: 180px; justify-content: center; }
+        .ho-foot { text-align: center; font-size: .72rem; color: var(--text-muted); padding: 8px 0 20px; }
+        @media print {
+            .bz-topbar, .bz-sidebar, .bz-dock, .ho-actions { display: none !important; }
+            body, .ho-card { background: #fff !important; color: #000 !important; }
+            .ho-pad { border: 1px solid #999 !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/handover" class="active">🚗 تسليم واستلام مركبة</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/search">🔍 بحث</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+        <a href="/cameras">📹 الكاميرات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">🚗 نموذج تسليم واستلام مركبة</h2>
+      <div class="ho-wrap">
+        <form id="hoForm" class="ho-card" autocomplete="off">
+
+          <div class="ho-head">
+            <div class="logo-row">
+              <div class="co ar">شركة بن زومة للتجارة الدولية والإنماء المحدودة</div>
+              <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="Z">
+              <div class="co en">BIN ZOMAH INTL. TRADING &amp; DEVELOPMENT CO.</div>
+            </div>
+            <div class="ho-title">نموذج فحص تسليم المركبة<small>قسم الحركة — فرع الدمام</small></div>
+          </div>
+
+          <div class="ho-sec">
+            <div class="ho-sec-title">بيانات المركبة الأساسية</div>
+            <div class="ho-grp"><label for="ho-plate">رقم تسجيل المركبة / رقم اللوحة</label><input type="text" id="ho-plate" placeholder="أدخل رقم اللوحة أو الحروف والأرقام" required></div>
+            <div class="ho-grp"><label for="ho-date">تاريخ ووقت التسليم</label><input type="date" id="ho-date" required></div>
+          </div>
+
+          <div class="ho-sec">
+            <div class="ho-sec-title">من السائق (الطرف المسلِّم)</div>
+            <div class="ho-row">
+              <div class="ho-grp"><label for="ho-from-first">الاسم الأول</label><input type="text" id="ho-from-first" placeholder="الاسم الأول" required></div>
+              <div class="ho-grp"><label for="ho-from-last">الاسم الأخير</label><input type="text" id="ho-from-last" placeholder="الاسم الأخير" required></div>
+            </div>
+          </div>
+
+          <div class="ho-sec">
+            <div class="ho-sec-title">إلى السائق (الطرف المستلِم)</div>
+            <div class="ho-row">
+              <div class="ho-grp"><label for="ho-to-first">الاسم الأول</label><input type="text" id="ho-to-first" placeholder="الاسم الأول" required></div>
+              <div class="ho-grp"><label for="ho-to-last">الاسم الأخير</label><input type="text" id="ho-to-last" placeholder="الاسم الأخير" required></div>
+            </div>
+          </div>
+
+          <div class="ho-sec">
+            <div class="ho-sec-title">المسافة الحالية والوقود</div>
+            <div class="ho-grp"><label for="ho-odo">المسافة المقطوعة الحالية (Odometer)</label><input type="number" id="ho-odo" placeholder="كم" required></div>
+            <div class="ho-grp ho-up"><label>صورة المسافة الحالية</label><label class="up" for="ho-odo-img">📷 اضغط لالتقاط أو رفع صورة العداد</label><input type="file" id="ho-odo-img" accept="image/*" capture="environment" onchange="hoFile(this)"><div class="fname"></div></div>
+            <div class="ho-grp" style="margin-top:18px"><label for="ho-fuel">مستوى الوقود الحالي (مثال: ممتلئ، نصف)</label><input type="text" id="ho-fuel" placeholder="حدد مستوى الوقود في الخزان" required></div>
+            <div class="ho-grp ho-up"><label>صورة لمستوى الوقود</label><label class="up" for="ho-fuel-img">📷 اضغط لالتقاط أو رفع صورة مؤشر الوقود</label><input type="file" id="ho-fuel-img" accept="image/*" capture="environment" onchange="hoFile(this)"><div class="fname"></div></div>
+          </div>
+
+          <div class="ho-sec">
+            <div class="ho-sec-title">تقرير وفحص الأضرار</div>
+            <div class="ho-grp"><label for="ho-damage">تفاصيل الأضرار (إن وجدت)</label><textarea id="ho-damage" rows="4" placeholder="يرجى كتابة أي ملاحظات، خدوش، أو صدمات بالتفصيل..."></textarea></div>
+            <div class="ho-grp ho-up"><label>صور المناطق المتضررة</label><label class="up" for="ho-damage-img">📷 يرجى تقديم صور لجميع المناطق المتضررة</label><input type="file" id="ho-damage-img" accept="image/*" multiple onchange="hoFile(this)"><div class="fname"></div></div>
+          </div>
+
+          <div class="ho-sigs">
+            <div class="ho-sig">
+              <div class="ho-grp"><label for="ho-officer">اسم مسؤول الحركة</label><input type="text" id="ho-officer" placeholder="اسم المسؤول الفاحص" required></div>
+              <div class="ho-pad-lbl">توقيع مسؤول الحركة:</div>
+              <canvas class="ho-pad" id="sigOfficer"></canvas>
+              <button type="button" class="ho-clear" data-pad="sigOfficer">مسح (Clear)</button>
+            </div>
+            <div class="ho-sig">
+              <div class="ho-grp"><label for="ho-recipient">اسم المستلم</label><input type="text" id="ho-recipient" placeholder="اسم السائق المستلم" required></div>
+              <div class="ho-pad-lbl">توقيع المستلم:</div>
+              <canvas class="ho-pad" id="sigRecipient"></canvas>
+              <button type="button" class="ho-clear" data-pad="sigRecipient">مسح (Clear)</button>
+            </div>
+          </div>
+
+          <div class="ho-sec">
+            <div class="ho-sec-title">الإرسال والحفظ</div>
+            <div class="ho-grp"><label for="ho-email">بريد المستلم للإرسال (اختياري — افصل بين عدة عناوين بفاصلة)</label>
+              <input type="text" id="ho-email" placeholder="يُرسل تلقائياً لبريد الإدارة إذا تُرك فارغاً" inputmode="email"></div>
+            <div class="ho-grp" id="ho-mailhint" style="font-size:.76rem;color:var(--text-muted);margin:0"></div>
+          </div>
+
+          <div class="ho-actions">
+            <button type="submit" class="btn-submit-gold" style="padding:14px;border-radius:10px;font-weight:800;font-size:1rem;">✅ اعتماد وحفظ وإرسال</button>
+            <button type="button" class="btn-outline" style="padding:14px;border-radius:10px;font-weight:700;" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+          </div>
+          <div id="ho-status" style="text-align:center;font-size:.9rem;padding:4px 20px 0;min-height:1.2rem"></div>
+          <div class="ho-foot">Powered by Bin Zomah Fleet Operations &copy; 2026</div>
+
+        </form>
+
+        <div class="ho-card" style="margin-top:18px">
+          <div class="ho-sec" style="border-bottom:none">
+            <div class="ho-sec-title">📁 النماذج المحفوظة (آخر التسليمات)</div>
+            <div id="ho-saved" style="font-size:.85rem;color:var(--text-secondary)">جارٍ التحميل…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  // file-name display (referenced by inline onchange)
+  window.hoFile = function (inp) {
+    var box = inp.parentElement.querySelector('.fname');
+    if (box) box.textContent = (inp.files && inp.files.length) ? (inp.files.length > 1 ? (inp.files.length + ' ملفات مرفقة') : inp.files[0].name) : '';
+  };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+  function toast(msg, type) { if (window.showToast) showToast(msg, type); else if (type === 'error') alert(msg); }
+
+  // read a file, downscale to <= maxDim px, return a JPEG data URL (keeps the upload light)
+  function readScaled(file, maxDim, quality) {
+    return new Promise(function (resolve) {
+      var fr = new FileReader();
+      fr.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          var cw = Math.max(1, Math.round(img.width * scale)), ch = Math.max(1, Math.round(img.height * scale));
+          var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+          try { c.getContext('2d').drawImage(img, 0, 0, cw, ch); resolve(c.toDataURL('image/jpeg', quality)); }
+          catch (e) { resolve(fr.result); }
+        };
+        img.onerror = function () { resolve(fr.result); };
+        img.src = fr.result;
+      };
+      fr.onerror = function () { resolve(null); };
+      fr.readAsDataURL(file);
+    });
+  }
+  function collectImages() {
+    var tasks = [];
+    ['ho-odo-img', 'ho-fuel-img', 'ho-damage-img'].forEach(function (id) {
+      var inp = document.getElementById(id);
+      if (!inp || !inp.files) return;
+      Array.prototype.forEach.call(inp.files, function (f) {
+        tasks.push(readScaled(f, 1280, 0.7).then(function (d) { return d ? { name: f.name, data: d } : null; }));
+      });
+    });
+    return Promise.all(tasks).then(function (arr) { return arr.filter(Boolean).slice(0, 8); });
+  }
+  function loadSaved() {
+    var box = document.getElementById('ho-saved'); if (!box) return;
+    fetch('/api/handover/list').then(function (r) { return r.json(); }).then(function (j) {
+      var recs = (j && j.records) || [];
+      var hint = document.getElementById('ho-mailhint');
+      if (hint) hint.textContent = (j && j.mail_configured) ? '' : 'ملاحظة: إرسال البريد غير مُفعّل على الخادم حالياً — سيُحفظ النموذج بدون إرسال.';
+      if (!recs.length) { box.innerHTML = '<div style="color:var(--text-muted)">لا توجد نماذج محفوظة بعد.</div>'; return; }
+      box.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">' +
+        '<thead><tr>' + ['التاريخ/الوقت', 'اللوحة', 'من', 'إلى', 'المسؤول', 'صور'].map(function (h) {
+          return '<th style="text-align:right;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-secondary);white-space:nowrap">' + h + '</th>';
+        }).join('') + '</tr></thead><tbody>' +
+        recs.map(function (x) {
+          return '<tr>' + [x.ts, x.plate, x['from'], x.to, x.officer, x.photos].map(function (c) {
+            return '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">' + esc(c == null ? '' : String(c)) + '</td>';
+          }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+    }).catch(function () { box.innerHTML = '<div style="color:var(--bad-fg)">تعذّر تحميل النماذج المحفوظة.</div>'; });
+  }
+
+  function start() {
+    // today's date
+    var d = document.getElementById('ho-date'); if (d && !d.value) d.valueAsDate = new Date();
+
+    // ---- touch + mouse signature pads ----
+    function initPad(canvas) {
+      var ctx = canvas.getContext('2d');
+      function fit() {
+        var prev = (canvas.width && canvas.height) ? canvas.toDataURL() : null;   // preserve drawing across resize
+        canvas.width = canvas.offsetWidth || 300;
+        canvas.height = canvas.offsetHeight || 140;
+        ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#101418';
+        if (prev) { var img = new Image(); img.onload = function () { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); }; img.src = prev; }
+      }
+      fit();
+      var drawing = false, lx = 0, ly = 0, dirty = false;
+      function pt(e) { var r = canvas.getBoundingClientRect(); var t = (e.touches && e.touches[0]) || e; return [t.clientX - r.left, t.clientY - r.top]; }
+      function down(e) { drawing = true; var p = pt(e); lx = p[0]; ly = p[1]; if (e.cancelable) e.preventDefault(); }
+      function move(e) { if (!drawing) return; var p = pt(e); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p[0], p[1]); ctx.stroke(); lx = p[0]; ly = p[1]; dirty = true; if (e.cancelable) e.preventDefault(); }
+      function up() { drawing = false; }
+      canvas.addEventListener('mousedown', down); canvas.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+      canvas.addEventListener('touchstart', down, { passive: false }); canvas.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up);
+      var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(fit, 200); });
+      canvas._clear = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); dirty = false; };
+      canvas._empty = function () { return !dirty; };
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('.ho-pad'), initPad);
+    Array.prototype.forEach.call(document.querySelectorAll('.ho-clear'), function (b) {
+      b.addEventListener('click', function () { var c = document.getElementById(b.getAttribute('data-pad')); if (c && c._clear) c._clear(); });
+    });
+
+    // ---- submit: validate signatures, then SAVE + EMAIL via the server ----
+    var form = document.getElementById('hoForm');
+    if (form) form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var o = document.getElementById('sigOfficer'), r = document.getElementById('sigRecipient');
+      if ((o && o._empty && o._empty()) || (r && r._empty && r._empty())) {
+        toast('يرجى توقيع الطرفين (مسؤول الحركة والمستلم) قبل الاعتماد', 'error');
+        return;
+      }
+      var btn = form.querySelector('button[type=submit]');
+      var status = document.getElementById('ho-status');
+      if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الحفظ والإرسال…'; }
+      if (status) status.innerHTML = '';
+      var val = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+
+      collectImages().then(function (images) {
+        return fetch('/api/handover/submit', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plate: val('ho-plate'), date: val('ho-date'),
+            from_first: val('ho-from-first'), from_last: val('ho-from-last'),
+            to_first: val('ho-to-first'), to_last: val('ho-to-last'),
+            odo: val('ho-odo'), fuel: val('ho-fuel'), damage: val('ho-damage'),
+            officer: val('ho-officer'), recipient: val('ho-recipient'),
+            email_to: val('ho-email'),
+            sig_officer: o.toDataURL('image/png'),
+            sig_recipient: r.toDataURL('image/png'),
+            images: images
+          })
+        });
+      }).then(function (res) { return res.json().then(function (j) { return { ok: res.ok, j: j }; }); })
+        .then(function (res) {
+          if (res.ok && res.j.success) {
+            var m = res.j.mail || {};
+            var emailMsg = m.sent ? ' وأُرسل بالبريد إلى: ' + ((m.recipients || []).join('، '))
+              : (m.reason === 'mail_not_configured' ? ' (الحفظ تم؛ البريد غير مُهيّأ على الخادم)'
+                : m.reason === 'no_recipients' ? ' (الحفظ تم؛ لا يوجد مستلم للبريد)'
+                : ' (الحفظ تم؛ تعذّر إرسال البريد)');
+            if (status) status.innerHTML = '<span style="color:var(--ok-fg,#10b981);font-weight:800">✅ تم حفظ النموذج' + esc(emailMsg) + '</span>';
+            toast('تم حفظ نموذج التسليم/الاستلام ✓', 'success');
+            loadSaved();
+          } else {
+            var reason = (res.j && res.j.reason) || 'error';
+            var map = { missing_plate: 'أدخل رقم اللوحة أولاً', missing_signature: 'توقيع الطرفين مطلوب', save_error: 'تعذّر الحفظ على الخادم' };
+            if (status) status.innerHTML = '<span style="color:var(--bad-fg,#ef4444);font-weight:800">⚠ ' + esc(map[reason] || 'تعذّر الحفظ') + '</span>';
+            toast(map[reason] || 'تعذّر الحفظ', 'error');
+          }
+        })
+        .catch(function () {
+          if (status) status.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>';
+          toast('تعذّر الاتصال بالخادم', 'error');
+        })
+        .finally(function () { if (btn) { btn.disabled = false; btn.textContent = '✅ اعتماد وحفظ وإرسال'; } });
+    });
+
+    loadSaved();
+  }
+
+  // run AFTER app_ux.js builds the sidebar (so the canvas is sized to its final width)
+  if (document.readyState === 'complete') start();
+  else window.addEventListener('load', start);
+})();
+</script>
+
+</body>
+</html>

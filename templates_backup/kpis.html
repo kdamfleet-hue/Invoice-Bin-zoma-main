@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مؤشرات الأداء الرئيسية (KPIs) - الأسطول</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Tajawal', 'sans-serif'] },
+                    colors: { primary: '#0f172a', secondary: '#2563eb', bgLight: '#f1f5f9' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f1f5f9; }
+        .kpi-card { transition: transform 0.2s ease-in-out; }
+        .kpi-card:hover { transform: translateY(-3px); }
+        @media print { .no-print { display: none !important; } body { background: #fff; } }
+    </style>
+
+    <!-- Corporate Elegance (charcoal + muted gold) re-skin — presentational only -->
+    <style>
+        :root {
+            --ce-bg: #1A1A1A;
+            --ce-surface: #2D2D2D;
+            --ce-surface-hover: #363636;
+            --ce-border: #3a3a3a;
+            --ce-border-strong: #4d4d4d;
+            --ce-text: #F4F4F4;
+            --ce-text-muted: #B0B0B0;
+            --ce-text-dim: #8c8c8c;
+            --ce-gold: #C5A059;
+            --ce-gold-soft: #e0c489;
+        }
+
+        /* Page canvas */
+        body { background-color: var(--ce-bg) !important; }
+        body.text-slate-800 { color: var(--ce-text) !important; }
+
+        /* Header bar (brand navy stays) — its blue accent icon turns gold */
+        header.bg-primary .text-secondary { color: var(--ce-gold) !important; }
+        header.bg-primary .text-slate-400 { color: var(--ce-text-muted) !important; }
+        header.bg-primary .bg-secondary { background-color: var(--ce-gold) !important; color: #1A1A1A !important; }
+        header.bg-primary .bg-secondary:hover,
+        header.bg-primary .hover\:bg-blue-700:hover { background-color: var(--ce-gold-soft) !important; }
+
+        /* Cards / section surfaces */
+        .bg-white { background-color: var(--ce-surface) !important; }
+        .bg-slate-50\/50 { background-color: var(--ce-surface-hover) !important; }
+        .shadow-sm, .shadow { box-shadow: 0 12px 22px -6px rgba(0,0,0,.5) !important; }
+
+        /* Borders */
+        .border-slate-100 { border-color: var(--ce-border) !important; }
+        .border-slate-200 { border-color: var(--ce-border) !important; }
+
+        /* Text tints */
+        .text-slate-800 { color: var(--ce-text) !important; }
+        .text-slate-600 { color: var(--ce-text-muted) !important; }
+        .text-slate-500 { color: var(--ce-text-muted) !important; }
+        .text-slate-400 { color: var(--ce-text-dim) !important; }
+
+        /* Section top accent bars — neutralize brand blue to gold, keep semantic hues but on-dark */
+        .border-blue-500 { border-color: var(--ce-gold) !important; }
+
+        /* Icon plates (pastel) -> translucent on-dark tints with light icon text */
+        .bg-blue-100 { background-color: rgba(197,160,89,.16) !important; }
+        .text-blue-600 { color: var(--ce-gold-soft) !important; }
+        .bg-red-100 { background-color: rgba(239,68,68,.16) !important; }
+        .text-red-600 { color: #f87171 !important; }
+        .bg-orange-100 { background-color: rgba(249,115,22,.16) !important; }
+        .text-orange-600 { color: #fb923c !important; }
+        .bg-green-100 { background-color: rgba(34,197,94,.16) !important; }
+        .text-green-600 { color: #4ade80 !important; }
+
+        /* Strategic-goal badge tiles -> darker translucent tints + light text + on-dark border */
+        .bg-blue-50 { background-color: rgba(197,160,89,.14) !important; }
+        .text-blue-800 { color: var(--ce-gold-soft) !important; }
+        .border-blue-100 { border-color: rgba(197,160,89,.32) !important; }
+
+        .bg-red-50 { background-color: rgba(239,68,68,.14) !important; }
+        .text-red-800 { color: #fca5a5 !important; }
+        .border-red-100 { border-color: rgba(239,68,68,.32) !important; }
+
+        .bg-orange-50 { background-color: rgba(249,115,22,.14) !important; }
+        .text-orange-800 { color: #fdba74 !important; }
+        .border-orange-100 { border-color: rgba(249,115,22,.32) !important; }
+
+        .bg-green-50 { background-color: rgba(34,197,94,.14) !important; }
+        .text-green-800 { color: #86efac !important; }
+        .border-green-100 { border-color: rgba(34,197,94,.32) !important; }
+
+        /* "Back to dashboard" neutral button -> charcoal surface */
+        .bg-slate-700 { background-color: var(--ce-surface) !important; }
+        .hover\:bg-slate-600:hover { background-color: var(--ce-surface-hover) !important; }
+
+        /* Print: restore white background and dark text for paper */
+        @media print {
+            body { background: #fff !important; color: #1e293b !important; }
+            .bg-white { background-color: #fff !important; }
+            .shadow-sm, .shadow { box-shadow: 0 1px 2px 0 rgba(0,0,0,.05) !important; }
+            .text-slate-800 { color: #1e293b !important; }
+            .text-slate-600 { color: #475569 !important; }
+            .text-slate-500 { color: #64748b !important; }
+            .text-slate-400 { color: #94a3b8 !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 pb-12">
+
+    <header class="bg-primary text-white py-6 px-8 shadow-md">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-3">
+                    <i class="fa-solid fa-chart-line text-secondary"></i>
+                    دليل مؤشرات الأداء الرئيسية (KPIs)
+                </h1>
+                <p class="text-sm text-slate-400 mt-2">المرجع الاستراتيجي لتقييم كفاءة التشغيل وإدارة الأساطيل</p>
+            </div>
+            <div class="flex items-center gap-3 no-print">
+                <a href="/dashboard" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-right"></i> العودة للوحة الإدارة
+                </a>
+                <button onclick="window.print()" class="bg-secondary hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i> طباعة التقرير
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 mt-8 space-y-8">
+
+        <section class="bg-white rounded-xl shadow-sm border-t-4 border-blue-500 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 text-2xl shadow-inner">
+                        <i class="fa-solid fa-gauge-high"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">الكفاءة التشغيلية والإنتاجية</h2>
+                        <p class="text-xs text-slate-500 font-mono mt-1">Operational Efficiency</p>
+                    </div>
+                </div>
+                <div class="bg-blue-50 text-blue-800 text-sm p-3 rounded-lg border border-blue-100 max-w-lg">
+                    <strong>الهدف الاستراتيجي:</strong> قياس الاستغلال الأمثل للأصول المتاحة، وضمان تحقيق مستهدفات الحركة اليومية بأعلى كفاءة ممكنة.
+                </div>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-lg">معدل استخدام الأسطول</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider">Fleet Utilization Rate</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">قياس نسبة المركبات العاملة فعلياً مقارنة بإجمالي الأسطول، للقضاء على الأصول غير المستغلة وضمان أعلى عائد على الاستثمار.</p>
+                </div>
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-lg">نسبة الالتزام بالمواعيد</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider">On-Time Performance (OTP)</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">تقييم دقة تنفيذ المهام والرحلات في وقتها المجدول تماماً، مما يعكس كفاءة تخطيط المسارات وجودة الإدارة الميدانية.</p>
+                </div>
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-lg">معدل إنتاجية السائقين</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider">Driver Productivity</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">حساب نسبة الساعات الفعالة أو المهام المنجزة خلال وردية العمل الواحدة، لضبط الأداء البشري وتحديد الاحتياج الفعلي للكوادر.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-xl shadow-sm border-t-4 border-red-500 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center text-red-600 text-2xl shadow-inner">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">إدارة التكاليف والاستهلاك</h2>
+                        <p class="text-xs text-slate-500 font-mono mt-1">Financial & Consumption</p>
+                    </div>
+                </div>
+                <div class="bg-red-50 text-red-800 text-sm p-3 rounded-lg border border-red-100 max-w-lg">
+                    <strong>الهدف الاستراتيجي:</strong> الإدارة الصارمة للنفقات التشغيلية، تقليص الهدر المالي، والارتقاء بكفاءة استهلاك الموارد المتاحة.
+                </div>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-lg">معدل استهلاك الوقود</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider">Fuel Economy per KM</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">المراقبة الدقيقة لكفاءة حرق الوقود لكل كيلومتر، لرصد أي انحرافات ناتجة عن أعطال ميكانيكية أو سلوكيات قيادة غير مسؤولة.</p>
+                </div>
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-2 h-full bg-red-500"></div>
+                    <h3 class="font-bold text-slate-800 text-lg pl-3">تكلفة التشغيل لكل كيلومتر</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider pl-3">Total Cost per KM</p>
+                    <p class="text-sm text-slate-600 leading-relaxed pl-3">المؤشر المالي الأهم لتقييم الجدوى الاقتصادية؛ عبر قسمة التكاليف (وقود، صيانة، إهلاك) على إجمالي المسافات المقطوعة.</p>
+                </div>
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-lg">الصيانة مقابل قيمة الأصل</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider">Maintenance Cost vs. Asset Value</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">التحديد الدقيق للوقت الأمثل لإحلال وتجديد المركبات، لتجنب تجاوز تكاليف الصيانة للعوائد التشغيلية المتوقعة من الأصل.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-xl shadow-sm border-t-4 border-orange-500 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 text-2xl shadow-inner">
+                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">الصيانة والجاهزية الفنية</h2>
+                        <p class="text-xs text-slate-500 font-mono mt-1">Maintenance & Reliability</p>
+                    </div>
+                </div>
+                <div class="bg-orange-50 text-orange-800 text-sm p-3 rounded-lg border border-orange-100 max-w-lg">
+                    <strong>الهدف الاستراتيجي:</strong> ضمان فاعلية خطط الصيانة الوقائية لحماية الأصول، وتقليص فترات التوقف المفاجئ لأدنى حد ممكن.
+                </div>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-lg">نسبة جاهزية الأسطول</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider">Fleet Availability / Uptime</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">قياس النسبة المئوية للمركبات المتاحة للتشغيل الفوري، ومراقبة نجاح الإدارة في تقليص أعداد المركبات المعطلة في الورش.</p>
+                </div>
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-lg">معدل الأعطال المفاجئة</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider">Breakdown Frequency</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">حصر وتتبع الأعطال الطارئة في الميدان، والذي يُعد المقياس الحقيقي لجودة ودقة برامج الصيانة الدورية الاستباقية.</p>
+                </div>
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-orange-500"></div>
+                    <h3 class="font-bold text-slate-800 text-lg pr-3">متوسط وقت الإصلاح</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider pr-3">Mean Time to Repair (MTTR)</p>
+                    <p class="text-sm text-slate-600 leading-relaxed pr-3">تقييم كفاءة وسرعة استجابة فريق الدعم الفني في معالجة الأعطال، لضمان سرعة إعادة الأصول إلى خطوط التشغيل.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-xl shadow-sm border-t-4 border-green-500 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center text-green-600 text-2xl shadow-inner">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">السلامة والامتثال وسلوك القيادة</h2>
+                        <p class="text-xs text-slate-500 font-mono mt-1">Safety & Compliance</p>
+                    </div>
+                </div>
+                <div class="bg-green-50 text-green-800 text-sm p-3 rounded-lg border border-green-100 max-w-lg">
+                    <strong>الهدف الاستراتيجي:</strong> تحييد المخاطر البشرية والمادية، وتأمين الالتزام القانوني والإداري الصارم بكافة الأنظمة ولوائح النقل.
+                </div>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-lg">معدل المخالفات المرورية</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider">Traffic Violations Rate</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">رصد وتحليل المخالفات المسجلة للحد منها، حمايةً لسمعة المؤسسة وتفادياً للأعباء المالية غير المبررة.</p>
+                </div>
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-lg">مؤشر القيادة الآمنة</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider">Safe Driving Score</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">التقييم الرقمي لسلوك السائق بناءً على بيانات التتبع (التسارع المفاجئ، الفرملة القاسية، السرعة الزائدة)، لبناء برامج توجيه.</p>
+                </div>
+                <div class="kpi-card border border-slate-200 rounded-lg p-5 bg-white shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-green-500"></div>
+                    <h3 class="font-bold text-slate-800 text-lg pr-3">نسبة الامتثال للوثائق والتراخيص</h3>
+                    <p class="text-[10px] text-slate-400 font-mono mb-3 uppercase tracking-wider pr-3">Documentation Compliance</p>
+                    <p class="text-sm text-slate-600 leading-relaxed pr-3">ضمان تحقيق نسبة <strong>100%</strong> في تجديد رخص القيادة، رخص السير، التأمين، والبطاقات التشغيلية لمنع التوقف القانوني.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // عند تقديم الصفحة تحت مسار محطة العمل، أبقِ كل الروابط الداخلية داخل البادئة
+        // (نفس سلوك بقية الموقع) — حتى يرجع زر «العودة للوحة الإدارة» للوحة محطة العمل.
+        (function () {
+            var WS = '/importantworkstation';
+            if (location.pathname.indexOf(WS) === 0) {
+                document.querySelectorAll('a[href^="/"]').forEach(function (a) {
+                    var h = a.getAttribute('href');
+                    if (!h || h.indexOf(WS) === 0 || h.indexOf('/static') === 0 || h.indexOf('/api') === 0 || h.indexOf('//') === 0) return;
+                    a.setAttribute('href', WS + (h === '/' ? '' : h));
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

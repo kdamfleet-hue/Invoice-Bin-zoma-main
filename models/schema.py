@@ -134,3 +134,64 @@ class AuditLog(db.Model):
     target_table = db.Column(db.String(100), nullable=True)
     target_id = db.Column(db.String(50), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class FuelRecord(db.Model):
+    __tablename__ = 'erp_fuel_records'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=True)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    prev_odo = db.Column(db.Integer, nullable=True)
+    current_odo = db.Column(db.Integer, nullable=True)
+    liters = db.Column(db.Numeric(10, 2), nullable=True)
+    cost = db.Column(db.Numeric(10, 2), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+class WashingRecord(db.Model):
+    __tablename__ = 'erp_washing_records'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=True)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+class ScheduleData(db.Model):
+    __tablename__ = 'erp_schedule_data'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    task_type = db.Column(db.String(100), nullable=True)
+    details = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(50), default="pending")
+
+class PurchaseRecord(db.Model):
+    __tablename__ = 'erp_purchase_records'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    item_name = db.Column(db.String(150), nullable=False)
+    cost = db.Column(db.Numeric(10, 2), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+class HandoverRecord(db.Model):
+    __tablename__ = 'erp_handover_records'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+class AppSetting(db.Model):
+    __tablename__ = 'erp_app_settings'
+    key = db.Column(db.String(100), primary_key=True)
+    value = db.Column(db.Text, nullable=True)
+
+class Snapshot(db.Model):
+    __tablename__ = 'erp_snapshots'
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    data = db.Column(db.Text, nullable=False)
+

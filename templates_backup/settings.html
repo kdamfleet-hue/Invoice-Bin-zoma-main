@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإعدادات | شركة بن زومة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+    <style>
+        .set-wrap { max-width: 920px; margin: 0 auto; }
+        .set-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.4rem 1.5rem; margin-bottom: 1.4rem; }
+        .set-card h3 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
+        .set-card .sub { color: var(--text-secondary); font-size: .9rem; line-height: 1.8; margin-bottom: 1.1rem; }
+        .set-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .8rem; align-items: end; }
+        .set-form .fld label { display: block; font-size: .8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+        .set-form .pw-wrap { position: relative; }
+        .set-form .pw-wrap .eye { position: absolute; inset-inline-start: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1rem; opacity: .7; background: none; border: none; }
+        .set-add { padding: 12px 18px; white-space: nowrap; }
+        @media (max-width: 720px) { .set-form { grid-template-columns: 1fr; } }
+        .set-msg { margin-top: 10px; font-size: .86rem; font-weight: 700; min-height: 1.1rem; }
+        .users-tbl { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        .users-tbl th, .users-tbl td { padding: 11px 12px; text-align: right; border-bottom: 1px solid var(--border); font-size: .88rem; }
+        .users-tbl th { background: var(--surface-hover); color: var(--text-secondary); font-weight: 800; }
+        .users-tbl td { color: var(--text-primary); }
+        .users-tbl .uname { font-family: monospace; direction: ltr; unicode-bidi: plaintext; display: inline-block; color: var(--brand-gold); }
+        .users-empty { text-align: center; color: var(--text-muted); padding: 1.6rem; font-weight: 700; }
+        .u-del { background: rgba(220,38,38,.12); color: #f87171; border: 1px solid rgba(220,38,38,.3); border-radius: 8px; padding: 5px 12px; font-weight: 800; cursor: pointer; font-size: .8rem; transition: var(--trans, .2s); }
+        .u-del:hover { background: #dc2626; color: #fff; }
+        .admin-note { display: flex; align-items: center; gap: 10px; background: rgba(197,160,89,.08); border: 1px solid rgba(197,160,89,.25); border-radius: 12px; padding: 12px 16px; color: var(--text-secondary); font-size: .86rem; }
+        .snap-bar { display: flex; gap: .7rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
+        .snap-bar .fld { flex: 1; min-width: 220px; }
+        .snap-bar label { display: block; font-size: .8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+        .snap-bar select { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text-primary); font-family: inherit; font-size: .9rem; }
+        .snap-list { list-style: none; margin: 0; padding: 0; }
+        .snap-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: .55rem; background: var(--surface-hover); }
+        .snap-list .snap-when { font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: plaintext; }
+        .snap-list .snap-when small { color: var(--text-muted); font-weight: 700; margin-inline-start: 8px; }
+        .snap-restore { background: rgba(197,160,89,.14); color: var(--brand-gold); border: 1px solid rgba(197,160,89,.35); border-radius: 9px; padding: 7px 15px; font-weight: 800; cursor: pointer; font-size: .82rem; transition: var(--trans, .2s); white-space: nowrap; }
+        .snap-restore:hover { background: var(--brand-gold); color: #1a1a1a; }
+        .snap-restore:disabled { opacity: .5; cursor: default; }
+        .snap-empty { text-align: center; color: var(--text-muted); padding: 1.4rem; font-weight: 700; }
+
+        /* ── Feature Flagging Toggle Switches ── */
+        .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+        @media (max-width: 720px) { .feat-grid { grid-template-columns: 1fr; } }
+        .feat-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--surface-hover); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; transition: var(--trans, .2s); }
+        .feat-item:hover { border-color: var(--accent, #c5a059); box-shadow: 0 0 12px rgba(197,160,89,.12); }
+        .feat-info { flex: 1; }
+        .feat-info .feat-label { font-weight: 800; font-size: .95rem; color: var(--text-primary); margin-bottom: 2px; }
+        .feat-info .feat-desc { font-size: .78rem; color: var(--text-secondary); line-height: 1.6; }
+        .toggle-switch { position: relative; width: 52px; height: 28px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #3b3b4f; border-radius: 28px; transition: .3s; }
+        .toggle-slider::before { content: ''; position: absolute; width: 22px; height: 22px; border-radius: 50%; background: #fff; bottom: 3px; left: 3px; transition: .3s; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+        .toggle-switch input:checked + .toggle-slider { background: linear-gradient(135deg, #c5a059, #d4af37); box-shadow: 0 0 14px rgba(197,160,89,.35); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(24px); }
+    </style>
+</head>
+<body>
+
+    <header class="bz-topbar">
+      <div class="bz-brand">
+        <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="شركة بن زومة">
+        <div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+      </div>
+      <nav class="bz-nav">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/handover">🚗 تسليم واستلام مركبة</a>
+        <a href="/purchase">🛒 طلب شراء</a>
+        <a href="/schedule">📋 الجدول الأسبوعي</a>
+        <a href="/oils">🛢️ الزيوت والفلاتر</a>
+        <a href="/washing">🚿 الغسيل</a>
+        <a href="/workshop">🔧 الورشة</a>
+        <a href="/employees">👥 الموظفين</a>
+        <a href="/search">🔍 بحث</a>
+        <a href="/records">📁 التوثيق</a>
+        <a href="/gps_sync">📡 مزامنة GPS</a>
+        <a href="/tracking">🛰️ التتبع</a>
+        <a href="/cameras">📹 الكاميرات</a>
+        <a href="/settings" class="active">⚙️ الإعدادات</a>
+      </nav>
+      <div class="bz-actions">
+        <button id="darkModeToggle" class="bz-icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+        <a href="/logout" class="bz-logout">خروج</a>
+      </div>
+    </header>
+
+    <div class="bz-shell">
+      <h2 class="bz-section-title">⚙️ الإعدادات</h2>
+      <div class="set-wrap">
+
+        <div class="set-card">
+          <h3>🔑 مشاركة الموقع — حسابات الدخول</h3>
+          <div class="sub">أنشئ <b>اسم مستخدم وكلمة مرور</b> لكل شخص تريد مشاركته الموقع. يستطيع الدخول من صفحة تسجيل الدخول بنفس البيانات. تُحفظ كلمات المرور <b>مشفّرة</b> ولا تظهر مرة أخرى.</div>
+
+          <form id="addForm" class="set-form" autocomplete="off">
+            <div class="fld"><label for="u-name">الاسم</label><input type="text" id="u-name" placeholder="مثال: محمد العتيبي"></div>
+            <div class="fld"><label for="u-username">اسم المستخدم</label><input type="text" id="u-username" placeholder="مثال: m.alotaibi" required></div>
+            <div class="fld"><label for="u-pass">كلمة المرور</label>
+              <div class="pw-wrap"><input type="password" id="u-pass" placeholder="4 أحرف على الأقل" required>
+              <button type="button" class="eye" onclick="hoTogglePw()" title="إظهار/إخفاء">👁️</button></div>
+            </div>
+            <button type="submit" class="btn-submit-gold set-add">➕ إضافة مستخدم</button>
+          </form>
+          <div class="set-msg" id="addMsg"></div>
+        </div>
+
+        <div class="set-card">
+          <h3>👥 المستخدمون المشاركون <span class="sub" id="uCount" style="margin:0;font-weight:700;"></span></h3>
+          <div class="dtable-wrap" style="overflow-x:auto;">
+            <table class="users-tbl">
+              <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>تاريخ الإنشاء</th><th>إجراء</th></tr></thead>
+              <tbody id="usersBody"><tr><td colspan="4" class="users-empty">جارٍ التحميل…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="set-card">
+          <h3>🕓 حفظ المتغيرات — السجل الزمني</h3>
+          <div class="sub">يُحفظ تلقائياً عند كل تعديل في أي تبويب نسخة <b>مؤرّخة بالتاريخ والوقت</b>. اختر التبويب لعرض النسخ السابقة، ويمكنك <b>الرجوع لأي نسخة</b> بضغطة زر (يُحتفظ بآخر 30 نسخة لكل تبويب).</div>
+          <div class="snap-bar">
+            <div class="fld">
+              <label for="snapTab">التبويب</label>
+              <select id="snapTab"><option value="">— اختر تبويباً —</option></select>
+            </div>
+          </div>
+          <ul class="snap-list" id="snapList"><li class="snap-empty">اختر تبويباً لعرض النسخ المؤرّخة.</li></ul>
+          <div class="set-msg" id="snapMsg"></div>
+        </div>
+
+        <div class="set-card">
+          <h3>🏢 حسابات الفروع — اسم مستخدم ورمز لكل فرع</h3>
+          <div class="sub">عيّن لكل فرع <b>اسم مستخدم ورمز دخول</b>. عند الدخول بهذه البيانات يُقفَل المستخدم تلقائياً على فرعه فقط، وتُنسب كل تعديلاته لاسم مستخدمه في <b>مركز الفروع</b>. الرموز تُحفظ <b>مشفّرة</b>.</div>
+          <div class="dtable-wrap" style="overflow-x:auto;">
+            <table class="users-tbl">
+              <thead><tr><th>الفرع</th><th>اسم المستخدم</th><th>الرمز</th><th>إجراء</th></tr></thead>
+              <tbody id="baBody"><tr><td colspan="4" class="users-empty">جارٍ التحميل…</td></tr></tbody>
+            </table>
+          </div>
+          <div class="set-msg" id="baMsg"></div>
+        </div>
+
+        <div class="set-card">
+          <div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هو وحده من يبدّل بين كل الفروع ويرى <b>مركز الفروع</b>.</span></div>
+        </div>
+
+        <!-- ═══════════ قسم التحكم في ميزات النظام (Feature Flagging) ═══════════ -->
+        <div class="set-card" id="featuresCard">
+          <h3>🎛️ التحكم في ميزات النظام</h3>
+          <div class="sub">فعّل أو عطّل أي ميزة بضغطة زر. التغيير يُحفظ فوراً في قاعدة البيانات ويُطبَّق على كل المستخدمين.</div>
+
+          <div class="feat-grid" id="featGrid">
+            <!-- يتم تحميلها ديناميكياً -->
+            <div class="snap-empty" id="featLoading">جارٍ تحميل الإعدادات…</div>
+          </div>
+          <div class="set-msg" id="featMsg"></div>
+        </div>
+
+      </div>
+    </div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  window.hoTogglePw = function () { var i = $('u-pass'); if (i) i.type = i.type === 'password' ? 'text' : 'password'; };
+
+  function loadUsers() {
+    fetch('/api/users', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var users = (j && j.users) || [];
+        $('uCount').textContent = '(' + users.length + ')';
+        if (!users.length) { $('usersBody').innerHTML = '<tr><td colspan="4" class="users-empty">لا يوجد مستخدمون مشاركون بعد. أضِف أول مستخدم من الأعلى.</td></tr>'; return; }
+        $('usersBody').innerHTML = users.map(function (u) {
+          return '<tr><td>' + esc(u.name || '—') + '</td><td><span class="uname">' + esc(u.username) + '</span></td><td>' + esc(u.created || '—') +
+            '</td><td><button class="u-del" data-u="' + esc(u.username) + '">🗑️ حذف</button></td></tr>';
+        }).join('');
+        Array.prototype.forEach.call(document.querySelectorAll('.u-del'), function (b) {
+          b.addEventListener('click', function () { delUser(b.getAttribute('data-u')); });
+        });
+      })
+      .catch(function () { $('usersBody').innerHTML = '<tr><td colspan="4" class="users-empty">تعذّر تحميل المستخدمين.</td></tr>'; });
+  }
+
+  async function delUser(username) {
+    if (!(await window.bzConfirm('حذف المستخدم «' + username + '»؟ لن يستطيع الدخول بعد الآن.'))) return;
+    fetch('/api/users', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: username }) })
+      .then(function (r) { return r.json(); })
+      .then(function () { if (window.showToast) showToast('تم حذف المستخدم', 'success'); loadUsers(); });
+  }
+
+  $('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('u-name').value.trim(), username = $('u-username').value.trim(), password = $('u-pass').value;
+    var msg = $('addMsg');
+    fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, username: username, password: password }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.success) {
+          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تمت إضافة المستخدم «' + esc(username) + '»</span>';
+          $('u-name').value = ''; $('u-username').value = ''; $('u-pass').value = '';
+          if (window.showToast) showToast('تمت إضافة المستخدم ✓', 'success');
+          loadUsers();
+        } else {
+          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + esc((res.j && res.j.reason) || 'تعذّرت الإضافة') + '</span>';
+        }
+      })
+      .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+  });
+
+  // ── السجل الزمني (النسخ المؤرّخة) ───────────────────────────────
+  function loadSnapTabs() {
+    fetch('/api/snapshots', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var tabs = (j && j.tabs) || [], sel = $('snapTab');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">— اختر تبويباً —</option>' + tabs.map(function (t) {
+          return '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>';
+        }).join('');
+      })
+      .catch(function () {});
+  }
+
+  function loadSnaps(tab) {
+    var list = $('snapList');
+    if (!tab) { list.innerHTML = '<li class="snap-empty">اختر تبويباً لعرض النسخ المؤرّخة.</li>'; return; }
+    list.innerHTML = '<li class="snap-empty">جارٍ التحميل…</li>';
+    fetch('/api/snapshots?tab=' + encodeURIComponent(tab), { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var snaps = (j && j.snapshots) || [];
+        if (!snaps.length) { list.innerHTML = '<li class="snap-empty">لا توجد نسخ محفوظة لهذا التبويب بعد.</li>'; return; }
+        list.innerHTML = snaps.map(function (s, i) {
+          var tag = i === 0 ? ' <small>(الأحدث)</small>' : '';
+          return '<li><span class="snap-when">' + esc(s.ts) + tag + '</span>' +
+            '<button class="snap-restore" data-id="' + esc(s.id) + '">↩ استعادة هذه النسخة</button></li>';
+        }).join('');
+        Array.prototype.forEach.call(list.querySelectorAll('.snap-restore'), function (b) {
+          b.addEventListener('click', function () { restoreSnap(b.getAttribute('data-id'), tab); });
+        });
+      })
+      .catch(function () { list.innerHTML = '<li class="snap-empty">تعذّر تحميل النسخ.</li>'; });
+  }
+
+  async function restoreSnap(id, tab) {
+    if (!(await window.bzConfirm('استعادة هذه النسخة؟ ستحلّ محل البيانات الحالية لهذا التبويب — والحالة الحالية تبقى محفوظة في السجل ويمكنك الرجوع إليها.'))) return;
+    var msg = $('snapMsg');
+    msg.innerHTML = '<span style="color:var(--text-secondary)">جارٍ الاستعادة…</span>';
+    fetch('/api/snapshots/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.success) {
+          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تمت الاستعادة بنجاح.</span>';
+          if (window.showToast) showToast('تمت استعادة النسخة ✓', 'success');
+          loadSnaps(tab);
+        } else {
+          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ تعذّرت الاستعادة' + (res.j && res.j.error ? ' (' + esc(res.j.error) + ')' : '') + '.</span>';
+        }
+      })
+      .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+  }
+
+  $('snapTab').addEventListener('change', function () { $('snapMsg').innerHTML = ''; loadSnaps(this.value); });
+
+  // ── حسابات الفروع (اسم مستخدم + رمز لكل فرع) ─────────────────────────────
+  function loadBranchAccounts() {
+    fetch('/api/branch_accounts', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var rows = (j && j.rows) || [];
+        if (!rows.length) { $('baBody').innerHTML = '<tr><td colspan="4" class="users-empty">—</td></tr>'; return; }
+        $('baBody').innerHTML = rows.map(function (r) {
+          return '<tr data-bid="' + r.branch_id + '">' +
+            '<td style="font-weight:800">🏢 ' + esc(r.branch_name) + '</td>' +
+            '<td><input class="ba-user" type="text" value="' + esc(r.username) + '" placeholder="اسم مستخدم بالإنجليزية" style="width:150px;font-family:monospace;direction:ltr"></td>' +
+            '<td><input class="ba-code" type="text" placeholder="' + (r.has_code ? '•••• (محفوظ — اكتب لتغييره)' : 'رمز جديد (4+ أحرف)') + '" style="width:170px;direction:ltr"></td>' +
+            '<td><button class="btn-submit-gold ba-save" style="padding:6px 12px;font-size:.8rem;border-radius:8px">حفظ</button>' +
+            (r.has_code ? ' <button class="u-del ba-del">🗑️</button>' : '') + '</td></tr>';
+        }).join('');
+        Array.prototype.forEach.call(document.querySelectorAll('.ba-save'), function (b) {
+          b.addEventListener('click', function () { saveBA(b.closest('tr')); });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('.ba-del'), function (b) {
+          b.addEventListener('click', function () { delBA(b.closest('tr')); });
+        });
+      })
+      .catch(function () { $('baBody').innerHTML = '<tr><td colspan="4" class="users-empty">تعذّر التحميل.</td></tr>'; });
+  }
+
+  function saveBA(tr) {
+    var bid = parseInt(tr.getAttribute('data-bid'), 10);
+    var username = tr.querySelector('.ba-user').value.trim();
+    var code = tr.querySelector('.ba-code').value;
+    var msg = $('baMsg');
+    if (!username || !code) { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">أدخل اسم المستخدم والرمز معاً.</span>'; return; }
+    fetch('/api/branch_accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch_id: bid, username: username, code: code }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.success) {
+          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ حساب الفرع.</span>';
+          if (window.showToast) showToast('تم حفظ حساب الفرع ✓', 'success');
+          loadBranchAccounts();
+        } else {
+          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + esc((res.j && res.j.reason) || 'تعذّر الحفظ') + '</span>';
+        }
+      })
+      .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+  }
+
+  async function delBA(tr) {
+    var bid = parseInt(tr.getAttribute('data-bid'), 10);
+    if (!(await window.bzConfirm('حذف حساب هذا الفرع؟ لن يستطيع الدخول باسمه بعد الآن.'))) return;
+    fetch('/api/branch_accounts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch_id: bid }) })
+      .then(function (r) { return r.json(); })
+      .then(function () { if (window.showToast) showToast('تم حذف حساب الفرع', 'success'); loadBranchAccounts(); });
+  }
+
+  loadUsers();
+  loadSnapTabs();
+  loadBranchAccounts();
+
+  // ── التحكم في ميزات النظام (Feature Flagging) ─────────────────────────
+  var FEAT_META = {
+    audit_enforced:  { icon: '🛡️', label: 'فرض سجل التدقيق', desc: 'إلزام المستخدمين بإدخال مسوّغ لكل تعديل.' },
+    ai_assistant:    { icon: '🤖', label: 'المساعد الذكي', desc: 'تفعيل / تعطيل المحادثة مع مساعد الذكاء الاصطناعي.' },
+    email_alerts:    { icon: '📧', label: 'تنبيهات البريد', desc: 'إرسال تنبيهات بريد إلكتروني عند اقتراب انتهاء الوثائق.' },
+    workstation_mode:{ icon: '🖥️', label: 'وضع محطة العمل', desc: 'تفعيل الدخول بنمط محطة العمل المفتوحة (Sandbox).' }
+  };
+
+  function loadFeatures() {
+    fetch('/api/system_features', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.features) throw new Error('no data');
+        renderFeatures(j.features);
+      })
+      .catch(function () {
+        var el = $('featLoading');
+        if (el) el.textContent = 'تعذّر تحميل إعدادات الميزات.';
+      });
+  }
+
+  function renderFeatures(features) {
+    var grid = $('featGrid');
+    grid.innerHTML = '';
+    Object.keys(FEAT_META).forEach(function (key) {
+      var m = FEAT_META[key];
+      var on = !!features[key];
+      var html = '<div class="feat-item">' +
+        '<div class="feat-info"><div class="feat-label">' + m.icon + ' ' + esc(m.label) + '</div>' +
+        '<div class="feat-desc">' + esc(m.desc) + '</div></div>' +
+        '<label class="toggle-switch"><input type="checkbox" data-key="' + key + '"' + (on ? ' checked' : '') + '>' +
+        '<span class="toggle-slider"></span></label></div>';
+      grid.insertAdjacentHTML('beforeend', html);
+    });
+    Array.prototype.forEach.call(grid.querySelectorAll('input[type="checkbox"]'), function (cb) {
+      cb.addEventListener('change', function () { toggleFeature(cb.getAttribute('data-key'), cb.checked); });
+    });
+  }
+
+  function toggleFeature(key, val) {
+    var msg = $('featMsg');
+    msg.innerHTML = '<span style="color:var(--text-secondary)">جارٍ الحفظ…</span>';
+    var body = {};
+    body[key] = val;
+    fetch('/api/system_features', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (res) {
+      if (res.ok && res.j.success) {
+        msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ الإعداد.</span>';
+        if (window.showToast) showToast('✓ تم تحديث الإعداد', 'success');
+      } else {
+        msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ تعذّر الحفظ.</span>';
+      }
+    })
+    .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+  }
+
+  loadFeatures();
+})();
+</script>
+
+</body>
+</html>
