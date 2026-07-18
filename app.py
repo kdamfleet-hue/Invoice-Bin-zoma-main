@@ -81,7 +81,7 @@ DEFAULT_TEMPLATES = {
 EMAIL_LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAHgAAABQCAIAAABd+SbeAAAGl0lEQVR42u3abWybVxUH8HPu47eSxHFiu3GTKW5e3KR5aZhDOkqmFhoxadpg0wqCIugEqwZsIAqIicKmdqNiCLURQhvdBmXVVrUrRJ3WoWpsq1iaboNuTZs0IU7avGyu06RJ7Dh+t597Dx9cYOpgdBMTj9H5f/AXPx8e/XR17z3nPEhEwPnwI5iAoRmaw9AMzdAchmZoDkMzNENzGJqhOQzN0AzNYWiG5jA0QzM0h6HfHQIoxMG9KDhlBEAsPOtCgiYCBFBSZbKy4KxFgRBfSSSWvXv30Bd2nLkcTuetlSKG/q8FERFRCBydSvyud/6lM9ETZ+elVAgkBKpCWNto5E/CpCQCQIS3Q3PBS5elpMrlJSeH0WTCdp996+4Rq0176M7aDX6XLsmkIUN/0B0ZAQAy6fjQ6CQRIUJOV6V2ezyRtpcsOztp3dodKCvW9t/XtPFjbqlIE8jQ748YABDh0Iuh8JIOoABRE6jrZC/Suq63DQTGE8ncuraVpyfMW7sDVjM++YOmT691KyKByNDXfE1WJAQ++OT53b+/mEgrRKT8HwCU1e+8ecXOLZ/j8RCqd+3ibdzSobXtsXCD17GjtaCqjIhKGXNcmoykDgRC4c9/57mdDFQ7L5o3L7RbUpcqfiELgXCQdnBfr/I19b4y8PjD1qY762ztde/8wPTQZX9tcpkuGvrZrHADs2j/e/WzIvkzs+UbdWp89GVpwOoob6uuuerhrnfNLfYOXw3GzSWgCgWQmk7JalxtzZLB6BGOJ3OHeuZsJn97W2FKdOX5qvNJdmiXHZ3/Yn0rpRCQQzSbNSfedz9RvWrg5HokpmgEApGApc8HiqqirK/3GQMvS/hhYCECGdzj3+3cZWb6avf8LjdGy4oXlkKnv8bPTSg5PxZzKS9p1LHZX/YeKDnw4xeVIkRFSORKZ2EkT8Kkz0N/ZGbB41DY3VNyc3+8upC7MlMRKZKV6EjOE2vk6xK2z7yeEMPlugbpoCdAzDdqdKnvnd49AQBgt9u1Df2Ct1gsqizLeNovNhp0+C2OA8koaQnp9/rO2/aKxSaD7qM0c2S9LTfqSPVL+g7gdLk3R4Lvn7+mOzy/opoQygzl5NQIq0/p5lhK0e2LzTzqGkWc+MfHZXRCoZDRfINvaOwiz6hElTDSJI1SP3BSkjGC9pRbIp/87qt+t6PBqkEYVgcUzn9CAABxl/mB7nH0vYi07reLMYozcWJtqzI2u8KnIVC0eTcdVgg//uLewJtFRfvcQCkKR1Bh/zeUZYrtdqSVVnXmdI4JjvQEzWUyIPV+s7p1f5Zk8HkDQ5a8h0/4lTsdTtiCWifdzGoFQylFZ2t+TNl1tN2TVdJW99ddpChfbuVZGXiXku/4WVeK/MlA9GqOFK+HGgnWaVXKgvnXjSkLjWEYhmEYhmEYhmEYhmH+sz8BzQDdMcl1yrQAAAAASUVORK5CYII="
 
 app = Flask(__name__)
-from models.schema import db
+from models.schema import db, Driver, Vehicle, VehicleCustody, Branch, Document, AuditLog
 import os
 DB_PATH = os.environ.get('SQLITE_PATH', os.path.join(os.path.dirname(__file__), 'database.sqlite'))
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
@@ -3667,16 +3667,42 @@ def _driver_blob_table(store):
 @app.route("/api/legacy/drivers", methods=["GET"])
 @login_required
 def get_drivers():
-    store = _driver_store()
-    if store in ("ws", "blob"):
-        # Isolated, server-persistent driver list (workstation id=2, or a branch row). Starts EMPTY.
-        lst = blob_get(_driver_blob_table(store)) or []
-        return jsonify(sorted(lst, key=lambda d: d.get("id", 0), reverse=True))
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT * FROM drivers ORDER BY id DESC")
-        drivers = [dict(row) for row in c.fetchall()]
-    return jsonify(drivers)
+    branch_id = current_branch_id()
+    drivers = Driver.query.filter_by(branch_id=branch_id).order_by(Driver.id.desc()).all()
+    
+    result = []
+    for d in drivers:
+        # Reconstruct the flat dictionary expected by the frontend
+        item = {
+            "id": d.id,
+            "name": d.name,
+            "empid": d.employee_id,
+            "iqama": d.iqama_number,
+            "phone": d.phone,
+            "job": d.job_title,
+            "iqama_exp": d.iqama_expiry.strftime('%Y-%m-%d') if d.iqama_expiry else "",
+            "license": d.license_expiry.strftime('%Y-%m-%d') if d.license_expiry else "",
+            "status": d.status,
+            # Fallbacks for empty vehicle
+            "plate": "", "car": "", "model": "", "vserial": "", "inspect": "", "notes": ""
+        }
+        
+        # Check if driver has an active vehicle custody
+        active_custody = VehicleCustody.query.filter_by(driver_id=d.id, status="active").first()
+        if active_custody and active_custody.vehicle:
+            v = active_custody.vehicle
+            item.update({
+                "plate": v.plate_number,
+                "car": v.v_type,
+                "model": v.model,
+                "vserial": v.serial_number,
+                "inspect": v.inspection_expiry.strftime('%Y-%m-%d') if v.inspection_expiry else "",
+                "notes": active_custody.notes or ""
+            })
+            
+        result.append(item)
+        
+    return jsonify(result)
 
 
 def normalize_plate(plate):
@@ -3869,55 +3895,85 @@ def add_driver():
     if not vals['name']:
         return jsonify({"error": "Name is required"}), 400
         
-    store = _driver_store()
-    if store in ("ws", "blob"):
-        tbl = _driver_blob_table(store)
-        lst = blob_get(tbl) or []
-        new_id = max([d.get("id", 0) for d in lst], default=0) + 1
-        row = {"id": new_id, **vals}
-        lst.append(row)
-        blob_set(tbl, lst)
-        return jsonify({"success": True, **row})
-        
-    with db_connection() as conn:
-        c = conn.cursor()
-        cols = ", ".join(fields)
-        placeholders = ", ".join(["?"] * len(fields))
-        if USE_POSTGRES:
-            c.execute(f"INSERT INTO drivers ({cols}) VALUES ({placeholders}) RETURNING id", tuple(vals[f] for f in fields))
-            new_id = c.fetchone()["id"]
-            conn.commit()
-        else:
-            c.execute(f"INSERT INTO drivers ({cols}) VALUES ({placeholders})", tuple(vals[f] for f in fields))
-            conn.commit()
-            new_id = c.lastrowid
+    branch_id = current_branch_id()
+    
+    def parse_date(dstr):
+        if not dstr: return None
+        try:
+            return datetime.strptime(dstr, '%Y-%m-%d').date()
+        except:
+            return None
 
-    logger.info("Driver added: %s (id=%s)", vals['name'], new_id)
-    return jsonify({"success": True, "id": new_id, **vals})
+    try:
+        driver = Driver(
+            branch_id=branch_id,
+            name=vals['name'],
+            employee_id=vals['empid'] or f"EMP-{datetime.now().timestamp()}",
+            iqama_number=vals['iqama'] or None,
+            phone=vals['phone'],
+            job_title=vals['job'],
+            iqama_expiry=parse_date(vals.get('iqama_exp')), # Frontend uses iqama_exp sometimes but sends iqama
+            license_expiry=parse_date(vals['license']),
+            status="متاح"
+        )
+        db.session.add(driver)
+        db.session.flush() # Get driver.id
+
+        if vals['plate']:
+            # See if vehicle exists in this branch
+            vehicle = Vehicle.query.filter_by(plate_number=vals['plate']).first()
+            if not vehicle:
+                vehicle = Vehicle(
+                    branch_id=branch_id,
+                    plate_number=vals['plate'],
+                    v_type=vals['car'],
+                    model=vals['model'],
+                    serial_number=vals['vserial'],
+                    inspection_expiry=parse_date(vals['inspect'])
+                )
+                db.session.add(vehicle)
+                db.session.flush()
+                
+            custody = VehicleCustody(
+                driver_id=driver.id,
+                vehicle_id=vehicle.id,
+                received_date=datetime.now().date(),
+                notes=vals['notes']
+            )
+            db.session.add(custody)
+
+        db.session.commit()
+        logger.info("Driver added via SQLAlchemy: %s (id=%s)", vals['name'], driver.id)
+        return jsonify({"success": True, "id": driver.id, **vals})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error adding driver: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/legacy/drivers/<int:driver_id>", methods=["DELETE"])
 @login_required
 def delete_driver(driver_id):
-    store = _driver_store()
-    if store in ("ws", "blob"):
-        # Remove from the isolated blob roster (workstation/branch). الدمام's real table untouched.
-        tbl = _driver_blob_table(store)
-        lst = [d for d in (blob_get(tbl) or []) if d.get("id") != driver_id]
-        blob_set(tbl, lst)
+    try:
+        driver = Driver.query.get(driver_id)
+        if driver:
+            # Delete custodies first
+            VehicleCustody.query.filter_by(driver_id=driver_id).delete()
+            # Then delete driver
+            db.session.delete(driver)
+            db.session.commit()
+            logger.info("Driver deleted via SQLAlchemy: id=%d", driver_id)
         return jsonify({"success": True})
-    with db_connection() as conn:
-        conn.execute("DELETE FROM drivers WHERE id = ?", (driver_id,))
-        conn.commit()
-    logger.info("Driver deleted: id=%d", driver_id)
-    return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting driver: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/legacy/drivers/bulk_delete", methods=["POST"])
 @login_required
 def bulk_delete_drivers():
-    """Admin-code-protected bulk delete from «جميع مركبات الفرع». All-or-nothing: the secret
-    code must match (constant-time) or nothing is touched. Per-branch (SQL for الدمام, blob else)."""
     body = request.get_json(silent=True) or {}
     if not hmac.compare_digest(str(body.get("lock", "")), WORKSTATION_PASSWORD):
         return jsonify({"success": False, "reason": "locked", "error": "الرمز السري غير صحيح."}), 403
@@ -3927,34 +3983,34 @@ def bulk_delete_drivers():
             ids.append(int(x))
         except (TypeError, ValueError):
             continue
-    ids = list(dict.fromkeys(ids))            # dedupe, keep order; all ints → no SQL injection
+    ids = list(dict.fromkeys(ids))
     if not ids:
         return jsonify({"success": False, "error": "لم تُحدَّد أي عناصر صالحة."}), 400
-    # Snapshot the FULL current roster BEFORE deleting so an accidental wipe is restorable
-    # (same pattern as the Absher apply → restore from Settings → version history).
+
     try:
-        _, _current = _drivers_list_for_sync()
-        blob_set("drivers_backup", {"ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "rows": _current})
-    except Exception:
-        logger.warning("drivers_backup snapshot before bulk delete failed")
-    store = _driver_store()
-    if store in ("ws", "blob"):
-        tbl = _driver_blob_table(store)
-        idset = set(ids)
-        lst = blob_get(tbl) or []
-        kept = [d for d in lst if isinstance(d, dict) and d.get("id") not in idset]
-        deleted = len(lst) - len(kept)
-        blob_set(tbl, kept)
-    else:                                     # SQL (الدمام)
-        ph = ",".join(["?"] * len(ids))
-        with db_connection() as conn:
-            row = conn.execute("SELECT COUNT(*) AS n FROM drivers WHERE id IN (%s)" % ph, ids).fetchone()
-            deleted = (row["n"] if row else 0)
-            conn.execute("DELETE FROM drivers WHERE id IN (%s)" % ph, ids)
-            conn.commit()
-    _audit_add("حذف جماعي", "سجل السائقين/المركبات", deleted, "حذف %d عنصراً بالرمز السري" % deleted)
-    logger.info("Bulk driver delete: requested=%d deleted=%d store=%s", len(ids), deleted, store)
-    return jsonify({"success": True, "deleted": deleted})
+        # Delete custodies first
+        VehicleCustody.query.filter(VehicleCustody.driver_id.in_(ids)).delete(synchronize_session=False)
+        # Delete drivers
+        deleted = Driver.query.filter(Driver.id.in_(ids)).delete(synchronize_session=False)
+        db.session.commit()
+        
+        # Log to SQLAlchemy audit
+        audit = AuditLog(
+            user_id=getattr(g, 'user', None),
+            branch_id=current_branch_id(),
+            action="حذف جماعي",
+            target_table="erp_drivers",
+            target_id=str(len(ids))
+        )
+        db.session.add(audit)
+        db.session.commit()
+        
+        logger.info("Bulk driver delete via SQLAlchemy: requested=%d deleted=%d", len(ids), deleted)
+        return jsonify({"success": True, "deleted": deleted})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in bulk delete: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/legacy/drivers/<int:driver_id>", methods=["PUT"])
@@ -3970,80 +4026,97 @@ def update_driver(driver_id):
     if not vals['name']:
         return jsonify({"error": "Name is required"}), 400
 
-    old_name, old_plate = "", ""
-    store = _driver_store()
-    if store in ("ws", "blob"):
-        tbl = _driver_blob_table(store)
-        lst = blob_get(tbl) or []
-        for d in lst:
-            if d.get("id") == driver_id:
-                old_name, old_plate = d.get("name", ""), d.get("plate", "")
-                d.update(vals)
-                break
-        blob_set(tbl, lst)
+    def parse_date(dstr):
+        if not dstr: return None
+        try:
+            return datetime.strptime(dstr, '%Y-%m-%d').date()
+        except:
+            return None
+
+    try:
+        driver = Driver.query.get(driver_id)
+        if not driver:
+            return jsonify({"error": "Driver not found"}), 404
+
+        old_name = driver.name
+        old_plate = ""
         
-        # مزامنة الجداول الأخرى إذا تغيرت اللوحة أو الاسم
+        # Get active custody
+        active_custody = VehicleCustody.query.filter_by(driver_id=driver_id, status="active").first()
+        if active_custody and active_custody.vehicle:
+            old_plate = active_custody.vehicle.plate_number
+
+        # Update Driver
+        driver.name = vals['name']
+        driver.employee_id = vals['empid'] or driver.employee_id
+        driver.iqama_number = vals['iqama'] or driver.iqama_number
+        driver.phone = vals['phone']
+        driver.job_title = vals['job']
+        driver.iqama_expiry = parse_date(vals.get('iqama_exp')) or driver.iqama_expiry
+        driver.license_expiry = parse_date(vals['license']) or driver.license_expiry
+
+        # Handle Vehicle Update
+        if vals['plate']:
+            vehicle = Vehicle.query.filter_by(plate_number=vals['plate']).first()
+            if not vehicle:
+                # Create new vehicle if plate changed to a non-existent one
+                vehicle = Vehicle(
+                    branch_id=current_branch_id(),
+                    plate_number=vals['plate'],
+                    v_type=vals['car'],
+                    model=vals['model'],
+                    serial_number=vals['vserial'],
+                    inspection_expiry=parse_date(vals['inspect'])
+                )
+                db.session.add(vehicle)
+                db.session.flush()
+            else:
+                # Update existing vehicle fields
+                vehicle.v_type = vals['car']
+                vehicle.model = vals['model']
+                vehicle.serial_number = vals['vserial']
+                if vals['inspect']:
+                    vehicle.inspection_expiry = parse_date(vals['inspect'])
+            
+            # Manage Custody
+            if not active_custody or active_custody.vehicle_id != vehicle.id:
+                if active_custody:
+                    active_custody.status = "returned"
+                    active_custody.returned_date = datetime.now().date()
+                
+                new_custody = VehicleCustody(
+                    driver_id=driver.id,
+                    vehicle_id=vehicle.id,
+                    received_date=datetime.now().date(),
+                    notes=vals['notes']
+                )
+                db.session.add(new_custody)
+            else:
+                active_custody.notes = vals['notes']
+        elif active_custody:
+            # Plate was cleared, return custody
+            active_custody.status = "returned"
+            active_custody.returned_date = datetime.now().date()
+
+        db.session.commit()
+
+        # Legacy sync (keep for tabs not yet rewritten)
         if old_name != vals['name'] or old_plate != vals['plate']:
-            _sync_all_tabs_from_drivers(
-                old_name=old_name, old_plate=old_plate,
-                new_name=vals['name'], new_plate=vals['plate'], new_car=vals['car']
-            )
-        
+            try:
+                _sync_all_tabs_from_drivers(
+                    old_name=old_name, old_plate=old_plate,
+                    new_name=vals['name'], new_plate=vals['plate'], new_car=vals['car']
+                )
+            except Exception as e:
+                logger.error(f"Legacy sync failed: {e}")
+
+        logger.info("Driver updated via SQLAlchemy: id=%s name=%s plate=%s", driver_id, vals['name'], vals['plate'])
         return jsonify({"success": True, "id": driver_id, **vals})
 
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT name, plate FROM drivers WHERE id=?", (driver_id,))
-        row = c.fetchone()
-        if row:
-            old_name, old_plate = row["name"], row["plate"]
-
-        set_clause = ", ".join([f"{f}=?" for f in fields])
-        c.execute(f"UPDATE drivers SET {set_clause} WHERE id=?", tuple(vals[f] for f in fields) + (driver_id,))
-        conn.commit()
-
-    if old_name != vals['name'] or old_plate != vals['plate']:
-        _sync_all_tabs_from_drivers(
-            old_name=old_name, old_plate=old_plate,
-            new_name=vals['name'], new_plate=vals['plate'], new_car=vals['car']
-        )
-
-    logger.info("Driver updated: id=%s name=%s plate=%s", driver_id, vals['name'], vals['plate'])
-    return jsonify({"success": True, "id": driver_id, **vals})
-
-    with db_connection() as conn:
-        c = conn.cursor()
-        c.execute(
-            """
-            UPDATE drivers
-            SET name=?, empid=?, plate=?, car=?, iqama=?, phone=?, drivercard=?
-            WHERE id=?
-        """,
-            (name, empid, plate, car, iqama, phone, drivercard, driver_id),
-        )
-        conn.commit()
-
-    logger.info("Driver updated: %s (id=%d)", name, driver_id)
-    # تحديث fleet_data.json وكل التبويبات من قاعدة البيانات تلقائياً
-    try:
-        _rebuild_fleet_json()
-        _sync_all_tabs_from_drivers(old_name=old_name, old_plate=old_plate,
-                                    new_name=name, new_plate=plate, new_car=car)
-    except Exception:
-        logger.warning("sync_all_tabs after driver update failed (non-fatal)")
-
-    return jsonify(
-        {
-            "success": True,
-            "id": driver_id,
-            "name": name,
-            "plate": plate,
-            "car": car,
-            "iqama": iqama,
-            "phone": phone,
-            "drivercard": drivercard,
-        }
-    )
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating driver: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 def _rebuild_fleet_json():
