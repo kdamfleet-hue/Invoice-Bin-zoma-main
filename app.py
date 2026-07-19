@@ -532,19 +532,20 @@ def _persistent_secret_key():
     """A stable session-signing key stored in the DB (survives restarts/redeploys), used
     only when SECRET_KEY isn't set in the environment — so deploys no longer log everyone
     out. Generated once, on first need, then reused forever after."""
-    try:
-        data = _global_blob_get("app_secret_key")
-        key = data.get("key") if isinstance(data, dict) else None
-        if key:
-            return key
-    except Exception:
-        logger.exception("Failed to read persistent secret key — falling back to a new one")
-    new_key = secrets.token_hex(32)
-    try:
-        _global_blob_set("app_secret_key", {"key": new_key})
-    except Exception:
-        logger.exception("Failed to persist secret key — sessions will reset on restart")
-    return new_key
+    with app.app_context():
+        try:
+            data = _global_blob_get("app_secret_key")
+            key = data.get("key") if isinstance(data, dict) else None
+            if key:
+                return key
+        except Exception:
+            logger.exception("Failed to read persistent secret key — falling back to a new one")
+        new_key = secrets.token_hex(32)
+        try:
+            _global_blob_set("app_secret_key", {"key": new_key})
+        except Exception:
+            logger.exception("Failed to persist secret key — sessions will reset on restart")
+        return new_key
 
 
 # Lock in a stable session key from the persistent DB (unless SECRET_KEY is set in the env),
@@ -890,36 +891,6 @@ def api_system_features():
         return jsonify({"success": False, "error": "تعذّر حفظ الإعدادات."}), 500
 
 
-@app.route("/api/users", methods=["GET", "POST", "DELETE"])
-@login_required
-def api_users():
-    if request.method == "GET":
-        return jsonify({"success": True, "users": _global_blob_get("users") or []})
-    
-    if not session.get("settings_unlocked"):
-        return jsonify({"success": False, "error": "غير مصرح لك."}), 403
-        
-    users = _global_blob_get("users") or []
-    
-    if request.method == "DELETE":
-        uid = request.args.get("id")
-        users = [u for u in users if str(u.get("id")) != str(uid)]
-        _global_blob_set("users", users)
-        return jsonify({"success": True})
-        
-    body = request.get_json(silent=True) or {}
-    uid = body.get("id")
-    if uid:
-        for u in users:
-            if str(u.get("id")) == str(uid):
-                u.update(body)
-                break
-    else:
-        body["id"] = "u" + secrets.token_hex(4)
-        users.append(body)
-        
-    _global_blob_set("users", users)
-    return jsonify({"success": True})
 
 
 
@@ -3466,8 +3437,10 @@ def _compute_insights(rid=None):
     # 2) fleet composition (drivers + distinct vehicles)
     from models.schema import Driver
     db_drivers = Driver.query.filter_by(branch_id=bid).all()
-    drivers = [{"name": d.name, "plate": d.vehicle.plate_number if d.vehicle else ""} for d in db_drivers]
-    
+    drivers = []
+    for d in db_drivers:
+        active = next((c for c in d.custodies if c.status == "active"), None)
+        drivers.append({"name": d.name, "plate": active.vehicle.plate_number if active and active.vehicle else ""})
     with_vehicle = sum(1 for d in drivers if str(d.get("plate") or "").strip())
     plates = {str(d.get("plate")).strip() for d in drivers if str(d.get("plate") or "").strip()}
     fleet = {"drivers": len(drivers), "with_vehicle": with_vehicle,

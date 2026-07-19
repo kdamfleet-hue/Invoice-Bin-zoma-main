@@ -72,7 +72,7 @@ def login():
 @auth_bp.route("/logout")
 def logout():
     session.clear()
-    resp = redirect(url_for("login"))
+    resp = redirect(url_for("auth.login"))
     resp.delete_cookie("ws_unlocked", path=WS_PREFIX)
     return resp
 
