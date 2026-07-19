@@ -3467,7 +3467,12 @@ def _compute_insights(rid=None):
     volume = {k: _blob_count(bg(t)) for k, t in (
         ("workshop", "workshop_data"), ("oils", "oils_data"), ("purchase", "purchase_data"),
         ("washing", "washing_schedule"), ("records", "records_data"),
-        ("gps_devices", "gps_devices_data"), ("employees", "employees"))}
+        ("gps_devices", "gps_devices_data"))}
+    
+    # hr_employees is now a real SQL table, not a JSON blob, so we must count it from DB directly.
+    with db_connection() as cdb:
+        emp_count = cdb.execute("SELECT COUNT(*) FROM hr_employees").fetchone()[0]
+        volume["employees"] = emp_count
 
     # 5) activity (from the audit trail)
     entries = _audit_get_at(bid)
