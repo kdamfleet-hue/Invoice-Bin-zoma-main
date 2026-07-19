@@ -3,7 +3,13 @@
 {% block title %}لوحة التحكم المركزية بالأسطول | شركة بن زومة{% endblock %}
 
 {% block head %}
-<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch | tojson }}; window.BZ_SNAP_TAB = {{ snap_tab | tojson }};</script>
+<script>
+window.BZ_BRANCH_ID = {{ active_branch_id }}; 
+window.BZ_BRANCH = {{ active_branch | tojson }}; 
+window.BZ_SNAP_TAB = {{ snap_tab | tojson }};
+window.BZ_IS_ADMIN = {{ is_admin | tojson }};
+window.BZ_BRANCHES = {{ branches | default([]) | tojson }};
+</script>
 <style>
     /* ══════════════════════════════════════════════════════════════════
        FLEET DASHBOARD — Luxury Intelligence Theme
@@ -1191,8 +1197,16 @@ Alert Sound
 </div>
 </div>
 <!-- Search bar -->
-<div class="fd-search-bar">
-<input id="fdSearch" oninput="filterTable(this.value)" placeholder="🔍 بحث بالاسم / اللوحة / الرقم الوظيفي / الإقامة / الجوال..." type="text"/>
+<div class="fd-search-bar" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+<input id="fdSearch" style="flex:1;" oninput="filterTable()" placeholder="🔍 بحث بالاسم / اللوحة / الرقم الوظيفي / الإقامة / الجوال..." type="text"/>
+{% if is_admin %}
+<select id="branchFilter" onchange="filterTable()" style="padding: 12px 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); color: var(--text-main); border-radius: 8px; font-family: 'Cairo', sans-serif;">
+  <option value="">-- كل الفروع --</option>
+  {% for b in branches %}
+  <option value="{{ b.id }}">{{ b.name }}</option>
+  {% endfor %}
+</select>
+{% endif %}
 </div>
 <div class="fd-card-body">
 <div class="table-wrapper">
@@ -1418,7 +1432,7 @@ Alert Sound
     // ── Build table header ───────────────────────────────────────────
     function buildHead() {
       const showBadges = document.getElementById('toggleBadges')?.checked;
-      const empCols = ['الرقم الوظيفي', 'الاسم', 'رقم الإقامة', 'الجوال', 'الوظيفة', 'بطاقة السائق', 'الملاحظات'];
+      const empCols = ['الرقم الوظيفي', 'الاسم', 'الفرع', 'رقم الإقامة', 'الجوال', 'الوظيفة', 'بطاقة السائق', 'الملاحظات'];
       const vehCols = ['رقم اللوحة', 'نوع المركبة', 'الموديل', 'الطبالي', 'الحمولة', 'التسلسلي', 'انتهاء الفحص', 'انتهاء الرخصة', 'انتهاء التشغيل', 'ملاحظات المركبة'];
       const totalCols = 1 + empCols.length + vehCols.length + (showBadges ? 1 : 0) + 1;
 
@@ -1452,6 +1466,14 @@ Alert Sound
         <td class="idx">${i + 1}</td>
         <td style="font-size:.78rem;color:var(--fd-muted)">${d.empid || '—'}</td>
         <td class="name">${d.name || '<span style="color: #555;">—</span>'}</td>
+        <td>
+          ${window.BZ_IS_ADMIN ? `
+            <select class="branch-select" onchange="updateDriverBranch(${d.id}, this.value)" style="padding:4px; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:var(--text-main); font-family: 'Cairo', sans-serif;">
+              <option value="">-- غير محدد --</option>
+              ${window.BZ_BRANCHES.map(b => `<option value="${b.id}" ${d.branch_id === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
+            </select>
+          ` : (window.BZ_BRANCHES.find(b => b.id === d.branch_id)?.name || '<span style="color: #555;">—</span>')}
+        </td>
         <td style="font-size:.8rem">${d.iqama || '<span style="color: #555;">—</span>'}</td>
         <td style="font-size:.8rem">${d.phone || '<span style="color: #555;">—</span>'}</td>
         <td>${d.job || '<span style="color: #555;">—</span>'}</td>
@@ -1478,16 +1500,40 @@ Alert Sound
     }
 
     // ── Filter ───────────────────────────────────────────────────────
-    function filterTable(q) {
-      q = (q || '').trim().toLowerCase();
-      filteredDrivers = q
-        ? allDrivers.filter(d => [d.name, d.empid, d.plate, d.iqama, d.phone, d.car].some(v => String(v || '').toLowerCase().includes(q)))
-        : [...allDrivers];
+    function filterTable() {
+      const q = (document.getElementById('fdSearch')?.value || '').trim().toLowerCase();
+      const bFilter = document.getElementById('branchFilter')?.value || '';
+      
+      filteredDrivers = allDrivers.filter(d => {
+        const matchQ = q ? [d.name, d.empid, d.plate, d.iqama, d.phone, d.car].some(v => String(v || '').toLowerCase().includes(q)) : true;
+        const matchB = bFilter ? String(d.branch_id) === String(bFilter) : true;
+        return matchQ && matchB;
+      });
       renderBody(filteredDrivers);
       document.getElementById('tableCount').textContent = filteredDrivers.length + ' سائق';
     }
 
     function rerenderTable() { buildHead(); renderBody(filteredDrivers); }
+
+    async function updateDriverBranch(id, branch_id) {
+      try {
+        const r = await fetch('/api/update_driver_branch', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({id: id, branch_id: branch_id || null})
+        });
+        const res = await r.json();
+        if(res.success) {
+          const idx = allDrivers.findIndex(d => d.id === id);
+          if(idx !== -1) allDrivers[idx].branch_id = branch_id ? parseInt(branch_id) : null;
+          console.log("Branch updated successfully for driver", id);
+        } else {
+          alert('خطأ في تحديث الفرع: ' + (res.error || ''));
+        }
+      } catch (e) {
+        alert('خطأ في الاتصال بالخادم');
+      }
+    }
 
     // ── Stats ────────────────────────────────────────────────────────
     function updateStats() {

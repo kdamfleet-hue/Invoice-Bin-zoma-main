@@ -991,7 +991,16 @@ def invoice():
 @login_required
 def fleet_dashboard():
     # Standalone fleet KPI dashboard (ported from Antigravity).
-    return render_template("fleet_dashboard.html", google_user=session.get("google_user"), b64_en=load_logo())
+    branches = []
+    is_admin = session.get("role") == "admin"
+    try:
+        with db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT id, name FROM erp_branches")
+            branches = [{"id": r[0], "name": r[1]} for r in c.fetchall()]
+    except Exception as e:
+        logger.error(f"Failed to fetch branches: {e}")
+    return render_template("fleet_dashboard.html", google_user=session.get("google_user"), b64_en=load_logo(), branches=branches, is_admin=is_admin)
 
 
 @app.route("/sw.js")
@@ -4317,6 +4326,28 @@ def update_driver_status():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     return jsonify({"error": "Invalid data"}), 400
+
+@app.route('/api/update_driver_branch', methods=['POST'])
+@login_required
+def update_driver_branch():
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "error": "غير مصرح لك"}), 403
+    data = request.json
+    driver_id = data.get('id')
+    branch_id = data.get('branch_id')
+    if driver_id and branch_id is not None:
+        try:
+            with db_connection() as conn:
+                c = conn.cursor()
+                if USE_POSTGRES:
+                    c.execute("UPDATE drivers SET branch_id = %s WHERE id = %s", (branch_id, driver_id))
+                else:
+                    c.execute("UPDATE drivers SET branch_id = ? WHERE id = ?", (branch_id, driver_id))
+                conn.commit()
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": False, "error": "بيانات غير صالحة"}), 400
 
 @app.route("/api/sync_excel", methods=["POST"])
 @login_required
