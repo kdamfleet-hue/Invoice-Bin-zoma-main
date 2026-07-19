@@ -489,55 +489,6 @@ window.BZ_BRANCHES = {{ branches | default([]) | tojson }};
     }
 
     /* ══════════════════════════════════════════════
-       TAB NAVIGATION
-    ══════════════════════════════════════════════ */
-    .fd-tabs {
-      display: flex;
-      gap: 4px;
-      padding: 16px 28px 0;
-      border-bottom: 2px solid var(--border-glass);
-      margin-bottom: 0;
-    }
-
-    .fd-tab {
-      padding: 10px 22px;
-      border-radius: 10px 10px 0 0;
-      font-size: .9rem;
-      font-weight: 700;
-      color: var(--fd-muted);
-      cursor: pointer;
-      border: 1px solid transparent;
-      border-bottom: none;
-      transition: all .2s;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: transparent;
-      position: relative;
-      bottom: -2px;
-    }
-
-    .fd-tab:hover {
-      color: var(--accent-primary);
-      background: rgba(197, 160, 89, .06);
-    }
-
-    .fd-tab.active {
-      color: var(--accent-primary);
-      background: var(--bg-panel);
-      border-color: var(--border-glass);
-      border-bottom-color: var(--bg-panel);
-    }
-
-    .fd-tab-panel {
-      display: none;
-    }
-
-    .fd-tab-panel.active {
-      display: block;
-    }
-
-    /* ══════════════════════════════════════════════
        DASHBOARD TAB STYLES
     ══════════════════════════════════════════════ */
     .fd-dash-grid {
@@ -1049,19 +1000,19 @@ Alert Sound
 </div>
 </div>
 <!-- ══════════════════════════ TABS NAV ══════════════════════════ -->
-<div class="fd-tabs">
-<button class="fd-tab active" id="btn-tab-dash" onclick="switchFdTab('tab-dash', this)">
+<div class="bz-tabs">
+<button class="bz-tab active" id="btn-tab-dash" onclick="switchFdTab('tab-dash', this)">
         📊 لوحة القيادة
       </button>
-<button class="fd-tab" id="btn-tab-fleet" onclick="switchFdTab('tab-fleet', this)">
+<button class="bz-tab" id="btn-tab-fleet" onclick="switchFdTab('tab-fleet', this)">
         🚛 سجل الأسطول
       </button>
-<button class="fd-tab" id="btn-tab-weekly" onclick="switchFdTab('tab-weekly', this)">
+<button class="bz-tab" id="btn-tab-weekly" onclick="switchFdTab('tab-weekly', this)">
         📅 الجدول الأسبوعي (حي)
       </button>
 </div>
 <!-- ══════════════════════════ TAB: DASHBOARD ══════════════════════════ -->
-<div class="fd-tab-panel active" id="tab-dash">
+<div class="bz-tab-pane active" id="tab-dash">
 <!-- Expiry Alert Strip (shown only if there are issues) -->
 <div class="fd-alert-strip" id="fd-expiry-alert" style="display:none">
 <div class="icon">⚠️</div>
@@ -1152,7 +1103,7 @@ Alert Sound
 </div>
 </div><!-- /tab-dash -->
 <!-- ══════════════════════════ TAB: FLEET TABLE ══════════════════════════ -->
-<div class="fd-tab-panel" id="tab-fleet">
+<div class="bz-tab-pane" id="tab-fleet">
 <!-- ── Stat Bar ── -->
 <div class="fd-stats" style="padding-top:20px;">
 <div class="fd-stat">
@@ -1226,7 +1177,7 @@ Alert Sound
 </div>
 </div><!-- /tab-fleet -->
 <!-- ══════════════════════════ TAB: WEEKLY SCHEDULE ══════════════════════════ -->
-<div class="fd-tab-panel" id="tab-weekly">
+<div class="bz-tab-pane" id="tab-weekly">
 <div class="lux-sched-container">
 <!-- Input Form -->
 <div class="lux-form-card">
@@ -1736,11 +1687,11 @@ Alert Sound
     }
 
     // ── Tab switcher ─────────────────────────────────────────────────
-    function switchFdTab(tabId, btn) {
-      document.querySelectorAll('.fd-tab-panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.fd-tab').forEach(b => b.classList.remove('active'));
+    function switchFdTab(tabId, btnElem) {
+      document.querySelectorAll('.bz-tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.bz-tab').forEach(b => b.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
-      btn.classList.add('active');
+      btnElem.classList.add('active');
     }
 
     // ── Delete driver ────────────────────────────────────────────────
