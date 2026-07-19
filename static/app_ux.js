@@ -3164,3 +3164,23 @@ function navigateToContext(type) {
     }
     DeepLinkNavigator.navigate('total_drivers');
 }
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if the hamburger already exists to prevent duplicates
+    if (!document.querySelector('.bz-hamburger')) {
+        const btn = document.createElement('button');
+        // using lucide menu icon instead of raw ☰
+        btn.innerHTML = '<i data-lucide="menu"></i>';
+        btn.className = 'bz-hamburger';
+        btn.onclick = () => {
+            document.body.classList.toggle('sidebar-open');
+        };
+        document.body.appendChild(btn);
+        
+        // Re-render lucide icons if loaded
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+            lucide.createIcons();
+        }
+    }
+});
