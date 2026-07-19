@@ -132,7 +132,7 @@
     .sched-premium table.sched td {
         min-width: 50px; border:1px solid rgba(255,255,255,.07); padding:0; text-align:center; overflow:visible; }
     .sched-premium table.sched thead th {
-      background:rgba(0,0,0,.28); color:var(--p-gold2); font-weight:700; font-size:.73rem;
+      background:linear-gradient(180deg, rgba(11, 13, 20, 0.9), rgba(19, 23, 34, 0.95)); color:var(--p-gold2); font-weight:700; font-size:.73rem;
       padding:8px 8px; white-space:normal; line-height:1.35; word-break:keep-all; overflow-wrap:normal;
       border-bottom:1px solid var(--p-border);
     }
@@ -154,7 +154,8 @@
     .sched-premium table.sched td.col-idx {
       background:rgba(0,0,0,.22); font-weight:800; font-size:.74rem; color:var(--p-gold2);
     }
-    .sched-premium table.sched tbody tr { transition:background .15s; }
+    .sched-premium table.sched tbody tr { transition:all 0.3s ease; }
+    .sched-premium table.sched tbody tr:hover td:not(.exp-bad):not(.exp-warn) { background: rgba(197, 160, 89, 0.12) !important; transform: scale(1.001); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
     .sched-premium table.sched tbody tr:nth-child(even) td:not(.col-idx):not(.exp-bad):not(.exp-warn) { background:var(--p-row-alt); }
     .sched-premium table.sched tbody tr:hover td:not(.exp-bad):not(.exp-warn) { background:rgba(197,160,89,.12); }
 
@@ -416,7 +417,7 @@
 <span>⚠️ المستندات التي تنتهي خلال 30 يومًا أو منتهية</span>
 <button onclick="recalcExpiring()" class="btn-neon" style="padding:2px 8px; font-size:11px;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
 </div>
-<div class="sched-table-wrap">
+<div class="sched-table-wrap glass-panel">
 <table class="sched" style="width:100%; margin:0; box-shadow:none;">
 <thead>
 <tr>
@@ -444,7 +445,7 @@
 <div style="position:relative; height:180px; width:100%; display:flex; justify-content:center; margin-bottom:14px;">
 <canvas id="pieChartDrivers" style="max-height:180px;"></canvas>
 </div>
-<div class="sched-table-wrap" style="max-height:none; margin:0; overflow:visible;">
+<div class="sched-table-wrap glass-panel" style="max-height:none; margin:0; overflow:visible;">
 <table class="sched" style="width:100%; margin:0; box-shadow:none;">
 <tbody id="excelJobSplitTable"></tbody>
 </table>
@@ -459,7 +460,7 @@
 <div style="position:relative; height:200px; width:100%; margin-bottom:14px;">
 <canvas id="barChartVehicles"></canvas>
 </div>
-<div class="sched-table-wrap" style="max-height:none; margin:0; overflow:visible;">
+<div class="sched-table-wrap glass-panel" style="max-height:none; margin:0; overflow:visible;">
 <table class="sched" style="width:100%; margin:0; box-shadow:none;">
 <tbody id="excelVehicleTable"></tbody>
 </table>
@@ -478,7 +479,7 @@
 <span><i style="background:rgba(253,230,138,.4);border:1px solid #FDE68A;"></i> خلال 90 يوماً</span>
 <span>📲 إشعار السائق ببياناته عبر واتساب</span>
 </div>
-<div class="sched-table-wrap" id="mainPrintArea">
+<div class="sched-table-wrap glass-panel" id="mainPrintArea">
 <table class="sched bz-fit"><thead id="headMain"></thead><tbody id="bodyMain"></tbody></table>
 </div>
 </div>
@@ -486,7 +487,7 @@
 <div class="sp-panel" id="spPanel-spare">
 <div class="sec-title spare"><h2>بيان المركبات الأسبير والمعطلة</h2>
 <button class="btn-neon" onclick="addRow('spare')" style="padding:6px 14px;font-size:.85rem;">➕ إضافة</button></div>
-<div class="sched-table-wrap">
+<div class="sched-table-wrap glass-panel">
 <table class="sched bz-fit"><thead id="headSpare"></thead><tbody id="bodySpare"></tbody></table>
 </div>
 </div>
@@ -495,14 +496,14 @@
 <div class="sec-title vac"><h2>السائقون في إجازة (هذا الأسبوع)</h2>
 <button class="btn-neon" onclick="addRow('vacation')" style="padding:6px 14px;font-size:.85rem;">➕ إضافة سائق في إجازة</button></div>
 <p class="hint" style="margin:-4px 0 8px;">أضف سائقاً وعدّل بياناته — يزداد العدد تلقائياً في الملخص.</p>
-<div class="sched-table-wrap">
+<div class="sched-table-wrap glass-panel">
 <table class="sched bz-fit"><thead id="headVac"></thead><tbody id="bodyVac"></tbody></table>
 </div>
 </div>
 <!-- TAB: EXPIRED (computed view derived from existing main+spare data) -->
 <div class="sp-panel" id="spPanel-expired">
 <div class="sec-title"><h2>🔴 الوثائق المنتهية أو القريبة من الانتهاء (خلال 90 يوماً)</h2></div>
-<div class="sched-table-wrap">
+<div class="sched-table-wrap glass-panel">
 <table class="sched">
 <thead><tr>
 <th>السائق</th><th>الرقم الوظيفي</th><th>اللوحة</th>
@@ -526,7 +527,7 @@
 <span class="hint" id="vehCount">0 مركبة</span>
 <button class="btn-neon" id="vehBulkDel" onclick="bulkDeleteVehicles()" style="padding:8px 14px;font-size:.85rem;font-weight:800;color:#ef4444;border-color:rgba(239,68,68,.4);display:none;" type="button">🗑 حذف المحدد (<span id="vehSelCount">0</span>)</button>
 </div>
-<div class="sched-table-wrap" id="vehPrintArea">
+<div class="sched-table-wrap glass-panel" id="vehPrintArea">
 <table class="sched">
 <thead><tr>
 <th style="width:36px;text-align:center"><input id="vehSelAll" style="width:16px;height:16px;cursor:pointer;accent-color:var(--p-accent,#c5a059)" title="تحديد الكل" type="checkbox"/></th>
@@ -540,7 +541,7 @@
 <div class="sp-panel" id="spPanel-unscheduled">
 <div class="sec-title"><h2>⚠️ المركبات المستبعدة / غير المجدولة</h2></div>
 <p class="hint" style="margin:-4px 0 10px;">يعرض هذا القسم تلقائياً أي مركبة مسجلة في الأسطول وليست موجودة في الجدول الرئيسي أو الاسبير أو الإجازات. يمكنك إضافتها للجدول بضغطة زر لتجنب نسيانها.</p>
-<div class="sched-table-wrap">
+<div class="sched-table-wrap glass-panel">
 <table class="sched">
 <thead><tr>
 <th>الاسم</th><th>الإقامة</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>إجراء سريع</th>
@@ -558,7 +559,7 @@
 <button class="btn-neon" onclick="deauthAddRow()">➕ إضافة صف</button>
 <span class="hint" id="deauthSaveHint" style="margin-inline-start:auto;"></span>
 </div>
-<div class="sched-table-wrap" id="deauthPrintArea">
+<div class="sched-table-wrap glass-panel" id="deauthPrintArea">
 <table class="sched bz-fit">
 <thead><tr><th>#</th><th>الاسم</th><th>الرقم الوظيفي</th><th>رقم الإقامة</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>رقم الجوال</th><th>إجراء</th></tr></thead>
 <tbody id="deauthBody"><tr><td colspan="8" style="text-align:center;padding:1.2rem;color:var(--p-muted,#94a3b8)">لا يوجد.</td></tr></tbody>
