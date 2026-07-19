@@ -4326,16 +4326,16 @@ def update_driver_status():
     driver_id = data.get('id')
     status = data.get('status')
     if driver_id:
+        from models.schema import Driver
         try:
-            with db_connection() as conn:
-                c = conn.cursor()
-                if USE_POSTGRES:
-                    c.execute("UPDATE drivers SET status = %s WHERE id = %s", (status, driver_id))
-                else:
-                    c.execute("UPDATE drivers SET status = ? WHERE id = ?", (status, driver_id))
-                conn.commit()
-            return jsonify({"success": True})
+            driver = Driver.query.get(driver_id)
+            if driver:
+                driver.status = status
+                db.session.commit()
+                return jsonify({"success": True})
+            return jsonify({"error": "Driver not found"}), 404
         except Exception as e:
+            db.session.rollback()
             return jsonify({"error": str(e)}), 500
     return jsonify({"error": "Invalid data"}), 400
 
@@ -4348,16 +4348,16 @@ def update_driver_branch():
     driver_id = data.get('id')
     branch_id = data.get('branch_id')
     if driver_id and branch_id is not None:
+        from models.schema import Driver
         try:
-            with db_connection() as conn:
-                c = conn.cursor()
-                if USE_POSTGRES:
-                    c.execute("UPDATE drivers SET branch_id = %s WHERE id = %s", (branch_id, driver_id))
-                else:
-                    c.execute("UPDATE drivers SET branch_id = ? WHERE id = ?", (branch_id, driver_id))
-                conn.commit()
-            return jsonify({"success": True})
+            driver = Driver.query.get(driver_id)
+            if driver:
+                driver.branch_id = int(branch_id)
+                db.session.commit()
+                return jsonify({"success": True})
+            return jsonify({"success": False, "error": "Driver not found"}), 404
         except Exception as e:
+            db.session.rollback()
             return jsonify({"success": False, "error": str(e)}), 500
     return jsonify({"success": False, "error": "بيانات غير صالحة"}), 400
 

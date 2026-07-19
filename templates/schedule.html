@@ -258,6 +258,30 @@
       .sched-premium { padding:14px; }
       .sp-stats { grid-template-columns:repeat(2,1fr); }
     }
+  
+    /* Fixed table alignment */
+    table.sched {
+        table-layout: fixed !important;
+        width: 100% !important;
+        word-wrap: break-word !important;
+    }
+    table.sched th {
+        white-space: normal !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.8rem;
+        text-align: center;
+        padding: 8px 4px !important;
+    }
+    table.sched td {
+        overflow: hidden;
+        padding: 4px !important;
+    }
+    table.sched input {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
   </style>
 {% endblock %}
 
@@ -594,54 +618,54 @@
     // ===== Column model — two groups: employee data (7) + vehicle data (10) =====
     const LS_KEY = 'binZomahScheduleData';
     const MAIN_COLS = [
-      { key: 'empid',      label: 'الرقم الوظيفي',            w: 5 },
+      { key: 'empid',      label: 'الرقم الوظيفي',            w: 4 },
       { key: 'name',       label: 'اسم السائق',               w: 12 },
-      { key: 'iqama',      label: 'رقم الإقامة',              w: 6 },
-      { key: 'job',        label: 'الوظيفة',                  w: 5 },
+      { key: 'iqama',      label: 'رقم الإقامة',              w: 5 },
+      { key: 'job',        label: 'الوظيفة',                  w: 4 },
       { key: 'plate',      label: 'رقم اللوحة',               w: 5 },
       { key: 'model',      label: 'الموديل',                  w: 4 },
-      { key: 'vtype',      label: 'نوع المركبة',              w: 6 },
-      { key: 'pallets',    label: 'عدد الطبالي',              w: 4 },
-      { key: 'load',       label: 'الحمولة',                  w: 4 },
+      { key: 'vtype',      label: 'نوع المركبة',              w: 5 },
+      { key: 'pallets',    label: 'عدد الطبالي',              w: 3 },
+      { key: 'load',       label: 'الحمولة',                  w: 3 },
       { key: 'vserial',    label: 'الرقم التسلسلي',           w: 5 },
       { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 6, date: true },
-      { key: 'rem_days1',  label: 'الأيام المتبقية',          w: 4, readonly: true },
+      { key: 'rem_days1',  label: 'الأيام المتبقية',          w: 3, readonly: true },
       { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   w: 6, date: true },
-      { key: 'rem_days2',  label: 'الأيام المتبقية',          w: 4, readonly: true },
+      { key: 'rem_days2',  label: 'الأيام المتبقية',          w: 3, readonly: true },
       { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق', w: 6, date: true },
-      { key: 'rem_days3',  label: 'الأيام المتبقية',          w: 4, readonly: true },
+      { key: 'rem_days3',  label: 'الأيام المتبقية',          w: 3, readonly: true },
       { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', w: 6, date: true },
-      { key: 'rem_days4',  label: 'الأيام المتبقية',          w: 4, readonly: true },
+      { key: 'rem_days4',  label: 'الأيام المتبقية',          w: 3, readonly: true },
       { key: 'empNotes',   label: 'الملاحظات',                w: 6 },
-      { key: 'phone',      label: 'رقم الجوال',               w: 5 }
+      { key: 'phone',      label: 'رقم الجوال',               w: 4 }
     ];
 
     const SPARE_COLS = [
-      { key: 'status',     label: 'الحالة',                   w: 7 },
+      { key: 'status',     label: 'الحالة',                   w: 6 },
       { key: 'plate',      label: 'رقم اللوحة',               w: 6 },
       { key: 'model',      label: 'الموديل',                  w: 5 },
       { key: 'vtype',      label: 'نوع المركبة',              w: 8 },
       { key: 'pallets',    label: 'عدد الطبالي',              w: 5 },
       { key: 'load',       label: 'الحمولة',                  w: 5 },
       { key: 'vserial',    label: 'الرقم التسلسلي',           w: 7 },
-      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 7, date: true },
+      { key: 'inspect',    label: 'تاريخ انتهاء الفحص الدوري', w: 8, date: true },
       { key: 'rem_days1',  label: 'الأيام المتبقية',          w: 5, readonly: true },
-      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   w: 7, date: true },
+      { key: 'license',    label: 'تاريخ انتهاء رخصة السير',   w: 8, date: true },
       { key: 'rem_days2',  label: 'الأيام المتبقية',          w: 5, readonly: true },
-      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', w: 7, date: true },
+      { key: 'opcard',     label: 'تاريخ انتهاء بطاقة التشغيل', w: 8, date: true },
       { key: 'rem_days3',  label: 'الأيام المتبقية',          w: 5, readonly: true },
-      { key: 'empNotes',   label: 'الملاحظات',                w: 9 }
+      { key: 'empNotes',   label: 'الملاحظات',                w: 12 }
     ];
 
     const VAC_COLS = [
-      { key: 'empid',      label: 'الرقم الوظيفي',            w: 8 },
-      { key: 'name',       label: 'اسم السائق',               w: 16 },
+      { key: 'empid',      label: 'الرقم الوظيفي',            w: 10 },
+      { key: 'name',       label: 'اسم السائق',               w: 20 },
       { key: 'iqama',      label: 'رقم الإقامة',              w: 10 },
-      { key: 'job',        label: 'الوظيفة',                  w: 8 },
+      { key: 'job',        label: 'الوظيفة',                  w: 10 },
       { key: 'drivercard', label: 'تاريخ انتهاء بطاقة السائق', w: 10, date: true },
       { key: 'rem_days1',  label: 'الأيام المتبقية',          w: 8, readonly: true },
       { key: 'phone',      label: 'رقم الجوال',               w: 10 },
-      { key: 'empNotes',   label: 'الملاحظات',                w: 12 }
+      { key: 'empNotes',   label: 'الملاحظات',                w: 15 }
     ];
 
     function colsFor(section) {
