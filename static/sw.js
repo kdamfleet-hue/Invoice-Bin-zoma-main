@@ -1,92 +1,46 @@
-const CACHE_NAME = 'fleet-pwa-v4';
-const OFFLINE_URL = '/offline.html';
-
-// ملفات أساسية للتخزين
-const CORE_ASSETS = [
+const CACHE_NAME = 'bin-zomah-v1';
+const urlsToCache = [
   '/',
-  '/manifest.json'
+  '/manifest.json',
+  '/static/logo_192.png',
+  '/static/logo_512.png',
+  '/static/nav_logo.png',
+  '/static/base_styles.css',
+  '/static/css/theme.css',
+  '/static/app_ux.js'
 ];
 
-// تثبيت الـ Service Worker
-self.addEventListener('install', (event) => {
-  console.log('🚀 Service Worker Installing...');
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(CORE_ASSETS);
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(urlsToCache);
     })
   );
-  self.skipWaiting();
 });
 
-// تنشيط الـ Service Worker
-self.addEventListener('activate', (event) => {
-  console.log('✅ Service Worker Activated');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
+self.addEventListener('fetch', (e) => {
+  e.respondWith(
+    caches.match(e.request).then(response => {
+      // Return cached response if found, else fetch from network
+      return response || fetch(e.request);
+    }).catch(() => {
+        // Fallback for offline mode if needed
+    })
+  );
+});
+
+// Activate event to clean up old caches
+self.addEventListener('activate', (e) => {
+    const cacheWhitelist = [CACHE_NAME];
+    e.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheWhitelist.indexOf(cacheName) === -1) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
         })
-      );
-    })
-  );
-  self.clients.claim();
-});
-
-// جلب الموارد (Network First + Cache Fallback)
-self.addEventListener('fetch', (event) => {
-  // للطلبات التي تخص الـ API أو الطلبات غير GET
-  if (event.request.url.includes('/api/') || event.request.method !== 'GET') {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-
-  // لباقي الطلبات (Network First)
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // تحديث الكاش بالنسخة الجديدة
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseClone);
-        });
-        return response;
-      })
-      .catch(() => {
-        // إذا انقطع الاتصال، جرب جلب الملف من الكاش
-        return caches.match(event.request).then(cachedResponse => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-        });
-      })
-  );
-});
-
-// استلام الإشعارات (Push Notifications)
-self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : { title: 'إشعار جديد', body: 'تحديث في نظام الأسطول' };
-  
-  const options = {
-    body: data.body,
-    vibrate: [100, 50, 100],
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: '1'
-    }
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
-});
-
-// التفاعل مع الإشعارات (عند النقر)
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.openWindow('/')
-  );
+    );
 });
