@@ -3,7 +3,15 @@
 {% block title %}منصة بن زومة | إدارة الأسطول{% endblock %}
 
 {% block head %}
-<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
+<script>
+  const m = document.getElementById("bz-meta");
+  if(m) {
+      window.BZ_BRANCH_ID = parseInt(m.getAttribute("data-branch-id") || "0", 10);
+      window.BZ_BRANCH = m.getAttribute("data-branch") || "";
+      window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
+  }
+</script>
 <style>
         .pf-hero { position: relative; overflow: hidden; max-width: 1300px; margin: -.25rem auto 1.5rem; padding: 2rem 2rem; border: 1px solid rgba(197,160,89,.3); border-radius: 20px; background: linear-gradient(135deg, #161616 0%, #0e0e0e 60%, #0c1730 130%); box-shadow: 0 18px 50px rgba(0,0,0,.4); }
         .pf-hero h1 { margin: 0; font-size: 1.7rem; font-weight: 800; color: #fff; letter-spacing: .3px; }

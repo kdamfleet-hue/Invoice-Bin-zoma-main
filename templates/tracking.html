@@ -3,7 +3,15 @@
 {% block title %}التتبع المباشر | Live Tracking — BIN ZOMAH INTL.{% endblock %}
 
 {% block head %}
-<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
+<script>
+  const m = document.getElementById("bz-meta");
+  if(m) {
+      window.BZ_BRANCH_ID = parseInt(m.getAttribute("data-branch-id") || "0", 10);
+      window.BZ_BRANCH = m.getAttribute("data-branch") || "";
+      window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
+  }
+</script>
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
 <style>
         /* Page-unique layout only — colors/fonts/buttons come from base_styles.css */

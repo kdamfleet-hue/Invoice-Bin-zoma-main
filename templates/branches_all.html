@@ -3,7 +3,15 @@
 {% block title %}جميع الفروع | شركة بن زومة{% endblock %}
 
 {% block head %}
-<script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
+<meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
+<script>
+  const m = document.getElementById("bz-meta");
+  if(m) {
+      window.BZ_BRANCH_ID = parseInt(m.getAttribute("data-branch-id") || "0", 10);
+      window.BZ_BRANCH = m.getAttribute("data-branch") || "";
+      window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
+  }
+</script>
 <style>
         .ab-wrap { max-width: 1200px; margin: 0 auto; }
         .ab-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
