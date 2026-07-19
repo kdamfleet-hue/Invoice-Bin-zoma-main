@@ -232,7 +232,14 @@
     function markCurrentMonthHeader() {
         for (let i = 0; i < 12; i++) {
             const th = document.getElementById('mhead-' + i);
-            if (th) th.classList.toggle('current-month', i === CURRENT_MONTH);
+            if (!th) continue;
+            if (i === CURRENT_MONTH) {
+                th.classList.add('current-month');
+                th.style.display = 'table-cell'; // Show only current month
+            } else {
+                th.classList.remove('current-month');
+                th.style.display = 'none'; // Hide all other months from UI
+            }
         }
         const msName = document.getElementById('msMonthName');
         if (msName) msName.textContent = MONTH_NAMES[CURRENT_MONTH];
@@ -391,7 +398,8 @@
                 const cur = mi === CURRENT_MONTH ? ' current-month' : '';
                 const mark = w ? '<span class="ok-mark" title="استلم">✓</span>'
                                : '<span class="x-mark" title="لم يستلم">✗</span>';
-                html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}${cur}" onclick="toggle(${idx},${mi})" title="${escapeHtml(MONTH_NAMES[mi])}: ${w ? 'استلم' : 'لم يستلم'}">${mark}</td>`;
+                const disp = (mi === CURRENT_MONTH) ? '' : 'style="display:none;"';
+                html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}${cur}" ${disp} onclick="toggle(${idx},${mi})" title="${escapeHtml(MONTH_NAMES[mi])}: ${w ? 'استلم' : 'لم يستلم'}">${mark}</td>`;
             }
             html += `<td class="cell-total">${total}</td>` +
                 `<td class="cell-price"><input type="number" class="wash-price-in" min="0" step="5" value="${washPrice(v)}" onchange="updateWashPrice(${idx}, this.value)" title="سعر الغسلة الواحدة — تلقائي حسب نوع المركبة، ويمكن تعديله"></td>` +

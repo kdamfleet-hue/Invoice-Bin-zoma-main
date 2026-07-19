@@ -1615,6 +1615,7 @@ def employees_data():
                                (empid, iqama, name, plate, phone, job, details_json))
                 db.commit()
             blob_set("employees", rows)
+            _sync_from_employees_to_fleet()
             return jsonify({"success": True})
         except Exception:
             logger.exception("employees_data POST error")
@@ -6039,3 +6040,51 @@ def api_audit_deep_link():
     target = body.get('type', 'غير محدد')
     _audit_add(action, target, 1)
     return jsonify({'success': True})
+
+def _sync_from_employees_to_fleet():
+    try:
+        from modules.db_utils import db_connection, blob_get, blob_set
+        with db_connection() as db:
+            c = db.cursor()
+            c.execute("SELECT name, plate, job FROM hr_employees")
+            emp_rows = c.fetchall()
+        
+        # Build map of plate -> name
+        emp_map = {}
+        for r in emp_rows:
+            name = str(r[0] or '').strip()
+            plate = str(r[1] or '').strip()
+            if name and plate:
+                np = plate.replace(' ', '').lower()
+                emp_map[np] = {'name': name, 'plate': plate, 'type': str(r[2] or '').strip()}
+        
+        if not emp_map:
+            return
+            
+        # Update Schedule
+        sched = blob_get("schedule_data")
+        if isinstance(sched, list):
+            changed = False
+            for v in sched:
+                np = str(v.get("plate", "")).replace(' ', '').lower()
+                if np in emp_map and v.get("driver") != emp_map[np]['name']:
+                    v["driver"] = emp_map[np]['name']
+                    changed = True
+            if changed:
+                blob_set("schedule_data", sched)
+                
+        # Update Washing
+        washing = blob_get("washing_schedule")
+        if isinstance(washing, list):
+            w_changed = False
+            for v in washing:
+                np = str(v.get("plate", "")).replace(' ', '').lower()
+                if np in emp_map and v.get("driver") != emp_map[np]['name']:
+                    v["driver"] = emp_map[np]['name']
+                    w_changed = True
+            if w_changed:
+                blob_set("washing_schedule", washing)
+                
+    except Exception as e:
+        import logging
+        logging.exception(f"sync_from_employees error: {e}")
