@@ -335,63 +335,67 @@
 <button class="sp-tab" id="tabBtnVeh" onclick="switchSchedTab('vehicles',this)" style="display:none;">🚗 جميع مركبات الفرع <span class="sp-chip" id="chipVeh">0</span></button>
 </div>
 <!-- TAB: DASHBOARD -->
-<div class="sp-panel active" id="spPanel-dashboard" style="background:#fff; color:#000; padding:26px; font-family:Arial, sans-serif; border-radius:14px; direction:rtl; max-width:1360px; margin:0 auto; box-shadow:0 4px 24px rgba(0,0,0,.25);">
+<div class="sp-panel active" id="spPanel-dashboard">
 <!-- Title row -->
-<div style="background:#1F3864; color:white; text-align:center; padding:16px 12px; font-weight:bold; font-size:24px; border-radius:8px; margin-bottom: 14px;">
-        لوحة معلومات أسطول المركبات - فرع الدمام
-      </div>
+<div class="sec-title"><h2>📊 لوحة معلومات أسطول المركبات - فرع الدمام</h2></div>
+
 <!-- Date row -->
-<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom: 22px; font-weight:bold; font-size: 14px; color:#000;">
+<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom: 22px; font-weight:bold; font-size: 14px; color:var(--p-muted);">
 <div>
 <span>تاريخ آخر تحديث:</span>
-<span id="excelLastUpdate" style="margin-right:10px;"></span>
+<span id="excelLastUpdate" style="margin-right:10px; color:var(--p-gold2);"></span>
 </div>
 <div>
 <span>تاريخ اليوم:</span>
-<span id="excelTodayDate" style="margin-right:10px;"></span>
+<span id="excelTodayDate" style="margin-right:10px; color:var(--p-gold2);"></span>
 </div>
 </div>
 <!-- KPIs row (editable) -->
-<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:16px; padding-bottom: 24px; margin-bottom: 24px; border-bottom: 1px solid #ddd;">
-<div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
-<div style="background:#4F81BD; color:white; padding:10px 6px; font-weight:bold; font-size:14px;">إجمالي عدد السائقين</div>
-<input data-kpi="drivers" id="excelTotalDrivers" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#2E5597; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" type="number" value="0"/>
+<div class="sp-stats" style="padding-bottom:24px; border-bottom:1px solid var(--p-border);">
+<div class="sp-stat blue">
+<div class="ico">👥</div>
+<input data-kpi="drivers" id="excelTotalDrivers" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; padding:0;" type="number" value="0"/>
+<div class="lbl">إجمالي عدد السائقين</div>
 </div>
-<div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
-<div style="background:#D6E3BC; color:black; padding:10px 6px; font-weight:bold; font-size:14px;">عدد الموصلين</div>
-<input data-kpi="delivery" id="excelDelivery" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#2E7D32; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" type="number" value="0"/>
+<div class="sp-stat green">
+<div class="ico">📦</div>
+<input data-kpi="delivery" id="excelDelivery" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; padding:0;" type="number" value="0"/>
+<div class="lbl">عدد الموصلين</div>
 </div>
-<div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
-<div style="background:#C0504D; color:white; padding:10px 6px; font-weight:bold; font-size:14px;">عدد الموزعين</div>
-<input data-kpi="distributors" id="excelDistributors" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#C62828; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" type="number" value="0"/>
+<div class="sp-stat red">
+<div class="ico">🚚</div>
+<input data-kpi="distributors" id="excelDistributors" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; padding:0;" type="number" value="0"/>
+<div class="lbl">عدد الموزعين</div>
 </div>
-<div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
-<div style="background:#E5DFEC; color:black; padding:10px 6px; font-weight:bold; font-size:14px;">سائقون في إجازة</div>
-<input data-kpi="vacation" id="excelVacation" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#8E24AA; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" type="number" value="0"/>
+<div class="sp-stat brown">
+<div class="ico">🏖️</div>
+<input data-kpi="vacation" id="excelVacation" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; padding:0;" type="number" value="0"/>
+<div class="lbl">سائقون في إجازة</div>
 </div>
-<div style="text-align:center; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12);">
-<div style="background:#EF6C00; color:white; padding:10px 6px; font-weight:bold; font-size:14px;">مركبات أسبير/معطلة</div>
-<input data-kpi="spare" id="excelSpare" onchange="saveDashKpi(this)" style="width:100%; border:none; font-size:34px; font-weight:bold; color:#EF6C00; padding:16px 10px; background:#fff; text-align:center; box-sizing:border-box; outline:none; -moz-appearance:textfield;" type="number" value="0"/>
+<div class="sp-stat orange">
+<div class="ico">🔧</div>
+<input data-kpi="spare" id="excelSpare" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; padding:0;" type="number" value="0"/>
+<div class="lbl">مركبات أسبير/معطلة</div>
 </div>
 </div>
 <!-- Main Layout: 2 Columns -->
 <div style="display:flex; flex-wrap:wrap; gap: 24px; align-items:flex-start;">
 <!-- Right Column in RTL (Expiring Documents Table) -->
-<div style="flex:1 1 420px; min-width:0; border-radius:10px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.12);">
-<div style="background:#C62828; color:white; padding:12px; font-weight:bold; text-align:center; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px;">
+<div style="flex:1 1 420px; min-width:0; background:var(--p-card); border-radius:12px; border:1px solid var(--p-border); overflow:hidden;">
+<div style="background:rgba(192,57,43,.15); color:#FF6B6B; padding:12px; font-weight:bold; text-align:center; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; border-bottom:1px solid rgba(192,57,43,.4);">
 <span>⚠️ المستندات التي تنتهي خلال 30 يومًا أو منتهية</span>
-<button onclick="recalcExpiring()" style="background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
+<button onclick="recalcExpiring()" class="btn-outline" style="padding:2px 8px; font-size:11px;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
 </div>
-<div style="overflow-x:auto;">
-<table style="width:100%; min-width:0; border-collapse:collapse; font-size:13.5px; text-align:center; background:#fff;">
+<div class="sched-table-wrap">
+<table class="sched" style="width:100%; margin:0; box-shadow:none;">
 <thead>
-<tr style="background:#4F81BD; font-weight:bold;">
-<th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">م</th>
-<th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">الاسم</th>
-<th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">رقم اللوحة</th>
-<th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">نوع المستند</th>
-<th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">تاريخ الانتهاء</th>
-<th style="border:1px solid #dde3ee; padding:9px 6px; color:#fff;">الأيام المتبقية</th>
+<tr>
+<th>م</th>
+<th>الاسم</th>
+<th>رقم اللوحة</th>
+<th>نوع المستند</th>
+<th>تاريخ الانتهاء</th>
+<th>الأيام المتبقية</th>
 </tr>
 </thead>
 <tbody id="excelExpiringBody">
@@ -402,31 +406,35 @@
 <!-- Left Column in RTL (summary tables, exactly like the Excel sheet) -->
 <div style="flex:1 1 380px; min-width:0; display:flex; flex-direction:column; gap:20px;">
 <!-- موصل / موزع -->
-<div style="border-radius:10px; padding:16px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.12);">
+<div style="background:var(--p-card); border-radius:12px; border:1px solid var(--p-border); padding:16px;">
 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-<div style="font-weight:bold; font-size:16px; color:#000;">توزيع السائقين: موصل / موزع</div>
-<button onclick="recalcJobSplit()" style="background:#eef1f6; border:1px solid #dde3ee; color:#444; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
+<div style="font-weight:bold; font-size:16px; color:var(--p-gold2);">توزيع السائقين: موصل / موزع</div>
+<button onclick="recalcJobSplit()" class="btn-outline" style="padding:2px 8px; font-size:11px;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
 </div>
 <div style="position:relative; height:180px; width:100%; display:flex; justify-content:center; margin-bottom:14px;">
 <canvas id="pieChartDrivers" style="max-height:180px;"></canvas>
 </div>
-<table style="width:100%; min-width:0; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:right; background:#fff;">
+<div class="sched-table-wrap" style="max-height:none; margin:0; overflow:visible;">
+<table class="sched" style="width:100%; margin:0; box-shadow:none;">
 <tbody id="excelJobSplitTable"></tbody>
 </table>
 </div>
+</div>
 <!-- عدد المركبات حسب النوع -->
-<div style="border-radius:10px; padding:16px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.12);">
+<div style="background:var(--p-card); border-radius:12px; border:1px solid var(--p-border); padding:16px;">
 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-<div style="font-weight:bold; font-size:16px; color:#000;">عدد المركبات حسب النوع</div>
-<button onclick="recalcVehicleTypes()" style="background:#eef1f6; border:1px solid #dde3ee; color:#444; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
+<div style="font-weight:bold; font-size:16px; color:var(--p-gold2);">عدد المركبات حسب النوع</div>
+<button onclick="recalcVehicleTypes()" class="btn-outline" style="padding:2px 8px; font-size:11px;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
 </div>
 <div style="position:relative; height:200px; width:100%; margin-bottom:14px;">
 <canvas id="barChartVehicles"></canvas>
 </div>
-<table style="width:100%; min-width:0; table-layout:fixed; border-collapse:collapse; border-radius:6px; overflow:hidden; font-size:14px; text-align:right; background:#fff;">
+<div class="sched-table-wrap" style="max-height:none; margin:0; overflow:visible;">
+<table class="sched" style="width:100%; margin:0; box-shadow:none;">
 <tbody id="excelVehicleTable"></tbody>
 </table>
-<div style="font-size:10px; color:gray; text-align:left; margin-top:8px; font-style:italic;">إعداد / إدارة قسم الحركة</div>
+</div>
+<div style="font-size:10px; color:var(--p-muted); text-align:left; margin-top:8px; font-style:italic;">إعداد / إدارة قسم الحركة</div>
 </div>
 </div>
 </div>

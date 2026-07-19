@@ -68,17 +68,17 @@
 <datalist id="dcNames"></datalist>
 <div class="bz-shell">
 <h2 class="bz-section-title">📂 أرشيف الوثائق</h2>
-<div class="dc-intro">
+<div class="dc-intro glass-panel">
 <strong>أرشيف مركزي لوثائق الأسطول.</strong>
         ارفع صور أو ملفات PDF للاستمارة والتأمين والفحص ورخصة السير وبطاقة التشغيل (للمركبات) والإقامة والجواز (للموظفين) مع تاريخ الانتهاء — وتظهر تواريخ الانتهاء تلقائياً في <b>التنبيهات اليومية</b> ولوحة التحليلات. الحد الأقصى للملف 2.5 ميجابايت.
       </div>
 <div class="dc-stats">
-<div class="dc-stat"><div class="v" id="stTotal">0</div><div class="l">إجمالي الوثائق</div></div>
-<div class="dc-stat"><div class="v red" id="stExpired">0</div><div class="l">منتهية</div></div>
-<div class="dc-stat"><div class="v amber" id="stSoon">0</div><div class="l">تنتهي ≤ 30 يوم</div></div>
-<div class="dc-stat"><div class="v" id="stValid" style="color:#10b981">0</div><div class="l">سارية</div></div>
+<div class="dc-stat glass-panel"><div class="v" id="stTotal">0</div><div class="l">إجمالي الوثائق</div></div>
+<div class="dc-stat glass-panel"><div class="v red" id="stExpired">0</div><div class="l">منتهية</div></div>
+<div class="dc-stat glass-panel"><div class="v amber" id="stSoon">0</div><div class="l">تنتهي ≤ 30 يوم</div></div>
+<div class="dc-stat glass-panel"><div class="v" id="stValid" style="color:#10b981">0</div><div class="l">سارية</div></div>
 </div>
-<div class="dc-card">
+<div class="dc-card glass-panel">
 <h3>➕ رفع وثيقة جديدة</h3>
 <div class="dc-seg" id="dcSeg">
 <button class="on" data-et="vehicle" type="button">🚗 مركبة</button>
@@ -96,7 +96,7 @@
 <label class="dc-drop" for="dcFile" id="dcDrop">📎 اختر صورة أو ملف PDF للوثيقة<small id="dcFileName">لم يُختر ملف بعد · حتى 2.5MB</small></label>
 <input accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" id="dcFile" style="display:none" type="file"/>
 <div class="dc-up">
-<button class="dc-btn" disabled="" id="dcUpload" type="button">📤 رفع وحفظ</button>
+<button class="btn-neon success" disabled="" id="dcUpload" type="button">📤 رفع وحفظ</button>
 <span class="dc-msg" id="dcMsg"></span>
 </div>
 </div>
@@ -221,15 +221,15 @@
       var s = statusOf(d.expiry), isImg = IMG[(d.file || {}).mime], url = '/api/documents/' + encodeURIComponent(d.id) + '/file';
       var thumb = isImg ? '<img src="' + esc(url) + '" loading="lazy" alt="">' : '<span class="ic">📄</span>';
       var et = d.entity_type === 'vehicle' ? '🚗' : '👤';
-      return '<div class="dc-doc">' +
+      return '<div class="dc-doc glass-panel">' +
         '<div class="dc-thumb" data-view="' + esc(url) + '">' + thumb + '</div>' +
         '<div class="dc-body"><span class="dc-pill ' + s.k + '">' + esc(s.t) + '</span>' +
         '<div class="ref">' + et + ' ' + esc(d.entity_ref) + '</div>' +
         '<div class="typ">' + esc(d.doc_type) + (d.number ? ' · ' + esc(d.number) : '') + '</div>' +
         '<div class="nm">' + esc((d.file || {}).name || '') + '</div></div>' +
-        '<div class="dc-acts"><a href="' + esc(url) + '" target="_blank" rel="noopener">عرض</a>' +
-        '<a href="' + esc(url) + '" download="' + esc((d.file || {}).name || 'doc') + '">تنزيل</a>' +
-        '<button class="del" type="button" data-id="' + esc(d.id) + '" data-label="' + esc(d.doc_type + ' — ' + d.entity_ref) + '">حذف</button></div></div>';
+        '<div class="dc-acts"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="btn-neon" style="padding:4px 8px; font-size:0.75rem; text-align:center;">عرض</a>' +
+        '<a href="' + esc(url) + '" download="' + esc((d.file || {}).name || 'doc') + '" class="btn-neon" style="padding:4px 8px; font-size:0.75rem; text-align:center;">تنزيل</a>' +
+        '<button class="btn-neon danger del" type="button" data-id="' + esc(d.id) + '" data-label="' + esc(d.doc_type + ' — ' + d.entity_ref) + '" style="padding:4px 8px; font-size:0.75rem;">حذف</button></div></div>';
     }).join('');
   }
 
