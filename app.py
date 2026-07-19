@@ -5728,6 +5728,52 @@ if __name__ == "__main__":
 
 
 
+@app.route('/fix_db')
+def fix_db_permissions():
+    """Emergency route to fix SQLite permissions on strict hosts (cPanel/VPS)."""
+    import os, stat
+    try:
+        from models.database import DB_PATH, USE_POSTGRES
+        if USE_POSTGRES:
+            return "PostgreSQL is active. No SQLite permission fix needed."
+            
+        db_dir = os.path.dirname(os.path.abspath(DB_PATH))
+        results = []
+        
+        # Try to fix directory
+        try:
+            os.chmod(db_dir, 0o777)
+            results.append(f"✅ Directory {db_dir} chmod 777 success")
+        except Exception as e:
+            results.append(f"❌ Directory {db_dir} chmod failed: {e}")
+            
+        # Try to fix file
+        try:
+            if os.path.exists(DB_PATH):
+                os.chmod(DB_PATH, 0o777)
+                results.append(f"✅ File {DB_PATH} chmod 777 success")
+            else:
+                # Create empty file if not exists to fix permissions
+                with open(DB_PATH, 'a'): pass
+                os.chmod(DB_PATH, 0o777)
+                results.append(f"✅ File {DB_PATH} created and chmod 777 success")
+        except Exception as e:
+            results.append(f"❌ File {DB_PATH} chmod failed: {e}")
+            
+        # Try to fix WAL and SHM
+        for suffix in ['-wal', '-shm']:
+            f_path = DB_PATH + suffix
+            if os.path.exists(f_path):
+                try:
+                    os.chmod(f_path, 0o777)
+                    results.append(f"✅ File {f_path} chmod 777 success")
+                except Exception as e:
+                    results.append(f"❌ File {f_path} chmod failed: {e}")
+                    
+        return "<br>".join(results) + "<br><br><a href='/login'>العودة لتسجيل الدخول</a>"
+    except Exception as e:
+        return f"Critical failure: {e}"
+
 @app.route('/admin/force_seed')
 def force_seed():
     try:
