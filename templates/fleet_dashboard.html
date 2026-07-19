@@ -3,12 +3,22 @@
 {% block title %}لوحة التحكم المركزية بالأسطول | شركة بن زومة{% endblock %}
 
 {% block head %}
+<meta id="bz-meta" 
+      data-branch-id="{{ active_branch_id }}" 
+      data-branch="{{ active_branch }}" 
+      data-snap-tab="{{ snap_tab }}" 
+      data-is-admin="{{ is_admin | lower }}" 
+      data-branches="{{ branches | default([]) | tojson | forceescape }}">
 <script>
-window.BZ_BRANCH_ID = {{ active_branch_id }}; 
-window.BZ_BRANCH = {{ active_branch | tojson }}; 
-window.BZ_SNAP_TAB = {{ snap_tab | tojson }};
-window.BZ_IS_ADMIN = {{ is_admin | tojson }};
-window.BZ_BRANCHES = {{ branches | default([]) | tojson }};
+  const bzMeta = document.getElementById('bz-meta');
+  if(bzMeta) {
+      window.BZ_BRANCH_ID = parseInt(bzMeta.getAttribute('data-branch-id') || '0', 10);
+      window.BZ_BRANCH = bzMeta.getAttribute('data-branch') || '';
+      window.BZ_SNAP_TAB = bzMeta.getAttribute('data-snap-tab') || '';
+      window.BZ_IS_ADMIN = bzMeta.getAttribute('data-is-admin') === 'true';
+      try { window.BZ_BRANCHES = JSON.parse(bzMeta.getAttribute('data-branches') || '[]'); } 
+      catch(e) { window.BZ_BRANCHES = []; }
+  }
 </script>
 <style>
     /* ══════════════════════════════════════════════════════════════════
