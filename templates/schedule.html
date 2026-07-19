@@ -5,6 +5,7 @@
 {% block head %}
 <script>window.BZ_BRANCH_ID = {{ active_branch_id }}; window.BZ_BRANCH = {{ active_branch|tojson }}; window.BZ_SNAP_TAB = {{ snap_tab|tojson }};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -1936,47 +1937,53 @@
     async function importExcel(e) {
       const file = e.target.files[0];
       if (!file) return;
-      if (!window.ExcelJS) {
+      if (!window.XLSX) {
         if (window.showToast) showToast('مكتبة الإكسل غير متوفرة', 'error');
         return;
       }
       try {
-        const wb = new ExcelJS.Workbook();
         const arrayBuffer = await file.arrayBuffer();
-        await wb.xlsx.load(arrayBuffer);
-        const ws = wb.worksheets[0];
-        if (!ws) throw new Error("لا توجد أوراق عمل في الملف");
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        if (!worksheet) throw new Error("لا توجد أوراق عمل في الملف");
+        
+        // Convert sheet to array of arrays with raw: false to format dates automatically
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
         
         let currentSection = 'main';
         const newMain = [];
         const newSpare = [];
         
-        ws.eachRow((row, rowNumber) => {
-          const firstCell = row.getCell(1).value;
-          if (typeof firstCell === 'string') {
-            if (firstCell.includes('المركبات الاسبير') || firstCell.includes('المعطلة')) {
-              currentSection = 'spare';
-            } else if (firstCell.includes('المركبات الأساسية') || firstCell.includes('الجدول الأسبوعي')) {
-              currentSection = 'main';
-            }
+        jsonData.forEach((row, rowIndex) => {
+          if (!row || row.length === 0) return;
+          const firstCell = String(row[0] || '');
+          
+          if (firstCell.includes('المركبات الاسبير') || firstCell.includes('المعطلة')) {
+            currentSection = 'spare';
+          } else if (firstCell.includes('المركبات الأساسية') || firstCell.includes('الجدول الأسبوعي')) {
+            currentSection = 'main';
           }
           
-          const idx = row.getCell(1).value;
+          const idx = row[0];
           // Row is considered data if first column is a number (index)
-          if (idx && (typeof idx === 'number' || !isNaN(parseInt(idx)))) {
+          if (idx !== '' && !isNaN(parseInt(idx))) {
             let hasData = false;
             const obj = {};
             EXPORT_COLS.forEach((c, i) => {
-              let v = row.getCell(i + 2).value;
-              if (v && v instanceof Date) {
+              // Note: excelJS uses 1-based, here row is 0-based array. First col is row[0], so (i+1) is data cell.
+              let v = row[i + 1];
+              // XLSX usually converts dates to numbers or strings depending on cellType. 
+              // We'll treat it as string or format it.
+              if (v instanceof Date) {
                 const y = v.getFullYear();
                 const m = String(v.getMonth()+1).padStart(2,'0');
                 const d = String(v.getDate()).padStart(2,'0');
                 v = `${y}-${m}-${d}`;
-              } else if (v && typeof v === 'object' && v.result) {
-                v = v.result;
-              } else if (v && typeof v === 'object' && v.text) {
-                v = v.text;
+              } else if (typeof v === 'number' && v > 40000 && v < 50000) { 
+                  // Simple excel date conversion heuristic just in case
+                  const date = new Date(Math.round((v - 25569) * 86400 * 1000));
+                  v = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
               }
               v = String(v || '').trim();
               if (v && v !== '—') hasData = true;

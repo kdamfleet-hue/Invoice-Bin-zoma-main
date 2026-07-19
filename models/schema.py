@@ -21,7 +21,9 @@ class User(db.Model):
     branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(50), nullable=False) # admin, branch, kiosk
+    role = db.Column(db.String(50), nullable=False, default='viewer') # admin, branch_manager, data_entry, viewer, kiosk
+    is_active = db.Column(db.Boolean, default=True)
+    last_login = db.Column(db.DateTime, nullable=True)
     
     audit_logs = db.relationship('AuditLog', backref='user', lazy=True)
 

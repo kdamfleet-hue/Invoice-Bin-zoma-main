@@ -312,6 +312,10 @@
 <a href="#history"><span class="ic">🕒</span> سجل استعادة النسخ</a>
 <a href="#audit"><span class="ic">📝</span> سجل التدقيق</a>
 <a href="/kpis"><span class="ic">🎯</span> مؤشرات الأداء (KPIs)</a>
+<a href="/vehicle_report"><span class="ic">📑</span> التقرير المالي للمركبة</a>
+{% if session.get('role') == 'admin' %}
+<a href="/admin/users"><span class="ic">🛡️</span> إدارة المستخدمين</a>
+{% endif %}
 <div class="side-title">التبويبات</div>
 <nav id="quickLinks"></nav>
 </aside>
@@ -346,7 +350,7 @@
 <table class="dtable">
 <thead id="alHead"><tr>
 <th style="width:38px;text-align:center"><input id="alSelectAll" onclick="toggleAllAlerts(this)" title="تحديد الكل" type="checkbox"/></th>
-<th class="al-sort" onclick="sortAlerts('name')">الاسم<span class="sort-ind" data-k="name"></span></th><th class="al-sort" onclick="sortAlerts('plate')">رقم اللوحة<span class="sort-ind" data-k="plate"></span></th><th class="al-sort" onclick="sortAlerts('doc')">الوثيقة<span class="sort-ind" data-k="doc"></span></th><th class="al-sort" onclick="sortAlerts('date')">تاريخ الانتهاء<span class="sort-ind" data-k="date"></span></th><th class="al-sort" onclick="sortAlerts('days')">المتبقي<span class="sort-ind" data-k="days"></span></th><th class="al-sort" onclick="sortAlerts('status')">الحالة<span class="sort-ind" data-k="status"></span></th>
+<th class="al-sort" onclick="sortAlerts('name')">الاسم<span class="sort-ind" data-k="name"></span></th><th class="al-sort" onclick="sortAlerts('plate')">رقم اللوحة<span class="sort-ind" data-k="plate"></span></th><th class="al-sort" onclick="sortAlerts('doc')">الوثيقة<span class="sort-ind" data-k="doc"></span></th><th class="al-sort" onclick="sortAlerts('date')">تاريخ الانتهاء<span class="sort-ind" data-k="date"></span></th><th class="al-sort" onclick="sortAlerts('days')">المتبقي<span class="sort-ind" data-k="days"></span></th><th class="al-sort" onclick="sortAlerts('status')">الحالة<span class="sort-ind" data-k="status"></span></th><th style="width:40px;text-align:center">إجراء</th>
 </tr></thead>
 <tbody id="alBody"></tbody>
 </table>
@@ -715,11 +719,25 @@
       } else {
         dateCell = esc(a.date);
       }
+      var waBtn = '<button class="chip" style="padding:4px 8px;font-size:0.8rem;background:#25D366;color:#fff;border:none" onclick="sendWhatsAppAlert(' + i + ')" title="إرسال تنبيه عبر واتساب">💬</button>';
       return '<tr><td style="text-align:center"><input type="checkbox" class="al-ck" data-i="' + i + '" onclick="alRowToggle(this)"' + ck + '></td><td>' + nameCell + '</td><td>' + plateCell + '</td><td>' + docCell +
-        '</td><td>' + dateCell + '</td><td class="days-left">' + fmtDays(a.st) + '</td><td><span class="badge ' + a.st.cls + '">' + a.st.label + '</span></td></tr>';
+        '</td><td>' + dateCell + '</td><td class="days-left">' + fmtDays(a.st) + '</td><td><span class="badge ' + a.st.cls + '">' + a.st.label + '</span></td><td style="text-align:center">' + waBtn + '</td></tr>';
     }).join('');
     var sa = $('alSelectAll'); if (sa) sa.checked = alCurList.every(function (a) { return alSelected[alKey(a)]; });
     updateAlMailBtn();
+  }
+
+  function sendWhatsAppAlert(i) {
+    var a = alCurList[i];
+    var phone = a.phone || "";
+    if (phone.startsWith('05')) {
+      phone = '966' + phone.substring(1);
+    } else if (!phone.startsWith('966') && phone.length === 9) {
+      phone = '966' + phone;
+    }
+    var plateText = a.plate ? " للمركبة (" + a.plate + ") " : " ";
+    var text = "عزيزي السائق " + (a.name || "") + "،\n\nنود تذكيرك بأن الوثيقة: *" + a.doc + "*" + plateText + "ستنتهي في تاريخ " + a.date + ".\nنرجو المراجعة لتفادي الإيقاف.\n\nإدارة حركة بن زومة.";
+    window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(text), "_blank");
   }
 
   // ---------- alerts: inline edit (writes straight back to the source row) ----------

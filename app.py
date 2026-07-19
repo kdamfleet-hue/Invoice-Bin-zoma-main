@@ -81,7 +81,7 @@ DEFAULT_TEMPLATES = {
 EMAIL_LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAHgAAABQCAIAAABd+SbeAAAGl0lEQVR42u3abWybVxUH8HPu47eSxHFiu3GTKW5e3KR5aZhDOkqmFhoxadpg0wqCIugEqwZsIAqIicKmdqNiCLURQhvdBmXVVrUrRJ3WoWpsq1iaboNuTZs0IU7avGyu06RJ7Dh+t597Dx9cYOpgdBMTj9H5f/AXPx8e/XR17z3nPEhEwPnwI5iAoRmaw9AMzdAchmZoDkMzNENzGJqhOQzN0AzNYWiG5jA0QzM0h6HfHQIoxMG9KDhlBEAsPOtCgiYCBFBSZbKy4KxFgRBfSSSWvXv30Bd2nLkcTuetlSKG/q8FERFRCBydSvyud/6lM9ETZ+elVAgkBKpCWNto5E/CpCQCQIS3Q3PBS5elpMrlJSeH0WTCdp996+4Rq0176M7aDX6XLsmkIUN/0B0ZAQAy6fjQ6CQRIUJOV6V2ezyRtpcsOztp3dodKCvW9t/XtPFjbqlIE8jQ748YABDh0Iuh8JIOoABRE6jrZC/Suq63DQTGE8ncuraVpyfMW7sDVjM++YOmT691KyKByNDXfE1WJAQ++OT53b+/mEgrRKT8HwCU1e+8ecXOLZ/j8RCqd+3ibdzSobXtsXCD17GjtaCqjIhKGXNcmoykDgRC4c9/57mdDFQ7L5o3L7RbUpcqfiELgXCQdnBfr/I19b4y8PjD1qY762ztde/8wPTQZX9tcpkuGvrZrHADs2j/e/WzIvkzs+UbdWp89GVpwOoob6uuuerhrnfNLfYOXw3GzSWgCgWQmk7JalxtzZLB6BGOJ3OHeuZsJn97W2FKdOX5qvNJdmiXHZ3/Yn0rpRCQQzSbNSfedz9RvWrg5HokpmgEApGApc8HiqqirK/3GQMvS/hhYCECGdzj3+3cZWb6avf8LjdGy4oXlkKnv8bPTSg5PxZzKS9p1LHZX/YeKDnw4xeVIkRFSORKZ2EkT8Kkz0N/ZGbB41DY3VNyc3+8upC7MlMRKZKV6EjOE2vk6xK2z7yeEMPlugbpoCdAzDdqdKnvnd49AQBgt9u1Df2Ct1gsqizLeNovNhp0+C2OA8koaQnp9/rO2/aKxSaD7qM0c2S9LTfqSPVL+g7gdLk3R4Lvn7+mOzy/opoQygzl5NQIq0/p5lhK0e2LzTzqGkWc+MfHZXRCoZDRfINvaOwiz6hElTDSJI1SP3BSkjGC9pRbIp/87qt+t6PBqkEYVgcUzn9CAABxl/mB7nH0vYi07reLMYozcWJtqzI2u8KnIVC0eTcdVgg//uLewJtFRfvcQCkKR1Bh/zeUZYrtdqSVVnXmdI4JjvQEzWUyIPV+s7p1f5Zk8HkDQ5a8h0/4lTsdTtiCWifdzGoFQylFZ2t+TNl1tN2TVdJW99ddpChfbuVZGXiXku/4WVeK/MlA9GqOFK+HGgnWaVXKgvnXjSkLjWEYhmEYhmEYhmEYhmH+sz8BzQDdMcl1yrQAAAAASUVORK5CYII="
 
 app = Flask(__name__)
-from models.schema import db, Driver, Vehicle, VehicleCustody, Branch, Document, AuditLog
+from models.schema import db, Driver, Vehicle, VehicleCustody, Branch, Document, AuditLog, AppSetting
 import os
 DB_PATH = os.environ.get('SQLITE_PATH', os.path.join(os.path.dirname(__file__), 'database.sqlite'))
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
@@ -170,6 +170,30 @@ def login_required(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+def role_required(*roles):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if request.path.startswith(WS_PREFIX):
+                return f(*args, **kwargs)
+            if not session.get("authenticated"):
+                if request.path.startswith("/api/"):
+                    return jsonify({"success": False, "error": "Session expired. Please log in."}), 401
+                return redirect(url_for("auth.login"))
+            
+            user_role = session.get("role", "viewer")
+            if user_role not in roles and "admin" not in roles and user_role != "admin": # admin has access to everything
+                # Actually, let's strictly check:
+                if user_role != 'admin' and user_role not in roles:
+                    if request.path.startswith("/api/"):
+                        return jsonify({"success": False, "error": "غير مصرح لك (Forbidden)"}), 403
+                    # Add flash or error handling if needed, or simply abort
+                    from flask import abort
+                    abort(403)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # ── GPS Configuration ────────────────────────────────────────────────────────
 GPS_USER = os.environ.get("GPS_USER", "")
@@ -371,6 +395,7 @@ def _loads_blob(data_str):
 
 def blob_get(table):
     """Read JSON blob for the active branch from SQLAlchemy AppSetting."""
+    from models.schema import AppSetting
     table = _safe_tbl(table)
     rid = _row_id()
     key = f"{table}_branch_{rid}"
@@ -380,6 +405,7 @@ def blob_get(table):
 
 def blob_set(table, data_obj):
     """Write JSON blob for the active branch to SQLAlchemy AppSetting."""
+    from models.schema import AppSetting
     data_obj = sanitize_data(data_obj)
     table = _safe_tbl(table)
     rid = _row_id()
@@ -443,6 +469,7 @@ def _snapshot(table, data_str):
 
 # ── GLOBAL (id=1) blobs: login accounts live here regardless of the active branch ─────
 def _global_blob_get(table):
+    from models.schema import AppSetting
     table = _safe_tbl(table)
     key = f"{table}_global"
     setting = AppSetting.query.get(key)
@@ -460,6 +487,7 @@ def sanitize_data(data):
     return data
 
 def _global_blob_set(table, data_obj):
+    from models.schema import AppSetting
     data_obj = sanitize_data(data_obj)
     table = _safe_tbl(table)
     key = f"{table}_global"
@@ -1321,7 +1349,7 @@ def generate_invoice():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/legacy/generate_schedule", methods=["POST"])
+@app.route("/api/generate_schedule", methods=["POST"])
 @login_required
 def generate_schedule():
     try:
@@ -1738,7 +1766,7 @@ def _harvest_vehicle_registry(sd):
             blob_set("vehicle_registry", reg)
 
 
-@app.route("/api/legacy/schedule_data", methods=["GET", "POST"])
+@app.route("/api/schedule_data", methods=["GET", "POST"])
 @login_required
 def schedule_data():
     """Persist the weekly schedule (main/spare/vacation/summary). Sandboxed for workstation."""
@@ -1965,6 +1993,67 @@ def _collect_expiry_alerts(window_days=90, rid=None):
         ref = dr.get("entity_ref") or "—"
         plate = ref if dr.get("entity_type") == "vehicle" else ""
         add(ref, plate, dr.get("doc_type") or "وثيقة", dr.get("expiry"))
+
+    # Odometer-Based Maintenance Alerts
+    latest_oil = {}
+    oils = _bg("oils_data") or []
+    orows = oils.get("rows") if isinstance(oils, dict) else (oils if isinstance(oils, list) else [])
+    for row in orows:
+        if isinstance(row, list) and len(row) > 3:
+            plate = str(row[0] or "").strip()
+            if not plate: continue
+            try: odo = int(row[3])
+            except (ValueError, TypeError): continue
+            if plate not in latest_oil or odo > latest_oil[plate]:
+                latest_oil[plate] = odo
+
+    latest_fuel = {}
+    fuel = _bg("fuel_data") or []
+    frows = fuel.get("rows") if isinstance(fuel, dict) else (fuel if isinstance(fuel, list) else [])
+    for row in frows:
+        if isinstance(row, dict):
+            plate = str(row.get("plate") or "").strip()
+            name = str(row.get("driver") or "").strip()
+            try: cur_odo = int(row.get("curOdo") or 0)
+            except (ValueError, TypeError): continue
+            if not plate: continue
+            if plate not in latest_fuel or cur_odo > latest_fuel[plate]['odo']:
+                latest_fuel[plate] = {'odo': cur_odo, 'name': name}
+
+    INTERVAL = 10000
+    WARNING_THRESHOLD = 9000
+    for plate, fdata in latest_fuel.items():
+        if plate in latest_oil:
+            diff = fdata['odo'] - latest_oil[plate]
+            if diff >= WARNING_THRESHOLD:
+                remaining_km = INTERVAL - diff
+                pseudo_days = max(0, int(remaining_km / 100))
+                if diff >= INTERVAL:
+                    key, label = "expired", "تجاوز العداد"
+                    pseudo_days = -1
+                elif remaining_km <= 1000:
+                    key, label = "d30", f"باقي {remaining_km} كم"
+                else:
+                    key, label = "d90", f"باقي {remaining_km} كم"
+                
+                out.append({
+                    "name": fdata['name'] or "—", "plate": plate, "doc": "تغيير زيت وصيانة",
+                    "date": f"العداد: {fdata['odo']}", "days": pseudo_days,
+                    "key": key, "label": label
+                })
+
+    # Attach driver phone numbers for WhatsApp Alerts
+    from models.schema import Driver
+    phone_map = {}
+    db_drivers = Driver.query.filter_by(branch_id=rid).all() if rid is not None else Driver.query.all()
+    for d in db_drivers:
+        if d.phone:
+            phone_map[d.name] = d.phone
+            if d.vehicle and d.vehicle.plate_number:
+                phone_map[d.vehicle.plate_number] = d.phone
+
+    for a in out:
+        a["phone"] = phone_map.get(a["name"]) or phone_map.get(a["plate"]) or ""
 
     rank = {"expired": 0, "d30": 1, "d90": 2}
     out.sort(key=lambda a: (rank.get(a["key"], 9), a["days"]))
@@ -3046,6 +3135,7 @@ def api_branch():
 def _audit_get_at(rid):
     """Read the audit list for a SPECIFIC mode/branch id (used by the HQ overview)."""
     key = f"audit_log_branch_{rid}"
+    from models.schema import AppSetting
     setting = AppSetting.query.get(key)
     if not setting: return []
     try:
@@ -3334,15 +3424,8 @@ BRANCH_DATA_CATEGORIES = [
 
 
 def _branch_driver_count(bid):
-    if bid == 1:   # الدمام keeps its frozen SQL roster
-        try:
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT COUNT(*) AS n FROM drivers")
-                return c.fetchone()["n"]
-        except Exception:
-            return 0
-    return _blob_count(_blob_get_at("drivers_branch", bid))
+    from models.schema import Driver
+    return Driver.query.filter_by(branch_id=bid).count()
 
 
 # ════════════════════════════════════════════════════════════════════════════════════
@@ -3365,6 +3448,7 @@ def _rows_as_dicts(data):
 def _compute_insights(rid=None):
     """Return the insight cards for the active (or given) branch. Every value is derived from a
     real source tab; nothing is invented."""
+    from models.schema import Driver
     def bg(table):
         return _blob_get_at(table, rid) if rid is not None else blob_get(table)
 
@@ -3380,21 +3464,12 @@ def _compute_insights(rid=None):
                 "date": a["date"], "days": a["days"], "key": a["key"]} for a in alerts[:8]]
 
     # 2) fleet composition (drivers + distinct vehicles)
-    if rid is None:
-        _, drivers = _drivers_list_for_sync()
-    elif bid == 1:
-        try:
-            with db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT name, plate FROM drivers")
-                drivers = [dict(r) for r in c.fetchall()]
-        except Exception:
-            drivers = []
-    else:
-        drivers = _blob_get_at("drivers_branch", bid) or []
-    drivers = drivers if isinstance(drivers, list) else []
-    with_vehicle = sum(1 for d in drivers if isinstance(d, dict) and str(d.get("plate") or "").strip())
-    plates = {str(d.get("plate")).strip() for d in drivers if isinstance(d, dict) and str(d.get("plate") or "").strip()}
+    from models.schema import Driver
+    db_drivers = Driver.query.filter_by(branch_id=bid).all()
+    drivers = [{"name": d.name, "plate": d.vehicle.plate_number if d.vehicle else ""} for d in db_drivers]
+    
+    with_vehicle = sum(1 for d in drivers if str(d.get("plate") or "").strip())
+    plates = {str(d.get("plate")).strip() for d in drivers if str(d.get("plate") or "").strip()}
     fleet = {"drivers": len(drivers), "with_vehicle": with_vehicle,
              "without_vehicle": max(0, len(drivers) - with_vehicle), "vehicles": len(plates)}
 
@@ -4059,6 +4134,7 @@ def add_driver():
 
 @app.route("/api/legacy/drivers/<int:driver_id>", methods=["DELETE"])
 @login_required
+@role_required("admin", "branch_manager")
 def delete_driver(driver_id):
     try:
         driver = Driver.query.get(driver_id)
@@ -4078,6 +4154,7 @@ def delete_driver(driver_id):
 
 @app.route("/api/legacy/drivers/bulk_delete", methods=["POST"])
 @login_required
+@role_required("admin", "branch_manager")
 def bulk_delete_drivers():
     body = request.get_json(silent=True) or {}
     if not hmac.compare_digest(str(body.get("lock", "")), WORKSTATION_PASSWORD):
@@ -5120,12 +5197,10 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 
 from routes.auth import auth_bp
 from routes.api_fleet import api_fleet_bp
-from routes.api_schedule import api_schedule_bp
 from routes.api_docs import api_docs_bp
 from routes.ai import ai_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_fleet_bp)
-app.register_blueprint(api_schedule_bp)
 app.register_blueprint(api_docs_bp)
 app.register_blueprint(ai_bp)
 
@@ -5550,6 +5625,76 @@ def refund_part():
     
     return jsonify({"success": True})
 
+@app.route("/vehicle_report")
+@login_required
+@role_required("admin", "branch_manager")
+def vehicle_report_page():
+    return render_template("vehicle_report.html", google_user=session.get("google_user", {}))
+
+@app.route("/api/vehicle_report/<path:plate>")
+@login_required
+@role_required("admin", "branch_manager", "viewer")
+def api_vehicle_report(plate):
+    try:
+        from models.schema import Vehicle
+        plate = str(plate).strip()
+        vehicle = Vehicle.query.filter_by(plate_number=plate).first()
+        if not vehicle:
+            return jsonify({"success": False, "error": "المركبة غير موجودة"}), 404
+
+        # Calculate Fuel Cost
+        fuel_cost = 0
+        fuel = blob_get("fuel_data") or []
+        for r in (fuel if isinstance(fuel, list) else []):
+            if isinstance(r, dict) and str(r.get("plate", "")).strip() == plate:
+                try: fuel_cost += float(r.get("cost") or 0)
+                except ValueError: pass
+
+        # Calculate Workshop & Oils Cost
+        workshop_cost = 0
+        workshop = blob_get("workshop_data") or []
+        wrows = workshop.get("rows") if isinstance(workshop, dict) else (workshop if isinstance(workshop, list) else [])
+        for r in wrows:
+            if isinstance(r, list) and len(r) > 10 and str(r[0] or "").strip() == plate:
+                try: workshop_cost += float(r[8] or 0) # usually index 8 is cost in workshop
+                except ValueError: pass
+                
+        oils = blob_get("oils_data") or []
+        orows = oils.get("rows") if isinstance(oils, dict) else (oils if isinstance(oils, list) else [])
+        for r in orows:
+            if isinstance(r, list) and len(r) > 10 and str(r[0] or "").strip() == plate:
+                try: workshop_cost += float(r[9] or 0) + float(r[10] or 0) # usually 9 and 10 are cost
+                except ValueError: pass
+
+        # Calculate Washing Cost
+        washing_cost = 0
+        washing = blob_get("washing_schedule") or []
+        for r in (washing if isinstance(washing, list) else []):
+            if isinstance(r, dict) and str(r.get("plate", "")).strip() == plate:
+                try: washing_cost += float(r.get("cost") or 0)
+                except ValueError: pass
+
+        driver = vehicle.custodies[-1].driver.name if vehicle.custodies else "غير معين"
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "plate": plate,
+                "model": vehicle.model or "غير محدد",
+                "v_type": vehicle.v_type or "غير محدد",
+                "driver": driver,
+                "costs": {
+                    "fuel": fuel_cost,
+                    "workshop": workshop_cost,
+                    "washing": washing_cost,
+                    "total": fuel_cost + workshop_cost + washing_cost
+                }
+            }
+        })
+    except Exception as e:
+        logger.exception("api_vehicle_report error")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 if os.environ.get("ENABLE_BACKGROUND_SCHEDULER") == "true":
     _start_alert_scheduler()
@@ -5780,7 +5925,7 @@ def seed_from_template():
     blob_set("schedule_data", sd)
     return "تم سحب البيانات من ملف الإكسل وإدخالها في الموقع بنجاح!"
 
-@app.route('/api/legacy/weekly_update', methods=['GET', 'POST'])
+@app.route('/api/weekly_update', methods=['GET', 'POST'])
 def weekly_update_api():
     file_path = 'تحديث الاسبوعي - فرع الدمام (محدث).xlsx'
     
