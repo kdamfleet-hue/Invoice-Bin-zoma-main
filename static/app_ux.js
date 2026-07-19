@@ -948,6 +948,22 @@ function buildEnterpriseShell() {
         }
 
         if (actions) {
+            if (!document.getElementById('bzSoundToggle')) {
+                const soundBtn = document.createElement('button');
+                soundBtn.id = 'bzSoundToggle'; soundBtn.className = 'bz-icon-btn';
+                soundBtn.title = 'تفعيل/تعطيل التنبيه الصوتي';
+                soundBtn.style.marginRight = '8px';
+                soundBtn.style.marginLeft = '8px';
+                let soundEnabled = localStorage.getItem('bzAlertSound') === '1';
+                soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+                soundBtn.onclick = function() {
+                    soundEnabled = !soundEnabled;
+                    localStorage.setItem('bzAlertSound', soundEnabled ? '1' : '0');
+                    soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+                    if (soundEnabled) window.playAlertSound(true); // Unlock and test
+                };
+                actions.insertBefore(soundBtn, actions.firstChild);
+            }
             if (!document.getElementById('bzBell')) {
                 const bell = document.createElement('a');
                 bell.id = 'bzBell'; bell.className = 'bz-top-ico'; bell.href = '/dashboard#alerts';
@@ -962,6 +978,30 @@ function buildEnterpriseShell() {
             }
         }
 
+        // Global alert sound function
+        window.playAlertSound = function(force) {
+            if (!force && localStorage.getItem('bzAlertSound') !== '1') return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                if (!window._bzAudioCtx) window._bzAudioCtx = new AudioContext();
+                const ctx = window._bzAudioCtx;
+                if (ctx.state === 'suspended') ctx.resume();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {}
+        };
+
         // fill the user chip + alerts badge from REAL data only (best-effort; no fabrication)
         fetch('/api/whoami', { headers: { 'Accept': 'application/json' } })
             .then(r => r.ok ? r.json() : null)
@@ -974,7 +1014,16 @@ function buildEnterpriseShell() {
             .then(r => r.ok ? r.json() : null)
             .then(j => {
                 const bell = document.getElementById('bzBell');
-                if (j && bell && j.total > 0) bell.innerHTML = '🔔<span class="badge-dot">' + (j.total > 99 ? '99+' : j.total) + '</span>';
+                if (j && bell && j.total > 0) {
+                    bell.innerHTML = '🔔<span class="badge-dot">' + (j.total > 99 ? '99+' : j.total) + '</span>';
+                    const lastTotal = parseInt(sessionStorage.getItem('bzLastAlertTotal') || '0', 10);
+                    if (j.total > lastTotal) {
+                        window.playAlertSound(false);
+                    }
+                    sessionStorage.setItem('bzLastAlertTotal', j.total);
+                } else if (j && j.total === 0) {
+                    sessionStorage.setItem('bzLastAlertTotal', '0');
+                }
             }).catch(() => {});
     } catch (e) { console.error('enterprise shell error', e); }
 }
