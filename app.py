@@ -2472,7 +2472,7 @@ def documents_page():
     return render_template("documents.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
-@app.route("/api/legacy/documents", methods=["GET", "POST"])
+@app.route("/api/documents", methods=["GET", "POST"])
 @login_required
 def api_documents():
     branch_id = current_branch_id()
@@ -5618,7 +5618,8 @@ def api_vehicle_report(plate):
         # Calculate Fuel Cost
         fuel_cost = 0
         fuel = blob_get("fuel_data") or []
-        for r in (fuel if isinstance(fuel, list) else []):
+        frows = fuel.get("rows") if isinstance(fuel, dict) else (fuel if isinstance(fuel, list) else [])
+        for r in frows:
             if isinstance(r, dict) and str(r.get("plate", "")).strip() == plate:
                 try: fuel_cost += float(r.get("cost") or 0)
                 except ValueError: pass
@@ -5642,7 +5643,8 @@ def api_vehicle_report(plate):
         # Calculate Washing Cost
         washing_cost = 0
         washing = blob_get("washing_schedule") or []
-        for r in (washing if isinstance(washing, list) else []):
+        wrows = washing.get("rows") if isinstance(washing, dict) else (washing if isinstance(washing, list) else [])
+        for r in wrows:
             if isinstance(r, dict) and str(r.get("plate", "")).strip() == plate:
                 try: washing_cost += float(r.get("cost") or 0)
                 except ValueError: pass
