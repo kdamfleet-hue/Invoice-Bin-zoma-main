@@ -3149,9 +3149,20 @@ document.addEventListener('DOMContentLoaded', () => {
         // using lucide menu icon instead of raw ☰
         btn.innerHTML = '<i data-lucide="menu"></i>';
         btn.className = 'bz-hamburger';
+        
+        // Mobile backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'bz-sidebar-backdrop';
+        
         btn.onclick = () => {
             document.body.classList.toggle('sidebar-open');
         };
+        
+        backdrop.onclick = () => {
+            document.body.classList.remove('sidebar-open');
+        };
+        
+        document.body.appendChild(backdrop);
         document.body.appendChild(btn);
         
         // Re-render lucide icons if loaded

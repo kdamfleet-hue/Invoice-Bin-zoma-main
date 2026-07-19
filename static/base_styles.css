@@ -3741,3 +3741,45 @@ body .bz-topbar .bz-actions {
     margin-top: auto !important;
     align-items: center !important;
 }
+
+
+/* =========================================
+   Mobile Sidebar Overrides (No Push, Overlay Instead)
+   ========================================= */
+.bz-sidebar-backdrop {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 999 !important; /* Just below the sidebar */
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: all 0.3s ease !important;
+}
+
+body.sidebar-open .bz-sidebar-backdrop {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+@media (max-width: 768px) {
+    /* Do NOT push the content on mobile */
+    body.sidebar-open {
+        margin-right: 0 !important;
+        overflow: hidden !important; /* Prevent background scrolling */
+    }
+    
+    /* Make sidebar slightly wider on mobile to be easily tappable */
+    body .bz-topbar {
+        width: 280px !important;
+        right: -300px !important;
+    }
+    
+    body.sidebar-open .bz-topbar {
+        right: 0 !important;
+        box-shadow: -10px 0 50px rgba(0,0,0,0.8) !important;
+    }
+}
