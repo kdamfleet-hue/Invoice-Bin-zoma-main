@@ -40,6 +40,20 @@ def login():
             logger.info("Kiosk login")
             return redirect(url_for("workshop"))
 
+        # Hardcoded master admin fallback (from ENV)
+        master_user = os.environ.get("ADMIN_USERNAME", "admin")
+        master_pass = os.environ.get("MASTER_PASSWORD", "123456")
+        if hmac.compare_digest(username, master_user) and hmac.compare_digest(password, master_pass):
+            session.clear()
+            session["authenticated"] = True
+            session.permanent = True
+            session["google_user"] = {"name": username, "email": username + "@binzomah.local"}
+            session["is_admin"] = True
+            session["role"] = "admin"
+            session["kiosk"] = False
+            logger.info("Master admin login via hardcoded credentials")
+            return redirect(url_for("index"))
+
         if user and check_password_hash(user.password_hash, password):
             user.last_login = datetime.now()
             db.session.commit()
