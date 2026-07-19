@@ -126,8 +126,13 @@ def init_db_on_startup():
         try:
             upgrade()
             logger.info("✅ Database migrated successfully (Alembic).")
+            
+            # Auto-seed admin and initial data to prevent empty database login issues
+            import seed_admin
+            seed_admin.seed()
+            logger.info("✅ Initial data seeded successfully.")
         except Exception as e:
-            logger.error(f"❌ Error migrating database: {e}")
+            logger.error(f"❌ Error migrating/seeding database: {e}")
 
 init_db_on_startup()
 # CORS: the app serves its own same-origin frontend, so cross-origin is disabled by
