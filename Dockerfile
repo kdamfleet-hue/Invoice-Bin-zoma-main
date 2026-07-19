@@ -35,4 +35,5 @@ EXPOSE 3000
 USER appuser
 
 # تشغيل التطبيق مع الإعدادات المحسنة
-CMD ["sh", "-c", "flask db upgrade && gunicorn --workers 1 --threads 16 --bind 0.0.0.0:$PORT app:app"]
+# يجب أن يكون worker واحد فقط (1) لتفادي تعارضات قاعدة البيانات (SQLite) مع threading.Lock()
+CMD ["sh", "-c", "gunicorn --workers 1 --threads 16 --bind 0.0.0.0:$PORT app:app"]

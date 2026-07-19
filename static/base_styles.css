@@ -1012,7 +1012,9 @@ body.dark-mode .card {
 }
 
 @media (max-width: 820px) {
-    /* Removed broken .bz-topbar block */
+    
+
+    .bz-topbar 
 }
 
 /* Phones/tablets: wide data tables must stay READABLE, never squeeze the text into "…".
@@ -3508,11 +3510,38 @@ th.sortable.desc::after { content: ' ▼'; opacity: 1; color: var(--accent); }
 .bz-nav a[href="/cameras"] {
     display: none !important;
 }
+.bz-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 32px;
+    background: rgba(11, 13, 20, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(197, 160, 89, 0.2);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
 
+.bz-nav {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+}
 
-
-
-
+.bz-nav a {
+    color: var(--text-muted, #94a3b8);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: 'Cairo', sans-serif;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    position: relative;
+}
 
 .bz-nav a::after {
     content: '';
@@ -3526,258 +3555,20 @@ th.sortable.desc::after { content: ' ▼'; opacity: 1; color: var(--accent); }
     transition: width 0.3s ease;
 }
 
-
+.bz-nav a:hover {
+    color: var(--text-main, #f8fafc);
+    background: rgba(255, 255, 255, 0.03);
+}
 
 .bz-nav a:hover::after {
     width: 60%;
 }
 
-
-
-.bz-nav a.active::after {
-    width: 80%;
-}
-
-
-/* =========================================
-   Professional Push Sidebar (Replaces Topbar)
-   ========================================= */
-.bz-topbar {
-    position: fixed;
-    top: 0;
-    right: -280px; /* Hidden off-screen in RTL */
-    width: 260px;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    padding: 30px 20px;
-    background: rgba(11, 13, 20, 0.95);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-left: 1px solid rgba(197, 160, 89, 0.15);
-    z-index: 1000;
-    transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5);
-    overflow-y: auto;
-}
-
-body.sidebar-open .bz-topbar {
-    right: 0;
-}
-
-/* Push content to avoid overlap */
-body {
-    transition: margin-right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-body.sidebar-open {
-    margin-right: 260px;
-}
-
-/* Inner Navigation styling */
-.bz-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 40px;
-    width: 100%;
-}
-
-.bz-nav a {
-    color: var(--text-muted, #94a3b8);
-    text-decoration: none;
-    font-size: 1.05rem;
-    font-weight: 600;
-    font-family: 'Cairo', sans-serif;
-    padding: 12px 16px;
-    border-radius: 12px;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    background: transparent;
-    border: 1px solid transparent;
-}
-
-.bz-nav a:hover {
-    color: var(--text-main, #f8fafc);
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(197, 160, 89, 0.1);
-    transform: translateX(-5px); /* Move left slightly in RTL */
-}
-
 .bz-nav a.active {
     color: var(--gold-primary, #c5a059);
     background: rgba(197, 160, 89, 0.1);
-    border-color: rgba(197, 160, 89, 0.3);
-    box-shadow: inset 0 0 10px rgba(197, 160, 89, 0.05);
 }
 
-/* Brand area */
-.bz-brand {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 10px;
-}
-.bz-brand img { width: 60px; height: auto; }
-.bz-brand-text strong { color: var(--gold-primary); font-size: 1.2rem; display: block; }
-.bz-brand-text span { font-size: 0.8rem; color: var(--text-muted); }
-
-/* Hamburger Button */
-.bz-hamburger {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    width: 45px;
-    height: 45px;
-    border-radius: 12px;
-    background: rgba(11, 13, 20, 0.8);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(197, 160, 89, 0.3);
-    color: var(--gold-primary);
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 1001; /* Above sidebar */
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-}
-
-.bz-hamburger:hover {
-    background: rgba(197, 160, 89, 0.15);
-    transform: scale(1.05);
-}
-
-body.sidebar-open .bz-hamburger {
-    /* If sidebar is open, keep hamburger visible but pushed slightly or styled differently if desired */
-    background: rgba(197, 160, 89, 0.2);
-    color: #fff;
-}
-
-
-/* =========================================
-   HARD OVERRIDE FOR SIDEBAR (Fixing Specificity Issues)
-   ========================================= */
-body .bz-topbar {
-    position: fixed !important;
-    top: 0 !important;
-    right: -280px !important;
-    width: 260px !important;
-    height: 100vh !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    padding: 30px 20px !important;
-    background: rgba(11, 13, 20, 0.95) !important;
-    backdrop-filter: blur(24px) !important;
-    -webkit-backdrop-filter: blur(24px) !important;
-    border-left: 1px solid rgba(197, 160, 89, 0.15) !important;
-    border-bottom: none !important;
-    z-index: 1000 !important;
-    transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-    box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5) !important;
-    overflow-y: auto !important;
-}
-
-body.sidebar-open .bz-topbar {
-    right: 0 !important;
-}
-
-body .bz-topbar .bz-brand {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center !important;
-    gap: 10px !important;
-    margin-bottom: 20px !important;
-}
-
-body .bz-topbar .bz-nav {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 12px !important;
-    width: 100% !important;
-    align-items: stretch !important;
-}
-
-body .bz-topbar .bz-nav a {
-    display: flex !important;
-    width: auto !important;
-    color: var(--text-muted, #94a3b8) !important;
-    text-decoration: none !important;
-    font-size: 1.05rem !important;
-    font-weight: 600 !important;
-    font-family: 'Cairo', sans-serif !important;
-    padding: 12px 16px !important;
-    border-radius: 12px !important;
-    background: transparent !important;
-    border: 1px solid transparent !important;
-    transition: all 0.3s ease !important;
-}
-
-body .bz-topbar .bz-nav a:hover {
-    color: var(--text-main, #f8fafc) !important;
-    background: rgba(255, 255, 255, 0.04) !important;
-    border-color: rgba(197, 160, 89, 0.1) !important;
-    transform: translateX(-5px) !important;
-}
-
-body .bz-topbar .bz-nav a.active {
-    color: var(--gold-primary, #c5a059) !important;
-    background: rgba(197, 160, 89, 0.1) !important;
-    border-color: rgba(197, 160, 89, 0.3) !important;
-    box-shadow: inset 0 0 10px rgba(197, 160, 89, 0.05) !important;
-}
-
-body .bz-topbar .bz-actions {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 10px !important;
-    margin-top: auto !important;
-    align-items: center !important;
-}
-
-
-/* =========================================
-   Mobile Sidebar Overrides (No Push, Overlay Instead)
-   ========================================= */
-.bz-sidebar-backdrop {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    background: rgba(0, 0, 0, 0.6) !important;
-    backdrop-filter: blur(4px) !important;
-    z-index: 999 !important; /* Just below the sidebar */
-    opacity: 0 !important;
-    visibility: hidden !important;
-    transition: all 0.3s ease !important;
-}
-
-body.sidebar-open .bz-sidebar-backdrop {
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
-@media (max-width: 768px) {
-    /* Do NOT push the content on mobile */
-    body.sidebar-open {
-        margin-right: 0 !important;
-        overflow: hidden !important; /* Prevent background scrolling */
-    }
-    
-    /* Make sidebar slightly wider on mobile to be easily tappable */
-    body .bz-topbar {
-        width: 280px !important;
-        right: -300px !important;
-    }
-    
-    body.sidebar-open .bz-topbar {
-        right: 0 !important;
-        box-shadow: -10px 0 50px rgba(0,0,0,0.8) !important;
-    }
+.bz-nav a.active::after {
+    width: 80%;
 }
