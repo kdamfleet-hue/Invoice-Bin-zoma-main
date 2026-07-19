@@ -819,19 +819,7 @@ function injectGlobalNavLinks() {
 // Skips if the page already provides its own dock (e.g. the homepage). The 📤 button exports /
 // emails the current tab's main table; 📧 opens an in-app email composer (works on any tab).
 function injectContactDock() {
-    try {
-        if (document.querySelector('.bz-dock')) return;
-        const dock = document.createElement('div');
-        dock.className = 'bz-dock';
-        dock.setAttribute('aria-label', 'إجراءات سريعة');
-        dock.innerHTML =
-            '<a class="bz-dock-btn wa" href="https://wa.me/966570310909?text=مرحباً" target="_blank" rel="noopener" data-label="واتساب" title="تواصل عبر واتساب" aria-label="واتساب">💬</a>' +
-            '<a class="bz-dock-btn share" href="javascript:void(0)" data-label="إرسال / تصدير الجدول" title="إرسال أو تصدير جدول هذه الصفحة (Excel · PDF · بريد · واتساب)" aria-label="إرسال أو تصدير">📤</a>' +
-            '<a class="bz-dock-btn mail" href="javascript:void(0)" data-label="بريد إلكتروني" title="إنشاء رسالة بريد إلكتروني" aria-label="بريد إلكتروني">📧</a>';
-        document.body.appendChild(dock);
-        const sh = dock.querySelector('.share'); if (sh) sh.addEventListener('click', function (e) { e.preventDefault(); bzShareCurrentTab(); });
-        const ml = dock.querySelector('.mail'); if (ml) ml.addEventListener('click', function (e) { e.preventDefault(); bzComposeEmail(); });
-    } catch (e) { /* non-critical */ }
+    return; // User specifically requested to remove this feature.
 }
 
 // Big company logo at the top of EVERY content tab (skips pages that already show one).
