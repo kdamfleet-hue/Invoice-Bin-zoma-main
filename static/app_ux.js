@@ -863,26 +863,11 @@ function buildEnterpriseShell() {
     try {
         const topbar = document.querySelector('.bz-topbar');
         if (!topbar) return;                               // dashboard / login / tab_lock → skip
-        if (document.querySelector('.bz-sidebar')) return; // already built (defensive)
+        // defensive check removed
 
         document.body.classList.add('bz-enterprise');
 
-        // ---- sidebar (cloned from the horizontal nav) ----
-        let navHtml = '';
-        topbar.querySelectorAll('.bz-nav a').forEach(a => {
-            const txt = (a.textContent || '').trim();
-            const sp = txt.indexOf(' ');
-            const icon = sp > 0 ? txt.slice(0, sp) : '•';
-            const label = sp > 0 ? txt.slice(sp + 1).trim() : txt;
-            const cls = a.classList.contains('active') ? ' class="active"' : '';
-            navHtml += `<a href="${a.getAttribute('href')}"${cls}><span class="si">${icon}</span><span class="slab">${escapeHtml(label)}</span></a>`;
-        });
-        const aside = document.createElement('aside');
-        aside.className = 'bz-sidebar';
-        aside.innerHTML =
-            '<div class="side-brand"><img src="/static/nav_logo.png" alt="BIN ZOMAH"><div class="brand-text"><b>BIN ZOMAH INTL.</b><span>نظام إدارة الأسطول والتوثيق</span></div></div>' +
-            '<nav>' + navHtml + '</nav>';
-        document.body.appendChild(aside);
+        // (Sidebar cloning removed, using native topbar as sidebar)
 
         // ---- mobile drawer: dim backdrop + a clear close button + easy dismiss ----
         let backdrop = document.querySelector('.bz-side-backdrop');
@@ -916,16 +901,7 @@ function buildEnterpriseShell() {
         const actions = topbar.querySelector('.bz-actions');
         const brand = topbar.querySelector('.bz-brand');
 
-        if (brand && !document.getElementById('bzBurger')) {
-            const burger = document.createElement('button');
-            burger.id = 'bzBurger'; burger.type = 'button'; burger.className = 'bz-icon-btn bz-side-burger';
-            burger.title = 'القائمة'; burger.setAttribute('aria-label', 'القائمة'); burger.textContent = '☰';
-            burger.addEventListener('click', () => {
-                if (isMobileNav()) bzSetDrawer(!aside.classList.contains('open'));   // mobile: slide-in drawer + backdrop
-                else document.body.classList.toggle('side-hidden');                  // desktop: hide/show the sidebar
-            });
-            brand.parentNode.insertBefore(burger, brand);
-        }
+        // (Old bzBurger removed in favor of native bz-hamburger)
 
         if (!document.getElementById('bzTopSearch')) {
             const sw = document.createElement('div');
