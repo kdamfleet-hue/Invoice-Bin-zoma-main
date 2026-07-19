@@ -70,97 +70,37 @@ def run_migration():
         db.session.commit()
         logger.info(f"✅ Migrated {driver_count} drivers and {vehicle_count} vehicles.")
 
-        # 3. Migrate Documents (JSON table: documents_data)
-        try:
-            doc_rows = conn.execute("SELECT data FROM documents_data").fetchall()
-            doc_count = 0
-            for r in doc_rows:
-                # The JSON blob
-                data = json.loads(r['data'])
-                # Some JSON tables store an array of objects
-                if isinstance(data, dict) and "docs" in data:
-                    data_list = data["docs"]
-                elif isinstance(data, list):
-                    data_list = data
-                else:
-                    data_list = [data]
-                
-                for item in data_list:
-                    # Depends on JSON structure, let's just attempt generic mapping
-                    doc = Document(
-                        branch_id=branch_id,
-                        doc_type=item.get("type", "Unknown"),
-                        entity_type=item.get("entity_type", "General"),
-                        entity_ref=item.get("entity_ref", ""),
-                        file_path=item.get("path", "none"),
-                        notes=item.get("notes", "")
-                    )
-                    db.session.add(doc)
-                    doc_count += 1
-            db.session.commit()
-            logger.info(f"✅ Migrated {doc_count} documents.")
-        except Exception as e:
-            logger.warning(f"⚠️ Could not migrate documents_data: {e}")
-
-        from models.schema import FuelRecord, WashingRecord, ScheduleData, Snapshot
-        from datetime import datetime
+        # 3. Migrate all JSON blobs into AppSetting so blob_get() works flawlessly on Postgres
+        from models.schema import AppSetting
         
-        try:
-            fuel_rows = conn.execute("SELECT data FROM fuel_data").fetchall()
-            fuel_count = 0
-            for r in fuel_rows:
-                data = json.loads(r['data'])
-                if isinstance(data, list):
-                    for item in data:
-                        date_str = item.get('date', '2026-01-01')
-                        try:
-                            parsed_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-                        except:
-                            parsed_date = datetime.now().date()
-                        
-                        fuel = FuelRecord(
-                            branch_id=branch_id,
-                            date=parsed_date,
-                            notes=str(item)
-                        )
-                        db.session.add(fuel)
-                        fuel_count += 1
-            db.session.commit()
-            logger.info(f"✅ Migrated {fuel_count} fuel records.")
-        except Exception as e:
-            db.session.rollback()
-            logger.warning(f"⚠️ Could not migrate fuel_data: {e}")
-
-        try:
-            washing_rows = conn.execute("SELECT data FROM washing_schedule").fetchall()
-            wash_count = 0
-            for r in washing_rows:
-                data = json.loads(r['data'])
-                if isinstance(data, list):
-                    for item in data:
-                        wash = WashingRecord(
-                            branch_id=branch_id,
-                            date=datetime.now().date(),
-                            notes=str(item)
-                        )
-                        db.session.add(wash)
-                        wash_count += 1
-            db.session.commit()
-            logger.info(f"✅ Migrated {wash_count} washing records.")
-        except Exception as e:
-            db.session.rollback()
-            logger.warning(f"⚠️ Could not migrate washing_schedule: {e}")
-
-        try:
-            schedule_rows = conn.execute("SELECT data FROM schedule_data").fetchall()
-            for r in schedule_rows:
-                snap = Snapshot(data=r['data'])
-                db.session.add(snap)
-            db.session.commit()
-            logger.info("✅ Saved schedule_data into Snapshots for 100% data guarantee.")
-        except Exception as e:
-            db.session.rollback()
-            logger.warning(f"⚠️ Could not migrate schedule_data: {e}")
+        json_tables = [
+            "system_features", "app_secret_key", "app_users", "branch_accounts", "washing_schedule", 
+            "employees", "driver_registry", "vehicle_registry", "schedule_data", "records_data", 
+            "incidents_data", "gps_devices_data", "alert_settings", "documents_data", "oils_data", 
+            "fuel_data", "purchase_data", "workshop_data", "handover_data", "push_subscriptions", 
+            "deauthorized_data", "spare_parts", "inventory_transactions"
+        ]
+        
+        blob_count = 0
+        for table in json_tables:
+            try:
+                # The old sqlite tables might not exist or might be empty
+                rows = conn.execute(f"SELECT data FROM {table}").fetchall()
+                if rows and rows[0]['data']:
+                    # Assuming branch_id = 1 for the default branch
+                    key = f"{table}_branch_1"
+                    
+                    # Some tables might be global and not branch-specific, but blob_set handles it.
+                    # Actually _global_blob_get uses key={table}_branch_1 as well when _row_id() returns 1.
+                    if not AppSetting.query.get(key):
+                        setting = AppSetting(key=key, value=rows[0]['data'])
+                        db.session.add(setting)
+                        blob_count += 1
+            except Exception as e:
+                pass
+        
+        db.session.commit()
+        logger.info(f"✅ Migrated {blob_count} JSON blobs into AppSetting.")
 
         logger.info("🎉 Migration script completed successfully. Your data is now in SQLAlchemy models!")
         conn.close()

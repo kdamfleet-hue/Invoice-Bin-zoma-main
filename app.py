@@ -3644,13 +3644,35 @@ def api_deauthorized():
 # ── مستورِد أبشر داخل الموقع: ارفع ملفات أبشر → الخادم يحدّث سجل السائقين تلقائياً ──
 def _drivers_list_for_sync():
     """(store, قائمة سائقي الفرع النشط) — SQL للدمام، blob لبقية الفروع/المحطة."""
+    from models.schema import Driver, VehicleCustody
     store = _driver_store()
-    if store == "sql":
-        with db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT * FROM drivers ORDER BY id")
-            return store, [dict(r) for r in c.fetchall()]
-    return store, (blob_get(_driver_blob_table(store)) or [])
+    
+    drivers = Driver.query.all()
+    results = []
+    for d in drivers:
+        custody = VehicleCustody.query.filter_by(driver_id=d.id, status='active').first()
+        v = custody.vehicle if custody and custody.vehicle else None
+        results.append({
+            "id": d.id,
+            "name": d.name or "",
+            "empid": d.employee_id or "",
+            "plate": v.plate_number if v else "",
+            "car": v.v_type if v else "",
+            "iqama": d.iqama_number or "",
+            "phone": d.phone or "",
+            "drivercard": "",
+            "job": d.job_title or "",
+            "empNotes": "",
+            "model": v.model if v else "",
+            "pallets": "",
+            "load": "",
+            "vserial": "",
+            "inspect": "",
+            "license": "",
+            "opcard": "",
+            "notes": ""
+        })
+    return store, results
 
 
 def _employee_iqamas():
@@ -4377,34 +4399,33 @@ def api_sync_excel():
         df = df.fillna("-")
         
         updated_count = 0
-        with db_connection() as conn:
-            c = conn.cursor()
-            for index, row in df.iterrows():
-                empid = None
-                name = None
-                iqama = None
-                for col in df.columns:
-                    if 'الرقم الوظيفي' in str(col): empid = str(row[col]).strip()
-                    if 'اسم العامل' in str(col) or 'الاسم' in str(col): name = str(row[col]).strip()
-                    if 'الإقامة' in str(col) or 'البطاقة' in str(col): iqama = str(row[col]).strip()
-                
-                if not name or str(name) == 'nan':
-                    continue
-                
-                if str(empid) == 'nan': empid = None
-                if str(iqama) == 'nan': iqama = None
+        from models.schema import Driver
+        from sqlalchemy import or_
+        for index, row in df.iterrows():
+            empid = None
+            name = None
+            iqama = None
+            for col in df.columns:
+                if 'الرقم الوظيفي' in str(col): empid = str(row[col]).strip()
+                if 'اسم العامل' in str(col) or 'الاسم' in str(col): name = str(row[col]).strip()
+                if 'الإقامة' in str(col) or 'البطاقة' in str(col): iqama = str(row[col]).strip()
+            
+            if not name or str(name) == 'nan':
+                continue
+            
+            if str(empid) == 'nan': empid = None
+            if str(iqama) == 'nan': iqama = None
 
-                c.execute("SELECT id FROM drivers WHERE name=? OR empid=?", (name, empid))
-                res = c.fetchone()
-                if res:
-                    driver_id = res['id']
-                    if iqama:
-                        c.execute("UPDATE drivers SET iqama=? WHERE id=?", (iqama, driver_id))
-                    updated_count += 1
-                else:
-                    c.execute("INSERT INTO drivers (name, empid, iqama) VALUES (?, ?, ?)", (name, empid, iqama))
-                    updated_count += 1
-            conn.commit()
+            driver = Driver.query.filter(or_(Driver.name == name, Driver.employee_id == empid)).first()
+            if driver:
+                if iqama:
+                    driver.iqama_number = iqama
+                updated_count += 1
+            else:
+                new_driver = Driver(name=name, employee_id=empid, iqama_number=iqama)
+                db.session.add(new_driver)
+                updated_count += 1
+        db.session.commit()
             
         return jsonify({"success": True, "message": "تم تحديث البيانات من ملف الإكسيل بنجاح", "updated_count": updated_count})
     except Exception as e:
