@@ -4427,15 +4427,19 @@ def api_sync_excel():
             if driver:
                 if iqama:
                     driver.iqama_number = iqama
+                # Ensure existing drivers also have the correct branch_id
+                if not driver.branch_id:
+                    driver.branch_id = 3
                 updated_count += 1
             else:
-                new_driver = Driver(name=name, employee_id=empid, iqama_number=iqama)
+                new_driver = Driver(name=name, employee_id=empid, iqama_number=iqama, branch_id=3)
                 db.session.add(new_driver)
                 updated_count += 1
         db.session.commit()
             
         return jsonify({"success": True, "message": "تم تحديث البيانات من ملف الإكسيل بنجاح", "updated_count": updated_count})
     except Exception as e:
+        db.session.rollback()
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/fleet_data")
