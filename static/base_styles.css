@@ -3510,25 +3510,61 @@ th.sortable.desc::after { content: ' ▼'; opacity: 1; color: var(--accent); }
 .bz-nav a[href="/cameras"] {
     display: none !important;
 }
+/* Sidebar toggle button (Hamburger) */
+.bz-sidebar-toggle {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    z-index: 1001;
+    background: rgba(197, 160, 89, 0.1);
+    color: var(--gold-primary, #c5a059);
+    border: 1px solid rgba(197, 160, 89, 0.3);
+    border-radius: 8px;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.bz-sidebar-toggle:hover {
+    background: rgba(197, 160, 89, 0.2);
+}
+
 .bz-topbar {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 32px;
-    background: rgba(11, 13, 20, 0.85);
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 80px 20px 20px 20px; /* Space for the toggle button */
+    background: rgba(11, 13, 20, 0.95);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(197, 160, 89, 0.2);
-    position: sticky;
+    border-left: 1px solid rgba(197, 160, 89, 0.2);
+    position: fixed;
     top: 0;
+    right: 0;
+    height: 100vh;
+    width: max-content;
     z-index: 1000;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: -4px 0 30px rgba(0, 0, 0, 0.5);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(100%); /* Hidden by default */
+    overflow-y: auto;
+}
+
+.bz-topbar.sidebar-open {
+    transform: translateX(0);
 }
 
 .bz-nav {
     display: flex;
-    gap: 24px;
-    align-items: center;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
 }
 
 .bz-nav a {
@@ -3537,18 +3573,20 @@ th.sortable.desc::after { content: ' ▼'; opacity: 1; color: var(--accent); }
     font-size: 0.95rem;
     font-weight: 600;
     font-family: 'Cairo', sans-serif;
-    padding: 8px 12px;
+    padding: 10px 16px;
     border-radius: 8px;
     transition: all 0.3s ease;
     position: relative;
+    width: 100%;
+    text-align: right;
+    display: block;
 }
 
 .bz-nav a::after {
     content: '';
     position: absolute;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 16px;
     width: 0;
     height: 2px;
     background: var(--gold-primary, #c5a059);
@@ -3557,11 +3595,11 @@ th.sortable.desc::after { content: ' ▼'; opacity: 1; color: var(--accent); }
 
 .bz-nav a:hover {
     color: var(--text-main, #f8fafc);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .bz-nav a:hover::after {
-    width: 60%;
+    width: calc(100% - 32px);
 }
 
 .bz-nav a.active {
@@ -3570,5 +3608,56 @@ th.sortable.desc::after { content: ' ▼'; opacity: 1; color: var(--accent); }
 }
 
 .bz-nav a.active::after {
-    width: 80%;
+    width: calc(100% - 32px);
+}
+
+.main-content {
+    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-right: var(--dynamic-sidebar-width, 0px);
+}
+
+/* ── Sidebar Brand Area ───────────────────────────────── */
+.bz-topbar .bz-brand {
+    margin-bottom: 28px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(197, 160, 89, 0.2);
+    width: 100%;
+}
+
+.bz-topbar .bz-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 20px;
+    width: 100%;
+    padding-top: 16px;
+    border-top: 1px solid rgba(197, 160, 89, 0.2);
+}
+
+/* Keep tables scrollable horizontally even when sidebar is open */
+.table-responsive, .sched-scroll-wrap, .table-wrapper {
+    overflow-x: auto;
+}
+
+/* Ensure topbar does not show on print */
+@media print {
+    .bz-topbar, .bz-sidebar-toggle { display: none !important; }
+    .main-content { margin-right: 0 !important; }
+}
+
+/* Mobile: sidebar becomes overlay, not push */
+@media (max-width: 767px) {
+    .bz-topbar {
+        width: 85vw;
+        max-width: 320px;
+    }
+    .main-content {
+        margin-right: 0 !important;
+    }
+    .bz-sidebar-toggle {
+        top: 10px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+    }
 }

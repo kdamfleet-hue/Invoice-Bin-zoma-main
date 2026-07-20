@@ -3164,3 +3164,45 @@ function navigateToContext(type) {
     }
     DeepLinkNavigator.navigate('total_drivers');
 }
+
+// ==========================================================================
+// SMART RIGHT SIDEBAR TOGGLE (القائمة الجانبية الذكية بالزر)
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const topbar = document.querySelector('.bz-topbar');
+    if (topbar) {
+        // Create the toggle button
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'bz-sidebar-toggle';
+        toggleBtn.innerHTML = '<i data-lucide="menu"></i>';
+        document.body.appendChild(toggleBtn);
+        
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons({root: toggleBtn});
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            topbar.classList.toggle('sidebar-open');
+            if (topbar.classList.contains('sidebar-open')) {
+                document.body.classList.add('sidebar-is-open');
+                // Calculate width to set margin
+                const sidebarWidth = topbar.offsetWidth;
+                document.documentElement.style.setProperty('--dynamic-sidebar-width', sidebarWidth + 'px');
+            } else {
+                document.body.classList.remove('sidebar-is-open');
+                document.documentElement.style.setProperty('--dynamic-sidebar-width', '0px');
+            }
+        });
+        
+        // Optional: Close sidebar when clicking outside on mobile devices
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth < 768 && topbar.classList.contains('sidebar-open')) {
+                if (!topbar.contains(e.target) && !toggleBtn.contains(e.target)) {
+                    topbar.classList.remove('sidebar-open');
+                    document.body.classList.remove('sidebar-is-open');
+                    document.documentElement.style.setProperty('--dynamic-sidebar-width', '0px');
+                }
+            }
+        });
+    }
+});
