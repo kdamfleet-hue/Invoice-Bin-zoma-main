@@ -4409,7 +4409,7 @@ def api_sync_excel():
                     driver.iqama_number = iqama
                 updated_count += 1
             else:
-                new_driver = Driver(name=name, employee_id=empid, iqama_number=iqama)
+                new_driver = Driver(branch_id=current_branch_id(), name=name, employee_id=empid, iqama_number=iqama)
                 db.session.add(new_driver)
                 updated_count += 1
         db.session.commit()
