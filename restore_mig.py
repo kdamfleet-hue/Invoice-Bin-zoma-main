@@ -1,10 +1,18 @@
-"""Add Yard and CustodyItem
+﻿import glob
+
+files = glob.glob("migrations/versions/b089*.py")
+if files:
+    with open(files[0], "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # The file is broken. Let's just restore it cleanly.
+    clean = """\"\"\"Add Yard and CustodyItem
 
 Revision ID: b089400cc9e6
 Revises: b7f3db79753a
 Create Date: 2026-07-21 23:43:58.431004
 
-"""
+\"\"\"
 from alembic import op
 import sqlalchemy as sa
 
@@ -32,3 +40,7 @@ def downgrade():
         batch_op.drop_column('yard_status')
 
     # ### end Alembic commands ###
+"""
+    with open(files[0], "w", encoding="utf-8") as f:
+        f.write(clean)
+    print("Restored migration file.")

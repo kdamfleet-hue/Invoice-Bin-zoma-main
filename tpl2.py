@@ -1,0 +1,149 @@
+﻿html = """{% extends 'base.html' %}
+{% block title %}سجل البطاريات | إدارة المخزون{% endblock %}
+
+{% block content %}
+<div class="content-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid var(--border-glass);">
+    <div>
+        <h2 style="margin: 0; color: var(--accent-primary); font-weight: 800; font-size: 1.8rem;"><i class="fas fa-car-battery"></i> سجل البطاريات</h2>
+        <p style="margin: 5px 0 0 0; color: var(--text-muted);">تتبع حركة البطاريات، فترات الضمان، وحالة المخزون.</p>
+    </div>
+    <button onclick="document.getElementById('addModal').style.display='block'" class="btn-primary" style="background: var(--accent-primary); color: #111; font-weight: bold; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(197, 160, 89, 0.3); transition: all 0.3s;">
+        <i class="fas fa-plus"></i> تسجيل بطارية جديدة
+    </button>
+</div>
+
+<div class="table-container" style="background: var(--bg-panel); border: 1px solid var(--border-glass); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+    <table style="width: 100%; border-collapse: collapse; text-align: right;">
+        <thead style="background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border-glass);">
+            <tr>
+                <th style="padding: 15px; color: var(--accent-primary);">الرقم التسلسلي</th>
+                <th style="padding: 15px; color: var(--text-muted);">المركبة المرتبطة</th>
+                <th style="padding: 15px; color: var(--text-muted);">الماركة / السعة</th>
+                <th style="padding: 15px; color: var(--text-muted);">تاريخ التركيب</th>
+                <th style="padding: 15px; color: var(--text-muted);">انتهاء الضمان</th>
+                <th style="padding: 15px; color: var(--text-muted);">الحالة</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bat in batteries %}
+            <tr style="border-bottom: 1px solid var(--border-glass); transition: background 0.2s;">
+                <td style="padding: 15px; font-weight: bold; color: white;">{{ bat.serial_number }}</td>
+                <td style="padding: 15px; color: #ddd;">
+                    {% if bat.vehicle_id %}
+                        {% for v in vehicles %}
+                            {% if v.id == bat.vehicle_id %}{{ v.plate_number }} - {{ v.model }}{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <span style="color:var(--text-muted);">بالمستودع</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 15px; color: #ddd;">{{ bat.brand }} ({{ bat.capacity }})</td>
+                <td style="padding: 15px; color: #ddd;">{{ bat.install_date or '—' }}</td>
+                <td style="padding: 15px; color: #ddd;">{{ bat.warranty_expiry or '—' }}</td>
+                <td style="padding: 15px;">
+                    <span style="padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; background: {% if bat.status == 'نشط' %}rgba(34,197,94,0.2); color:#4ade80;{% else %}rgba(239,68,68,0.2); color:#f87171;{% endif %}">{{ bat.status }}</span>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="padding: 30px; text-align: center; color: var(--text-muted);">لا توجد بطاريات مسجلة.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Modal -->
+<div id="addModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; backdrop-filter: blur(4px);">
+    <div style="background: var(--bg-panel); border: 1px solid var(--border-glass); width: 450px; margin: 80px auto; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div style="background: rgba(0,0,0,0.2); padding: 20px; border-bottom: 1px solid var(--border-glass); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; color: var(--accent-primary);">تسجيل بطارية جديدة</h3>
+            <button onclick="document.getElementById('addModal').style.display='none'" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">&times;</button>
+        </div>
+        <form id="addForm" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
+            <div>
+                <label style="display:block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">الرقم التسلسلي (إلزامي)</label>
+                <input type="text" id="serial" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: 6px; color: white;">
+            </div>
+            <div>
+                <label style="display:block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">المركبة (اختياري)</label>
+                <select id="vehicle_id" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: 6px; color: white;">
+                    <option value="">-- بالمستودع --</option>
+                    {% for v in vehicles %}
+                    <option value="{{ v.id }}">{{ v.plate_number }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div style="flex:1;">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">الماركة</label>
+                    <input type="text" id="brand" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: 6px; color: white;">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">السعة (أمبير)</label>
+                    <input type="text" id="capacity" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: 6px; color: white;">
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div style="flex:1;">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">تاريخ التركيب</label>
+                    <input type="date" id="install_date" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: 6px; color: white; color-scheme: dark;">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">الحالة</label>
+                    <select id="status" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: 6px; color: white;">
+                        <option value="نشط">نشط</option>
+                        <option value="تالف">تالف</option>
+                        <option value="مستبدل">مستبدل</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label style="display:block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem;">ملاحظات / مسوّغ</label>
+                <input type="text" id="notes" placeholder="مطلوب حسب البروتوكول الـ 18" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: 6px; color: white;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button type="button" onclick="document.getElementById('addModal').style.display='none'" style="background: transparent; border: 1px solid var(--border-glass); color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer;">إلغاء</button>
+                <button type="submit" style="background: var(--accent-primary); color: #111; border: none; font-weight: bold; padding: 10px 20px; border-radius: 6px; cursor: pointer;">حفظ وتسجيل</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('addForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        serial_number: document.getElementById('serial').value,
+        vehicle_id: document.getElementById('vehicle_id').value,
+        brand: document.getElementById('brand').value,
+        capacity: document.getElementById('capacity').value,
+        install_date: document.getElementById('install_date').value,
+        status: document.getElementById('status').value,
+        notes: document.getElementById('notes').value
+    };
+    
+    try {
+        const r = await fetch('/api/inventory/batteries', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const res = await r.json();
+        if(res.success) {
+            location.reload();
+        } else {
+            alert('حدث خطأ: ' + res.error);
+        }
+    } catch(err) {
+        console.error(err);
+        alert('خطأ في الاتصال بالنظام.');
+    }
+});
+</script>
+{% endblock %}
+"""
+
+with open("templates/inventory_batteries.html", "w", encoding="utf-8") as f:
+    f.write(html)
+print("Created inventory_batteries.html")

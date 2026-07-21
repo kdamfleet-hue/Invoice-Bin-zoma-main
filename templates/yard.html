@@ -58,8 +58,13 @@ function loadYard() {
                 if(v.condition === 'موقوفة') badge = 'b-stopped';
                 
                 const html = `<div class="yard-item" draggable="true" ondragstart="drag(event)" id="veh-${v.id}" data-id="${v.id}">
-                    <h4>${v.plate}</h4>
-                    <p>${v.type} <span class="badge ${badge}">${v.condition}</span></p>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div>
+                            <h4>${v.plate}</h4>
+                            <p>${v.type} <span class="badge ${badge}">${v.condition}</span></p>
+                        </div>
+                        <a href="/api/vehicles/${v.id}/qr" target="_blank" title="طباعة باركود المركبة" style="text-decoration:none; font-size:1.2rem; cursor:pointer;" onclick="event.stopPropagation();">🖨️</a>
+                    </div>
                 </div>`;
                 
                 if (v.status === 'خارج الساحة') document.getElementById('col-out').innerHTML += html;
