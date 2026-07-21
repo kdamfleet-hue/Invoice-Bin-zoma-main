@@ -25,9 +25,8 @@ RUN chown -R appuser:appuser /app
 
 # متغيرات البيئة الأساسية
 ENV PORT=3000
-ENV SECRET_KEY=Khaled@Damfleet1105090615
-ENV ADMIN_USERNAME=Khaled@fleetadmin
-ENV MASTER_PASSWORD=Khaled@Damfleet1105090615
+# ⚠️ الأسرار تُمرَّر عند تشغيل الحاوية فقط (docker run -e / .env) — لا تُخزَّن في الصورة أبداً
+# SECRET_KEY, ADMIN_USERNAME, MASTER_PASSWORD → يجب ضبطها في بيئة التشغيل
 
 EXPOSE 3000
 
