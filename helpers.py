@@ -399,3 +399,16 @@ def load_logo():
             if not content.startswith("ar='") and not content.startswith("en='"):
                 b64_en = content
     return b64_en
+
+def normalize_plate(plate):
+    if plate is None:
+        return ""
+    plate = str(plate)
+    plate = re.sub(r"\s+", "", plate)
+    arabic_digits = "٠١٢٣٤٥٦٧٨٩"
+    english_digits = "0123456789"
+    for a, e in zip(arabic_digits, english_digits):
+        plate = plate.replace(a, e)
+    digits = "".join(re.findall(r"\d+", plate))
+    letters = "".join(re.findall(r"[^\d]+", plate))
+    return digits + letters

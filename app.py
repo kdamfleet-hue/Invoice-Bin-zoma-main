@@ -167,6 +167,19 @@ def add_header(response):
     response.headers["Expires"] = "0"
     return response
 
+from routes.dashboard import dashboard_bp
+app.register_blueprint(dashboard_bp)
+from routes.system import system_bp
+app.register_blueprint(system_bp)
+from routes.workstation import workstation_bp
+app.register_blueprint(workstation_bp)
+from routes.operations import operations_bp
+app.register_blueprint(operations_bp)
+from routes.schedule import schedule_bp
+app.register_blueprint(schedule_bp)
+from routes.gps import gps_bp
+app.register_blueprint(gps_bp)
+
 @app.route('/manifest.json')
 def manifest():
     return app.send_static_file('manifest.json')
@@ -213,71 +226,7 @@ def role_required(*roles):
         return decorated_function
     return decorator
 
-# ── GPS Configuration ────────────────────────────────────────────────────────
-GPS_USER = os.environ.get("GPS_USER", "")
-GPS_PASS = os.environ.get("GPS_PASS", "")
-# Default to the actual JSON API endpoint (NOT the web-UI SPA URL which returns HTML).
-GPS_ASSET_URL = os.environ.get(
-    "GPS_ASSET_URL", "https://fleetmanagement-api-clust03.gpscockpit.com/api/asset"
-)
-# Accept either GPS_TOKEN (ArabCord) or the legacy GPS_PERMANENT_TOKEN name.
-GPS_PERMANENT_TOKEN = os.environ.get("GPS_TOKEN") or os.environ.get("GPS_PERMANENT_TOKEN", "")
 
-
-def get_gps_token():
-    """Return the GPS API token from environment."""
-    return GPS_PERMANENT_TOKEN
-
-
-logger.info("Starting Fleet Management System...")
-logger.info("Template Dir: %s", TEMPLATE_DIR)
-logger.info("Database Path: %s", DB_PATH)
-
-
-
-
-
-@app.route("/api/gps")
-@login_required
-def get_gps_locations():
-    token = get_gps_token()
-    if not token:
-        return (
-            jsonify(
-                {"error": "خدمة التتبع غير مهيأة — لم يتم ضبط مفتاح GPS (GPS_TOKEN)."}
-            ),
-            503,
-        )
-
-    headers = {
-        "Authorization": f"GpsCockpitApiKey {token}",
-        "Accept": "application/json",
-    }
-    try:
-        response = requests.get(GPS_ASSET_URL, headers=headers, timeout=20)
-        if response.status_code != 200:
-            # Do NOT echo provider body to the client (may leak internals); log it instead.
-            logger.warning("GPS API non-200 %s: %s", response.status_code, response.text[:300])
-            return (
-                jsonify({"error": "تعذّر جلب بيانات GPS من المزوّد حالياً."}),
-                502,
-            )
-        # Guard against HTML responses (e.g. misconfigured URL pointing at the web UI).
-        ctype = response.headers.get("Content-Type", "")
-        if "application/json" not in ctype:
-            logger.warning("GPS API returned non-JSON (%s). Check GPS_ASSET_URL.", ctype)
-            return (
-                jsonify({"error": "استجابة GPS غير صالحة — تأكد من ضبط GPS_ASSET_URL على نقطة API."}),
-                502,
-            )
-        return jsonify(response.json())
-    except requests.Timeout:
-        return jsonify({"error": "تجاوز وقت الاستجابة من خدمة GPS."}), 504
-    except requests.ConnectionError:
-        return jsonify({"error": "تعذّر الاتصال بخدمة GPS."}), 503
-    except Exception as e:
-        logger.error("GPS API error: %s", e)
-        return jsonify({"error": "حدث خطأ غير متوقع أثناء جلب بيانات GPS."}), 500
 
 
 # Flask-Mail Configuration
@@ -672,134 +621,7 @@ def audit_and_verify(action, target, reason):
     return True
 
 
-# ── Workstation example/demo data (FAKE — for the open sandbox only) ──────────
-# Loaded once from ws_example_data.json. The MAIN site never touches any of this.
-WS_EXAMPLE_PATH = os.path.join(os.path.dirname(__file__), "ws_example_data.json")
-try:
-    with open(WS_EXAMPLE_PATH, encoding="utf-8") as _wsf:
-        WS_EXAMPLE_DATA = json.load(_wsf)
-except Exception as _e:
-    logger.warning("ws_example_data.json not loaded: %s", _e)
-    WS_EXAMPLE_DATA = {}
 
-
-def _ws_meta_get(k):
-    key = f"ws_meta_{k}"
-    setting = AppSetting.query.get(key)
-    return setting.value if setting else None
-
-
-def _ws_meta_set(k, v):
-    key = f"ws_meta_{k}"
-    try:
-        setting = AppSetting.query.get(key)
-        if setting:
-            setting.value = str(v)
-        else:
-            setting = AppSetting(key=key, value=str(v))
-            db.session.add(setting)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error saving ws_meta {key}: {e}")
-
-
-def _ws_get2(table):
-    """Read the workstation (id=2) blob for a table, or None."""
-    table = _safe_tbl(table)
-    key = f"{table}_branch_2"
-    setting = AppSetting.query.get(key)
-    return _loads_blob(setting.value) if setting else None
-
-
-def _ws_put2(table, value):
-    """Upsert the workstation (id=2) blob for a table."""
-    table = _safe_tbl(table)
-    key = f"{table}_branch_2"
-    data_str = json.dumps(value, ensure_ascii=False)
-    try:
-        setting = AppSetting.query.get(key)
-        if setting:
-            setting.value = data_str
-        else:
-            setting = AppSetting(key=key, value=data_str)
-            db.session.add(setting)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error saving ws blob {key}: {e}")
-
-
-def _ws_is_empty(value):
-    """True if a stored blob carries NO real rows — covers a missing row, [], {}, and an
-    'empty shell' object like {title, date:'', main:[], spare:[], vacation:[], summary:{vacation:'0'}}
-    that a stray autosave may have written (this is why a tab can look permanently empty).
-    Rows live ONLY in LIST fields (main/spare/vacation/oils/filters/parts/…); scalar and dict
-    fields (title, date, summary) are metadata and never count as data."""
-    if value is None:
-        return True
-    if isinstance(value, list):
-        return len(value) == 0
-    if isinstance(value, dict):
-        for v in value.values():
-            if isinstance(v, list) and len(v) > 0:
-                return False
-        return True  # no non-empty list field → no rows
-    return False
-
-
-def _ws_write_examples():
-    """Overwrite ALL workstation id=2 stores with the FAKE example data (used by 🧪)."""
-    for table, value in WS_EXAMPLE_DATA.items():
-        _ws_put2(table, value)
-
-
-def ensure_ws_seeded():
-    """Self-healing seed: on every workstation page load, fill any store that is EMPTY
-    (missing OR an empty/empty-shell blob) from the example data, while PRESERVING any store
-    that holds real rows the user typed. Skipped entirely if the user emptied the sandbox with
-    the 🗑️ button (ws_cleared flag), so a deliberate reset stays empty."""
-    try:
-        if _ws_meta_get("ws_cleared") == "1":
-            return
-        for table, value in WS_EXAMPLE_DATA.items():
-            if _ws_is_empty(_ws_get2(table)):
-                _ws_put2(table, value)
-    except Exception:
-        logger.exception("ensure_ws_seeded error")
-
-
-@app.route(WS_PREFIX)
-@app.route(WS_PREFIX + "/<path:sub>")
-def workstation_page(sub=""):
-    """Open workstation pages under the prefix. The 3 sensitive tabs require the password."""
-    ensure_ws_seeded()  # first visit fills the sandbox with fake example data
-    seg = sub.strip("/").split("/")[0] if sub else ""
-    if seg == "api":
-        return ("", 404)  # API served by the mirrored /importantworkstation/api/* rules
-    if seg not in WS_TABS:
-        return redirect(WS_PREFIX)
-    if seg in WS_LOCKED and not session.get("ws_unlocked"):
-        return render_template("tab_lock.html", next=WS_PREFIX + "/" + seg)
-    ctx = {"google_user": {"name": "Workstation", "email": "ws@system.local"}, "b64_en": load_logo()}
-    if seg == "cameras":
-        ctx["cameras_url"] = os.environ.get("CAMERAS_URL", "")
-    return render_template(WS_TABS[seg] + ".html", **ctx)
-
-
-@app.route(WS_PREFIX + "/unlock", methods=["POST"])
-def workstation_unlock():
-    nxt = request.form.get("next", WS_PREFIX)
-    if not nxt.startswith(WS_PREFIX):
-        nxt = WS_PREFIX
-    if hmac.compare_digest(request.form.get("password", ""), WORKSTATION_PASSWORD):
-        session["ws_unlocked"] = True
-        resp = redirect(nxt)
-        resp.set_cookie("ws_unlocked", "1", path=WS_PREFIX, samesite="Lax",
-                        httponly=True,
-                        secure=app.config.get("SESSION_COOKIE_SECURE", False))
-        return resp
-    return render_template("tab_lock.html", next=nxt, error="كلمة المرور غير صحيحة")
 
 
 @app.route("/tracking")
@@ -818,185 +640,6 @@ def load_logo():
                 b64_en = content
     return b64_en
 
-
-@app.route("/tech_updates")
-@login_required
-def tech_updates():
-    return render_template("tech_updates.html", 
-                           active_branch_id=session.get("active_branch_id", 1), 
-                           active_branch=session.get("active_branch", {}), 
-                           snap_tab="tech_updates")
-
-@app.route("/system_commands")
-@login_required
-def system_commands():
-    return render_template("system_commands.html",
-                           active_branch_id=session.get("active_branch_id", 1),
-                           active_branch=session.get("active_branch", {}),
-                           snap_tab="system_commands")
-
-@app.route("/")
-@login_required
-def index():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    # Homepage hides the "نظام الفواتير الذكي" heading (logo takes its place); the /invoice tab shows it.
-    return render_template("index.html", google_user=google_user, b64_en=b64_en, show_invoice_title=False)
-
-
-@app.route("/dashboard")
-@login_required
-def dashboard():
-    # Executive dashboard. Mostly reads existing /api/* data via GET; the two write paths
-    # are Update-History "restore" (/api/snapshots/restore) and inline edits inside
-    # مركز تنبيهات الوثائق, which go through /api/alerts_center/update.
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("dashboard.html", google_user=google_user, b64_en=b64_en)
-
-
-@app.route("/kpis")
-@login_required
-def kpis():
-    # Static strategic KPI reference page (descriptive only — no data binding).
-    return render_template("kpis.html", google_user=session.get("google_user"), b64_en=load_logo())
-
-
-@app.route("/handover")
-@login_required
-def handover():
-    # Vehicle delivery/receipt inspection form with touch signature pads (client-side only).
-    return render_template("handover.html", google_user=session.get("google_user"), b64_en=load_logo())
-
-
-@app.route("/settings", methods=["GET", "POST"])
-@login_required
-def settings():
-    # Locked admin tab: re-enter the MASTER_PASSWORD to open, then manage shared accounts.
-    master_pass = os.environ.get("MASTER_PASSWORD")
-    if not master_pass:
-        logger.warning("MASTER_PASSWORD not set in env! Settings page cannot be unlocked.")
-    if request.method == "POST" and "password" in request.form:
-        if master_pass and hmac.compare_digest(request.form.get("password", ""), master_pass):
-            session["settings_unlocked"] = True
-            return redirect(url_for("settings"))
-        return render_template("tab_lock.html", next="/settings", action="/settings",
-                               error="كلمة المرور غير صحيحة")
-    if not session.get("settings_unlocked"):
-        return render_template("tab_lock.html", next="/settings", action="/settings")
-    return render_template("settings.html", google_user=session.get("google_user"), b64_en=load_logo())
-
-
-@app.route("/api/system_features", methods=["GET", "POST"])
-@login_required
-def api_system_features():
-    """Read / update system-wide feature flags (admin only)."""
-    if not session.get("settings_unlocked"):
-        return jsonify({"error": "locked"}), 403
-    if request.method == "GET":
-        return jsonify({"success": True, "features": get_system_features()})
-    try:
-        body = request.get_json(silent=True) or {}
-        features = get_system_features()
-        for key in _DEFAULT_FEATURES:
-            if key in body:
-                features[key] = bool(body[key])
-        set_system_features(features)
-        _audit_add("تحديث", "إعدادات النظام", detail="تعديل ميزات النظام")
-        return jsonify({"success": True, "features": features})
-    except Exception:
-        logger.exception("system_features POST error")
-        return jsonify({"success": False, "error": "تعذّر حفظ الإعدادات."}), 500
-
-
-
-
-
-def _snapshot_list(tab, mode):
-    from models.schema import Snapshot
-    snaps = Snapshot.query.filter_by(tab=tab, branch_id=mode).order_by(Snapshot.id.desc()).all()
-    return [{"id": s.id, "ts": s.timestamp.strftime('%Y-%m-%d %H:%M:%S') if s.timestamp else ""} for s in snaps]
-
-
-def _restore_snapshot(sid, mode, require_tab=None):
-    """Restore one dated snapshot into its tab's blob. Returns (ok, info)."""
-    from models.schema import Snapshot
-    snap = Snapshot.query.filter_by(id=sid, branch_id=mode).first()
-    if not snap:
-        return False, "not_found"
-    if require_tab is not None and snap.tab != require_tab:
-        return False, "tab_mismatch"
-    try:
-        data = json.loads(snap.data)
-    except (ValueError, TypeError):
-        return False, "corrupt"
-    blob_set(snap.tab, data)   # restore (also versioned as the new latest state)
-    _audit_add("استعادة نسخة", SNAP_LABELS.get(snap.tab, snap.tab), None, "من سجل النسخ المؤرّخة")
-    return True, snap.tab
-
-
-@app.route("/api/snapshots", methods=["GET"])
-@login_required
-def api_snapshots():
-    # Dated version history per data tab — full all-tabs list from the unlocked Settings tab.
-    if not session.get("settings_unlocked"):
-        return jsonify({"error": "locked"}), 403
-    tab = request.args.get("tab", "")
-    tabs = [{"key": k, "label": SNAP_LABELS.get(k, k)} for k in sorted(SNAPSHOT_TABLES)]
-    if tab not in SNAPSHOT_TABLES:
-        return jsonify({"tabs": tabs, "snapshots": []})
-    return jsonify({"tabs": tabs, "label": SNAP_LABELS.get(tab, tab),
-                    "snapshots": _snapshot_list(tab, _row_id())})
-
-
-@app.route("/api/snapshots/restore", methods=["POST"])
-@login_required
-def api_snapshots_restore():
-    if not session.get("settings_unlocked"):
-        return jsonify({"error": "locked"}), 403
-    ok, info = _restore_snapshot((request.get_json(silent=True) or {}).get("id"), _row_id())
-    if not ok:
-        return jsonify({"error": info}), (404 if info == "not_found" else 500)
-    return jsonify({"success": True})
-
-
-# Per-tab version history — available INSIDE each data tab to any logged-in editor.
-# Scoped to the current branch (via _row_id) AND to the requested tab.
-@app.route("/api/tab_history", methods=["GET"])
-@login_required
-def api_tab_history():
-    tab = request.args.get("tab", "")
-    if tab not in SNAPSHOT_TABLES:
-        return jsonify({"success": False, "snapshots": []}), 400
-    return jsonify({"success": True, "label": SNAP_LABELS.get(tab, tab),
-                    "snapshots": _snapshot_list(tab, _row_id())})
-
-
-@app.route("/api/tab_history/restore", methods=["POST"])
-@login_required
-def api_tab_history_restore():
-    body = request.get_json(silent=True) or {}
-    tab = body.get("tab") or ""
-    if tab not in SNAPSHOT_TABLES:
-        return jsonify({"success": False, "reason": "bad_tab"}), 400
-    ok, info = _restore_snapshot(body.get("id"), _row_id(), require_tab=tab)
-    if not ok:
-        return jsonify({"success": False, "reason": info}), (404 if info == "not_found" else 400)
-    return jsonify({"success": True})
-
-
-@app.route("/gps_dashboard")
-@login_required
-def gps_dashboard():
-    # GPS fleet KPI dashboard (sub-tab of the GPS page).
-    return render_template("gps_dashboard.html", google_user=session.get("google_user"), b64_en=load_logo())
-
-
-@app.route("/gps_devices")
-@login_required
-def gps_devices():
-    # GPS tracking-device inventory (active / broken / issue) — sub-tab of the GPS page.
-    return render_template("gps_devices.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
 @app.route("/invoice")
@@ -1030,44 +673,18 @@ def service_worker():
     return resp
 
 
-@app.route("/oils")
-@login_required
-def oils():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("oils.html", google_user=google_user, b64_en=b64_en)
 
 
-@app.route("/fuel")
-@login_required
-def fuel():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("fuel.html", google_user=google_user, b64_en=b64_en)
 
 
-@app.route("/purchase")
-@login_required
-def purchase():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("purchase.html", google_user=google_user, b64_en=b64_en)
 
 
-@app.route("/schedule")
-@login_required
-def schedule():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("schedule.html", google_user=google_user, b64_en=b64_en)
 
 
-@app.route("/washing")
-@login_required
-def washing():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("washing.html", google_user=google_user, b64_en=b64_en)
+
+
+
+
 
 @app.route("/employees")
 @login_required
@@ -1077,21 +694,10 @@ def employees():
     return render_template("employees.html", google_user=google_user, b64_en=b64_en)
 
 
-@app.route("/gps_sync")
-@login_required
-def gps_sync():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("gps_sync.html", google_user=google_user, b64_en=b64_en)
 
 
-@app.route("/workshop")
-@login_required
-def workshop():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    return render_template("workshop.html", google_user=google_user, b64_en=b64_en,
-                           kiosk=bool(session.get("kiosk")))
+
+
 
 
 @app.route("/search")
@@ -1347,246 +953,13 @@ def generate_invoice():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/generate_schedule", methods=["POST"])
-@login_required
-def generate_schedule():
-    try:
-        data = request.json
-        template_path = os.path.join(app.root_path, "schedule_base.xlsx")
-
-        if not os.path.exists(template_path):
-            return (
-                jsonify({"success": False, "error": "Schedule template not found"}),
-                500,
-            )
-
-        wb = openpyxl.load_workbook(template_path)
-        ws = wb.active
-
-        def safe_set(sheet, row, col, val):
-            cell = sheet.cell(row=row, column=col)
-            if not isinstance(cell, MC):
-                cell.value = val
-
-        # Set date in row 6 col 1
-        schedule_date = data.get("date", "")
-        safe_set(ws, 6, 1, schedule_date)
-
-        main_data = data.get("main", [])
-        spare_data = data.get("spare", [])
-
-        # We need to write from bottom up or just write all and delete rows from bottom up
-
-        # 1. Summary Block (Row 53)
-        dina = sum(1 for d in main_data if "دينا" in d.get("type", ""))
-        lorry = sum(1 for d in main_data if "لوري" in d.get("type", ""))
-        delivery = sum(1 for d in main_data if d.get("job", "") == "موصل")
-        dist = sum(1 for d in main_data if d.get("job", "") == "موزع")
-
-        safe_set(ws, 53, 2, len(main_data))
-        safe_set(ws, 53, 3, dina)
-        safe_set(ws, 53, 4, lorry)
-        safe_set(ws, 53, 5, delivery)
-        safe_set(ws, 53, 6, dist)
-        safe_set(ws, 53, 7, len(spare_data))
-
-        # 2. Spare Data (Row 42-49)
-        for idx, rd in enumerate(spare_data[:8]):
-            r = 42 + idx
-            safe_set(ws, r, 1, idx + 1)
-            safe_set(ws, r, 2, rd.get("empid", ""))
-            safe_set(ws, r, 3, rd.get("name", ""))
-            safe_set(ws, r, 4, rd.get("iqama", ""))
-            safe_set(ws, r, 6, rd.get("plate", ""))
-            safe_set(ws, r, 8, rd.get("typemodel", ""))
-            safe_set(ws, r, 9, rd.get("pallets", ""))
-            safe_set(ws, r, 10, rd.get("capacity", ""))
-            safe_set(ws, r, 16, rd.get("notes", ""))
-            safe_set(ws, r, 17, rd.get("phone", ""))
-
-        # 3. Main Data (Row 9-36)
-        for idx, rd in enumerate(main_data[:28]):
-            r = 9 + idx
-            safe_set(ws, r, 1, idx + 1)
-            safe_set(ws, r, 2, rd.get("empid", ""))
-            safe_set(ws, r, 3, rd.get("name", ""))
-            safe_set(ws, r, 4, rd.get("iqama", ""))
-            safe_set(ws, r, 5, rd.get("job", ""))
-            safe_set(ws, r, 6, rd.get("plate", ""))
-            safe_set(ws, r, 7, rd.get("model", ""))
-            safe_set(ws, r, 8, rd.get("type", ""))
-            safe_set(ws, r, 9, rd.get("pallets", ""))
-            safe_set(ws, r, 10, rd.get("capacity", ""))
-            safe_set(ws, r, 11, rd.get("serial", ""))
-            safe_set(ws, r, 12, rd.get("inspect", ""))
-            safe_set(ws, r, 13, rd.get("license", ""))
-            safe_set(ws, r, 14, rd.get("drivercard", ""))
-            safe_set(ws, r, 15, rd.get("opcard", ""))
-            safe_set(ws, r, 16, rd.get("notes", ""))
-            safe_set(ws, r, 17, rd.get("phone", ""))
-
-        # Delete unused rows from bottom up to avoid shifting index bugs
-        spare_deletions = 8 - len(spare_data) if len(spare_data) < 8 else 0
-        main_deletions = 28 - len(main_data) if len(main_data) < 28 else 0
-
-        if spare_deletions > 0:
-            ws.delete_rows(42 + len(spare_data), spare_deletions)
-        if main_deletions > 0:
-            ws.delete_rows(9 + len(main_data), main_deletions)
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-        b64 = base64.b64encode(output.read()).decode("utf-8")
-        return jsonify({"success": True, "file_b64": b64})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/generate_washing", methods=["POST"])
-@login_required
-def generate_washing():
-    try:
-        data = request.json
-        vehicles = data.get("vehicles", [])
-
-        template_path = os.path.join(app.root_path, "washing_template.xlsx")
-        if not os.path.exists(template_path):
-            return (
-                jsonify({"success": False, "error": "Washing template not found"}),
-                500,
-            )
-
-        wb = openpyxl.load_workbook(template_path)
-        ws = wb.active
-
-        # Insert Logo
-        logo_path = os.path.join(
-            app.root_path, "templates", "ApplicationFrameHost_KUIZUuJ46O (1).png"
-        )
-        if os.path.exists(logo_path):
-            img = XLImage(logo_path)
-            img.width = 300
-            img.height = 90
-            ws.add_image(img, "F1")
-
-        # Unmerge ALL merged cells to avoid MergedCell write errors
-        merged_ranges = list(ws.merged_cells.ranges)
-        for mr in merged_ranges:
-            ws.unmerge_cells(str(mr))
-
-        # Copy header style from row 4 for reuse
-        from copy import copy as shallow_copy
-        header_fills = {}
-        header_fonts = {}
-        header_aligns = {}
-        header_borders = {}
-        for c in range(1, 19):
-            cell = ws.cell(row=4, column=c)
-            header_fills[c] = shallow_copy(cell.fill)
-            header_fonts[c] = shallow_copy(cell.font)
-            header_aligns[c] = shallow_copy(cell.alignment)
-            header_borders[c] = shallow_copy(cell.border)
-
-        # Copy a data row style (row 5) for styling data rows
-        data_fills = {}
-        data_fonts = {}
-        data_aligns = {}
-        data_borders = {}
-        for c in range(1, 19):
-            cell = ws.cell(row=5, column=c)
-            data_fills[c] = shallow_copy(cell.fill)
-            data_fonts[c] = shallow_copy(cell.font)
-            data_aligns[c] = shallow_copy(cell.alignment)
-            data_borders[c] = shallow_copy(cell.border)
-
-        # Write vehicle data starting at row 5
-        for idx, v in enumerate(vehicles):
-            r = 5 + idx
-            ws.cell(row=r, column=1, value=v.get("id", idx + 1))
-            ws.cell(row=r, column=2, value=v.get("plate", ""))
-            ws.cell(row=r, column=3, value=v.get("type", ""))
-            ws.cell(row=r, column=4, value=v.get("driver", ""))
-            months = v.get("m", [])
-            total = sum(months)
-            for m_idx in range(12):
-                val = "استلم" if m_idx < len(months) and months[m_idx] == 1 else None
-                ws.cell(row=r, column=5 + m_idx, value=val)
-            ws.cell(row=r, column=17, value=total)
-            # Apply data styling
-            for c in range(1, 19):
-                cell = ws.cell(row=r, column=c)
-                cell.fill = shallow_copy(data_fills.get(c, data_fills[1]))
-                cell.font = shallow_copy(data_fonts.get(c, data_fonts[1]))
-                cell.alignment = shallow_copy(data_aligns.get(c, data_aligns[1]))
-                cell.border = shallow_copy(data_borders.get(c, data_borders[1]))
-
-        # Summary row: right after last vehicle
-        summary_row = 5 + len(vehicles)
-        ws.cell(row=summary_row, column=1, value="إجمالي الغسيل الشهري")
-        ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
-        for m_idx in range(12):
-            col = 5 + m_idx
-            start_cell = ws.cell(row=5, column=col).coordinate.replace("5", "")
-            formula = '=COUNTIF(%s5:%s%d,"استلم")' % (start_cell, start_cell, summary_row - 1)
-            ws.cell(row=summary_row, column=col, value=formula)
-        ws.cell(row=summary_row, column=17, value="=SUM(Q5:Q%d)" % (summary_row - 1))
-
-        # Style summary row bold
-        from openpyxl.styles import Font, PatternFill, Alignment
-        summary_font = Font(name="Cairo", size=11, bold=True, color="FFFFFF")
-        summary_fill = PatternFill(start_color="1A3A5C", end_color="1A3A5C", fill_type="solid")
-        summary_align = Alignment(horizontal="center", vertical="center")
-        for c in range(1, 19):
-            cell = ws.cell(row=summary_row, column=c)
-            cell.font = summary_font
-            cell.fill = summary_fill
-            cell.alignment = summary_align
-
-        # Footer row
-        footer_row = summary_row + 2
-        ws.cell(row=footer_row, column=1, value="تم إعداد هذا الجدول بواسطة قسم الحركة - فرع الدمام")
-        ws.merge_cells(start_row=footer_row, start_column=1, end_row=footer_row, end_column=18)
-
-        # Re-merge header rows
-        ws.merge_cells("A1:R1")
-        ws.merge_cells("A2:D2")
-        ws.merge_cells("A3:R3")
-
-        # Update total washes in header
-        total_washes = sum(sum(v.get("m", [])) for v in vehicles)
-        ws.cell(row=2, column=12, value=total_washes)
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-        b64 = base64.b64encode(output.read()).decode("utf-8")
-        return jsonify({"success": True, "file_b64": b64})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/washing_data", methods=["GET", "POST"])
-@login_required
-def washing_data():
-    # Workstation mode writes/reads an isolated copy (id=2); the real data (id=1) is untouched.
-    if request.method == "POST":
-        try:
-            vehicles = (request.json or {}).get("vehicles", [])
-            blob_set("washing_schedule", vehicles)
-            _audit_add("تحديث", "جدول الغسيل", len(vehicles) if isinstance(vehicles, list) else None)
-            return jsonify({"success": True})
-        except Exception:
-            logger.exception("washing_data POST error")
-            return jsonify({"success": False, "error": "تعذّر حفظ جدول الغسيل."}), 500
-    try:
-        data = blob_get("washing_schedule")
-        if data is not None:
-            return jsonify({"success": True, "vehicles": data})
-        return jsonify({"success": False, "vehicles": []})
-    except Exception:
-        logger.exception("washing_data GET error")
-        return jsonify({"success": False, "error": "تعذّر جلب جدول الغسيل."}), 500
+
+
+
 
 
 @app.route("/api/employees", methods=["GET", "POST"])
@@ -1648,59 +1021,16 @@ def employees_data():
 # ===== Learned driver registry (per-branch) =====
 # Maps national-id (iqama, digits only) → the driver's personal employee fields, harvested
 # from the weekly schedule so بطاقة السائق / الوظيفة / الجوال auto-fill on every future pick.
-_REG_FIELDS = ("empid", "phone", "job", "drivercard", "empNotes")
-DRIVER_REG_MAX = 4000  # safety cap on distinct drivers remembered per branch
-# Per-field length caps so a huge paste into الملاحظات can't bloat the blob that ships to every client.
-_REG_FIELD_MAX = {"empid": 40, "phone": 40, "job": 40, "drivercard": 40, "empNotes": 200}
-# Serialize the registry read-modify-write. The Procfile pins gunicorn to --workers 1 --threads 8,
-# so one in-process lock fully prevents lost updates when two admins on the same branch save at once.
-_DRIVER_REG_LOCK = threading.Lock()
 
 # Serializes the alerts-center inline-edit read-modify-write (and the Document Archive
 # delete) against itself, for the same reason as _DRIVER_REG_LOCK above.
 _ALERTS_CENTER_LOCK = threading.Lock()
 
 
-def _norm_iqama(v):
-    return re.sub(r"\D", "", str(v or ""))
 
 
-def _harvest_driver_registry(sd):
-    """Best-effort: fold any non-empty personal fields from the schedule rows into the
-    per-branch driver registry, keyed by iqama. Latest non-empty value wins; a blank NEVER
-    clears a remembered value — so a swap that clears a row keeps the driver's memory intact.
-    Never raises into the caller (the schedule save must always succeed)."""
-    if not isinstance(sd, dict):
-        return
-    with _DRIVER_REG_LOCK:  # atomic get→mutate→set within the single gunicorn worker
-        reg = blob_get("driver_registry") or {}
-        if not isinstance(reg, dict):
-            reg = {}
-        changed = False
-        for section in ("main", "spare", "vacation"):
-            for row in (sd.get(section) or []):
-                if not isinstance(row, dict):
-                    continue
-                key = _norm_iqama(row.get("iqama"))
-                if not key:
-                    continue
-                existing = key in reg
-                if not existing and len(reg) >= DRIVER_REG_MAX:
-                    continue  # cap reached: stop remembering NEW drivers, still update existing ones
-                entry = reg.get(key) if existing else {}
-                if not isinstance(entry, dict):
-                    entry = {}
-                local_changed = False
-                for f in _REG_FIELDS:
-                    val = str(row.get(f, "") or "").strip()[:_REG_FIELD_MAX.get(f, 80)]
-                    if val and entry.get(f) != val:
-                        entry[f] = val
-                        local_changed = True
-                if local_changed and entry:
-                    reg[key] = entry
-                    changed = True
-        if changed:
-            blob_set("driver_registry", reg)
+
+
 
 
 # ===== Learned vehicle registry (per-branch) — symmetric to the driver registry above =====
@@ -1708,97 +1038,16 @@ def _harvest_driver_registry(sd):
 # so a known vehicle's spec auto-fills on every future selection, mirroring the driver side:
 # selecting a driver never touches the vehicle box, and selecting a vehicle never touches the
 # driver box — each "swap" only ever replaces its own data.
-_VEH_REG_FIELDS = ("model", "vtype", "pallets", "load", "vserial", "inspect", "license", "opcard", "notes")
-VEHICLE_REG_MAX = 4000
-_VEH_REG_FIELD_MAX = {"model": 20, "vtype": 40, "pallets": 10, "load": 20, "vserial": 40,
-                      "inspect": 40, "license": 40, "opcard": 40, "notes": 300}
-_VEHICLE_REG_LOCK = threading.Lock()
-_AR_DIGITS = "٠١٢٣٤٥٦٧٨٩"
 
 
-def _norm_plate(v):
-    """Digits-then-letters, Arabic-Indic digits folded to Latin — matches window.normalizePlate
-    in app_ux.js exactly, so the same plate always resolves to the same registry key regardless
-    of digit script or letter/digit typing order."""
-    s = str(v or "")
-    for i, ch in enumerate(_AR_DIGITS):
-        s = s.replace(ch, str(i))
-    s = re.sub(r"\s+", "", s)
-    digits = "".join(re.findall(r"\d+", s))
-    letters = "".join(re.findall(r"[^\d]+", s))
-    return digits + letters
 
 
-def _harvest_vehicle_registry(sd):
-    """Best-effort: fold any non-empty technical-spec fields from schedule rows (main/spare —
-    vacation rows carry no vehicle) into the per-branch vehicle registry, keyed by normalized
-    plate. Latest non-empty value wins; a blank NEVER clears a remembered value. Never raises
-    into the caller (the schedule save must always succeed)."""
-    if not isinstance(sd, dict):
-        return
-    with _VEHICLE_REG_LOCK:
-        reg = blob_get("vehicle_registry") or {}
-        if not isinstance(reg, dict):
-            reg = {}
-        changed = False
-        for section in ("main", "spare"):
-            for row in (sd.get(section) or []):
-                if not isinstance(row, dict):
-                    continue
-                key = _norm_plate(row.get("plate"))
-                if not key:
-                    continue
-                existing = key in reg
-                if not existing and len(reg) >= VEHICLE_REG_MAX:
-                    continue
-                entry = reg.get(key) if existing else {}
-                if not isinstance(entry, dict):
-                    entry = {}
-                local_changed = False
-                for f in _VEH_REG_FIELDS:
-                    val = str(row.get(f, "") or "").strip()[:_VEH_REG_FIELD_MAX.get(f, 80)]
-                    if val and entry.get(f) != val:
-                        entry[f] = val
-                        local_changed = True
-                if local_changed and entry:
-                    reg[key] = entry
-                    changed = True
-        if changed:
-            blob_set("vehicle_registry", reg)
 
 
-@app.route("/api/schedule_data", methods=["GET", "POST"])
-@login_required
-def schedule_data():
-    """Persist the weekly schedule (main/spare/vacation/summary). Sandboxed for workstation."""
-    if request.method == "POST":
-        try:
-            sd = request.json or {}
-            reason = sd.get("reason")
-            try:
-                audit_and_verify("تحديث", "الجدول الأسبوعي", reason)
-            except ValueError as e:
-                return jsonify({"success": False, "error": str(e)}), 400
-            
-            blob_set("schedule_data", sd)
-            try:
-                _harvest_driver_registry(sd)  # learn each driver's card-expiry/job for future autofill
-            except Exception:
-                logger.warning("driver_registry harvest failed (non-fatal)")
-            try:
-                _harvest_vehicle_registry(sd)  # learn each vehicle's spec for future autofill
-            except Exception:
-                logger.warning("vehicle_registry harvest failed (non-fatal)")
-            _n = (len(sd.get("main", []) or []) + len(sd.get("spare", []) or [])) if isinstance(sd, dict) else None
-            return jsonify({"success": True})
-        except Exception:
-            logger.exception("schedule_data POST error")
-            return jsonify({"success": False, "error": "تعذّر حفظ الجدول الأسبوعي."}), 500
-    try:
-        return jsonify({"success": True, "data": blob_get("schedule_data")})
-    except Exception:
-        logger.exception("schedule_data GET error")
-        return jsonify({"success": False, "error": "تعذّر جلب الجدول الأسبوعي."}), 500
+
+
+
+
 
 
 @app.route("/api/driver_registry", methods=["GET"])
@@ -1870,25 +1119,7 @@ def incidents_data():
         return jsonify({"success": False, "rows": []})
 
 
-@app.route("/api/gps_devices", methods=["GET", "POST"])
-@login_required
-def gps_devices_data():
-    """Persist the GPS tracking-device inventory (editable). Sandboxed for workstation."""
-    if request.method == "POST":
-        try:
-            rows = (request.json or {}).get("rows", [])
-            blob_set("gps_devices_data", rows)
-            _audit_add("تحديث", "كشف أجهزة التتبع GPS", len(rows) if isinstance(rows, list) else None)
-            return jsonify({"success": True})
-        except Exception:
-            logger.exception("gps_devices_data POST error")
-            return jsonify({"success": False, "error": "تعذّر حفظ كشف الأجهزة."}), 500
-    try:
-        data = blob_get("gps_devices_data")
-        return jsonify({"success": True, "rows": data if data is not None else []})
-    except Exception:
-        logger.exception("gps_devices_data GET error")
-        return jsonify({"success": False, "rows": []})
+
 
 
 @app.route("/api/audit_log", methods=["GET"])
@@ -2815,44 +2046,13 @@ def alerts_center_update():
 # For the /importantworkstation sandbox they persist a single JSON object on the server
 # (id=2 via blob_get/blob_set). On the main site (id=1) these rows stay empty/unused —
 # the main pages never POST here, so the main site keeps its original behavior.
-@app.route("/api/oils_data", methods=["GET", "POST"])
-@login_required
-def oils_data():
-    if request.method == "POST":
-        try:
-            blob_set("oils_data", request.json or {})
-            return jsonify({"success": True})
-        except Exception:
-            logger.exception("oils_data POST error")
-            return jsonify({"success": False}), 500
-    try:
-        return jsonify({"success": True, "data": blob_get("oils_data")})
-    except Exception:
-        logger.exception("oils_data GET error")
-        return jsonify({"success": False, "data": None})
+
 
 
 # ── Fuel/diesel supply tracking (تموين المحروقات) — fully server-synced on every
 # branch and the workstation sandbox alike (unlike oils/purchase/workshop above,
 # this tab has no legacy hardcoded-row/localStorage-only history to preserve).
-@app.route("/api/fuel_data", methods=["GET", "POST"])
-@login_required
-def fuel_data():
-    if request.method == "POST":
-        try:
-            entries = (request.json or {}).get("entries", [])
-            blob_set("fuel_data", entries)
-            _audit_add("تحديث", "تموين المحروقات", len(entries) if isinstance(entries, list) else None)
-            return jsonify({"success": True})
-        except Exception:
-            logger.exception("fuel_data POST error")
-            return jsonify({"success": False, "error": "تعذّر حفظ بيانات التموين."}), 500
-    try:
-        data = blob_get("fuel_data")
-        return jsonify({"success": True, "entries": data if isinstance(data, list) else []})
-    except Exception:
-        logger.exception("fuel_data GET error")
-        return jsonify({"success": False, "entries": []})
+
 
 
 # ── Vehicle custody transfer (نقل عهدة) — the actual row reassignment already
@@ -2880,41 +2080,10 @@ def vehicle_custody_transfer():
         return jsonify({"success": False, "error": "تعذّر توثيق نقل العهدة."}), 500
 
 
-@app.route("/api/purchase_data", methods=["GET", "POST"])
-@login_required
-def purchase_data():
-    if request.method == "POST":
-        try:
-            body = request.json or {}
-            blob_set("purchase_data", body)
-            _n = sum(len(v) for v in body.values() if isinstance(v, list)) if isinstance(body, dict) else None
-            _audit_add("تحديث", "طلبات الشراء", _n or None)
-            return jsonify({"success": True})
-        except Exception:
-            logger.exception("purchase_data POST error")
-            return jsonify({"success": False}), 500
-    try:
-        return jsonify({"success": True, "data": blob_get("purchase_data")})
-    except Exception:
-        logger.exception("purchase_data GET error")
-        return jsonify({"success": False, "data": None})
 
 
-@app.route("/api/workshop_data", methods=["GET", "POST"])
-@login_required
-def workshop_data():
-    if request.method == "POST":
-        try:
-            blob_set("workshop_data", request.json or {})
-            return jsonify({"success": True})
-        except Exception:
-            logger.exception("workshop_data POST error")
-            return jsonify({"success": False}), 500
-    try:
-        return jsonify({"success": True, "data": blob_get("workshop_data")})
-    except Exception:
-        logger.exception("workshop_data GET error")
-        return jsonify({"success": False, "data": None})
+
+
 
 
 # ── Vehicle handover/receipt form: save the signed record + email it ──────────
@@ -3827,38 +2996,7 @@ def absher_apply():
     return _absher_run(True)
 
 
-@app.route("/api/ws_reset", methods=["POST"])
-@login_required
-def ws_reset():
-    """Wipe EVERY workstation (id=2) store so /importantworkstation starts truly empty.
-    Workstation-only: the main site can never reach this (guard + path-based mirror)."""
-    if not is_workstation():
-        return jsonify({"success": False, "error": "workstation only"}), 404
-    try:
-        AppSetting.query.filter(AppSetting.key.like('%_branch_2')).delete(synchronize_session=False)
-        db.session.commit()
-        _ws_meta_set("ws_cleared", "1")  # user emptied it on purpose → don't auto-reseed
-        return jsonify({"success": True})
-    except Exception as e:
-        db.session.rollback()
-        logger.exception(f"ws_reset error: {e}")
-        return jsonify({"success": False}), 500
 
-
-@app.route("/api/ws_seed", methods=["POST"])
-@login_required
-def ws_seed():
-    """Fill EVERY workstation (id=2) store with the FAKE example data (demo).
-    Workstation-only: the main site can never reach this."""
-    if not is_workstation():
-        return jsonify({"success": False, "error": "workstation only"}), 404
-    try:
-        _ws_write_examples()
-        _ws_meta_set("ws_cleared", "0")  # examples are wanted again → allow auto-seed
-        return jsonify({"success": True})
-    except Exception:
-        logger.exception("ws_seed error")
-        return jsonify({"success": False}), 500
 
 
 def _driver_store():
@@ -3985,112 +3123,7 @@ def tafqeet(amount):
     return res + " فقط لا غير"
 
 
-@app.route("/api/gps_sync", methods=["POST"])
-@login_required
-def api_gps_sync():
-    if "source_file" not in request.files or "target_file" not in request.files:
-        return jsonify({"success": False, "error": "الرجاء رفع الملفين المطلوبة"}), 400
 
-    src_file = request.files["source_file"]
-    tgt_file = request.files["target_file"]
-
-    try:
-        wb_src = openpyxl.load_workbook(src_file, data_only=True)
-        ws_src = wb_src.active
-
-        headers = {}
-        for c in range(1, ws_src.max_column + 1):
-            val = ws_src.cell(row=4, column=c).value
-            if val:
-                headers[str(val).strip()] = c
-
-        if "رقم اللوحة" not in headers:
-            headers = {}
-            for c in range(1, ws_src.max_column + 1):
-                val = ws_src.cell(row=1, column=c).value
-                if val:
-                    headers[str(val).strip()] = c
-
-        lookup = {}
-        plate_src_col = headers.get("رقم اللوحة")
-        if plate_src_col:
-            # Data starts after header
-            start_row = (
-                5
-                if "رقم اللوحة"
-                in [
-                    ws_src.cell(row=4, column=c).value
-                    for c in range(1, ws_src.max_column + 1)
-                ]
-                else 2
-            )
-            for r in range(start_row, ws_src.max_row + 1):
-                plate_val = ws_src.cell(row=r, column=plate_src_col).value
-                norm = normalize_plate(plate_val)
-                if norm:
-                    row_data = {}
-                    for col_name, c_idx in headers.items():
-                        row_data[col_name] = ws_src.cell(row=r, column=c_idx).value
-                    lookup[norm] = row_data
-
-        wb = openpyxl.load_workbook(tgt_file)
-        ws = wb.active
-
-        plate_col = 9
-        vin_col = 1
-        sn_col = 2
-        year_col = 3
-        model_col = 4
-        make_col = 5
-        reg_col = 6
-        branch_col = 7
-
-        match_count = 0
-        update_count = 0
-
-        for r in range(6, ws.max_row + 1):
-            plate_val = ws.cell(row=r, column=plate_col).value
-            if not plate_val:
-                continue
-            norm = normalize_plate(plate_val)
-            if norm in lookup:
-                src = lookup[norm]
-                match_count += 1
-                updates = [
-                    (vin_col, "رقم الهيكل"),
-                    (sn_col, "الرقم التسلسلي"),
-                    (year_col, "سنة الصنع"),
-                    (model_col, "الطراز"),
-                    (make_col, "الماركة"),
-                    (reg_col, "نوع التسجيل"),
-                    (branch_col, "الفرع"),
-                ]
-                for col_idx, src_col_name in updates:
-                    if src_col_name in src:
-                        new_val = src[src_col_name]
-                        if (
-                            new_val is not None
-                            and str(new_val).strip() != ""
-                            and str(new_val).lower() != "nan"
-                        ):
-                            ws.cell(row=r, column=col_idx).value = new_val
-                            update_count += 1
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-        b64 = base64.b64encode(output.read()).decode("utf-8")
-
-        return jsonify(
-            {
-                "success": True,
-                "matches": match_count,
-                "updates": update_count,
-                "file_b64": b64,
-            }
-        )
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/legacy/drivers", methods=["POST"])
@@ -5816,150 +4849,7 @@ def force_seed():
         return f'''<pre>Error: {str(e)}\n\n{traceback.format_exc()}</pre>'''
 
 
-@app.route("/api/export_schedule_exact", methods=["POST"])
-@login_required
-def export_schedule_exact():
-    try:
-        data = request.json or {}
-        template_path = os.path.join(app.root_path, "weekly_schedule_template.xlsx")
-        
-        if not os.path.exists(template_path):
-            return jsonify({"success": False, "error": "قالب التصدير غير موجود"}), 500
 
-        wb = openpyxl.load_workbook(template_path)
-        
-        def safe_set(sheet, row, col, val):
-            cell = sheet.cell(row=row, column=col)
-            try:
-                cell.value = val
-            except AttributeError:
-                pass # Merged cell
-
-        def safe_set_num(sheet, row, col, val):
-            try:
-                val = int(val)
-            except (TypeError, ValueError):
-                pass
-            safe_set(sheet, row, col, val)
-
-        # --- Active Vehicles (المركبات النشطة) ---
-        ws_main = wb["المركبات النشطة"]
-        main_data = data.get("main", [])
-        for idx, rd in enumerate(main_data):
-            r = 5 + idx
-            safe_set(ws_main, r, 1, idx + 1)
-            safe_set(ws_main, r, 2, rd.get("empid", ""))
-            safe_set(ws_main, r, 3, rd.get("name", ""))
-            safe_set(ws_main, r, 4, rd.get("iqama", ""))
-            safe_set(ws_main, r, 5, rd.get("job", ""))
-            safe_set(ws_main, r, 6, rd.get("plate", ""))
-            safe_set(ws_main, r, 7, rd.get("model", ""))
-            safe_set(ws_main, r, 8, rd.get("vtype", ""))
-            safe_set(ws_main, r, 9, rd.get("pallets", ""))
-            safe_set(ws_main, r, 10, rd.get("load", ""))
-            safe_set(ws_main, r, 11, rd.get("vserial", ""))
-            safe_set(ws_main, r, 12, rd.get("inspect", ""))
-            # Col 13 is formula (rem_days1)
-            safe_set(ws_main, r, 14, rd.get("license", ""))
-            # Col 15 is formula (rem_days2)
-            safe_set(ws_main, r, 16, rd.get("drivercard", ""))
-            # Col 17 is formula (rem_days3)
-            safe_set(ws_main, r, 18, rd.get("opcard", ""))
-            # Col 19 is formula (rem_days4)
-            safe_set(ws_main, r, 20, rd.get("empNotes", ""))
-            safe_set(ws_main, r, 21, rd.get("phone", ""))
-
-        # --- Spare and Broken (الأسبير والمعطلة) ---
-        if "الأسبير والمعطلة" in wb.sheetnames:
-            ws_spare = wb["الأسبير والمعطلة"]
-            spare_data = data.get("spare", [])
-            for idx, rd in enumerate(spare_data):
-                r = 4 + idx
-                safe_set(ws_spare, r, 1, idx + 1)
-                safe_set(ws_spare, r, 2, rd.get("status", "اسبير"))
-                safe_set(ws_spare, r, 3, rd.get("plate", ""))
-                safe_set(ws_spare, r, 4, rd.get("model", ""))
-                safe_set(ws_spare, r, 5, rd.get("vtype", ""))
-                safe_set(ws_spare, r, 6, rd.get("pallets", ""))
-                safe_set(ws_spare, r, 7, rd.get("load", ""))
-                safe_set(ws_spare, r, 8, rd.get("vserial", ""))
-                safe_set(ws_spare, r, 9, rd.get("inspect", ""))
-                # Col 10 is the formula for remaining days
-                safe_set(ws_spare, r, 11, rd.get("license", ""))
-                # Col 12 is the formula for remaining days
-                safe_set(ws_spare, r, 13, rd.get("opcard", ""))
-                # Col 14 is the formula for remaining days
-                safe_set(ws_spare, r, 15, rd.get("empNotes", ""))
-
-        # --- Vacation (السائقون في إجازة) ---
-        if "السائقون في إجازة" in wb.sheetnames:
-            ws_vac = wb["السائقون في إجازة"]
-            vac_data = data.get("vacation", [])
-            for idx, rd in enumerate(vac_data):
-                r = 4 + idx
-                safe_set(ws_vac, r, 1, idx + 1)
-                safe_set(ws_vac, r, 2, rd.get("empid", ""))
-                safe_set(ws_vac, r, 3, rd.get("name", ""))
-                safe_set(ws_vac, r, 4, rd.get("iqama", ""))
-                safe_set(ws_vac, r, 5, rd.get("job", ""))
-                safe_set(ws_vac, r, 6, rd.get("drivercard", ""))
-                # Col 7 is the formula
-                safe_set(ws_vac, r, 8, rd.get("phone", ""))
-                safe_set(ws_vac, r, 9, rd.get("empNotes", ""))
-
-        # --- Dashboard (لوحة المعلومات) — KPIs, expiry alert list, and the two summary
-        # tables, matching whatever's currently shown/edited on the site's dashboard tab.
-        # G5 (vacation KPI) is left untouched: it's a live COUNTA() formula in the template.
-        if "لوحة المعلومات" in wb.sheetnames:
-            ws_dash = wb["لوحة المعلومات"]
-            dash = data.get("dashboard", {})
-
-            if data.get("date"):
-                safe_set(ws_dash, 2, 2, data.get("date"))
-
-            kpis = dash.get("kpis", {})
-            safe_set_num(ws_dash, 5, 1, kpis.get("drivers", ""))
-            safe_set_num(ws_dash, 5, 3, kpis.get("delivery", ""))
-            safe_set_num(ws_dash, 5, 5, kpis.get("distributors", ""))
-            safe_set_num(ws_dash, 5, 9, kpis.get("spare", ""))
-
-            expiring = dash.get("expiring", [])[:7]
-            for idx, rd in enumerate(expiring):
-                r = 9 + idx
-                safe_set(ws_dash, r, 1, idx + 1)
-                safe_set(ws_dash, r, 2, rd.get("name", ""))
-                safe_set(ws_dash, r, 3, rd.get("plate", ""))
-                safe_set(ws_dash, r, 4, rd.get("doc", ""))
-                safe_set(ws_dash, r, 5, rd.get("date", ""))
-                safe_set_num(ws_dash, r, 6, rd.get("days", ""))
-
-            job_split = dash.get("jobSplit", {})
-            for idx, (label, val) in enumerate(list(job_split.items())[:2]):
-                r = 19 + idx
-                safe_set(ws_dash, r, 1, label)
-                safe_set_num(ws_dash, r, 2, val)
-
-            def vt_sort_key(kv):
-                try:
-                    return -int(kv[1])
-                except (TypeError, ValueError):
-                    return 0
-            vehicle_types = sorted(dash.get("vehicleTypes", {}).items(), key=vt_sort_key)[:5]
-            for idx, (label, val) in enumerate(vehicle_types):
-                r = 21 + idx
-                safe_set(ws_dash, r, 1, label)
-                safe_set_num(ws_dash, r, 2, val)
-
-        import io, base64
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-        b64 = base64.b64encode(output.read()).decode("utf-8")
-        return jsonify({"success": True, "file_b64": b64})
-    except Exception as e:
-        import traceback
-        logger.exception("export_schedule_exact error")
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
 
