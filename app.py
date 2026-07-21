@@ -3670,6 +3670,7 @@ def _drivers_list_for_sync():
             "drivercard": "",
             "job": d.job_title or "",
             "empNotes": "",
+            "branch_id": d.branch_id,
             "model": v.model if v else "",
             "pallets": "",
             "load": "",
