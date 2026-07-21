@@ -4368,27 +4368,6 @@ def update_driver_status():
             return jsonify({"error": str(e)}), 500
     return jsonify({"error": "Invalid data"}), 400
 
-@app.route('/api/update_driver_branch', methods=['POST'])
-@login_required
-def update_driver_branch():
-    if session.get('role') != 'admin':
-        return jsonify({"success": False, "error": "غير مصرح لك"}), 403
-    data = request.json
-    driver_id = data.get('id')
-    branch_id = data.get('branch_id')
-    if driver_id and branch_id is not None:
-        from models.schema import Driver
-        try:
-            driver = Driver.query.get(driver_id)
-            if driver:
-                driver.branch_id = int(branch_id)
-                db.session.commit()
-                return jsonify({"success": True})
-            return jsonify({"success": False, "error": "Driver not found"}), 404
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"success": False, "error": str(e)}), 500
-    return jsonify({"success": False, "error": "بيانات غير صالحة"}), 400
 
 @app.route("/api/sync_excel", methods=["POST"])
 @login_required

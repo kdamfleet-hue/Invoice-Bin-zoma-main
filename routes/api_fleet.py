@@ -8,8 +8,19 @@ api_fleet_bp = Blueprint('api_fleet', __name__)
 @login_required
 def get_drivers():
     try:
-        # Fetch all drivers from SQLAlchemy model
-        drivers = Driver.query.all()
+        from flask import session
+        from app import current_branch_id
+        
+        # If user is admin, they might want all drivers or a specific branch.
+        # If user is not admin, they only see drivers from their branch.
+        is_admin = session.get("role") == "admin"
+        query = Driver.query
+        
+        # We can return all drivers and let the frontend filter, since the fleet dashboard expects all drivers for admin.
+        if not is_admin:
+            query = query.filter_by(branch_id=current_branch_id())
+            
+        drivers = query.all()
         result = []
         for d in drivers:
             result.append({
@@ -20,7 +31,7 @@ def get_drivers():
                 "phone": d.phone,
                 "job": d.job_title,
                 "status": d.status,
-                # Optionally map to old format keys if frontend expects them
+                "branch_id": d.branch_id
             })
         return jsonify({"success": True, "data": result})
     except Exception as e:
@@ -30,12 +41,21 @@ def get_drivers():
 @login_required
 def add_driver():
     try:
+        from flask import session
+        from app import current_branch_id
+        
         data = request.json
         if not data:
             return jsonify({"success": False, "error": "No data provided"}), 400
             
+        # Determine branch_id
+        is_admin = session.get("role") == "admin"
+        branch_id = current_branch_id()
+        if is_admin and data.get("branch_id"):
+            branch_id = int(data.get("branch_id"))
+            
         new_driver = Driver(
-            branch_id=1, # Default for now
+            branch_id=branch_id,
             employee_id=data.get("empid", ""),
             name=data.get("name", ""),
             iqama_number=data.get("iqama", ""),
@@ -54,6 +74,8 @@ def add_driver():
 @login_required
 def update_driver(driver_id):
     try:
+        from flask import session
+        
         data = request.json
         driver = Driver.query.get(driver_id)
         if not driver:
@@ -66,11 +88,37 @@ def update_driver(driver_id):
         driver.job_title = data.get("job", driver.job_title)
         driver.status = data.get("status", driver.status)
         
+        if session.get("role") == "admin" and "branch_id" in data:
+            val = data.get("branch_id")
+            driver.branch_id = int(val) if val else None
+        
         db.session.commit()
         return jsonify({"success": True, "message": "تم تحديث بيانات السائق"})
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
+
+@api_fleet_bp.route('/api/update_driver_branch', methods=['POST'])
+@login_required
+def update_driver_branch():
+    from flask import session
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "error": "غير مصرح لك"}), 403
+    data = request.json
+    driver_id = data.get('id')
+    branch_id = data.get('branch_id')
+    if driver_id and branch_id is not None:
+        try:
+            driver = Driver.query.get(driver_id)
+            if driver:
+                driver.branch_id = int(branch_id)
+                db.session.commit()
+                return jsonify({"success": True})
+            return jsonify({"success": False, "error": "السائق غير موجود"}), 404
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": False, "error": "بيانات غير صالحة"}), 400
 
 @api_fleet_bp.route("/api/drivers/<int:driver_id>", methods=["DELETE"])
 @login_required
