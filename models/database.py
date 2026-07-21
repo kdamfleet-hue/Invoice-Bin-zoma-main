@@ -38,6 +38,10 @@ class _PgCursor:
         self._cur.execute(_translate_sql(sql), params)
         return self
 
+    def executemany(self, sql, params_list=()):
+        self._cur.executemany(_translate_sql(sql), params_list)
+        return self
+
     def fetchone(self):
         return self._cur.fetchone()
 
@@ -61,6 +65,11 @@ class _PgConn:
     def execute(self, sql, params=()):
         cur = self.cursor()
         cur.execute(sql, params)
+        return cur
+
+    def executemany(self, sql, params_list=()):
+        cur = self.cursor()
+        cur.executemany(sql, params_list)
         return cur
 
     def commit(self):

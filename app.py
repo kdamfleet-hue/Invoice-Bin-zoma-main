@@ -1605,6 +1605,8 @@ def employees_data():
             rows = req_data.get("rows", [])
             with db_connection() as db:
                 db.execute("DELETE FROM hr_employees")
+                insert_data = []
+                import json
                 for row in rows:
                     if not isinstance(row, list):
                         continue
@@ -1616,10 +1618,10 @@ def employees_data():
                     plate = str(row[9] or '').strip()
                     phone = str(row[7] or '').strip()
                     job = str(row[6] or '').strip()
-                    import json
                     details_json = json.dumps(row)
-                    db.execute("INSERT INTO hr_employees (empid, iqama, name, plate, phone, job, details) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                               (empid, iqama, name, plate, phone, job, details_json))
+                    insert_data.append((empid, iqama, name, plate, phone, job, details_json))
+                if insert_data:
+                    db.executemany("INSERT INTO hr_employees (empid, iqama, name, plate, phone, job, details) VALUES (?, ?, ?, ?, ?, ?, ?)", insert_data)
                 db.commit()
             blob_set("employees", rows)
             _sync_from_employees_to_fleet()
