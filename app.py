@@ -183,10 +183,14 @@ from routes.documents import documents_bp
 from routes.custody import custody_bp
 from routes.yard import yard_bp
 from routes.inventory import inventory_bp
+from routes.driver_portal import driver_portal_bp
+from routes.finance import finance_bp
 app.register_blueprint(documents_bp)
 app.register_blueprint(custody_bp)
 app.register_blueprint(yard_bp)
-    app.register_blueprint(inventory_bp)
+app.register_blueprint(inventory_bp)
+app.register_blueprint(driver_portal_bp)
+app.register_blueprint(finance_bp)
 from routes.gps import gps_bp
 app.register_blueprint(gps_bp)
 

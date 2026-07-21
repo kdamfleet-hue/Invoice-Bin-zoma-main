@@ -7,7 +7,7 @@ import threading
 import logging
 from datetime import datetime, date
 from flask import Blueprint, render_template, session, request, jsonify, make_response
-from helpers import login_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id
+from helpers import login_required, role_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id
 
 logger = logging.getLogger("InvoiceApp")
 schedule_bp = Blueprint('schedule', __name__)
@@ -25,14 +25,14 @@ _VEHICLE_REG_LOCK = threading.Lock()
 _AR_DIGITS = "٠١٢٣٤٥٦٧٨٩"
 
 @schedule_bp.route("/schedule")
-@login_required
+@role_required('admin', 'operations')
 def schedule():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("schedule.html", google_user=google_user, b64_en=b64_en)
 
 @schedule_bp.route("/washing")
-@login_required
+@role_required('admin', 'operations', 'maintenance')
 def washing():
     google_user = session.get("google_user")
     b64_en = load_logo()
@@ -40,7 +40,7 @@ def washing():
 
 
 @schedule_bp.route("/api/schedule_data", methods=["GET", "POST"])
-@login_required
+@role_required('admin', 'operations')
 def schedule_data():
     """Persist the weekly schedule (main/spare/vacation/summary). Sandboxed for workstation."""
     if request.method == "POST":
@@ -73,7 +73,7 @@ def schedule_data():
         return jsonify({"success": False, "error": "تعذّر جلب الجدول الأسبوعي."}), 500
 
 @schedule_bp.route("/api/washing_data", methods=["GET", "POST"])
-@login_required
+@role_required('admin', 'operations', 'maintenance')
 def washing_data():
     # Workstation mode writes/reads an isolated copy (id=2); the real data (id=1) is untouched.
     if request.method == "POST":
@@ -95,7 +95,7 @@ def washing_data():
         return jsonify({"success": False, "error": "تعذّر جلب جدول الغسيل."}), 500
 
 @schedule_bp.route("/api/generate_schedule", methods=["POST"])
-@login_required
+@role_required('admin', 'operations')
 def generate_schedule():
     try:
         data = request.json
@@ -190,7 +190,7 @@ def generate_schedule():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @schedule_bp.route("/api/generate_washing", methods=["POST"])
-@login_required
+@role_required('admin', 'operations', 'maintenance')
 def generate_washing():
     try:
         data = request.json
