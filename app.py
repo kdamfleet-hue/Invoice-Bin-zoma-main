@@ -177,6 +177,10 @@ from routes.operations import operations_bp
 app.register_blueprint(operations_bp)
 from routes.schedule import schedule_bp
 app.register_blueprint(schedule_bp)
+from routes.fleet import fleet_bp
+app.register_blueprint(fleet_bp)
+from routes.documents import documents_bp
+app.register_blueprint(documents_bp)
 from routes.gps import gps_bp
 app.register_blueprint(gps_bp)
 
@@ -648,20 +652,7 @@ def invoice():
     return render_template("invoice.html", google_user=session.get("google_user"), b64_en=load_logo(), show_invoice_title=True)
 
 
-@app.route("/fleet_dashboard")
-@login_required
-def fleet_dashboard():
-    # Standalone fleet KPI dashboard (ported from Antigravity).
-    branches = []
-    is_admin = session.get("role") == "admin"
-    try:
-        with db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, name FROM erp_branches")
-            branches = [{"id": r[0], "name": r[1]} for r in c.fetchall()]
-    except Exception as e:
-        logger.error(f"Failed to fetch branches: {e}")
-    return render_template("fleet_dashboard.html", google_user=session.get("google_user"), b64_en=load_logo(), branches=branches, is_admin=is_admin)
+
 
 
 @app.route("/sw.js")
@@ -1022,9 +1013,7 @@ def employees_data():
 # Maps national-id (iqama, digits only) → the driver's personal employee fields, harvested
 # from the weekly schedule so بطاقة السائق / الوظيفة / الجوال auto-fill on every future pick.
 
-# Serializes the alerts-center inline-edit read-modify-write (and the Document Archive
-# delete) against itself, for the same reason as _DRIVER_REG_LOCK above.
-_ALERTS_CENTER_LOCK = threading.Lock()
+
 
 
 
@@ -1421,43 +1410,10 @@ def expiry_alerts_preview():
         return jsonify({"success": False, "counts": {}, "total": 0})
 
 
-@app.route("/api/send_expiry_alerts", methods=["POST"])
-@login_required
-def send_expiry_alerts():
-    """Manual 'send now' from the dashboard. Recipients from the request or ALERT_RECIPIENTS."""
-    body = request.json or {}
-    # Lock: require the access code before sending (matches the workstation password).
-    if not hmac.compare_digest(str(body.get("lock", "")), WORKSTATION_PASSWORD):
-        return jsonify({"success": False, "reason": "locked"}), 403
-    recips = body.get("recipients") or ALERT_RECIPIENTS
-    if isinstance(recips, str):
-        recips = [e.strip() for e in re.split(r"[,;\s]+", recips) if e.strip()]
-    rows = body.get("rows")
-    filt = (body.get("filter") or "").strip()
-    if isinstance(rows, list) and rows:
-        res = _send_expiry_alert_email(recips, rows=rows[:1000], filter_label=filt)
-    else:
-        res = _send_expiry_alert_email(recips, filter_label=filt)
-    if res.get("sent"):
-        _audit_add("إرسال", "تنبيهات الوثائق بالبريد", res.get("count"),
-                   (("الفرز: " + filt + " — ") if filt else "") + "إلى: " + ", ".join(res.get("recipients", [])))
-    return jsonify({"success": res.get("sent", False), **res})
 
 
-@app.route("/api/cron/expiry_alerts", methods=["GET", "POST"])
-def cron_expiry_alerts():
-    """Token-protected trigger for an external daily scheduler (ArabCord cron / cron-job.org).
-    Not login-protected; guarded by ALERT_CRON_KEY. Uses ALERT_RECIPIENTS for the recipient list."""
-    key = request.args.get("key", "")
-    if not key and request.is_json:
-        key = (request.json or {}).get("key", "")
-    if not ALERT_CRON_KEY or not hmac.compare_digest(str(key), ALERT_CRON_KEY):
-        return jsonify({"success": False, "error": "unauthorized"}), 401
-    res = _send_expiry_alert_email(ALERT_RECIPIENTS)
-    if res.get("sent"):
-        _audit_add("إرسال تلقائي", "تنبيهات الوثائق بالبريد", res.get("count"),
-                   "مجدول — إلى: " + ", ".join(res.get("recipients", [])))
-    return jsonify({"success": res.get("sent", False), **res})
+
+
 
 
 # ════════════════════════════════════════════════════════════════════════════════════
@@ -1611,59 +1567,10 @@ def _start_alert_scheduler():
     logger.info("Document-expiry alert scheduler started.")
 
 
-@app.route("/alerts")
-@login_required
-def alerts_page():
-    """Admin page to configure the automatic daily document-expiry email digest."""
-    if not session.get("is_admin"):
-        return redirect(url_for("index"))
-    return render_template("alerts.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
-@app.route("/api/alert_settings", methods=["GET", "POST"])
-@login_required
-def api_alert_settings():
-    if not session.get("is_admin"):
-        return jsonify({"error": "forbidden"}), 403
-    if request.method == "GET":
-        cfg = _alert_cfg()
-        cfg["mail_configured"] = bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD"))
-        cfg["preview_count"] = len(_collect_all_branches_alerts(cfg["window_days"]))
-        return jsonify({"success": True, "settings": cfg})
-    body = request.get_json(silent=True) or {}
 
-    def _recips(v):
-        if isinstance(v, str):
-            v = re.split(r"[,;\s]+", v)
-        return [e.strip() for e in (v or []) if isinstance(e, str) and "@" in e.strip()][:50]
 
-    if body.get("action") == "test":     # send a one-off test now
-        cfg = _alert_cfg()
-        recips = _recips(body.get("recipients")) or cfg["recipients"]
-        try:
-            wd = max(1, min(180, int(body.get("window_days") or cfg["window_days"])))
-        except (TypeError, ValueError):
-            wd = cfg["window_days"]
-        res = _send_scheduled_digest(recips, wd)
-        if res.get("sent"):
-            _audit_add("إرسال تجريبي", "تنبيهات الوثائق التلقائية", res.get("count"),
-                       "إلى: " + ", ".join(res.get("recipients", [])))
-        return jsonify({"success": res.get("sent", False), **res})
-
-    try:
-        hour = max(0, min(23, int(body.get("hour", 7))))
-    except (TypeError, ValueError):
-        hour = 7
-    try:
-        wd = max(1, min(180, int(body.get("window_days", 30))))
-    except (TypeError, ValueError):
-        wd = 30
-    cfg = {"enabled": bool(body.get("enabled")), "recipients": _recips(body.get("recipients")),
-           "hour": hour, "window_days": wd, "last_sent": _alert_cfg().get("last_sent", "")}
-    _alert_cfg_set(cfg)
-    _audit_add("إعداد", "تنبيهات الوثائق التلقائية", len(cfg["recipients"]),
-               ("مُفعّلة" if cfg["enabled"] else "مُعطّلة") + " · الساعة %d · خلال %d يوم" % (hour, wd))
-    return jsonify({"success": True, "settings": cfg})
 
 
 # ════════════════════════════════════════════════════════════════════════════════════
@@ -1727,107 +1634,10 @@ def _sniff_ok(data_uri, mime):
     return False
 
 
-@app.route("/documents")
-@login_required
-def documents_page():
-    return render_template("documents.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
-@app.route("/api/documents", methods=["GET", "POST"])
-@login_required
-def api_documents():
-    branch_id = current_branch_id()
-    
-    if request.method == "GET":
-        docs = Document.query.filter_by(branch_id=branch_id).all()
-        rows = []
-        for d in docs:
-            rows.append({
-                "id": str(d.id),
-                "entity_type": d.entity_type,
-                "entity_ref": d.entity_ref,
-                "doc_type": d.doc_type,
-                "number": d.number,
-                "expiry": d.expiry.strftime('%Y-%m-%d') if d.expiry else "",
-                "notes": d.notes,
-                "ts": d.upload_date.strftime('%Y-%m-%d') if d.upload_date else "",
-                "file": {"name": "ملف", "mime": d.mime_type, "size": d.file_size}
-            })
-        return jsonify({"success": True, "rows": rows, "doc_types": DOC_TYPES})
-        
-    body = request.get_json(silent=True) or {}
-    
-    current_count = Document.query.filter_by(branch_id=branch_id).count()
-    if current_count >= DOC_MAX_ROWS:
-        return jsonify({"success": False, "error": "بلغت الحد الأقصى لعدد الوثائق في هذا الفرع (%d)." % DOC_MAX_ROWS}), 400
-        
-    f = body.get("file") or {}
-    data = f.get("data") or ""
-    mime = (f.get("mime") or "").lower().strip()
-    
-    if not data or not str(data).startswith("data:"):
-        return jsonify({"success": False, "error": "الملف مطلوب."}), 400
-    if mime not in DOC_ALLOWED_MIME:
-        return jsonify({"success": False, "error": "نوع الملف غير مدعوم (صور JPG/PNG/WebP/GIF أو PDF فقط)."}), 400
-        
-    size = _b64_size(data)
-    if size <= 0 or size > DOC_MAX_FILE_BYTES:
-        return jsonify({"success": False, "error": "حجم الملف يتجاوز 2.5 ميجابايت."}), 400
-    if not _sniff_ok(data, mime):
-        return jsonify({"success": False, "error": "محتوى الملف لا يطابق نوعه المُعلَن."}), 400
-        
-    if not body.get("entity_ref"):
-        return jsonify({"success": False, "error": "حدّد المركبة/الموظف (المرجع)."}), 400
 
-    def parse_date(dstr):
-        if not dstr: return None
-        try: return datetime.strptime(str(dstr)[:10], '%Y-%m-%d').date()
-        except: return None
 
-    try:
-        new_doc = Document(
-            branch_id=branch_id,
-            doc_type=str(body.get("doc_type") or "أخرى")[:60],
-            entity_type="vehicle" if body.get("entity_type") == "vehicle" else "employee",
-            entity_ref=str(body.get("entity_ref") or "")[:120],
-            number=str(body.get("number") or "")[:80],
-            expiry=parse_date(body.get("expiry")),
-            notes=str(body.get("notes") or "")[:300],
-            file_data=data,
-            mime_type=mime,
-            file_size=size,
-            file_path="base64", # legacy dummy path
-            upload_date=datetime.now().date()
-        )
-        db.session.add(new_doc)
-        db.session.flush() # To get ID
-        
-        audit = AuditLog(
-            user_id=getattr(g, 'user', None),
-            branch_id=branch_id,
-            action="إضافة مستند",
-            target_table="erp_documents",
-            target_id=str(new_doc.id)
-        )
-        db.session.add(audit)
-        db.session.commit()
-        
-        row_res = {
-            "id": str(new_doc.id),
-            "entity_type": new_doc.entity_type,
-            "entity_ref": new_doc.entity_ref,
-            "doc_type": new_doc.doc_type,
-            "number": new_doc.number,
-            "expiry": new_doc.expiry.strftime('%Y-%m-%d') if new_doc.expiry else "",
-            "notes": new_doc.notes,
-            "ts": new_doc.upload_date.strftime('%Y-%m-%d') if new_doc.upload_date else "",
-            "file": {"name": "ملف", "mime": new_doc.mime_type, "size": new_doc.file_size}
-        }
-        return jsonify({"success": True, "row": row_res})
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error saving document: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/legacy/documents/<int:doc_id>", methods=["DELETE"])
@@ -1924,121 +1734,7 @@ def _alerts_center_clean_value(target_field, raw):
     return value, None, None
 
 
-@app.route("/api/alerts_center/update", methods=["POST"])
-@login_required
-def alerts_center_update():
-    try:
-        body = request.get_json(silent=True) or {}
-        src = body.get("src")
-        target_field = body.get("targetField")
-        if target_field not in ("date", "name", "plate", "doctype"):
-            return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-        value, err_resp, err_code = _alerts_center_clean_value(target_field, body.get("value"))
-        if err_resp is not None:
-            return err_resp, err_code
 
-        if src == "schedule":
-            if target_field == "doctype":
-                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-            section = body.get("section")
-            if section not in ("main", "spare"):
-                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-            try:
-                idx = int(body.get("idx"))
-            except (TypeError, ValueError):
-                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-            if target_field == "date":
-                date_field = body.get("dateField")
-                if date_field not in ("inspect", "license", "opcard", "drivercard"):
-                    return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-                store_key = date_field
-            else:
-                store_key = target_field  # 'name' or 'plate'
-            with _ALERTS_CENTER_LOCK:
-                sd = blob_get("schedule_data")
-                rows = sd.get(section) if isinstance(sd, dict) else None
-                if not isinstance(rows, list) or idx < 0 or idx >= len(rows) or not isinstance(rows[idx], dict):
-                    return jsonify({"success": False, "error": "لم يعد هذا الصف موجوداً — أعد تحميل الصفحة."}), 409
-                row = rows[idx]
-                # Anchor identity on whichever field ISN'T being written: plate identifies the
-                # row/vehicle slot itself; iqama identifies the driver currently assigned to it.
-                if store_key == "plate":
-                    akey = _norm_iqama(row.get("iqama")); ok = bool(akey) and akey == _norm_iqama(body.get("iqama"))
-                else:  # name, drivercard, inspect, license, opcard — all anchor on the row's plate
-                    akey = str(row.get("plate") or "").strip(); ok = bool(akey) and akey == str(body.get("plate") or "").strip()
-                if not ok:
-                    return jsonify({"success": False, "error": "تغيّرت بيانات الصف — أعد تحميل الصفحة."}), 409
-                if store_key in ("name", "plate") and not value:
-                    return jsonify({"success": False, "error": "هذا الحقل لا يمكن تفريغه."}), 400
-                row[store_key] = value
-                blob_set("schedule_data", sd)
-            try:
-                _harvest_driver_registry(sd)
-            except Exception:
-                logger.warning("driver_registry harvest failed (non-fatal)")
-            try:
-                _harvest_vehicle_registry(sd)
-            except Exception:
-                logger.warning("vehicle_registry harvest failed (non-fatal)")
-            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, store_key + ": " + (value or "تفريغ") + " — " + (row.get("name") or row.get("plate") or ""))
-            return jsonify({"success": True, "value": value})
-
-        if src == "employee":
-            if target_field == "doctype":
-                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-            try:
-                idx = int(body.get("idx"))
-            except (TypeError, ValueError):
-                return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-            store_idx = None  # 'name' is resolved below, once the current row is known
-            if target_field == "date":
-                try:
-                    store_idx = int(body.get("dateField"))
-                except (TypeError, ValueError):
-                    return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-                if store_idx not in (10, 11):  # matches employees.html COLS[10]/[11] = إقامة/جواز expiry
-                    return jsonify({"success": False, "error": "طلب غير صالح."}), 400
-            elif target_field == "plate":
-                store_idx = 9  # COLS[9] = رقم اللوحة
-            with _ALERTS_CENTER_LOCK:
-                rows = blob_get("employees")
-                if not isinstance(rows, list) or idx < 0 or idx >= len(rows) or not isinstance(rows[idx], list):
-                    return jsonify({"success": False, "error": "لم يعد هذا الصف موجوداً — أعد تحميل الصفحة."}), 409
-                row = rows[idx]
-                actual_iqama = str(row[1] if len(row) > 1 else "").strip()
-                if not actual_iqama or actual_iqama != str(body.get("iqama") or "").strip():
-                    return jsonify({"success": False, "error": "تغيّرت بيانات الصف — أعد تحميل الصفحة."}), 409
-                if store_idx is None:  # target_field == "name": whichever of COLS[2]/[3] is
-                    # actually populated on the CURRENT row — decided server-side, not client-supplied.
-                    store_idx = 2 if (row[2] if len(row) > 2 else "") or not (row[3] if len(row) > 3 else "") else 3
-                if target_field in ("name", "plate") and not value:
-                    return jsonify({"success": False, "error": "هذا الحقل لا يمكن تفريغه."}), 400
-                if len(row) <= store_idx:
-                    row.extend([""] * (store_idx + 1 - len(row)))
-                row[store_idx] = value
-                blob_set("employees", rows)
-            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, target_field + ": " + (value or "تفريغ") + " — " + (row[2] if len(row) > 2 and row[2] else (row[3] if len(row) > 3 else "")))
-            return jsonify({"success": True, "value": value})
-
-        if src == "document":
-            store_key = {"date": "expiry", "name": "entity_ref", "plate": "entity_ref", "doctype": "doc_type"}[target_field]
-            doc_id = str(body.get("id") or "")
-            with _ALERTS_CENTER_LOCK:
-                rows = _documents_rows()
-                found = next((r for r in rows if r.get("id") == doc_id), None)
-                if not found:
-                    return jsonify({"success": False, "error": "الوثيقة لم تعد موجودة — أعد تحميل الصفحة."}), 409
-                if store_key != "expiry" and not value:
-                    return jsonify({"success": False, "error": "هذا الحقل لا يمكن تفريغه."}), 400
-                found[store_key] = value
-                blob_set("documents_data", {"rows": rows})
-            _audit_add("تعديل", "مركز تنبيهات الوثائق", None, store_key + ": " + (value or "تفريغ") + " — " + (found.get("entity_ref") or ""))
-            return jsonify({"success": True, "value": value})
-
-        return jsonify({"success": False, "error": "مصدر غير معروف."}), 400
-    except Exception:
-        logger.exception("alerts_center_update error")
-        return jsonify({"success": False, "error": "تعذّر حفظ التعديل."}), 500
 
 
 # ── Workstation-only tab state (oils / purchase / workshop) ───────────────────
@@ -3013,45 +2709,7 @@ def _driver_blob_table(store):
     return "drivers_ws" if store == "ws" else "drivers_branch"
 
 
-@app.route("/api/legacy/drivers", methods=["GET"])
-@login_required
-def get_drivers():
-    branch_id = current_branch_id()
-    drivers = Driver.query.filter_by(branch_id=branch_id).order_by(Driver.id.desc()).all()
-    
-    result = []
-    for d in drivers:
-        # Reconstruct the flat dictionary expected by the frontend
-        item = {
-            "id": d.id,
-            "name": d.name,
-            "empid": d.employee_id,
-            "iqama": d.iqama_number,
-            "phone": d.phone,
-            "job": d.job_title,
-            "iqama_exp": d.iqama_expiry.strftime('%Y-%m-%d') if d.iqama_expiry else "",
-            "license": d.license_expiry.strftime('%Y-%m-%d') if d.license_expiry else "",
-            "status": d.status,
-            # Fallbacks for empty vehicle
-            "plate": "", "car": "", "model": "", "vserial": "", "inspect": "", "notes": ""
-        }
-        
-        # Check if driver has an active vehicle custody
-        active_custody = VehicleCustody.query.filter_by(driver_id=d.id, status="active").first()
-        if active_custody and active_custody.vehicle:
-            v = active_custody.vehicle
-            item.update({
-                "plate": v.plate_number,
-                "car": v.v_type,
-                "model": v.model,
-                "vserial": v.serial_number,
-                "inspect": v.inspection_expiry.strftime('%Y-%m-%d') if v.inspection_expiry else "",
-                "notes": active_custody.notes or ""
-            })
-            
-        result.append(item)
-        
-    return jsonify(result)
+
 
 
 def normalize_plate(plate):
@@ -3126,74 +2784,7 @@ def tafqeet(amount):
 
 
 
-@app.route("/api/legacy/drivers", methods=["POST"])
-@login_required
-def add_driver():
-    data = request.json or {}
-    fields = ['name', 'empid', 'plate', 'car', 'iqama', 'phone', 'drivercard',
-              'job', 'empNotes', 'model', 'pallets', 'load', 'vserial', 
-              'inspect', 'license', 'opcard', 'notes', 'fuel_card', 'medical_exp', 'contract_exp']
-    
-    vals = {f: data.get(f, "").strip() for f in fields}
-    
-    if not vals['name']:
-        return jsonify({"error": "Name is required"}), 400
-        
-    branch_id = current_branch_id()
-    
-    def parse_date(dstr):
-        if not dstr: return None
-        try:
-            return datetime.strptime(dstr, '%Y-%m-%d').date()
-        except:
-            return None
 
-    try:
-        driver = Driver(
-            branch_id=branch_id,
-            name=vals['name'],
-            employee_id=vals['empid'] or f"EMP-{datetime.now().timestamp()}",
-            iqama_number=vals['iqama'] or None,
-            phone=vals['phone'],
-            job_title=vals['job'],
-            iqama_expiry=parse_date(vals.get('iqama_exp')), # Frontend uses iqama_exp sometimes but sends iqama
-            license_expiry=parse_date(vals['license']),
-            status="متاح"
-        )
-        db.session.add(driver)
-        db.session.flush() # Get driver.id
-
-        if vals['plate']:
-            # See if vehicle exists in this branch
-            vehicle = Vehicle.query.filter_by(plate_number=vals['plate']).first()
-            if not vehicle:
-                vehicle = Vehicle(
-                    branch_id=branch_id,
-                    plate_number=vals['plate'],
-                    v_type=vals['car'],
-                    model=vals['model'],
-                    serial_number=vals['vserial'],
-                    inspection_expiry=parse_date(vals['inspect'])
-                )
-                db.session.add(vehicle)
-                db.session.flush()
-                
-            custody = VehicleCustody(
-                driver_id=driver.id,
-                vehicle_id=vehicle.id,
-                received_date=datetime.now().date(),
-                notes=vals['notes']
-            )
-            db.session.add(custody)
-
-        db.session.commit()
-        logger.info("Driver added via SQLAlchemy: %s (id=%s)", vals['name'], driver.id)
-        return jsonify({"success": True, "id": driver.id, **vals})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error adding driver: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/legacy/drivers/<int:driver_id>", methods=["DELETE"])
@@ -3259,110 +2850,7 @@ def bulk_delete_drivers():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/legacy/drivers/<int:driver_id>", methods=["PUT"])
-@login_required
-def update_driver(driver_id):
-    data = request.json or {}
-    fields = ['name', 'empid', 'plate', 'car', 'iqama', 'phone', 'drivercard',
-              'job', 'empNotes', 'model', 'pallets', 'load', 'vserial', 
-              'inspect', 'license', 'opcard', 'notes', 'fuel_card', 'medical_exp', 'contract_exp']
-              
-    vals = {f: data.get(f, "").strip() for f in fields}
 
-    if not vals['name']:
-        return jsonify({"error": "Name is required"}), 400
-
-    def parse_date(dstr):
-        if not dstr: return None
-        try:
-            return datetime.strptime(dstr, '%Y-%m-%d').date()
-        except:
-            return None
-
-    try:
-        driver = Driver.query.get(driver_id)
-        if not driver:
-            return jsonify({"error": "Driver not found"}), 404
-
-        old_name = driver.name
-        old_plate = ""
-        
-        # Get active custody
-        active_custody = VehicleCustody.query.filter_by(driver_id=driver_id, status="active").first()
-        if active_custody and active_custody.vehicle:
-            old_plate = active_custody.vehicle.plate_number
-
-        # Update Driver
-        driver.name = vals['name']
-        driver.employee_id = vals['empid'] or driver.employee_id
-        driver.iqama_number = vals['iqama'] or driver.iqama_number
-        driver.phone = vals['phone']
-        driver.job_title = vals['job']
-        driver.iqama_expiry = parse_date(vals.get('iqama_exp')) or driver.iqama_expiry
-        driver.license_expiry = parse_date(vals['license']) or driver.license_expiry
-
-        # Handle Vehicle Update
-        if vals['plate']:
-            vehicle = Vehicle.query.filter_by(plate_number=vals['plate']).first()
-            if not vehicle:
-                # Create new vehicle if plate changed to a non-existent one
-                vehicle = Vehicle(
-                    branch_id=current_branch_id(),
-                    plate_number=vals['plate'],
-                    v_type=vals['car'],
-                    model=vals['model'],
-                    serial_number=vals['vserial'],
-                    inspection_expiry=parse_date(vals['inspect'])
-                )
-                db.session.add(vehicle)
-                db.session.flush()
-            else:
-                # Update existing vehicle fields
-                vehicle.v_type = vals['car']
-                vehicle.model = vals['model']
-                vehicle.serial_number = vals['vserial']
-                if vals['inspect']:
-                    vehicle.inspection_expiry = parse_date(vals['inspect'])
-            
-            # Manage Custody
-            if not active_custody or active_custody.vehicle_id != vehicle.id:
-                if active_custody:
-                    active_custody.status = "returned"
-                    active_custody.returned_date = datetime.now().date()
-                
-                new_custody = VehicleCustody(
-                    driver_id=driver.id,
-                    vehicle_id=vehicle.id,
-                    received_date=datetime.now().date(),
-                    notes=vals['notes']
-                )
-                db.session.add(new_custody)
-            else:
-                active_custody.notes = vals['notes']
-        elif active_custody:
-            # Plate was cleared, return custody
-            active_custody.status = "returned"
-            active_custody.returned_date = datetime.now().date()
-
-        db.session.commit()
-
-        # Legacy sync (keep for tabs not yet rewritten)
-        if old_name != vals['name'] or old_plate != vals['plate']:
-            try:
-                _sync_all_tabs_from_drivers(
-                    old_name=old_name, old_plate=old_plate,
-                    new_name=vals['name'], new_plate=vals['plate'], new_car=vals['car']
-                )
-            except Exception as e:
-                logger.error(f"Legacy sync failed: {e}")
-
-        logger.info("Driver updated via SQLAlchemy: id=%s name=%s plate=%s", driver_id, vals['name'], vals['plate'])
-        return jsonify({"success": True, "id": driver_id, **vals})
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating driver: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
 def _rebuild_fleet_json():
@@ -3453,49 +2941,7 @@ def api_sync_excel():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-@app.route("/api/fleet_data")
 
-@login_required
-def api_fleet_data():
-    from models.schema import Driver, VehicleCustody
-    fleet = []
-    try:
-        drivers = Driver.query.all()
-        for d in drivers:
-            custody = VehicleCustody.query.filter_by(driver_id=d.id, status='active').first()
-            v = custody.vehicle if custody and custody.vehicle else None
-
-            fleet.append({
-                "id": d.id,
-                "name": d.name or "",
-                "empid": d.employee_id or "",
-                "iqama": d.iqama_number or "",
-                "plate": v.plate_number if v else "",
-                "car": v.v_type if v else "",
-                "phone": d.phone or "",
-                "drivercard": "",
-                "job": d.job_title or "",
-                "empNotes": "",
-                "model": v.model if v else "",
-                "pallets": "",
-                "load": "",
-                "vserial": "",
-                "inspect": "",
-                "license": "",
-                "opcard": "",
-                "notes": ""
-            })
-    except Exception as e:
-        # The SQLAlchemy tables this route reads are created by a separate manual
-        # migration (migrate_db.py), not by the app's own startup init_db(). On a
-        # fresh deploy where that migration hasn't run yet, degrade to an empty
-        # fleet list instead of a hard 500 that would take down the whole fleet
-        # dashboard page.
-        logger.error(f"api_fleet_data error (SQLAlchemy tables may be missing): {e}")
-        fleet = []
-    response = jsonify(fleet)
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    return response
 
 
 def _normalize_plate_py(plate):
