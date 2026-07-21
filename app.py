@@ -180,7 +180,11 @@ app.register_blueprint(schedule_bp)
 from routes.fleet import fleet_bp
 app.register_blueprint(fleet_bp)
 from routes.documents import documents_bp
+from routes.custody import custody_bp
+from routes.yard import yard_bp
 app.register_blueprint(documents_bp)
+app.register_blueprint(custody_bp)
+app.register_blueprint(yard_bp)
 from routes.gps import gps_bp
 app.register_blueprint(gps_bp)
 

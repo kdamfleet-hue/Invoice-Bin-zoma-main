@@ -1,0 +1,109 @@
+﻿html = """{% extends "base.html" %}
+{% block title %}إدارة ساحات الفرع{% endblock %}
+{% block header_title %}إدارة ساحات الفرع (Yard Management){% endblock %}
+{% block extra_css %}
+<style>
+.yard-container { padding: 20px; display: flex; gap: 20px; }
+.yard-column { flex: 1; background: #f8fafc; border-radius: 12px; padding: 15px; border: 1px solid #e2e8f0; min-height: 500px; display: flex; flex-direction: column; gap: 10px; }
+.yard-column h3 { text-align: center; color: var(--bz-navy); font-weight: 800; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px; }
+.yard-item { background: #fff; border-radius: 8px; padding: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-right: 4px solid var(--bz-gold); cursor: grab; }
+.yard-item:active { cursor: grabbing; }
+.yard-item h4 { margin: 0 0 5px 0; color: #1e293b; font-size: 1.1rem; }
+.yard-item p { margin: 0; color: #64748b; font-size: 0.85rem; }
+.badge { padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+.b-ready { background: #dcfce7; color: #166534; }
+.b-maint { background: #fef08a; color: #854d0e; }
+.b-stopped { background: #fee2e2; color: #991b1b; }
+
+.drag-over { background: #e2e8f0; border: 2px dashed var(--bz-gold); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="padding:0 20px;">
+    <p>قم بسحب وإفلات المركبات لتحديث حالتها في ساحة الفرع.</p>
+</div>
+<div class="yard-container">
+    <div class="yard-column" id="col-out" data-status="خارج الساحة" ondrop="drop(event)" ondragover="allowDrop(event)">
+        <h3>خارج الساحة (على الطريق)</h3>
+        <!-- Items -->
+    </div>
+    
+    <div class="yard-column" id="col-ready" data-status="متواجد بالساحة" data-condition="جاهزة" ondrop="drop(event)" ondragover="allowDrop(event)">
+        <h3>جاهزة للعمل</h3>
+    </div>
+    
+    <div class="yard-column" id="col-maint" data-status="متواجد بالساحة" data-condition="في الصيانة" ondrop="drop(event)" ondragover="allowDrop(event)">
+        <h3>في الصيانة</h3>
+    </div>
+    
+    <div class="yard-column" id="col-stopped" data-status="متواجد بالساحة" data-condition="موقوفة" ondrop="drop(event)" ondragover="allowDrop(event)">
+        <h3>موقوفة / أعطال</h3>
+    </div>
+</div>
+
+<script>
+function loadYard() {
+    fetch('/api/yard')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('col-out').innerHTML = '<h3>خارج الساحة (على الطريق)</h3>';
+            document.getElementById('col-ready').innerHTML = '<h3>جاهزة للعمل</h3>';
+            document.getElementById('col-maint').innerHTML = '<h3>في الصيانة</h3>';
+            document.getElementById('col-stopped').innerHTML = '<h3>موقوفة / أعطال</h3>';
+            
+            data.vehicles.forEach(v => {
+                let badge = 'b-ready';
+                if(v.condition === 'في الصيانة') badge = 'b-maint';
+                if(v.condition === 'موقوفة') badge = 'b-stopped';
+                
+                const html = `<div class="yard-item" draggable="true" ondragstart="drag(event)" id="veh-${v.id}" data-id="${v.id}">
+                    <h4>${v.plate}</h4>
+                    <p>${v.type} <span class="badge ${badge}">${v.condition}</span></p>
+                </div>`;
+                
+                if (v.status === 'خارج الساحة') document.getElementById('col-out').innerHTML += html;
+                else if (v.condition === 'في الصيانة') document.getElementById('col-maint').innerHTML += html;
+                else if (v.condition === 'موقوفة') document.getElementById('col-stopped').innerHTML += html;
+                else document.getElementById('col-ready').innerHTML += html;
+            });
+        });
+}
+
+function allowDrop(ev) {
+    ev.preventDefault();
+}
+
+function drag(ev) {
+    ev.dataTransfer.setData("text", ev.target.id);
+}
+
+function drop(ev) {
+    ev.preventDefault();
+    const data = ev.dataTransfer.getData("text");
+    const item = document.getElementById(data);
+    const col = ev.target.closest('.yard-column');
+    
+    if (col && item) {
+        col.appendChild(item);
+        const status = col.getAttribute('data-status');
+        const condition = col.getAttribute('data-condition') || 'غير محدد';
+        const vid = item.getAttribute('data-id');
+        
+        fetch(`/api/yard/${vid}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status: status, condition: condition})
+        }).then(() => loadYard());
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadYard);
+</script>
+{% endblock %}
+"""
+
+with open("templates/yard.html", "w", encoding="utf-8") as f:
+    f.write(html)
+    
+print("Created yard.html")

@@ -55,6 +55,8 @@ class Vehicle(db.Model):
     istimara_expiry = db.Column(db.Date, nullable=True)
     inspection_expiry = db.Column(db.Date, nullable=True)
     gps_device_id = db.Column(db.String(100), nullable=True)
+    yard_status = db.Column(db.String(50), default='خارج الساحة')
+    yard_condition = db.Column(db.String(50), nullable=True)
     
     custodies = db.relationship('VehicleCustody', backref='vehicle', lazy=True)
     incidents = db.relationship('Incident', backref='vehicle', lazy=True)
@@ -135,6 +137,7 @@ class AuditLog(db.Model):
     action = db.Column(db.String(100), nullable=False)
     target_table = db.Column(db.String(100), nullable=True)
     target_id = db.Column(db.String(50), nullable=True)
+    reason = db.Column(db.Text, nullable=True) # التوثيق الإلزامي للمخالفة أو المبرر
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class FuelRecord(db.Model):
@@ -184,6 +187,18 @@ class HandoverRecord(db.Model):
     driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=True)
     vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=True)
     date = db.Column(db.Date, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+class CustodyItem(db.Model):
+    __tablename__ = 'erp_custody_items'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=False)
+    item_type = db.Column(db.String(100), nullable=False)
+    item_details = db.Column(db.String(255), nullable=True)
+    received_date = db.Column(db.Date, nullable=False)
+    returned_date = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(50), default="في العهدة")
     notes = db.Column(db.Text, nullable=True)
 
 class AppSetting(db.Model):

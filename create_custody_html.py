@@ -1,0 +1,146 @@
+﻿html = """{% extends "base.html" %}
+{% block title %}إدارة العهد والمفاتيح{% endblock %}
+{% block header_title %}إدارة العهد والمفاتيح{% endblock %}
+{% block extra_css %}
+<style>
+.custody-container { padding: 20px; }
+.top-controls { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
+.custody-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.custody-table th, .custody-table td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; }
+.custody-table th { background: #f8fafc; color: #475569; font-weight: 600; }
+.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+.status-active { background: #dcfce7; color: #166534; }
+.status-returned { background: #f1f5f9; color: #475569; }
+.status-lost { background: #fee2e2; color: #991b1b; }
+.btn-action { background: var(--bz-navy); color: #fff; padding: 6px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; border: none; cursor: pointer; }
+.btn-action:hover { filter: brightness(1.1); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="custody-container">
+    <div class="top-controls">
+        <h2>سجل العهد الحالي</h2>
+        <button class="btn-action" onclick="openAddModal()">+ تسجيل عهدة جديدة</button>
+    </div>
+    
+    <table class="custody-table">
+        <thead>
+            <tr>
+                <th>رقم التسلسل</th>
+                <th>اسم السائق</th>
+                <th>نوع العهدة</th>
+                <th>التفاصيل</th>
+                <th>تاريخ الاستلام</th>
+                <th>تاريخ الإرجاع</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="custodyList">
+            <!-- Populated via JS -->
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Modal (Simplified for now) -->
+<div id="addModal" class="bz-modal" style="display:none;">
+    <div class="bz-modal-content">
+        <h3>تسجيل عهدة جديدة</h3>
+        <form id="addForm">
+            <label>السائق (Driver ID)</label>
+            <input type="number" id="driver_id" required>
+            
+            <label>نوع العهدة</label>
+            <select id="item_type" required>
+                <option value="مفتاح مركبة">مفتاح مركبة</option>
+                <option value="بطاقة وقود">بطاقة وقود</option>
+                <option value="هاتف ذكي">هاتف ذكي</option>
+                <option value="أخرى">أخرى</option>
+            </select>
+            
+            <label>التفاصيل (رقم البطاقة / اللوحة)</label>
+            <input type="text" id="item_details">
+            
+            <label>تاريخ الاستلام</label>
+            <input type="date" id="received_date" required>
+            
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button type="submit" class="btn-action">حفظ العهدة</button>
+                <button type="button" class="btn-action" style="background:#64748b;" onclick="closeAddModal()">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function loadCustody() {
+    fetch('/api/custody')
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById('custodyList');
+            tbody.innerHTML = '';
+            data.items.forEach(i => {
+                let statusClass = 'status-active';
+                if (i.status === 'تم الإرجاع') statusClass = 'status-returned';
+                if (i.status === 'مفقود') statusClass = 'status-lost';
+                
+                tbody.innerHTML += `<tr>
+                    <td>${i.id}</td>
+                    <td>${i.driver_name}</td>
+                    <td>${i.item_type}</td>
+                    <td>${i.item_details}</td>
+                    <td>${i.received_date}</td>
+                    <td>${i.returned_date || '-'}</td>
+                    <td><span class="status-badge ${statusClass}">${i.status}</span></td>
+                    <td>
+                        <button class="btn-action" style="background:#c5a059;" onclick="markReturned(${i.id})">إرجاع</button>
+                        <button class="btn-action" style="background:#ef4444;" onclick="deleteItem(${i.id})">حذف</button>
+                    </td>
+                </tr>`;
+            });
+        });
+}
+
+function openAddModal() { document.getElementById('addModal').style.display = 'flex'; }
+function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
+
+document.getElementById('addForm').onsubmit = function(e) {
+    e.preventDefault();
+    const payload = {
+        driver_id: document.getElementById('driver_id').value,
+        item_type: document.getElementById('item_type').value,
+        item_details: document.getElementById('item_details').value,
+        received_date: document.getElementById('received_date').value
+    };
+    fetch('/api/custody', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    }).then(() => { closeAddModal(); loadCustody(); });
+};
+
+function markReturned(id) {
+    const today = new Date().toISOString().split('T')[0];
+    fetch(`/api/custody/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: 'تم الإرجاع', returned_date: today, notes: 'تم الاستلام'})
+    }).then(() => loadCustody());
+}
+
+function deleteItem(id) {
+    if(confirm('تأكيد الحذف؟')) {
+        fetch(`/api/custody/${id}`, { method: 'DELETE' }).then(() => loadCustody());
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadCustody);
+</script>
+{% endblock %}
+"""
+
+with open("templates/custody.html", "w", encoding="utf-8") as f:
+    f.write(html)
+    
+print("Created custody.html")
