@@ -119,7 +119,7 @@ def api_documents():
 def alerts_page():
     """Admin page to configure the automatic daily document-expiry email digest."""
     if not session.get("is_admin"):
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard.index"))
     return render_template("alerts.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 @documents_bp.route("/api/alert_settings", methods=["GET", "POST"])

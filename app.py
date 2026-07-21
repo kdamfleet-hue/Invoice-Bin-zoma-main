@@ -522,7 +522,9 @@ def _persistent_secret_key():
 # Lock in a stable session key from the persistent DB (unless SECRET_KEY is set in the env),
 # so deploys/restarts no longer log everyone out. Runs once at import, before serving requests.
 if not (os.environ.get("SECRET_KEY") or "").strip():
-    app.secret_key = _persistent_secret_key()
+    _persistent = _persistent_secret_key()
+    if _persistent:
+        app.secret_key = _persistent
     app.config["SECRET_KEY"] = app.secret_key
 
 
@@ -2065,7 +2067,7 @@ def api_branch_accounts():
 def overview():
     """HQ-only page aggregating every branch's recent activity."""
     if not session.get("is_admin"):
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard.index"))
     return render_template("overview.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
@@ -2420,7 +2422,7 @@ def platform_page():
 def branches_all():
     """HQ-only page showing ALL branches' data side by side."""
     if not session.get("is_admin"):
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard.index"))
     return render_template("branches_all.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
@@ -2646,7 +2648,7 @@ def _absher_summary(diff):
 def absher_import():
     """صفحة المستورِد — للمدير الرئيسي فقط."""
     if not session.get("is_admin"):
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard.index"))
     return render_template("absher_import.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
