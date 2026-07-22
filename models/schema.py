@@ -1,4 +1,4 @@
-from flask_sqlalchemy import SQLAlchemy
+﻿from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 db = SQLAlchemy()
@@ -234,6 +234,7 @@ class PettyCash(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
     driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=True)
+    driver = db.relationship('Driver', backref='petty_cash_requests', lazy=True)
     amount = db.Column(db.Float, nullable=False)
     expense_type = db.Column(db.String(100), nullable=False) # رسوم طرق، صيانة، طوارئ، رسوم ميناء
     description = db.Column(db.Text, nullable=True)
@@ -254,4 +255,5 @@ class Snapshot(db.Model):
     branch_id = db.Column(db.Integer, nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     data = db.Column(db.Text, nullable=False)
+
 
