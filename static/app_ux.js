@@ -782,17 +782,21 @@ function injectGlobalNavLinks() {
     // Master Array of all pages to ensure perfect consistency across the entire app
     // Ordered logically: Core -> Fleet Ops -> Smart Systems -> HR & Docs -> Settings
     const masterNav = [
-        { href: '/', icon: '🏠', label: 'الرئيسية' },
+{ href: '/', icon: '🏠', label: 'الرئيسية' },
         { href: '/fleet_dashboard', icon: '📊', label: 'لوحة القيادة' },
+        { href: '/yard', icon: '🅿️', label: 'إدارة الساحات' },
         { href: '/schedule', icon: '📋', label: 'الجدول الأسبوعي' },
         { href: '/handover', icon: '🚗', label: 'تسليم واستلام' },
         { href: '/workshop', icon: '🔧', label: 'صيانة الورشة' },
         { href: '/oils', icon: '🛢️', label: 'الزيوت والفلاتر' },
+        { href: '/inventory/tires', icon: '💿', label: 'سجل الإطارات' },
+        { href: '/inventory/batteries', icon: '🔋', label: 'سجل البطاريات' },
         { href: '/fuel', icon: '⛽', label: 'تموين المحروقات' },
         { href: '/washing', icon: '🚿', label: 'محطة الغسيل' },
         { href: '/purchase', icon: '🛒', label: 'طلبات الشراء' },
         { href: '/spare_parts', icon: '📦', label: 'مستودع القطع' },
-        { href: '/incidents', icon: '🚨', label: 'الحوادث والمخالفات' },
+        { href: '/finance/petty-cash', icon: '💵', label: 'العهد والمصاريف' },
+        { href: '/incidents', icon: '🚨', label: 'الحوادث والطوارئ' },,
         { href: '/tracking', icon: '🛰️', label: 'نظام التتبع' },
         { href: '/cameras', icon: '📹', label: 'الكاميرات' },
         { href: '/gps_sync', icon: '📡', label: 'مزامنة GPS' },
