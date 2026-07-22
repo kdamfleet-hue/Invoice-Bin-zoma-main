@@ -1,4 +1,4 @@
-from gevent import monkey
+﻿from gevent import monkey
 monkey.patch_all()
 
 import os
@@ -124,6 +124,7 @@ def init_db_on_startup():
     from flask_migrate import upgrade
     with app.app_context():
         try:
+            import models.schema
             db.create_all()
         except Exception as e:
             logger.error(f"❌ Error in db.create_all: {e}")
@@ -4446,3 +4447,4 @@ def _sync_from_employees_to_fleet():
     except Exception as e:
         import logging
         logging.exception(f"sync_from_employees error: {e}")
+
