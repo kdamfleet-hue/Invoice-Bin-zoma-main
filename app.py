@@ -1150,7 +1150,6 @@ def whoami():
 # or the ALERT_RECIPIENTS env var (scheduled cron). Sending uses the existing Flask-Mail
 # config; if SMTP isn't configured the endpoint reports the reason instead of failing.
 ALERT_RECIPIENTS = [e.strip() for e in os.environ.get("ALERT_RECIPIENTS", "").split(",") if e.strip()]
-ALERT_CRON_KEY = os.environ.get("ALERT_CRON_KEY", "")
 
 
 def _parse_iso_date(s):
@@ -1595,8 +1594,6 @@ DOC_MAX_FILE_BYTES = int(2.6 * 1024 * 1024)         # ~2.5 MB per file (decoded)
 DOC_MAX_ROWS = 500                                   # per branch
 DOC_MAX_BLOB_BYTES = 45 * 1024 * 1024                # ~45 MB total per branch
 DOC_ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"}
-DOC_TYPES = ["استمارة", "تأمين", "الفحص الدوري", "رخصة السير", "بطاقة التشغيل", "بطاقة السائق",
-             "الإقامة", "جواز السفر", "رخصة قيادة", "عقد", "أخرى"]
 
 
 def _documents_rows():
@@ -4447,4 +4444,6 @@ def _sync_from_employees_to_fleet():
     except Exception as e:
         import logging
         logging.exception(f"sync_from_employees error: {e}")
+
+
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 helpers.py — Shared utility functions used across all Blueprints.
 
 Extracted from the monolithic app.py to enable modular route organization.
@@ -412,3 +412,34 @@ def normalize_plate(plate):
     digits = "".join(re.findall(r"\d+", plate))
     letters = "".join(re.findall(r"[^\d]+", plate))
     return digits + letters
+
+# ── Alert Config & Constants ─────────────────────────────────────────────────
+import os
+import hmac
+
+DOC_TYPES = ["استمارة", "تأمين", "الفحص الدوري", "رخصة السير", "بطاقة التشغيل", "بطاقة السائق",
+             "الإقامة", "جواز السفر", "رخصة قيادة", "عقد", "أخرى"]
+
+ALERT_RECIPIENTS = [e.strip() for e in os.environ.get("ALERT_RECIPIENTS", "").split(",") if e.strip()]
+ALERT_CRON_KEY = os.environ.get("ALERT_CRON_KEY", "")
+
+def _alert_cfg():
+    d = _global_blob_get("alert_settings")
+    d = d if isinstance(d, dict) else {}
+    def _int(v, default):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return default
+    return {
+        "enabled": bool(d.get("enabled", False)),
+        "recipients": [e for e in (d.get("recipients") or []) if isinstance(e, str) and e.strip()],
+        "hour": max(0, min(23, _int(d.get("hour", 7), 7))),
+        "window_days": max(1, min(180, _int(d.get("window_days", 30), 30))),
+        "last_sent": d.get("last_sent", ""),
+    }
+
+def _alert_cfg_set(cfg):
+    _global_blob_set("alert_settings", cfg)
+
+

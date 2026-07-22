@@ -1,4 +1,4 @@
-import re
+﻿import re
 import json
 import io
 import base64
@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, date
 from flask import Blueprint, render_template, session, request, jsonify
 from helpers import login_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id
-from models.schema import db, Driver
+from models.schema import db, Driver, VehicleCustody
 
 logger = logging.getLogger("InvoiceApp")
 fleet_bp = Blueprint('fleet', __name__)
@@ -333,3 +333,4 @@ def vehicle_public_status(vehicle_id):
     
     b64_en = load_logo()
     return render_template("vehicle_mobile_status.html", vehicle=vehicle, driver_name=driver_name, b64_en=b64_en)
+

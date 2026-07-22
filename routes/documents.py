@@ -1,12 +1,13 @@
-import re
+﻿import re
 import json
 import base64
 import logging
 from datetime import datetime
-from flask import Blueprint, render_template, session, request, jsonify, send_file
+from flask import Blueprint, render_template, session, request, jsonify, send_file, current_app
 import threading
 from helpers import login_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id
 from models.schema import db, Driver, Document
+from helpers import DOC_TYPES, _alert_cfg, _alert_cfg_set, ALERT_CRON_KEY
 
 logger = logging.getLogger("InvoiceApp")
 documents_bp = Blueprint('documents', __name__)
@@ -129,7 +130,8 @@ def api_alert_settings():
         return jsonify({"error": "forbidden"}), 403
     if request.method == "GET":
         cfg = _alert_cfg()
-        cfg["mail_configured"] = bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD"))
+        cfg["mail_configured"] = bool(current_app.config.get("MAIL_USERNAME") and current_app.config.get("MAIL_PASSWORD"))
+        from app import _collect_all_branches_alerts
         cfg["preview_count"] = len(_collect_all_branches_alerts(cfg["window_days"]))
         return jsonify({"success": True, "settings": cfg})
     body = request.get_json(silent=True) or {}
@@ -319,3 +321,7 @@ def cron_expiry_alerts():
         _audit_add("إرسال تلقائي", "تنبيهات الوثائق بالبريد", res.get("count"),
                    "مجدول — إلى: " + ", ".join(res.get("recipients", [])))
     return jsonify({"success": res.get("sent", False), **res})
+
+
+
+

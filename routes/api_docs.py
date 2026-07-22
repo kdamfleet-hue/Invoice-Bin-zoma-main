@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify, send_file
-from app import login_required, DOC_TYPES
+﻿from flask import Blueprint, request, jsonify, send_file
+from helpers import login_required, DOC_TYPES
 from models.schema import db, Document
 import io
 import datetime
@@ -134,3 +134,4 @@ def api_documents_file(doc_id):
         return send_file(io.BytesIO(binary), mimetype=doc.mime_type)
     except Exception:
         return "Invalid file data", 500
+
