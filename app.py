@@ -201,6 +201,19 @@ app.register_blueprint(analytics_bp)
 def manifest():
     return app.send_static_file('manifest.json')
 
+@app.errorhandler(500)
+def handle_internal_error(e):
+    try:
+        logger.exception("Internal Server Error 500: %s", e)
+    except Exception:
+        pass
+    if request.path.startswith('/api/'):
+        return jsonify({"success": False, "error": "حدث خطأ غير متوقع في السيرفر."}), 500
+    try:
+        return render_template("error.html", google_user=session.get("google_user"), b64_en=load_logo()), 500
+    except Exception:
+        return "Internal Server Error", 500
+
 # Security Decorator (defined early so it is available to all routes below)
 WS_PREFIX = "/importantworkstation"
 
