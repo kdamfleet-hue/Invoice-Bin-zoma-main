@@ -328,5 +328,72 @@
                 card.style.setProperty('--mouse-y', `${y}px`);
             });
         });
+
+        // Initialize Fleet Chart
+        document.addEventListener('DOMContentLoaded', function() {
+            const statCircles = document.querySelectorAll('.stat-circle .count-up');
+            let totalDrivers = 0, activeVehicles = 0, urgentAlerts = 0;
+            if (statCircles.length >= 3) {
+                totalDrivers = parseInt(statCircles[0].getAttribute('data-count')) || 0;
+                activeVehicles = parseInt(statCircles[1].getAttribute('data-count')) || 0;
+                urgentAlerts = parseInt(statCircles[2].getAttribute('data-count')) || 0;
+            }
+
+            const ctx = document.getElementById('fleetChart');
+            if (ctx) {
+                // Ensure Chart.js is loaded
+                if (typeof Chart === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.onload = () => renderChart(ctx, totalDrivers, activeVehicles, urgentAlerts);
+                    document.head.appendChild(script);
+                } else {
+                    renderChart(ctx, totalDrivers, activeVehicles, urgentAlerts);
+                }
+            }
+        });
+
+        function renderChart(ctx, d1, d2, d3) {
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['موظف وسائق', 'مركبة نشطة', 'تنبيه عاجل'],
+                    datasets: [{
+                        label: 'العدد',
+                        data: [d1, d2, d3],
+                        backgroundColor: [
+                            'rgba(212, 175, 55, 0.7)',
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(239, 68, 68, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(212, 175, 55, 1)',
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(239, 68, 68, 1)'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#a0a0a0', font: { family: 'Cairo' } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#a0a0a0', font: { family: 'Cairo', size: 14 } }
+                        }
+                    }
+                }
+            });
+        }
     </script>
 {% endblock %}
