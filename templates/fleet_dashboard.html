@@ -1513,7 +1513,7 @@ Alert Sound
       }
 
       // Build / update charts
-      buildDashCharts(total, schedNames.size, expiring, withPlate, fullyLinked);
+      buildDashCharts(total, schedNames.size, expiring, withPlate, fullyLinked, scheduleCounts);
     }
 
     // ── Set KPI helper ────────────────────────────────────────────────
@@ -1526,7 +1526,7 @@ Alert Sound
 
     // ── Dashboard Charts ─────────────────────────────────────────────
     let fdCharts = {};
-    async function buildDashCharts(total, active, expiring, withPlate, linked) {
+    async function buildDashCharts(total, active, expiring, withPlate, linked, sched) {
       // Load Chart.js on demand
       if (!window.Chart) {
         await new Promise((res, rej) => {
@@ -1542,43 +1542,54 @@ Alert Sound
 
       const destroyChart = key => { if (fdCharts[key]) { fdCharts[key].destroy(); delete fdCharts[key]; } };
 
-      // — Weekly activity line chart (simulated from drivers count) —
-      const days = ['سبت', 'أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة'];
-      const weekData = days.map((_, i) => Math.max(1, Math.round(active * (0.75 + Math.sin(i) * 0.2))));
+      // — Real Vehicle Types chart (Replacing Fake Line Chart) —
+      const vTypes = {};
+      allDrivers.forEach(d => {
+        if (d.car) {
+          const c = String(d.car).trim();
+          if (c) vTypes[c] = (vTypes[c] || 0) + 1;
+        }
+      });
+      const vtLabels = Object.keys(vTypes);
+      const vtData = Object.values(vTypes);
+      
       destroyChart('weekly');
       fdCharts['weekly'] = new C(document.getElementById('fdWeeklyChart'), {
-        type: 'line',
+        type: 'bar',
         data: {
-          labels: days,
+          labels: vtLabels.length ? vtLabels : ['لا توجد بيانات'],
           datasets: [{
-            label: 'السائقون النشطون',
-            data: weekData,
-            borderColor: gold,
-            backgroundColor: 'rgba(197,160,89,.15)',
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: gold2,
-            pointRadius: 5,
+            label: 'عدد المركبات',
+            data: vtLabels.length ? vtData : [0],
+            backgroundColor: gold,
+            borderRadius: 4
           }]
         },
         options: {
           responsive: true,
-          plugins: { legend: { labels: { color: '#8a8d96', font: { family: 'Tajawal' } } } },
+          plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: '#8a8d96', font: { family: 'Tajawal' } }, grid: { color: 'rgba(255,255,255,.04)' } },
+            x: { ticks: { color: '#8a8d96', font: { family: 'Tajawal' } }, grid: { display: false } },
             y: { ticks: { color: '#8a8d96' }, grid: { color: 'rgba(255,255,255,.04)' }, beginAtZero: true }
           }
         }
       });
+      // Update the chart title in the DOM
+      const weeklyTitle = document.querySelector('#fdWeeklyChart').previousElementSibling;
+      if (weeklyTitle) weeklyTitle.innerHTML = '🚚 توزيع أنواع المركبات (فعلي)';
 
-      // — Driver status donut —
-      const absent = total - active;
+      // — Driver status donut (Real Schedule Breakdown) —
+      const main = sched.main || 0;
+      const spare = sched.spare || 0;
+      const vac = sched.vacation || 0;
+      const unassigned = Math.max(0, total - (main + spare + vac));
+      
       destroyChart('donut');
       fdCharts['donut'] = new C(document.getElementById('fdDonutChart'), {
         type: 'doughnut',
         data: {
-          labels: ['نشطون', 'غير مجدولين'],
-          datasets: [{ data: [active, absent], backgroundColor: [green, orange], borderWidth: 0, hoverOffset: 6 }]
+          labels: ['مركبات نشطة', 'أسبير ومعطلة', 'في إجازة', 'غير مجدولين'],
+          datasets: [{ data: [main, spare, vac, unassigned], backgroundColor: [green, orange, blue, '#555'], borderWidth: 0, hoverOffset: 6 }]
         },
         options: {
           cutout: '68%',
@@ -1590,8 +1601,10 @@ Alert Sound
       });
       const leg = document.getElementById('fdDonutLegend');
       if (leg) leg.innerHTML = [
-        { label: 'نشطون', val: active, color: green },
-        { label: 'غير مجدولين', val: absent, color: orange },
+        { label: 'مركبات نشطة', val: main, color: green },
+        { label: 'أسبير ومعطلة', val: spare, color: orange },
+        { label: 'في إجازة', val: vac, color: blue },
+        { label: 'غير مجدولين', val: unassigned, color: '#555' }
       ].map(l => `<div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:3px;background:${l.color};display:inline-block"></span> ${l.label}: <strong>${l.val}</strong></div>`).join('');
 
       // — Document status bar chart —
@@ -1868,14 +1881,15 @@ Alert Sound
         alertCount++;
       });
 
-      // 2. Mock Maintenance Alert (Randomly appears)
-      if (Math.random() > 0.8) {
-        alertsHTML += `<li class="fd-noti-item urgent">
-          <div><strong>🔧 تنبيه صيانة عاجل</strong><br>
-          <span style="color:var(--fd-muted)">المركبة تحتاج صيانة دورية فورية</span></div>
+      // 2. Real Maintenance Alert (From Workshop)
+      const inWorkshop = allDrivers.filter(d => d.in_ws);
+      inWorkshop.forEach(d => {
+        alertsHTML += `<li class="fd-noti-item urgent" onclick="window.location.href='/workshop'" style="cursor: pointer;" title="الانتقال لورشة الصيانة">
+          <div><strong>🔧 تنبيه صيانة (فعلي)</strong><br>
+          <span style="color:var(--fd-muted)">المركبة (${d.plate || d.name}) موجودة حالياً في الورشة</span></div>
         </li>`;
         alertCount++;
-      }
+      });
 
       if (alertsHTML) {
         notiBody.innerHTML = alertsHTML;
