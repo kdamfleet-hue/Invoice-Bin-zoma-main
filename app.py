@@ -4039,6 +4039,76 @@ def api_system_metrics():
                 "db_size_mb": db_size_mb,
                 "active_connections": sessions_count,
                 "uptime_hours": round((time.time() - psutil.boot_time()) / 3600, 1),
+                "storage_used_percent": psutil.disk_usage('/').percent
+            }
+        })
+    except Exception as e:
+        logger.exception("api_system_metrics failed")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/quick_add_system", methods=["POST"])
+@login_required
+def api_quick_add_system():
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+            
+        driver_name = data.get("driverName")
+        driver_plate = data.get("driverPlate")
+        sys_key = data.get("systemKey")
+        
+        if not sys_key:
+            return jsonify({"success": False, "error": "Missing systemKey"}), 400
+            
+        blob_map = {
+            "schedule": "schedule_data",
+            "washing": "washing_schedule",
+            "oils": "oils_data",
+            "purchase": "purchase_data",
+            "workshop": "workshop_data",
+            "incidents": "incidents_data",
+            "records": "records_data",
+            "handover": "handover_data"
+        }
+        
+        blob_key = blob_map.get(sys_key)
+        if not blob_key:
+            return jsonify({"success": False, "error": "Invalid systemKey"}), 400
+            
+        blob = blob_get(blob_key)
+        
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        
+        new_entry = {
+            "name": driver_name,
+            "driverName": driver_name,
+            "plate": driver_plate,
+            "date": today_str,
+            "notes": "تمت الإضافة من لوحة التحكم الذكية"
+        }
+        
+        if sys_key == "schedule":
+            if not isinstance(blob, dict):
+                blob = {"main": [], "spare": [], "vacation": []}
+            if not isinstance(blob.get("main"), list):
+                blob["main"] = []
+            blob["main"].append(new_entry)
+        else:
+            if not isinstance(blob, list):
+                if isinstance(blob, dict) and "data" in blob:
+                    blob = blob["data"] # Handover might use 'data' key?
+                else:
+                    blob = []
+            blob.append(new_entry)
+            
+        blob_set(blob_key, blob)
+        
+        return jsonify({"success": True, "message": f"Added {driver_name} to {sys_key}"})
+    except Exception as e:
+        logger.exception("api_quick_add_system failed")
+        return jsonify({"success": False, "error": str(e)}), 500
                 "platform": "Cloud Hosting" if USE_POSTGRES else "Local/SQLite"
             }
         })

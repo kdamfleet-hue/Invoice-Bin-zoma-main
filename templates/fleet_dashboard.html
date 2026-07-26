@@ -1301,17 +1301,51 @@ Alert Sound
     }
 
     // ── Render integrity badges ──────────────────────────────────────
-    function renderBadges(driverName) {
+    function renderBadges(driverName, plate) {
       const showBadges = document.getElementById('toggleBadges')?.checked;
       if (!showBadges) return '<span style="color:var(--fd-muted);font-size:.75rem;">—</span>';
       const presence = presenceMap[norm(driverName)] || new Set();
+      
       return BADGE_SOURCES.map(src => {
         const found = presence.has(src.key);
-        return `<span class="ib ${found ? 'found' : 'absent'}" title="${found ? 'موجود في ' : 'غير موجود في '} ${src.label}">
+        // Only allow clicking to add (absent badges)
+        const clickAttr = !found ? `onclick="quickAddSystem('${(driverName || '').replace(/'/g, "\\'")}', '${(plate || '').replace(/'/g, "\\'")}', '${src.key}')"` : '';
+        const cursorStyle = !found ? 'cursor: pointer;' : '';
+        
+        return `<span class="ib ${found ? 'found' : 'absent'}" ${clickAttr} style="${cursorStyle}" title="${found ? 'موجود في ' : 'غير موجود في '} ${src.label} ${!found ? '- انقر للإضافة التلقائية' : ''}">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="${found ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5"><polyline points="${found ? '20 6 9 17 4 12' : '18 6 6 18'}"/>${!found ? '<line x1="6" y1="6" x2="18" y2="18"/>' : ''}</svg>
         ${src.label}
       </span>`;
       }).join('');
+    }
+
+    async function quickAddSystem(name, plate, sysKey) {
+      if (!canEdit()) return;
+      if (!confirm(`هل تريد بالتأكيد إضافة (${name}) إلى قسم (${sysKey})؟`)) return;
+      
+      try {
+        if (window.showToast) window.showToast('جاري الإضافة...', 'info');
+        const res = await fetch('/api/quick_add_system', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ driverName: name, driverPlate: plate, systemKey: sysKey })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (window.showToast) window.showToast('تمت الإضافة بنجاح!', 'success');
+          // Re-load to update UI
+          document.getElementById('liveStatus').textContent = '⚡ تحديث...';
+          await loadFleet();
+          await buildPresenceMap();
+          filterTable();
+          updateStats();
+          setTimeout(() => document.getElementById('liveStatus').textContent = '🟢 متصل', 1000);
+        } else {
+          alert('خطأ أثناء الإضافة: ' + data.error);
+        }
+      } catch (e) {
+        alert('خطأ في الاتصال بالخادم');
+      }
     }
 
     // ── Date helpers ────────────────────────────────────────────────
@@ -1392,7 +1426,7 @@ Alert Sound
         ${dateTd(d.license)}
         ${dateTd(d.opcard)}
         <td style="color:var(--fd-muted);font-size:.78rem">${d.vnotes || '—'}</td>
-        ${showBadges ? `<td><div class="ib-wrap">${renderBadges(d.name)}</div></td>` : ''}
+        ${showBadges ? `<td><div class="ib-wrap">${renderBadges(d.name, d.plate)}</div></td>` : ''}
         <td style="display: flex; gap: 8px;">
           <button class="btn-edit" onclick="openEditModal(${d.id || i})" title="تعديل الحالة">✏️</button>
           <button class="btn-danger-sm" onclick="deleteDriver(${d.id || i}, '${(d.name || '').replace(/'/g, '')}')" title="حذف">
