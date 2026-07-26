@@ -4109,12 +4109,7 @@ def api_quick_add_system():
     except Exception as e:
         logger.exception("api_quick_add_system failed")
         return jsonify({"success": False, "error": str(e)}), 500
-                "platform": "Cloud Hosting" if USE_POSTGRES else "Local/SQLite"
-            }
-        })
-    except Exception as e:
-        logger.exception("Failed to get system metrics")
-        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route("/api/docs")
 def api_docs():
