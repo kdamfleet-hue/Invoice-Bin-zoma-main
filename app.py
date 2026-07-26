@@ -662,7 +662,34 @@ def load_logo():
 @app.route("/invoice")
 @login_required
 def invoice():
-    return render_template("invoice.html", google_user=session.get("google_user"), b64_en=load_logo(), show_invoice_title=True)
+    drivers = blob_get("employees") or []
+    if isinstance(drivers, dict) and "data" in drivers:
+        drivers = drivers["data"]
+    total_drivers = len(drivers) if isinstance(drivers, list) else 0
+
+    sched = blob_get("schedule_data") or {}
+    main_sched = sched.get("main", []) if isinstance(sched, dict) else []
+    active_vehicles = len(main_sched)
+    spare = len(sched.get("spare", [])) if isinstance(sched, dict) else 0
+    vacation = len(sched.get("vacation", [])) if isinstance(sched, dict) else 0
+
+    washing = blob_get("washing_schedule") or []
+    if isinstance(washing, dict) and "data" in washing:
+        washing = washing["data"]
+    wash_count = len(washing) if isinstance(washing, list) else 0
+
+    wash_percentage = int((wash_count / max(active_vehicles, 1)) * 100)
+    if wash_percentage > 100: wash_percentage = 100
+    pending = max(0, total_drivers - (active_vehicles + spare + vacation))
+
+    return render_template("invoice.html", 
+                           google_user=session.get("google_user"), 
+                           b64_en=load_logo(), 
+                           show_invoice_title=True,
+                           sched_total=(active_vehicles + spare + vacation),
+                           active_vehicles=active_vehicles,
+                           wash_percentage=wash_percentage,
+                           pending=pending)
 
 
 
