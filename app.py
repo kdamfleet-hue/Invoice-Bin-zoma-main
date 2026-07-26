@@ -1,4 +1,4 @@
-﻿from gevent import monkey
+from gevent import monkey
 monkey.patch_all()
 
 import os
@@ -2527,35 +2527,76 @@ def api_deauthorized():
 
 # ── مستورِد أبشر داخل الموقع: ارفع ملفات أبشر → الخادم يحدّث سجل السائقين تلقائياً ──
 def _drivers_list_for_sync():
-    """(store, قائمة سائقي الفرع النشط) — SQL للدمام، blob لبقية الفروع/المحطة."""
-    from models.schema import Driver, VehicleCustody
+    """(store, قائمة سائقي الفرع النشط) — SQL + إثراء من بيانات الجدول (schedule_data blob)."""
+    from models.schema import Driver, VehicleCustody, Vehicle
     store = _driver_store()
-    
+
+    # ── Build lookup from schedule_data blob (has doc dates & vehicle extras) ──
+    sched_lookup = {}
+    sd = blob_get("schedule_data")
+    if isinstance(sd, dict):
+        for section in ("main", "spare", "vacation"):
+            for row in (sd.get(section) or []):
+                if not isinstance(row, dict):
+                    continue
+                key_empid = str(row.get("empid", "")).strip()
+                key_iqama = str(row.get("iqama", "")).strip()
+                entry = {
+                    "drivercard": row.get("drivercard", ""),
+                    "inspect": row.get("inspect", ""),
+                    "license": row.get("license", ""),
+                    "opcard": row.get("opcard", ""),
+                    "pallets": row.get("pallets", ""),
+                    "load": row.get("load", ""),
+                    "vserial": row.get("vserial", ""),
+                    "empNotes": row.get("empNotes", ""),
+                    "notes": row.get("notes", ""),
+                    "plate": row.get("plate", ""),
+                    "car": row.get("vtype", row.get("car", "")),
+                    "model": row.get("model", ""),
+                }
+                if key_empid:
+                    sched_lookup[key_empid] = entry
+                if key_iqama:
+                    sched_lookup[key_iqama] = entry
+
+    # ── Build results from Driver model, enriched with blob data ──
     drivers = Driver.query.all()
     results = []
     for d in drivers:
         custody = VehicleCustody.query.filter_by(driver_id=d.id, status='active').first()
         v = custody.vehicle if custody and custody.vehicle else None
+
+        # Match schedule entry by employee_id or iqama
+        empid_str = str(d.employee_id or "").strip()
+        iqama_str = str(d.iqama_number or "").strip()
+        sched = sched_lookup.get(empid_str) or sched_lookup.get(iqama_str) or {}
+
+        # Vehicle dates from SQLAlchemy model
+        v_inspect = str(v.inspection_expiry) if v and v.inspection_expiry else ""
+        v_license = str(v.istimara_expiry) if v and v.istimara_expiry else ""
+        v_serial = v.serial_number if v else ""
+
         results.append({
             "id": d.id,
             "name": d.name or "",
             "empid": d.employee_id or "",
-            "plate": v.plate_number if v else "",
-            "car": v.v_type if v else "",
+            "plate": (v.plate_number if v else "") or sched.get("plate", ""),
+            "car": (v.v_type if v else "") or sched.get("car", ""),
             "iqama": d.iqama_number or "",
             "phone": d.phone or "",
-            "drivercard": "",
+            "drivercard": sched.get("drivercard", "") or (str(d.license_expiry) if d.license_expiry else ""),
             "job": d.job_title or "",
-            "empNotes": "",
+            "empNotes": sched.get("empNotes", ""),
             "branch_id": d.branch_id,
-            "model": v.model if v else "",
-            "pallets": "",
-            "load": "",
-            "vserial": "",
-            "inspect": "",
-            "license": "",
-            "opcard": "",
-            "notes": ""
+            "model": (v.model if v else "") or sched.get("model", ""),
+            "pallets": sched.get("pallets", ""),
+            "load": sched.get("load", ""),
+            "vserial": v_serial or sched.get("vserial", ""),
+            "inspect": v_inspect or sched.get("inspect", ""),
+            "license": v_license or sched.get("license", ""),
+            "opcard": sched.get("opcard", ""),
+            "notes": sched.get("notes", "")
         })
     return store, results
 
