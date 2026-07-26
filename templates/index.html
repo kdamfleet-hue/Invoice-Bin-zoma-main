@@ -45,15 +45,15 @@
 
     <div class="stats-wrapper">
         <div class="stat-circle glass-panel" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_drivers')" style="cursor: pointer;">
-            <div class="count-up" data-count="115" data-format="{n}">0</div>
+            <div class="count-up" data-count="{{ total_drivers|default(0) }}" data-format="{n}">0</div>
             <span>موظف وسائق</span>
         </div>
         <div class="stat-circle glass-panel" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_vehicles')" style="cursor: pointer;">
-            <div class="count-up" data-count="85" data-format="{n}">0</div>
+            <div class="count-up" data-count="{{ active_vehicles|default(0) }}" data-format="{n}">0</div>
             <span>مركبة نشطة</span>
         </div>
         <div class="stat-circle glass-panel" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('expired_documents')" style="border-color: rgba(239, 68, 68, 0.3); cursor: pointer;">
-            <div class="count-up" data-count="14" data-format="{n}" style="color: #ef4444; text-shadow: 0 2px 10px rgba(239,68,68,0.3);">0</div>
+            <div class="count-up" data-count="{{ urgent_alerts|default(0) }}" data-format="{n}" style="color: #ef4444; text-shadow: 0 2px 10px rgba(239,68,68,0.3);">0</div>
             <span>تنبيه عاجل</span>
         </div>
     </div>
@@ -338,6 +338,26 @@
                 activeVehicles = parseInt(statCircles[1].getAttribute('data-count')) || 0;
                 urgentAlerts = parseInt(statCircles[2].getAttribute('data-count')) || 0;
             }
+            
+            // Animate count-up
+            statCircles.forEach(el => {
+                const target = parseInt(el.getAttribute('data-count')) || 0;
+                const duration = 1500; // 1.5 seconds
+                const fps = 30;
+                const totalFrames = (duration / 1000) * fps;
+                let currentFrame = 0;
+                
+                const timer = setInterval(() => {
+                    currentFrame++;
+                    const progress = currentFrame / totalFrames;
+                    const currentVal = Math.floor(target * progress);
+                    el.textContent = currentVal;
+                    if (currentFrame >= totalFrames) {
+                        el.textContent = target;
+                        clearInterval(timer);
+                    }
+                }, 1000 / fps);
+            });
 
             const ctx = document.getElementById('fleetChart');
             if (ctx) {

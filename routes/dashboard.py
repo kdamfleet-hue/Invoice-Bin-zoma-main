@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, session
-from helpers import login_required, load_logo
+from helpers import login_required, load_logo, blob_get
+from datetime import datetime
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -8,8 +9,37 @@ dashboard_bp = Blueprint('dashboard', __name__)
 def index():
     google_user = session.get("google_user")
     b64_en = load_logo()
-    # Homepage hides the "نظام الفواتير الذكي" heading (logo takes its place); the /invoice tab shows it.
-    return render_template("index.html", google_user=google_user, b64_en=b64_en, show_invoice_title=False)
+    
+    # Calculate real stats for index.html
+    drivers = blob_get("employees") or []
+    if isinstance(drivers, dict) and "data" in drivers:
+        drivers = drivers["data"]
+    total_drivers = len(drivers) if isinstance(drivers, list) else 0
+
+    sched = blob_get("schedule_data") or {}
+    active_vehicles = len(sched.get("main", [])) if isinstance(sched, dict) else 0
+
+    urgent_alerts = 0
+    today = datetime.now()
+    if isinstance(drivers, list):
+        for d in drivers:
+            for f in ["drivercard", "inspect", "license", "opcard"]:
+                val = d.get(f)
+                if val:
+                    try:
+                        dt = datetime.strptime(val, "%Y-%m-%d")
+                        if (dt - today).days < 0:
+                            urgent_alerts += 1
+                    except:
+                        pass
+    
+    return render_template("index.html", 
+                           google_user=google_user, 
+                           b64_en=b64_en, 
+                           show_invoice_title=False,
+                           total_drivers=total_drivers,
+                           active_vehicles=active_vehicles,
+                           urgent_alerts=urgent_alerts)
 
 
 @dashboard_bp.route("/dashboard")
