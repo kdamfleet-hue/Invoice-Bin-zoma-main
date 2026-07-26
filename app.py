@@ -194,6 +194,8 @@ app.register_blueprint(driver_portal_bp)
 app.register_blueprint(finance_bp)
 from routes.gps import gps_bp
 app.register_blueprint(gps_bp)
+from routes.analytics import analytics_bp
+app.register_blueprint(analytics_bp)
 
 @app.route('/manifest.json')
 def manifest():

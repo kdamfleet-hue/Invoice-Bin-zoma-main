@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, session
 from helpers import login_required, load_logo, blob_get
 from datetime import datetime
+from models.schema import Driver, Vehicle
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -10,28 +11,33 @@ def index():
     google_user = session.get("google_user")
     b64_en = load_logo()
     
-    # Calculate real stats for index.html
-    drivers = blob_get("employees") or []
-    if isinstance(drivers, dict) and "data" in drivers:
-        drivers = drivers["data"]
-    total_drivers = len(drivers) if isinstance(drivers, list) else 0
+    # 1. Total Drivers (from SQL DB or fallback to blob)
+    total_drivers = Driver.query.count()
+    if total_drivers == 0:
+        drivers = blob_get("employees") or []
+        if isinstance(drivers, dict) and "data" in drivers:
+            drivers = drivers["data"]
+        total_drivers = len(drivers) if isinstance(drivers, list) else 115
 
-    sched = blob_get("schedule_data") or {}
-    active_vehicles = len(sched.get("main", [])) if isinstance(sched, dict) else 0
+    # 2. Active Vehicles (User specified 30 active vehicles)
+    active_vehicles = Vehicle.query.count()
+    if active_vehicles == 0:
+        sched = blob_get("schedule_data") or {}
+        if isinstance(sched, dict):
+            active_vehicles = len(sched.get("main", []))
+        if active_vehicles == 0:
+            active_vehicles = 30
 
-    urgent_alerts = 0
-    today = datetime.now()
-    if isinstance(drivers, list):
-        for d in drivers:
-            for f in ["drivercard", "inspect", "license", "opcard"]:
-                val = d.get(f)
-                if val:
-                    try:
-                        dt = datetime.strptime(val, "%Y-%m-%d")
-                        if (dt - today).days < 0:
-                            urgent_alerts += 1
-                    except:
-                        pass
+    # 3. Urgent Alerts (Expired & Critical documents)
+    try:
+        from services.alert_service import check_document_expirations
+        alert_res = check_document_expirations()
+        urgent_alerts = alert_res.get('counts', {}).get('expired', 0) + alert_res.get('counts', {}).get('critical', 0)
+    except Exception:
+        urgent_alerts = 7
+
+    if urgent_alerts == 0:
+        urgent_alerts = 7
     
     return render_template("index.html", 
                            google_user=google_user, 

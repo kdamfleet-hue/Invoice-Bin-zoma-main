@@ -201,6 +201,22 @@
     .sched-premium .sign-block .dept { font-weight:800; color:var(--p-gold2); margin-top:6px; }
 
     /* "Send to all via WhatsApp" modal */
+    .sched-summary-table {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      table-layout: auto !important;
+      border-collapse: collapse !important;
+      margin: 0 !important;
+      box-sizing: border-box !important;
+    }
+    .sched-summary-table td {
+      background: rgba(255, 255, 255, 0.06) !important;
+      color: var(--p-text, #f4f4f4) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      padding: 8px 10px !important;
+      font-size: 0.85rem !important;
+    }
     .wa-all-list { display:flex; flex-direction:column; gap:.45rem; max-height:55vh; overflow-y:auto; }
     .wa-all-row { display:flex; align-items:center; justify-content:space-between; gap:.6rem;
       border:1px solid var(--border); border-radius:10px; padding:8px 12px; background:var(--surface); }
@@ -409,8 +425,8 @@
 <div style="position:relative; height:180px; width:100%; display:flex; justify-content:center; margin-bottom:14px; overflow:hidden; max-width:100%;">
 <canvas id="pieChartDrivers" style="max-height:180px; max-width:100%;"></canvas>
 </div>
-<div class="sched-table-wrap glass-panel" style="max-height:none; margin:0; overflow:visible;">
-<table class="sched" style="width:100%; margin:0; box-shadow:none;">
+<div class="sched-table-wrap glass-panel" style="max-height:none; margin:0; overflow:hidden; width:100%; max-width:100%; box-sizing:border-box; border-radius:10px;">
+<table class="sched-summary-table" style="width:100% !important; min-width:0 !important; max-width:100% !important; margin:0; box-shadow:none;">
 <tbody id="excelJobSplitTable"></tbody>
 </table>
 </div>
@@ -424,8 +440,8 @@
 <div style="position:relative; height:200px; width:100%; margin-bottom:14px; overflow:hidden; max-width:100%;">
 <canvas id="barChartVehicles" style="max-width:100%;"></canvas>
 </div>
-<div class="sched-table-wrap glass-panel" style="max-height:none; margin:0; overflow:visible;">
-<table class="sched" style="width:100%; margin:0; box-shadow:none;">
+<div class="sched-table-wrap glass-panel" style="max-height:none; margin:0; overflow:hidden; width:100%; max-width:100%; box-sizing:border-box; border-radius:10px;">
+<table class="sched-summary-table" style="width:100% !important; min-width:0 !important; max-width:100% !important; margin:0; box-shadow:none;">
 <tbody id="excelVehicleTable"></tbody>
 </table>
 </div>
@@ -1204,8 +1220,8 @@
        if (jsBody) {
          jsBody.innerHTML = Object.entries(s.jobSplit).map(([label, val]) => `
            <tr>
-             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid #dde3ee; padding:8px 10px; background:#DBE5F1; font-weight:bold; color:#000; outline:none;">${escapeHtml(label)}</td>
-             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid #dde3ee; padding:8px 10px; background:#DBE5F1; font-weight:bold; color:#000; width:70px; outline:none;">${val}</td>
+             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid rgba(255,255,255,0.12); padding:8px 10px; background:rgba(255,255,255,0.06); font-weight:bold; color:var(--p-text, #f4f4f4); outline:none;">${escapeHtml(label)}</td>
+             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid rgba(255,255,255,0.12); padding:8px 10px; background:rgba(255,255,255,0.06); font-weight:bold; color:var(--p-gold2, #d8b87a); width:70px; text-align:center; outline:none;">${val}</td>
            </tr>`).join('');
        }
 
@@ -1215,8 +1231,8 @@
        if (vtBody) {
          vtBody.innerHTML = sortedTypes.map(([type, count]) => `
            <tr>
-             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid #dde3ee; padding:8px 10px; width:44px; background:#D9E1F2; font-weight:bold; color:#000; outline:none;">${count}</td>
-             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid #dde3ee; padding:8px 10px; font-weight:bold; color:#000; outline:none;">${escapeHtml(type)}</td>
+             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid rgba(255,255,255,0.12); padding:8px 10px; width:44px; text-align:center; background:rgba(255,255,255,0.06); font-weight:bold; color:var(--p-gold2, #d8b87a); outline:none;">${count}</td>
+             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid rgba(255,255,255,0.12); padding:8px 10px; font-weight:bold; color:var(--p-text, #f4f4f4); outline:none;">${escapeHtml(type)}</td>
            </tr>`).join('');
        }
 
