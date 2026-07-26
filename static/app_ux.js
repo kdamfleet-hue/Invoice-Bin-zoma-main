@@ -796,7 +796,7 @@ function injectGlobalNavLinks() {
         { href: '/purchase', icon: '🛒', label: 'طلبات الشراء' },
         { href: '/spare_parts', icon: '📦', label: 'مستودع القطع' },
         { href: '/finance/petty-cash', icon: '💵', label: 'العهد والمصاريف' },
-        { href: '/incidents', icon: '🚨', label: 'الحوادث والطوارئ' },,
+        { href: '/incidents', icon: '🚨', label: 'الحوادث والطوارئ' },
         { href: '/tracking', icon: '🛰️', label: 'نظام التتبع' },
         { href: '/cameras', icon: '📹', label: 'الكاميرات' },
         { href: '/gps_sync', icon: '📡', label: 'مزامنة GPS' },
@@ -811,6 +811,7 @@ function injectGlobalNavLinks() {
 
     let html = '';
     masterNav.forEach(item => {
+        if (!item || !item.href) return;
         const activeCls = (location.pathname === item.href) ? ' class="active"' : '';
         html += `<a href="${item.href}"${activeCls}>${item.icon} ${item.label}</a>`;
     });
