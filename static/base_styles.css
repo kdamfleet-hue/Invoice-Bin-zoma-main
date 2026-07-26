@@ -3667,3 +3667,129 @@ th.sortable.desc::after { content: ' ▼'; opacity: 1; color: var(--accent); }
   width: 0 !important;
   border: none !important;
 }
+
+/* ==========================================================================
+   RADICAL UI & LAYOUT FIXES (حلول متكاملة للمشاكل الثلاث)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. حل مشكلة القائمة المنسدلة المتداخلة (Position Relative & Z-Index)
+   -------------------------------------------------------------------------- */
+.dropdown,
+.bz-dropdown,
+.select-wrapper,
+.custom-select,
+.dropdown-container,
+.form-group,
+.input-group,
+.filter-group,
+.filter-box,
+.select-box,
+.lux-select-wrap,
+.card-header,
+.emp-filter,
+.inc-filter {
+    position: relative !important;
+}
+
+.dropdown-menu,
+.bz-dropdown-menu,
+.select-dropdown,
+.custom-select-options,
+.dropdown-content,
+.select-options,
+.auto-complete-list {
+    position: absolute !important;
+    z-index: 999 !important; /* ضمان ظهور القائمة المنسدلة فوق الرسوم البيانية والبطاقات */
+    max-height: 280px;
+    overflow-y: auto;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(197, 160, 89, 0.3);
+    border-radius: 10px;
+    background: rgba(19, 23, 34, 0.95);
+    backdrop-filter: blur(12px);
+}
+
+select:focus,
+.dropdown.open,
+.bz-dropdown.open,
+.select-wrapper:focus-within {
+    z-index: 50 !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. حل مشكلة تمدد خطوط وتسميات الرسوم البيانية (Overflow Hidden & Text Ellipsis)
+   -------------------------------------------------------------------------- */
+.chart-card,
+.chart-container,
+.chart-wrapper,
+.pie-chart-wrap,
+.canvas-holder,
+.metrics-chart-box,
+.fd-chart-card {
+    position: relative !important;
+    overflow: hidden !important;
+    max-width: 100% !important;
+    border-radius: 16px;
+    box-sizing: border-box !important;
+}
+
+canvas {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.chart-card h1, .chart-card h2, .chart-card h3, .chart-card h4,
+.chart-card .title, .chart-card .label, .chart-legend,
+.chart-container h3, .chart-container .chart-title,
+.fd-chart-card h3, .chart-label, .chart-text-truncate {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. تنظيم تخطيط الشاشة (Grid Layout Organization)
+   -------------------------------------------------------------------------- */
+.grid-layout,
+.dashboard-grid,
+.hub-grid,
+.stats-grid,
+.charts-grid,
+.card-grid,
+.sp-stats,
+.fd-charts-row,
+.fd-charts-row-3 {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.grid-item,
+.grid-card,
+.hub-card,
+.sp-stat,
+.glass-panel-grid,
+.fd-chart-card {
+    width: 100% !important;
+    min-width: 0 !important; /* يمنع انحراف وتمدد العناصر داخل أعمدة الـ Grid */
+    box-sizing: border-box !important;
+}
+
+@media (max-width: 768px) {
+    .grid-layout,
+    .dashboard-grid,
+    .hub-grid,
+    .stats-grid,
+    .charts-grid,
+    .card-grid,
+    .fd-charts-row,
+    .fd-charts-row-3 {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+}
+
