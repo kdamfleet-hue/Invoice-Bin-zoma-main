@@ -981,14 +981,14 @@ Alert Sound
 <div class="fd-kpi bz-card kpi-green">
 <div class="kpi-icon">✅</div>
 <div class="kpi-val" id="kpiActive">—</div>
-<div class="kpi-label">نشطون (مجدولون)</div>
+<div class="kpi-label">المركبات النشطة</div>
 <div class="kpi-trend ok" id="kpiActiveTrend">جاهزون للعمل</div>
 </div>
 <div class="fd-kpi bz-card kpi-orange">
-<div class="kpi-icon">🚌</div>
+<div class="kpi-icon">🔧</div>
 <div class="kpi-val" id="kpiVehicles">—</div>
-<div class="kpi-label">مركبات مسجلة</div>
-<div class="kpi-trend ok" id="kpiVehTrend">مع بطاقات تشغيل</div>
+<div class="kpi-label">الأسبير والمعطلة</div>
+<div class="kpi-trend warn" id="kpiVehTrend">صيانة واحتياط</div>
 </div>
 <div class="fd-kpi bz-card kpi-red">
 <div class="kpi-icon">📋</div>
@@ -997,10 +997,10 @@ Alert Sound
 <div class="kpi-trend danger" id="kpiExpiringTrend">تحتاج مراجعة</div>
 </div>
 <div class="fd-kpi bz-card kpi-blue">
-<div class="kpi-icon">🔗</div>
+<div class="kpi-icon">🏖️</div>
 <div class="kpi-val" id="kpiLinked">—</div>
-<div class="kpi-label">مترابطون بالأنظمة</div>
-<div class="kpi-trend ok" id="kpiLinkedTrend">ترابط كامل</div>
+<div class="kpi-label">السائقون في إجازة</div>
+<div class="kpi-trend ok" id="kpiLinkedTrend">هذا الأسبوع</div>
 </div>
 </div>
 <!-- Charts Row 1 -->
@@ -1219,6 +1219,7 @@ Alert Sound
     let allDrivers = [];
     let filteredDrivers = [];
     let presenceMap = {}; // driver name (normalized) → Set of source keys
+    let scheduleCounts = {main: 0, spare: 0, vacation: 0};
 
     const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -1244,6 +1245,9 @@ Alert Sound
         const r = await fetch('/api/registry_data');
         const j = await r.json();
         allDrivers = Array.isArray(j) ? j : (j.data || j.drivers || []);
+        if (j.schedule_counts) {
+            scheduleCounts = j.schedule_counts;
+        }
       } catch (e) {
         allDrivers = [];
       }
@@ -1478,11 +1482,11 @@ Alert Sound
       if (el2('stVehicles')) el2('stVehicles').textContent = withPlate;
 
       // Update KPI cards
-      setKpi('kpiTotal', total, `${schedNames.size} في الجدول`, schedNames.size > 0 ? 'ok' : 'warn');
-      setKpi('kpiActive', schedNames.size, `${Math.round(schedNames.size / Math.max(total, 1) * 100)}% من الأسطول`, schedNames.size > 0 ? 'ok' : 'warn');
-      setKpi('kpiVehicles', withPlate, `${total - withPlate} بدون لوحة`, withPlate > 0 ? 'ok' : 'warn');
+      setKpi('kpiTotal', total, `${scheduleCounts.main + scheduleCounts.spare + scheduleCounts.vacation} في الجدول`, schedNames.size > 0 ? 'ok' : 'warn');
+      setKpi('kpiActive', scheduleCounts.main, `من الجدول الرئيسي`, scheduleCounts.main > 0 ? 'ok' : 'warn');
+      setKpi('kpiVehicles', scheduleCounts.spare, `مركبات الأسبير`, scheduleCounts.spare > 0 ? 'warn' : 'ok');
       setKpi('kpiExpiring', expiring, expiring === 0 ? 'لا توجد مشاكل ✓' : `${expiring} وثيقة تحتاج مراجعة`, expiring === 0 ? 'ok' : expiring < 5 ? 'warn' : 'danger');
-      setKpi('kpiLinked', fullyLinked, `من أصل ${total} سائق`, fullyLinked === total ? 'ok' : 'warn');
+      setKpi('kpiLinked', scheduleCounts.vacation, `حسب الجدول`, 'ok');
 
       // Expiry alert strip
       const strip = document.getElementById('fd-expiry-alert');

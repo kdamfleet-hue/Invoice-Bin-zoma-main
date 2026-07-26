@@ -3912,8 +3912,10 @@ def api_registry_data():
         # 4. Fetch Schedule
         sd = blob_get("schedule_data")
         sched_plates = set()
+        sched_counts = {"main": 0, "spare": 0, "vacation": 0}
         if isinstance(sd, dict):
             for section in ("main", "spare", "vacation"):
+                sched_counts[section] = len(sd.get(section) or [])
                 for row in (sd.get(section) or []):
                     if isinstance(row, dict):
                         sched_plates.add(_normalize_plate_py(row.get("plate", "")))
@@ -3982,7 +3984,7 @@ def api_registry_data():
                 "in_rec": check_in_str(str_rec)
             })
             
-        return jsonify({"success": True, "data": results})
+        return jsonify({"success": True, "data": results, "schedule_counts": sched_counts})
     except Exception as e:
         logger.exception("api_registry_data failed")
         return jsonify({"success": False, "error": str(e)}), 500
