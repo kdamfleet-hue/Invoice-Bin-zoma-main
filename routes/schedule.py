@@ -61,6 +61,10 @@ def schedule_data():
                 _harvest_vehicle_registry(sd)  # learn each vehicle's spec for future autofill
             except Exception:
                 logger.warning("vehicle_registry harvest failed (non-fatal)")
+            try:
+                _sync_schedule_to_db(sd) # fully sync modifications to central DB
+            except Exception:
+                logger.warning("sync_schedule_to_db failed (non-fatal)")
             _n = (len(sd.get("main", []) or []) + len(sd.get("spare", []) or [])) if isinstance(sd, dict) else None
             return jsonify({"success": True})
         except Exception:
@@ -455,6 +459,128 @@ def export_schedule_exact():
         import traceback
         logger.exception("export_schedule_exact error")
         return jsonify({"success": False, "error": str(e)}), 500
+
+def _sync_schedule_to_db(sd):
+    """
+    Sync schedule modifications directly to the central hr_employees and erp_vehicles/drivers tables.
+    """
+    if not isinstance(sd, dict):
+        return
+        
+    try:
+        from modules.db_utils import db_connection
+        import json
+        
+        with db_connection() as db:
+            # 1. Load all employees
+            db_rows = db.execute("SELECT empid, iqama, details FROM hr_employees").fetchall()
+            emp_dict = {}
+            for r in db_rows:
+                if not r["details"]: continue
+                d_obj = json.loads(r["details"])
+                key1 = str(r["empid"] or "").strip()
+                key2 = str(r["iqama"] or "").strip()
+                if key1: emp_dict[key1] = d_obj
+                if key2: emp_dict[key2] = d_obj
+            
+            # 2. Iterate through schedule rows and update employees & vehicles
+            updated_employees = []
+            
+            for section in ("main", "spare"):
+                for row in (sd.get(section) or []):
+                    if not isinstance(row, dict): continue
+                    
+                    empid = str(row.get("empid", "")).strip()
+                    iqama = str(row.get("iqama", "")).strip()
+                    plate = str(row.get("plate", "")).strip()
+                    
+                    # Update Employee (46 columns)
+                    target = emp_dict.get(empid) or emp_dict.get(iqama)
+                    if target and isinstance(target, list) and len(target) >= 40:
+                        changed = False
+                        
+                        if plate and target[33] != plate:
+                            target[33] = plate
+                            changed = True
+                        
+                        car = row.get("vtype", row.get("car", ""))
+                        if car and target[36] != car:
+                            target[36] = car
+                            changed = True
+                            
+                        model = row.get("model", "")
+                        if model and target[38] != model:
+                            target[38] = model
+                            changed = True
+                            
+                        vserial = row.get("vserial", "")
+                        if vserial and target[39] != vserial:
+                            target[39] = vserial
+                            changed = True
+                            
+                        job = row.get("job", "")
+                        if job and target[6] != job:
+                            target[6] = job
+                            changed = True
+                            
+                        phone = row.get("phone", "")
+                        if phone and target[7] != phone:
+                            target[7] = phone
+                            changed = True
+                            
+                        if changed:
+                            updated_employees.append((json.dumps(target, ensure_ascii=False), target[0], target[1]))
+                            
+            # Bulk update hr_employees
+            for details_str, e_id, iq in updated_employees:
+                if e_id:
+                    db.execute("UPDATE hr_employees SET details = ? WHERE empid = ?", (details_str, e_id))
+                elif iq:
+                    db.execute("UPDATE hr_employees SET details = ? WHERE iqama = ?", (details_str, iq))
+                    
+            # 3. Update Vehicle dates
+            for section in ("main", "spare"):
+                for row in (sd.get(section) or []):
+                    if not isinstance(row, dict): continue
+                    plate = str(row.get("plate", "")).strip()
+                    if not plate: continue
+                    
+                    inspect = row.get("inspect")
+                    license_exp = row.get("license")
+                    vserial = row.get("vserial")
+                    vtype = row.get("vtype", row.get("car"))
+                    model = row.get("model")
+                    
+                    sets = []
+                    params = []
+                    # Check length to ensure it's a date string not just empty
+                    if inspect and len(inspect) > 5: sets.append("inspection_expiry = ?"); params.append(inspect)
+                    if license_exp and len(license_exp) > 5: sets.append("istimara_expiry = ?"); params.append(license_exp)
+                    if vserial: sets.append("serial_number = ?"); params.append(vserial)
+                    if vtype: sets.append("v_type = ?"); params.append(vtype)
+                    if model: sets.append("model = ?"); params.append(model)
+                    
+                    if sets:
+                        params.append(plate)
+                        db.execute(f"UPDATE erp_vehicles SET {', '.join(sets)} WHERE plate_number = ?", tuple(params))
+                        
+            # 4. Update Driver dates
+            for section in ("main", "spare"):
+                for row in (sd.get(section) or []):
+                    if not isinstance(row, dict): continue
+                    empid = str(row.get("empid", "")).strip()
+                    iqama = str(row.get("iqama", "")).strip()
+                    drivercard = row.get("drivercard")
+                    
+                    if drivercard and len(drivercard) > 5 and (empid or iqama):
+                        if empid:
+                            db.execute("UPDATE erp_drivers SET license_expiry = ? WHERE employee_id = ?", (drivercard, empid))
+                        elif iqama:
+                            db.execute("UPDATE erp_drivers SET license_expiry = ? WHERE iqama_number = ?", (drivercard, iqama))
+            
+            db.commit()
+    except Exception as e:
+        logger.exception(f"sync_schedule_to_db error: {e}")
 
 def _harvest_driver_registry(sd):
     """Best-effort: fold any non-empty personal fields from the schedule rows into the
