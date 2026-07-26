@@ -323,7 +323,7 @@ const translations = {
 document.addEventListener('DOMContentLoaded', () => {
     injectGlobalNavLinks();
     applyWorkstationRestrictions();
-    // buildEnterpriseShell(); /* Disabled */
+    buildEnterpriseShell();
     injectBranchSwitcher();
     injectContactDock();
     injectHeroLogo();
