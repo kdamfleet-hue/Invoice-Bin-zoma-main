@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, session, request, redirect, url_fo
 from helpers import (
     login_required, load_logo, get_system_features, set_system_features,
     _DEFAULT_FEATURES, _audit_add, SNAPSHOT_TABLES, SNAP_LABELS, _snapshot_list,
-    _restore_snapshot, _row_id
+    _restore_snapshot, _row_id, blob_get, blob_set
 )
 
 logger = logging.getLogger("InvoiceApp")
@@ -68,6 +68,39 @@ def api_system_features():
     except Exception:
         logger.exception("system_features POST error")
         return jsonify({"success": False, "error": "تعذّر حفظ الإعدادات."}), 500
+
+
+@system_bp.route("/api/system/tab_permissions", methods=["GET", "POST"])
+@login_required
+def api_tab_permissions():
+    """
+    Read or save allowed navigation tabs and single dedicated workstation mode.
+    """
+    if request.method == "GET":
+        data = blob_get("tab_permissions") or {
+            "dedicated_mode": "all",
+            "disabled_tabs": []
+        }
+        return jsonify({"success": True, "permissions": data})
+    
+    try:
+        if not session.get("settings_unlocked"):
+            return jsonify({"error": "الوصول غير مصرح (إعدادات مقفلة)"}), 403
+
+        body = request.get_json(silent=True) or {}
+        dedicated_mode = body.get("dedicated_mode", "all")
+        disabled_tabs = body.get("disabled_tabs", [])
+        
+        data = {
+            "dedicated_mode": dedicated_mode,
+            "disabled_tabs": disabled_tabs
+        }
+        blob_set("tab_permissions", data)
+        _audit_add("تحديث", "إعدادات التبويبات والمحطات المخصصة", detail=f"نمط التخصيص: {dedicated_mode}")
+        return jsonify({"success": True, "permissions": data, "message": "تم حفظ وتطبيق إعدادات التبويبات والمحطات بنجاح"})
+    except Exception as e:
+        logger.exception("tab_permissions error: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @system_bp.route("/api/snapshots", methods=["GET"])

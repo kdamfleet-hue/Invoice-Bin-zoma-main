@@ -237,6 +237,35 @@ app.register_blueprint(analytics_bp)
 def manifest():
     return app.send_static_file('manifest.json')
 
+@app.before_request
+def enforce_dedicated_workstation_and_tab_permissions():
+    path = request.path
+    # Skip static assets, login/logout, API endpoints, manifest
+    if path.startswith('/static') or path.startswith('/api/') or path in ['/login', '/logout', '/manifest.json']:
+        return None
+    
+    # Admins with unlocked settings can access everything
+    if session.get("settings_unlocked"):
+        return None
+        
+    try:
+        from modules.db_utils import blob_get
+        perms = blob_get("tab_permissions") or {}
+        dedicated_mode = perms.get("dedicated_mode", "all")
+        disabled_tabs = set(perms.get("disabled_tabs", []))
+        
+        # Standard non-unlocked users: enforce single dedicated workstation mode & disabled tabs
+        if dedicated_mode and dedicated_mode != "all":
+            if path != dedicated_mode and path != '/settings':
+                return redirect(dedicated_mode)
+                
+        if path in disabled_tabs and path != '/settings':
+            target = dedicated_mode if dedicated_mode != "all" else '/'
+            return redirect(target)
+    except Exception as e:
+        logger.warning(f"tab_permissions enforcement notice: {e}")
+    return None
+
 @app.errorhandler(500)
 def handle_internal_error(e):
     try:
