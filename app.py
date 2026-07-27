@@ -201,6 +201,18 @@ def add_header(response):
     response.headers["Expires"] = "0"
     return response
 
+@app.errorhandler(403)
+def handle_forbidden(e):
+    if request.path.startswith('/api/'):
+        return jsonify({"success": False, "error": "غير مصرح لك بالوصول (403 Forbidden)"}), 403
+    return render_template("error.html", google_user=session.get("google_user"), b64_en=load_logo()), 403
+
+@app.errorhandler(404)
+def handle_not_found(e):
+    if request.path.startswith('/api/'):
+        return jsonify({"success": False, "error": "المسار غير موجود (404 Not Found)"}), 404
+    return render_template("error.html", google_user=session.get("google_user"), b64_en=load_logo()), 404
+
 from routes.dashboard import dashboard_bp
 app.register_blueprint(dashboard_bp)
 from routes.system import system_bp
