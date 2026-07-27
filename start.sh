@@ -3,20 +3,18 @@
 # Bin Zoma Fleet & Invoicing Application - Production Startup Script
 # ==============================================================================
 
-set -e
-
 echo "=================================================="
 echo "🚀 بدء إجراءات تشغيل نظام بن زومه لإدارة الحركة..."
 echo "=================================================="
 
 # 1. Production Workers & Port Configuration
-PORT="${PORT:-10000}"
+PORT="${PORT:-3000}"
 WORKERS="${GUNICORN_WORKERS:-3}"
 THREADS="${GUNICORN_THREADS:-2}"
 
 echo "ℹ️ المنافذ والإعدادات: Port: $PORT | Workers: $WORKERS | Threads: $THREADS"
 
-# 2. Database Pre-deployment Migration Step (Isolated Migration Execution)
+# 2. Database Pre-deployment Migration Step
 echo "⏳ تنفيذ تحديثات قاعدة البيانات (Pre-deployment Step)..."
 
 python -c "
