@@ -13,8 +13,52 @@ def get_drivers():
         from helpers import blob_get
         
         is_admin = session.get("role") == "admin"
+
+        # Build enrichment lookup from schedule_data, employees, and fuel_data blobs
+        blob_lookup = {}
+        s_blob = blob_get("schedule_data") or []
+        if isinstance(s_blob, dict) and "rows" in s_blob:
+            s_blob = s_blob["rows"]
+        if isinstance(s_blob, list):
+            for row in s_blob:
+                if isinstance(row, dict):
+                    k1 = str(row.get("empid", "")).strip()
+                    k2 = str(row.get("iqama", "")).strip()
+                    k3 = str(row.get("name", "")).strip()
+                    entry = {
+                        "plate": row.get("plate", ""),
+                        "car": row.get("vtype", row.get("car", "")),
+                        "model": row.get("model", ""),
+                        "phone": row.get("phone", ""),
+                        "job": row.get("job", ""),
+                        "odometer": row.get("odometer", row.get("km", ""))
+                    }
+                    if k1: blob_lookup[k1] = entry
+                    if k2: blob_lookup[k2] = entry
+                    if k3: blob_lookup[k3] = entry
+
+        e_blob = blob_get("employees") or []
+        if isinstance(e_blob, dict) and "data" in e_blob:
+            e_blob = e_blob["data"]
+            if isinstance(e_blob, list):
+                for item in e_blob:
+                    if isinstance(item, dict):
+                        k1 = str(item.get("empid", "")).strip()
+                        k2 = str(item.get("iqama", "")).strip()
+                        k3 = str(item.get("name", "")).strip()
+                        entry = {
+                            "plate": item.get("plate", ""),
+                            "car": item.get("car", item.get("vtype", "")),
+                            "model": item.get("model", ""),
+                            "phone": item.get("phone", ""),
+                            "job": item.get("job", ""),
+                            "odometer": item.get("odometer", item.get("current_km", item.get("km", "")))
+                        }
+                        if k1 and k1 not in blob_lookup: blob_lookup[k1] = entry
+                        if k2 and k2 not in blob_lookup: blob_lookup[k2] = entry
+                        if k3 and k3 not in blob_lookup: blob_lookup[k3] = entry
+
         query = Driver.query
-        
         if not is_admin:
             query = query.filter_by(branch_id=current_branch_id())
             
@@ -22,52 +66,54 @@ def get_drivers():
         result = []
         for d in drivers:
             try:
-                custody = VehicleCustody.query.filter_by(driver_id=d.id, status='active').first()
+                custody = VehicleCustody.query.filter_by(driver_id=d.id).first()
                 v = custody.vehicle if custody and custody.vehicle else None
             except Exception:
                 v = None
 
-            km_val = ""
-            if v:
-                km_val = getattr(v, 'current_km', None) or getattr(v, 'odometer', None) or ""
-            if not km_val and hasattr(d, 'odometer'):
-                km_val = getattr(d, 'odometer', "")
-            
+            empid_str = str(d.employee_id or "").strip()
+            iqama_str = str(d.iqama_number or "").strip()
+            name_str = str(d.name or "").strip()
+            blob_entry = blob_lookup.get(empid_str) or blob_lookup.get(iqama_str) or blob_lookup.get(name_str) or {}
+
+            plate_val = (v.plate_number if v else "") or blob_entry.get("plate", "")
+            car_val = (v.v_type if v else "") or blob_entry.get("car", "")
+            model_val = (v.model if v else "") or blob_entry.get("model", "")
+            phone_val = d.phone or blob_entry.get("phone", "")
+            job_val = d.job_title or blob_entry.get("job", "")
+            km_val = (getattr(v, 'current_km', None) or getattr(v, 'odometer', None)) if v else blob_entry.get("odometer", "")
+
             result.append({
                 "id": d.id,
                 "empid": d.employee_id or "",
                 "name": d.name or "",
                 "iqama": d.iqama_number or "",
-                "phone": d.phone or "",
-                "job": d.job_title or "",
+                "phone": phone_val or "",
+                "job": job_val or "",
                 "status": d.status,
                 "branch_id": d.branch_id,
-                "plate": (v.plate_number if v else ""),
-                "car": (v.v_type if v else ""),
-                "model": (v.model if v else ""),
+                "plate": plate_val or "",
+                "car": car_val or "",
+                "model": model_val or "",
                 "odometer": km_val or ""
             })
 
         # Fallback if SQL Driver table is empty
         if not result:
-            emp_blob = blob_get("employees") or []
-            if isinstance(emp_blob, dict) and "data" in emp_blob:
-                emp_blob = emp_blob["data"]
-            if isinstance(emp_blob, list):
-                for item in emp_blob:
-                    if isinstance(item, dict) and (item.get("name") or item.get("plate")):
-                        result.append({
-                            "id": item.get("id", len(result) + 1),
-                            "name": item.get("name", ""),
-                            "empid": item.get("empid", ""),
-                            "plate": item.get("plate", ""),
-                            "car": item.get("car", item.get("vtype", "")),
-                            "iqama": item.get("iqama", ""),
-                            "phone": item.get("phone", ""),
-                            "job": item.get("job", ""),
-                            "model": item.get("model", ""),
-                            "odometer": item.get("odometer", item.get("current_km", item.get("km", "")))
-                        })
+            for k, item in blob_lookup.items():
+                if isinstance(item, dict) and (item.get("name") or item.get("plate")):
+                    result.append({
+                        "id": len(result) + 1,
+                        "name": item.get("name", ""),
+                        "empid": item.get("empid", ""),
+                        "plate": item.get("plate", ""),
+                        "car": item.get("car", item.get("vtype", "")),
+                        "iqama": item.get("iqama", ""),
+                        "phone": item.get("phone", ""),
+                        "job": item.get("job", ""),
+                        "model": item.get("model", ""),
+                        "odometer": item.get("odometer", "")
+                    })
 
         return jsonify(result)
     except Exception as e:

@@ -272,6 +272,7 @@
 </header>
 <datalist id="driversList"></datalist>
 <datalist id="platesList"></datalist>
+<datalist id="empidList"></datalist>
 <div class="bz-shell">
 <div class="header-container">
 <img alt="Logo" class="site-logo" src="{{ url_for('static', filename='main_logo.png') }}" style="width: 300px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));"/>
@@ -317,7 +318,7 @@
 <th class="excel-label">عداد السيارة:</th><td class="excel-input" colspan="5"><input id="odometer" placeholder="مثال: 150000" required="" type="number"/></td>
 </tr>
 <tr>
-<th class="excel-label">الرقم الوظيفي:</th><td class="excel-input"><input id="poEmpid" type="text"/></td>
+<th class="excel-label">الرقم الوظيفي:</th><td class="excel-input"><input id="poEmpid" list="empidList" onchange="poAutofill()" type="text"/></td>
 <th class="excel-label">رقم الجوال:</th><td class="excel-input"><input id="poPhone" type="text"/></td>
 <th class="excel-label">التاريخ:</th><td class="excel-input"><input id="poDate" type="date"/></td>
 </tr>
@@ -467,8 +468,10 @@
                 driversData = Array.isArray(json) ? json : (json.data || []);
                 const dl = document.getElementById('driversList'); 
                 const pl = document.getElementById('platesList');
+                const el = document.getElementById('empidList');
                 if (dl) dl.innerHTML = ''; 
                 if (pl) pl.innerHTML = '';
+                if (el) el.innerHTML = '';
                 driversData.forEach(d => { 
                     if (d.name && dl) {
                         const o = document.createElement('option'); o.value = d.name; dl.appendChild(o); 
@@ -476,19 +479,25 @@
                     if (d.plate && d.plate !== 'None' && pl) {
                         const o2 = document.createElement('option'); o2.value = d.plate; pl.appendChild(o2); 
                     }
+                    if (d.empid && el) {
+                        const o3 = document.createElement('option'); o3.value = d.empid; el.appendChild(o3); 
+                    }
                 }); 
             } catch (e) { console.error('fetchDrivers error:', e); } 
         }
 
         function poAutofill() {
-            const driverVal = document.getElementById('poDriver').value;
-            const plateVal = document.getElementById('poPlate').value;
+            const driverVal = (document.getElementById('poDriver')?.value || '').trim();
+            const plateVal = (document.getElementById('poPlate')?.value || '').trim();
+            const empidVal = (document.getElementById('poEmpid')?.value || '').trim();
             
             let d = null;
-            if (driverVal && driversData.some(x => x.name === driverVal)) {
-                d = driversData.find(x => x.name === driverVal);
-            } else if (plateVal && driversData.some(x => x.plate === plateVal)) {
-                d = driversData.find(x => x.plate === plateVal);
+            if (empidVal && driversData.some(x => String(x.empid || '').trim() === empidVal)) {
+                d = driversData.find(x => String(x.empid || '').trim() === empidVal);
+            } else if (driverVal && driversData.some(x => String(x.name || '').trim() === driverVal)) {
+                d = driversData.find(x => String(x.name || '').trim() === driverVal);
+            } else if (plateVal && driversData.some(x => String(x.plate || '').trim() === plateVal)) {
+                d = driversData.find(x => String(x.plate || '').trim() === plateVal);
             }
 
             if (d) { fillDriverFields(d); }
