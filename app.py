@@ -179,11 +179,8 @@ def init_db_on_startup():
             logger.error(f"❌ Error seeding database: {e}")
 
 init_db_on_startup()
-# CORS: the app serves its own same-origin frontend, so cross-origin is disabled by
-# default. Set ALLOWED_ORIGINS (comma-separated) only if external clients are needed.
-_allowed_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
-if _allowed_origins:
-    CORS(app, resources={r"/api/*": {"origins": _allowed_origins}}, supports_credentials=True)
+# Enable CORS for custom domains and internal proxy routes
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # Harden the session cookie
 app.config["SESSION_COOKIE_HTTPONLY"] = True
