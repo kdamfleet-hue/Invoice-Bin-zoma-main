@@ -12,28 +12,33 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="/static/logo_192.png">
     
-    <!-- Fonts -->
+    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     
     <!-- Unified Theme -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css', v=1) }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=36) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=37) }}">
     
     <!-- Global Scripts -->
     <script src="https://unpkg.com/lucide@latest"></script>
     {% block head %}{% endblock %}
+    {% block extra_css %}{% endblock %}
 </head>
-<body class="bz-enterprise-app {% block body_class %}{% endblock %}">
+<body class="bz-enterprise-app {% if is_dedicated %}dedicated-mode{% endif %} {% block body_class %}{% endblock %}">
     <div class="bz-app-container">
-        <!-- 1. Permanent Side Navigation Bar (Deterministic Spatial Isolation) -->
+        <!-- 1. Permanent Side Navigation Bar -->
+        {% if not is_dedicated %}
         <aside class="bz-sidebar" id="bzSidebar">
-            <div class="side-brand">
-                <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="BIN ZOMAH">
-                <div class="brand-text">
-                    <b>BIN ZOMAH INTL.</b>
-                    <span>إدارة الأسطول والتوثيق</span>
+            <div class="side-brand d-flex align-items-center justify-content-between p-3">
+                <div class="d-flex align-items-center gap-2">
+                    <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="BIN ZOMAH" style="height: 36px;">
+                    <div class="brand-text">
+                        <b>BIN ZOMAH INTL.</b>
+                        <span>إدارة الأسطول والتوثيق</span>
+                    </div>
                 </div>
             </div>
             <nav class="bz-sidebar-nav">
@@ -59,15 +64,31 @@
                 <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}"><span class="si">⚙️</span><span class="slab">الإعدادات</span></a>
             </nav>
         </aside>
+        {% endif %}
 
-        <!-- 2. Main Workspace (Takes Remaining Screen Space, Zero Overflow Collision) -->
-        <div class="bz-workspace-wrapper">
+        <!-- 2. Main Workspace -->
+        <div class="bz-workspace-wrapper" id="content-wrapper">
             <!-- Global Navbar -->
             {% block navbar %}
             {% endblock %}
 
             <!-- Main Content Area -->
-            <main class="main-content">
+            <main class="main-content p-4 flex-grow-1">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            {% for category, message in messages %}
+                              <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm" role="alert">
+                                <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+                              </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                  {% endif %}
+                {% endwith %}
+
                 {% block content %}{% endblock %}
             </main>
 
@@ -85,8 +106,21 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) lucide.createIcons();
+
+            // Toggle 3-Lines Hamburger Sidebar
+            const sidebarToggle = document.getElementById('sidebarToggle') || document.querySelector('.bz-sidebar-toggle');
+            const sidebar = document.getElementById('bzSidebar') || document.getElementById('sidebar');
+            const contentWrapper = document.getElementById('content-wrapper') || document.querySelector('.bz-workspace-wrapper');
+
+            if (sidebarToggle && sidebar && contentWrapper) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('collapsed');
+                    contentWrapper.classList.toggle('expanded');
+                });
+            }
         });
     </script>
     {% block scripts %}{% endblock %}
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
