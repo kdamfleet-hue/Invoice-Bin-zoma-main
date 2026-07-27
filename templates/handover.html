@@ -54,33 +54,10 @@
 {% endblock %}
 
 {% block content %}
-<header class="bz-topbar">
-<div class="bz-brand">
-<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
-<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-</div>
-<nav class="bz-nav">
-<a href="/">🏠 الرئيسية</a>
-<a class="active" href="/handover">🚗 تسليم واستلام مركبة</a>
-<a href="/purchase">🛒 طلب شراء</a>
-<a href="/schedule">📋 الجدول الأسبوعي</a>
-<a href="/oils">🛢️ الزيوت والفلاتر</a>
-<a href="/washing">🚿 الغسيل</a>
-<a href="/workshop">🔧 الورشة</a>
-<a href="/employees">👥 الموظفين</a>
-<a href="/search">🔍 بحث</a>
-<a href="/records">📁 التوثيق</a>
-<a href="/gps_sync">📡 مزامنة GPS</a>
-<a href="/tracking">🛰️ التتبع</a>
-<a href="/cameras">📹 الكاميرات</a>
-</nav>
-<div class="bz-actions">
-<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-<a class="bz-logout" href="/logout">خروج</a>
-</div>
-</header>
 <div class="bz-shell">
 <h2 class="bz-section-title">🚗 نموذج تسليم واستلام مركبة</h2>
+<datalist id="hoPlatesList"></datalist>
+<datalist id="hoDriversList"></datalist>
 <div class="ho-wrap">
 <form autocomplete="off" class="ho-card" id="hoForm">
 <div class="ho-head">
@@ -89,25 +66,25 @@
 <img alt="Z" src="{{ url_for('static', filename='nav_logo.png') }}"/>
 <div class="co en">BIN ZOMAH INTL. TRADING &amp; DEVELOPMENT CO.</div>
 </div>
-<div class="ho-title">نموذج فحص تسليم المركبة<small>قسم الحركة — فرع الدمام</small></div>
+<div class="ho-title">نموذج فحص تسليم المركبة<small>قسم الحركة والأسطول</small></div>
 </div>
 <div class="ho-sec">
 <div class="ho-sec-title">بيانات المركبة الأساسية</div>
-<div class="ho-grp"><label for="ho-plate">رقم تسجيل المركبة / رقم اللوحة</label><input id="ho-plate" placeholder="أدخل رقم اللوحة أو الحروف والأرقام" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-plate">رقم تسجيل المركبة / رقم اللوحة</label><input id="ho-plate" list="hoPlatesList" onchange="hoAutofill()" placeholder="أدخل أو اختر رقم اللوحة..." required="" type="text"/></div>
 <div class="ho-grp"><label for="ho-date">تاريخ ووقت التسليم</label><input id="ho-date" required="" type="date"/></div>
 </div>
 <div class="ho-sec">
 <div class="ho-sec-title">من السائق (الطرف المسلِّم)</div>
 <div class="ho-row">
-<div class="ho-grp"><label for="ho-from-first">الاسم الأول</label><input id="ho-from-first" placeholder="الاسم الأول" required="" type="text"/></div>
-<div class="ho-grp"><label for="ho-from-last">الاسم الأخير</label><input id="ho-from-last" placeholder="الاسم الأخير" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-from-first">الاسم الأول / بالكامل</label><input id="ho-from-first" list="hoDriversList" onchange="hoAutofill()" placeholder="الاسم الأول أو الكامل" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-from-last">الاسم الأخير / العائلة</label><input id="ho-from-last" placeholder="الاسم الأخير" type="text"/></div>
 </div>
 </div>
 <div class="ho-sec">
 <div class="ho-sec-title">إلى السائق (الطرف المستلِم)</div>
 <div class="ho-row">
-<div class="ho-grp"><label for="ho-to-first">الاسم الأول</label><input id="ho-to-first" placeholder="الاسم الأول" required="" type="text"/></div>
-<div class="ho-grp"><label for="ho-to-last">الاسم الأخير</label><input id="ho-to-last" placeholder="الاسم الأخير" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-to-first">الاسم الأول / بالكامل</label><input id="ho-to-first" list="hoDriversList" placeholder="الاسم الأول أو الكامل" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-to-last">الاسم الأخير / العائلة</label><input id="ho-to-last" placeholder="الاسم الأخير" type="text"/></div>
 </div>
 </div>
 <div class="ho-sec">
@@ -223,7 +200,58 @@
     }).catch(function () { box.innerHTML = '<div style="color:var(--bad-fg)">تعذّر تحميل النماذج المحفوظة.</div>'; });
   }
 
+  var driversData = [];
+  function fetchDrivers() {
+    fetch('/api/drivers')
+      .then(function(r) { return r.json(); })
+      .then(function(json) {
+        driversData = Array.isArray(json) ? json : (json.data || []);
+        var pl = document.getElementById('hoPlatesList');
+        var dl = document.getElementById('hoDriversList');
+        if (pl) pl.innerHTML = '';
+        if (dl) dl.innerHTML = '';
+        driversData.forEach(function(d) {
+          if (d.plate && d.plate !== 'None' && pl) {
+            var o = document.createElement('option'); o.value = d.plate; pl.appendChild(o);
+          }
+          if (d.name && dl) {
+            var o2 = document.createElement('option'); o2.value = d.name; dl.appendChild(o2);
+          }
+        });
+      })
+      .catch(function(e) { console.error('fetchDrivers error:', e); });
+  }
+
+  window.hoAutofill = function() {
+    var plateEl = document.getElementById('ho-plate');
+    var driverEl = document.getElementById('ho-from-first');
+    var plateVal = (plateEl ? plateEl.value || '' : '').trim();
+    var driverVal = (driverEl ? driverEl.value || '' : '').trim();
+
+    var d = null;
+    if (plateVal && driversData.some(function(x) { return x.plate === plateVal; })) {
+      d = driversData.find(function(x) { return x.plate === plateVal; });
+    } else if (driverVal && driversData.some(function(x) { return x.name === driverVal; })) {
+      d = driversData.find(function(x) { return x.name === driverVal; });
+    }
+
+    if (d) {
+      if (d.plate && d.plate !== 'None' && plateEl) plateEl.value = d.plate;
+      if (d.name) {
+        var parts = d.name.split(' ');
+        if (driverEl) driverEl.value = parts[0] || d.name;
+        var lastEl = document.getElementById('ho-from-last');
+        if (lastEl && parts.length > 1) lastEl.value = parts.slice(1).join(' ');
+      }
+      var odoEl = document.getElementById('ho-odo');
+      if (odoEl && (d.odometer || d.current_km || d.km)) {
+        odoEl.value = d.odometer || d.current_km || d.km;
+      }
+    }
+  };
+
   function start() {
+    fetchDrivers();
     // today's date
     var d = document.getElementById('ho-date'); if (d && !d.value) d.valueAsDate = new Date();
 

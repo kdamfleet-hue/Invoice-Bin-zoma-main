@@ -75,5 +75,7 @@ def kpis():
 @dashboard_bp.route("/handover")
 @login_required
 def handover():
-    # Vehicle delivery/receipt inspection form with touch signature pads (client-side only).
-    return render_template("handover.html", google_user=session.get("google_user"), b64_en=load_logo())
+    from helpers import current_branch_id, current_branch_name
+    b_id = current_branch_id()
+    b_name = current_branch_name()
+    return render_template("handover.html", active_branch_id=b_id, active_branch=b_name, google_user=session.get("google_user"), b64_en=load_logo())
