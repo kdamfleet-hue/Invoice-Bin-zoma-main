@@ -9,15 +9,15 @@ echo "=================================================="
 echo "🚀 بدء إجراءات تشغيل نظام بن زومه لإدارة الحركة..."
 echo "=================================================="
 
-# 1. Ambient Environment Setup
+# 1. Production Workers & Port Configuration
 PORT="${PORT:-10000}"
-WORKERS="${GUNICORN_WORKERS:-2}"
-THREADS="${GUNICORN_THREADS:-4}"
+WORKERS="${GUNICORN_WORKERS:-3}"
+THREADS="${GUNICORN_THREADS:-2}"
 
 echo "ℹ️ المنافذ والإعدادات: Port: $PORT | Workers: $WORKERS | Threads: $THREADS"
 
-# 2. Self-Healing Database & Migration Upgrade
-echo "⏳ جاري التحقق من الهيكل وتنفيذ التحديثات (Migrations)..."
+# 2. Database Pre-deployment Migration Step (Isolated Migration Execution)
+echo "⏳ تنفيذ تحديثات قاعدة البيانات (Pre-deployment Step)..."
 
 python -c "
 import sys
@@ -27,8 +27,6 @@ from sqlalchemy import text
 with app.app_context():
     try:
         db.create_all()
-        print('✅ تم التحقق من وجود الجداول الأساسية.')
-
         engine_name = db.engine.name
         with db.engine.connect() as conn:
             if engine_name == 'postgresql':
@@ -45,17 +43,16 @@ with app.app_context():
                 except Exception:
                     pass
                 conn.commit()
-        print('✅ تم التحديث التلقائي لجدول المستخدمين (Self-Healing Schema Patch).')
-
+        print('✅ تم التحقق وتحديث الهيكل آلياً (Safe Schema Patch).')
     except Exception as e:
-        print(f'⚠️ تنبيه أثناء تجهيز قاعدة البيانات: {e}', file=sys.stderr)
+        print(f'⚠️ تنبيه في تهيئة القاعدة: {e}', file=sys.stderr)
 " || true
 
 flask db upgrade 2>/dev/null || echo "ℹ️ تم تجاوز Flask-Migrate (القاعدة محدثة بالكامل)."
 
-# 3. Production Gunicorn Server Launch
+# 3. Multi-Worker Production Gunicorn Launch
 echo "=================================================="
-echo "🔥 جاري تشغيل سيرفر Gunicorn الإنتاجي..."
+echo "🔥 جاري تشغيل سيرفر Gunicorn الإنتاجي بـ 3 عمال وخيطين معالجة لكل عامل..."
 echo "=================================================="
 
 exec gunicorn \
