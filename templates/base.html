@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}نظام إدارة الأسطول | شركة بن زومة{% endblock %}</title>
-
+    <title>{% block title %}لوحة تحكم الأسطول | شركة بن زومة{% endblock %}</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -21,32 +20,25 @@
             }
         }
     </script>
-    
-    <!-- PWA Settings -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/static/logo_192.png">
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap">
-    
-    <!-- Unified Theme -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css', v=1) }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=36) }}">
-    
-    <!-- Global Scripts -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Force strict Flexbox layout and override any legacy fixed positioning */
+        aside.bz-sidebar, .bz-sidebar {
+            position: relative !important;
+            top: auto !important;
+            bottom: auto !important;
+            right: auto !important;
+            left: auto !important;
+            flex-shrink: 0 !important;
+            z-index: 10 !important;
+        }
+    </style>
     {% block extra_head %}{% endblock %}
     {% block head %}{% endblock %}
 </head>
-<body class="bg-darkBg text-gray-100 font-sans antialiased min-h-screen flex flex-col bz-shell {% block body_class %}{% endblock %}">
+<body class="bg-darkBg text-gray-100 font-sans antialiased h-screen overflow-hidden flex flex-col m-0 p-0 bz-shell {% block body_class %}{% endblock %}">
 
-    <!-- شريط التنقل العلوي -->
-    <header class="h-16 bg-cardBg border-b border-borderCol flex items-center justify-between px-6 sticky top-0 z-50 shadow-md bz-topbar">
+    <!-- 1. الشريط العلوي الثابت -->
+    <header class="h-16 bg-cardBg border-b border-borderCol flex items-center justify-between px-6 flex-shrink-0 z-50 shadow-md bz-topbar">
         <div class="flex items-center space-x-4 space-x-reverse">
             <a href="/" class="text-xl font-bold text-blue-400 hover:text-blue-300 transition-colors">بن زومة الدولية - إدارة الأسطول</a>
         </div>
@@ -63,35 +55,30 @@
         </div>
     </header>
 
-    <!-- المحتوى الرئيسي -->
-    <div class="flex-1 flex overflow-hidden">
-        <!-- الشريط الجانبي الديناميكي -->
-        <aside class="w-64 bg-cardBg border-l border-borderCol hidden lg:flex flex-col p-4 space-y-2 overflow-y-auto bz-sidebar">
-            <a href="/" class="block px-4 py-2.5 rounded-xl bg-blue-600 text-white font-medium shadow">🏠 الرئيسية والتحليلات</a>
-            <a href="/fleet_dashboard" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">📊 لوحة القيادة</a>
-            <a href="/yard" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">🅿️ إدارة الساحات</a>
-            <a href="/workshop" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">🔧 تقارير الورشة والصيانة</a>
-            <a href="/schedule" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">📋 الجدول الأسبوعي</a>
-            <a href="/inventory/tires" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">💿 سجل الإطارات</a>
-            <a href="/inventory/batteries" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">🔋 سجل البطاريات</a>
-            <a href="/oils" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">🛢️ الزيوت والفلاتر</a>
-            <a href="/employees" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">👥 سجل الموظفين</a>
-            <a href="/documents" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">📂 أرشيف الوثائق</a>
-            <a href="/settings" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">⚙️ الإعدادات</a>
+    <!-- 2. الحاوية الكبرى لتوزيع الشاشة (جانبي + محتوى) -->
+    <div class="flex-1 flex overflow-hidden w-full">
+        
+        <!-- الشريط الجانبي (محشور بجانب المحتوى تماماً ودون أي تداخل) -->
+        <aside class="w-64 bg-cardBg border-l border-borderCol flex-shrink-0 hidden lg:flex flex-col p-4 space-y-2 overflow-y-auto bz-sidebar">
+            <a href="/" class="block px-4 py-2.5 rounded-xl bg-blue-600 text-white font-medium shadow text-sm">الرئيسية والتحليلات</a>
+            <a href="/fleet_dashboard" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">📊 لوحة القيادة</a>
+            <a href="/yard" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">إدارة المركبات والساحة</a>
+            <a href="/workshop" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">تقارير الورشة والصيانة</a>
+            <a href="/schedule" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">الجدول الأسبوعي</a>
+            <a href="/inventory/tires" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">سجل الإطارات</a>
+            <a href="/inventory/batteries" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">سجل البطاريات</a>
+            <a href="/oils" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">🛢️ الزيوت والفلاتر</a>
+            <a href="/employees" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">👥 سجل الموظفين والسائقين</a>
+            <a href="/documents" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">📂 أرشيف الوثائق والرخص</a>
+            <a href="/settings" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors text-sm">⚙️ إعدادات النظام</a>
         </aside>
 
-        <!-- مساحة العمل -->
-        <main class="flex-1 overflow-y-auto p-6 main-content">
+        <!-- مساحة العمل والجدول (تأخذ باقي المساحة المتاحة وتمنع خروج العناصر) -->
+        <main class="flex-1 overflow-y-auto p-6 bg-darkBg main-content">
             {% block navbar %}{% endblock %}
             {% block content %}{% endblock %}
         </main>
     </div>
-
-    {% block footer %}
-    <footer class="bg-cardBg border-t border-borderCol text-center p-4 text-xs text-gray-400">
-        &copy; 2026 شركة بن زومة. جميع الحقوق محفوظة. | نظام إدارة الأسطول الموحد
-    </footer>
-    {% endblock %}
 
     <!-- Common JS -->
     <script defer src="{{ url_for('static', filename='app_ux.js', v=37) }}"></script>
