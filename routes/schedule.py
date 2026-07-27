@@ -25,14 +25,14 @@ _VEHICLE_REG_LOCK = threading.Lock()
 _AR_DIGITS = "٠١٢٣٤٥٦٧٨٩"
 
 @schedule_bp.route("/schedule")
-@login_required
+@role_required('admin', 'operations')
 def schedule():
     google_user = session.get("google_user")
     b64_en = load_logo()
     return render_template("schedule.html", google_user=google_user, b64_en=b64_en)
 
 @schedule_bp.route("/washing")
-@login_required
+@role_required('admin', 'operations', 'maintenance')
 def washing():
     google_user = session.get("google_user")
     b64_en = load_logo()

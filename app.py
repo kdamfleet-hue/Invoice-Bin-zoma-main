@@ -129,10 +129,10 @@ def ensure_db_columns():
             if 'erp_vehicles' in tables:
                 cols = [c['name'] for c in inspector.get_columns('erp_vehicles')]
                 if 'yard_status' not in cols:
-                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_status VARCHAR(100) DEFAULT 'خارج الساحة'"))
+                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_status VARCHAR(50) DEFAULT 'خارج الساحة'"))
                     logger.info("Auto-migration: Added yard_status to erp_vehicles")
                 if 'yard_condition' not in cols:
-                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_condition VARCHAR(100)"))
+                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_condition VARCHAR(50)"))
                     logger.info("Auto-migration: Added yard_condition to erp_vehicles")
                 if 'branch_id' not in cols:
                     conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN branch_id INTEGER DEFAULT 1"))
@@ -179,8 +179,11 @@ def init_db_on_startup():
             logger.error(f"❌ Error seeding database: {e}")
 
 init_db_on_startup()
-# Enable CORS for custom domains and internal proxy routes
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+# CORS: the app serves its own same-origin frontend, so cross-origin is disabled by
+# default. Set ALLOWED_ORIGINS (comma-separated) only if external clients are needed.
+_allowed_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+if _allowed_origins:
+    CORS(app, resources={r"/api/*": {"origins": _allowed_origins}}, supports_credentials=True)
 
 # Harden the session cookie
 app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -200,18 +203,6 @@ def add_header(response):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
-
-@app.errorhandler(403)
-def handle_forbidden(e):
-    if request.path.startswith('/api/'):
-        return jsonify({"success": False, "error": "غير مصرح لك بالوصول (403 Forbidden)"}), 403
-    return render_template("error.html", google_user=session.get("google_user"), b64_en=load_logo()), 403
-
-@app.errorhandler(404)
-def handle_not_found(e):
-    if request.path.startswith('/api/'):
-        return jsonify({"success": False, "error": "المسار غير موجود (404 Not Found)"}), 404
-    return render_template("error.html", google_user=session.get("google_user"), b64_en=load_logo()), 404
 
 from routes.dashboard import dashboard_bp
 app.register_blueprint(dashboard_bp)
