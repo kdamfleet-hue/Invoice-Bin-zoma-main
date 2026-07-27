@@ -129,10 +129,10 @@ def ensure_db_columns():
             if 'erp_vehicles' in tables:
                 cols = [c['name'] for c in inspector.get_columns('erp_vehicles')]
                 if 'yard_status' not in cols:
-                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_status VARCHAR(50) DEFAULT 'خارج الساحة'"))
+                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_status VARCHAR(100) DEFAULT 'خارج الساحة'"))
                     logger.info("Auto-migration: Added yard_status to erp_vehicles")
                 if 'yard_condition' not in cols:
-                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_condition VARCHAR(50)"))
+                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_condition VARCHAR(100)"))
                     logger.info("Auto-migration: Added yard_condition to erp_vehicles")
                 if 'branch_id' not in cols:
                     conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN branch_id INTEGER DEFAULT 1"))
