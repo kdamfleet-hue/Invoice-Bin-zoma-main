@@ -1,38 +1,33 @@
 FROM python:3.12-slim
 
-# ضبط إعدادات بايثون
+# Python optimization
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# إنشاء مستخدم عادي
+# Create non-root user
 RUN useradd -m appuser
 
 WORKDIR /app
 
-# تحديث pip أولاً
+# Upgrade pip
 RUN pip install --no-cache-dir --upgrade pip
 
-# نسخ المتطلبات
+# Install dependencies
 COPY requirements.txt .
-
-# تثبيت الحزم (تجاهل تحذير الروت هنا لأننا في دوكر، أو يمكن تثبيتها بصلاحيات روت)
-# يمكنك استخدام بيئة وهمية أو --user لتفادي تحذير pip لكن هذا يفي بالغرض حالياً
 RUN pip install --no-cache-dir -r requirements.txt
 
-# نسخ التطبيق وإعطاء الصلاحية للمستخدم العادي (مهم لقاعدة بيانات sqlite)
+# Copy application and set permissions
 COPY . .
 RUN chown -R appuser:appuser /app
 
-# متغيرات البيئة الأساسية
+# Environment defaults
 ENV PORT=3000
-# ⚠️ الأسرار تُمرَّر عند تشغيل الحاوية فقط (docker run -e / .env) — لا تُخزَّن في الصورة أبداً
-# SECRET_KEY, ADMIN_USERNAME, MASTER_PASSWORD → يجب ضبطها في بيئة التشغيل
 
 EXPOSE 3000
 
-# تبديل للمستخدم العادي
+# Switch to non-root user
 USER appuser
 
-# تشغيل التطبيق مع الإعدادات المحسنة
-# يجب أن يكون worker واحد فقط (1) لتفادي تعارضات قاعدة البيانات (SQLite) مع threading.Lock()
+# Production Gunicorn: 3 workers + 2 threads each (gthread) for high concurrency
+# PostgreSQL is used in production so multi-worker is safe
 CMD ["sh", "start.sh"]
