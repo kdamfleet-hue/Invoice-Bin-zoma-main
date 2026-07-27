@@ -1321,19 +1321,23 @@ Alert Sound
 
     async function quickAddSystem(name, plate, sysKey) {
       if (!canEdit()) return;
-      if (!confirm(`هل تريد بالتأكيد إضافة (${name}) إلى قسم (${sysKey})؟`)) return;
+      if (!confirm(`هل تريد بالتأكيد نقل/إضافة (${name}) إلى قسم (${sysKey})؟`)) return;
       
       try {
-        if (window.showToast) window.showToast('جاري الإضافة...', 'info');
+        if (window.showToast) window.showToast('جاري الإضافة والربط...', 'info');
         const res = await fetch('/api/quick_add_system', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ driverName: name, driverPlate: plate, systemKey: sysKey })
         });
+        if (res.status === 401) {
+          alert('انتهت الجلسة. يرجى إعادة تسجيل الدخول.');
+          location.reload();
+          return;
+        }
         const data = await res.json();
         if (data.success) {
-          if (window.showToast) window.showToast('تمت الإضافة بنجاح!', 'success');
-          // Re-load to update UI
+          if (window.showToast) window.showToast(`تمت الإضافة بنجاح إلى قسم (${sysKey})!`, 'success');
           document.getElementById('liveStatus').textContent = '⚡ تحديث...';
           await loadFleet();
           await buildPresenceMap();
@@ -1341,10 +1345,12 @@ Alert Sound
           updateStats();
           setTimeout(() => document.getElementById('liveStatus').textContent = '🟢 متصل', 1000);
         } else {
-          alert('خطأ أثناء الإضافة: ' + data.error);
+          alert('تعذرت الإضافة: ' + (data.error || 'خطأ غير معروف'));
         }
       } catch (e) {
-        alert('خطأ في الاتصال بالخادم');
+        console.error('quickAddSystem error:', e);
+        if (window.showToast) window.showToast('تعذر الاتصال بالسيرفر. يرجى المحاولة لاحقاً.', 'error');
+        else alert('تعذر الاتصال بالسيرفر: ' + e.message);
       }
     }
 

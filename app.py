@@ -4147,12 +4147,20 @@ def api_quick_add_system():
             "workshop": "workshop_data",
             "incidents": "incidents_data",
             "records": "records_data",
-            "handover": "handover_data"
+            "handover": "handover_data",
+            "الجدول": "schedule_data",
+            "الغسيل": "washing_schedule",
+            "الزيوت": "oils_data",
+            "المشتريات": "purchase_data",
+            "الورشة": "workshop_data",
+            "الحوادث": "incidents_data",
+            "التوثيق": "records_data",
+            "العهدة": "handover_data"
         }
         
         blob_key = blob_map.get(sys_key)
         if not blob_key:
-            return jsonify({"success": False, "error": "Invalid systemKey"}), 400
+            return jsonify({"success": False, "error": f"نظام غير معروف: {sys_key}"}), 400
             
         blob = blob_get(blob_key)
         
