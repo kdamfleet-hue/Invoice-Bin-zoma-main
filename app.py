@@ -249,18 +249,25 @@ def enforce_dedicated_workstation_and_tab_permissions():
         return None
         
     try:
-        from modules.db_utils import blob_get
-        username = session.get("user") or session.get("username") or ""
+        guser = session.get("google_user")
+        gname = guser.get("name") if isinstance(guser, dict) else ""
+        username = session.get("user") or session.get("username") or gname or ""
         
-        # 1. Read per-user account permissions first
-        all_user_perms = blob_get("user_account_permissions") or {}
+        # 1. Read per-user account permissions using global system-wide storage
+        all_user_perms = _global_blob_get("user_account_permissions") or {}
         user_account_perms = all_user_perms.get(username, {})
-        global_perms = blob_get("tab_permissions") or {}
+        
+        # Check branch account key fallback if user account perm not found
+        if not user_account_perms and session.get("branch_id"):
+            branch_key = f"branch{session.get('branch_id')}"
+            user_account_perms = all_user_perms.get(branch_key, {})
+
+        global_perms = _global_blob_get("tab_permissions") or {}
         
         dedicated_mode = user_account_perms.get("dedicated_mode") or global_perms.get("dedicated_mode", "all")
         user_allowed_tabs = user_account_perms.get("allowed_tabs")
         
-        # Single Dedicated Workstation Mode restriction
+        # Single Dedicated Workstation Mode restriction (Strict Single Page Enforcement, e.g. /purchase ONLY)
         if dedicated_mode and dedicated_mode != "all":
             if path != dedicated_mode and path != '/settings':
                 return redirect(dedicated_mode)

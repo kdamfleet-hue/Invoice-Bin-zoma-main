@@ -47,6 +47,8 @@ def login():
             session.clear()
             session["authenticated"] = True
             session.permanent = True
+            session["user"] = username
+            session["username"] = username
             session["google_user"] = {"name": username, "email": username + "@binzomah.local"}
             session["is_admin"] = True
             session["role"] = "admin"
@@ -61,6 +63,8 @@ def login():
             session.clear()                       # fresh session — drop any prior role/branch
             session["authenticated"] = True
             session.permanent = True
+            session["user"] = user.username
+            session["username"] = user.username
             session["google_user"] = {"name": user.username, "email": user.username + "@binzomah.local"}
             session["is_admin"] = (user.role == 'admin')
             session["role"] = user.role

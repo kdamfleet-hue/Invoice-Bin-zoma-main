@@ -76,8 +76,9 @@ def api_tab_permissions():
     """
     Read or save allowed navigation tabs and single dedicated workstation mode.
     """
+    from helpers import _global_blob_get, _global_blob_set
     if request.method == "GET":
-        data = blob_get("tab_permissions") or {
+        data = _global_blob_get("tab_permissions") or {
             "dedicated_mode": "all",
             "disabled_tabs": []
         }
@@ -95,7 +96,7 @@ def api_tab_permissions():
             "dedicated_mode": dedicated_mode,
             "disabled_tabs": disabled_tabs
         }
-        blob_set("tab_permissions", data)
+        _global_blob_set("tab_permissions", data)
         _audit_add("تحديث", "إعدادات التبويبات والمحطات المخصصة", detail=f"نمط التخصيص: {dedicated_mode}")
         return jsonify({"success": True, "permissions": data, "message": "تم حفظ وتطبيق إعدادات التبويبات والمحطات بنجاح"})
     except Exception as e:
@@ -109,8 +110,9 @@ def api_user_permissions():
     """
     Read or update per-user account tab permissions & dedicated workstation modes.
     """
+    from helpers import _global_blob_get, _global_blob_set
     if request.method == "GET":
-        all_perms = blob_get("user_account_permissions") or {}
+        all_perms = _global_blob_get("user_account_permissions") or {}
         return jsonify({"success": True, "user_permissions": all_perms})
     
     try:
@@ -125,12 +127,12 @@ def api_user_permissions():
         dedicated_mode = body.get("dedicated_mode", "all")
         allowed_tabs = body.get("allowed_tabs", [])
 
-        all_perms = blob_get("user_account_permissions") or {}
+        all_perms = _global_blob_get("user_account_permissions") or {}
         all_perms[target_username] = {
             "dedicated_mode": dedicated_mode,
             "allowed_tabs": allowed_tabs
         }
-        blob_set("user_account_permissions", all_perms)
+        _global_blob_set("user_account_permissions", all_perms)
         _audit_add("تحديث", "صلاحيات حساب مستخدم", detail=f"الحساب: {target_username} | نمط: {dedicated_mode}")
         return jsonify({
             "success": True,
@@ -149,14 +151,22 @@ def api_my_permissions():
     """
     Returns current logged in user's specific permissions.
     """
-    username = session.get("user") or session.get("username") or ""
+    from helpers import _global_blob_get
+    guser = session.get("google_user")
+    gname = guser.get("name") if isinstance(guser, dict) else ""
+    username = session.get("user") or session.get("username") or gname or ""
     is_admin = session.get("role") == "admin" or bool(session.get("settings_unlocked"))
 
-    all_perms = blob_get("user_account_permissions") or {}
+    all_perms = _global_blob_get("user_account_permissions") or {}
     user_perm = all_perms.get(username, {})
 
+    # If branch user and no specific username perm found, fallback to branch account key
+    if not user_perm and session.get("branch_id"):
+        branch_key = f"branch{session.get('branch_id')}"
+        user_perm = all_perms.get(branch_key, {})
+
     # Global tab permissions fallback
-    global_perms = blob_get("tab_permissions") or {}
+    global_perms = _global_blob_get("tab_permissions") or {}
     
     dedicated_mode = user_perm.get("dedicated_mode") or global_perms.get("dedicated_mode", "all")
     allowed_tabs = user_perm.get("allowed_tabs")
