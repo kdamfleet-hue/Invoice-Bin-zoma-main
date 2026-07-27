@@ -25,29 +25,66 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     {% block head %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
-    
-    <!-- Global Navbar (Can be extended or overridden) -->
-    {% block navbar %}
-    {% endblock %}
+<body class="bz-enterprise-app {% block body_class %}{% endblock %}">
+    <div class="bz-app-container">
+        <!-- 1. Permanent Side Navigation Bar (Deterministic Spatial Isolation) -->
+        <aside class="bz-sidebar" id="bzSidebar">
+            <div class="side-brand">
+                <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="BIN ZOMAH">
+                <div class="brand-text">
+                    <b>BIN ZOMAH INTL.</b>
+                    <span>إدارة الأسطول والتوثيق</span>
+                </div>
+            </div>
+            <nav class="bz-sidebar-nav">
+                <a href="/" class="{% if request.path == '/' %}active{% endif %}"><span class="si">🏠</span><span class="slab">الرئيسية والتحليلات</span></a>
+                <a href="/fleet_dashboard" class="{% if request.path == '/fleet_dashboard' %}active{% endif %}"><span class="si">📊</span><span class="slab">لوحة القيادة والأسطول</span></a>
+                <a href="/yard" class="{% if request.path == '/yard' %}active{% endif %}"><span class="si">🅿️</span><span class="slab">إدارة الساحات</span></a>
+                <a href="/schedule" class="{% if request.path == '/schedule' %}active{% endif %}"><span class="si">📋</span><span class="slab">الجدول الأسبوعي</span></a>
+                <a href="/workshop" class="{% if request.path == '/workshop' %}active{% endif %}"><span class="si">🔧</span><span class="slab">صيانة الورشة</span></a>
+                <a href="/oils" class="{% if request.path == '/oils' %}active{% endif %}"><span class="si">🛢️</span><span class="slab">الزيوت والفلاتر</span></a>
+                <a href="/inventory/tires" class="{% if request.path == '/inventory/tires' %}active{% endif %}"><span class="si">💿</span><span class="slab">سجل الإطارات</span></a>
+                <a href="/inventory/batteries" class="{% if request.path == '/inventory/batteries' %}active{% endif %}"><span class="si">🔋</span><span class="slab">سجل البطاريات</span></a>
+                <a href="/fuel" class="{% if request.path == '/fuel' %}active{% endif %}"><span class="si">⛽</span><span class="slab">تموين المحروقات</span></a>
+                <a href="/washing" class="{% if request.path == '/washing' %}active{% endif %}"><span class="si">🚿</span><span class="slab">محطة الغسيل</span></a>
+                <a href="/purchase" class="{% if request.path == '/purchase' %}active{% endif %}"><span class="si">🛒</span><span class="slab">طلبات الشراء</span></a>
+                <a href="/spare_parts" class="{% if request.path == '/spare_parts' %}active{% endif %}"><span class="si">📦</span><span class="slab">مستودع القطع</span></a>
+                <a href="/finance/petty-cash" class="{% if request.path == '/finance/petty-cash' %}active{% endif %}"><span class="si">💵</span><span class="slab">العهد والمصاريف</span></a>
+                <a href="/incidents" class="{% if request.path == '/incidents' %}active{% endif %}"><span class="si">🚨</span><span class="slab">الحوادث والطوارئ</span></a>
+                <a href="/tracking" class="{% if request.path == '/tracking' %}active{% endif %}"><span class="si">🛰️</span><span class="slab">نظام التتبع</span></a>
+                <a href="/insights" class="{% if request.path == '/insights' %}active{% endif %}"><span class="si">🧠</span><span class="slab">التحليلات الذكية</span></a>
+                <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}"><span class="si">👥</span><span class="slab">سجل الموظفين</span></a>
+                <a href="/documents" class="{% if request.path == '/documents' %}active{% endif %}"><span class="si">📂</span><span class="slab">أرشيف الوثائق</span></a>
+                <a href="/records" class="{% if request.path == '/records' %}active{% endif %}"><span class="si">📁</span><span class="slab">التوثيق والسجلات</span></a>
+                <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}"><span class="si">⚙️</span><span class="slab">الإعدادات</span></a>
+            </nav>
+        </aside>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
-        {% block content %}{% endblock %}
-    </main>
+        <!-- 2. Main Workspace (Takes Remaining Screen Space, Zero Overflow Collision) -->
+        <div class="bz-workspace-wrapper">
+            <!-- Global Navbar -->
+            {% block navbar %}
+            {% endblock %}
 
-    <!-- Global Footer -->
-    {% block footer %}
-    <footer style="text-align: center; padding: 1.5rem; color: var(--text-muted, #94a3b8); font-size: 0.85rem;">
-        &copy; 2026 شركة بن زومة. جميع الحقوق محفوظة. | إصدار 2.0 (Alembic Edition)
-    </footer>
-    {% endblock %}
+            <!-- Main Content Area -->
+            <main class="main-content">
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Global Footer -->
+            {% block footer %}
+            <footer style="text-align: center; padding: 1.2rem; color: var(--text-muted, #94a3b8); font-size: 0.85rem;">
+                &copy; 2026 شركة بن زومة الدولية. جميع الحقوق محفوظة. | Sovereign Enterprise Protocol 2.0
+            </footer>
+            {% endblock %}
+        </div>
+    </div>
 
     <!-- Common JS -->
-    <script defer src="{{ url_for('static', filename='app_ux.js', v=37) }}"></script>
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=38) }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
+            if (window.lucide) lucide.createIcons();
         });
     </script>
     {% block scripts %}{% endblock %}
