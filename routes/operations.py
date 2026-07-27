@@ -76,12 +76,66 @@ def purchase_data():
         try:
             body = request.json or {}
             blob_set("purchase_data", body)
+            _sync_purchase_inventory(body)
             _n = sum(len(v) for v in body.values() if isinstance(v, list)) if isinstance(body, dict) else None
             _audit_add("تحديث", "طلبات الشراء", _n or None)
             return jsonify({"success": True})
         except Exception:
             logger.exception("purchase_data POST error")
             return jsonify({"success": False}), 500
+
+def _sync_purchase_inventory(body):
+    try:
+        from models.schema import TireRecord, BatteryRecord, Vehicle, db
+        from helpers import current_branch_id
+        if not isinstance(body, dict):
+            return
+        
+        tires_list = body.get("tires") or []
+        batteries_list = body.get("batteries") or []
+        po_plate = (body.get("poPlate") or body.get("plate") or "").strip()
+
+        v = None
+        if po_plate:
+            v = Vehicle.query.filter(Vehicle.plate_number.like(f"%{po_plate}%")).first()
+
+        b_id = current_branch_id()
+
+        for t_item in tires_list:
+            if isinstance(t_item, dict):
+                serial = str(t_item.get("serial") or t_item.get("serial_number") or "").strip()
+                if serial:
+                    existing = TireRecord.query.filter_by(serial_number=serial).first()
+                    if not existing:
+                        tr = TireRecord(
+                            branch_id=b_id,
+                            vehicle_id=v.id if v else None,
+                            serial_number=serial,
+                            brand=t_item.get("brand") or "Purchase Order",
+                            size=t_item.get("size"),
+                            status="جديد"
+                        )
+                        db.session.add(tr)
+
+        for b_item in batteries_list:
+            if isinstance(b_item, dict):
+                serial = str(b_item.get("serial") or b_item.get("serial_number") or "").strip()
+                if serial:
+                    existing = BatteryRecord.query.filter_by(serial_number=serial).first()
+                    if not existing:
+                        br = BatteryRecord(
+                            branch_id=b_id,
+                            vehicle_id=v.id if v else None,
+                            serial_number=serial,
+                            brand=b_item.get("brand") or "Purchase Order",
+                            capacity=b_item.get("amp") or b_item.get("capacity"),
+                            status="نشط"
+                        )
+                        db.session.add(br)
+
+        db.session.commit()
+    except Exception:
+        logger.exception("_sync_purchase_inventory error")
     try:
         return jsonify({"success": True, "data": blob_get("purchase_data")})
     except Exception:

@@ -9,19 +9,27 @@ inventory_bp = Blueprint("inventory_bp", __name__)
 @role_required("admin", "operations", "maintenance")
 def tires_index():
     branch_id = current_branch_id()
-    tires = TireRecord.query.filter_by(branch_id=branch_id).all()
-    vehicles = Vehicle.query.filter_by(branch_id=branch_id).all()
+    tires = TireRecord.query.filter((TireRecord.branch_id == branch_id) | (TireRecord.branch_id.is_(None))).all()
+    if not tires:
+        tires = TireRecord.query.all()
+    vehicles = Vehicle.query.all()
     return render_template("inventory_tires.html", tires=tires, vehicles=vehicles)
 
 @inventory_bp.route("/api/inventory/tires", methods=["POST"])
 @role_required("admin", "operations", "maintenance")
 def add_tire():
-    data = request.json
+    data = request.json or {}
     try:
+        v_id = data.get("vehicle_id")
+        plate = data.get("vehicle_plate")
+        if not v_id and plate:
+            v = Vehicle.query.filter(Vehicle.plate_number.like(f"%{plate.strip()}%")).first()
+            if v: v_id = v.id
+
         t = TireRecord(
             branch_id=current_branch_id(),
-            vehicle_id=data.get("vehicle_id") or None,
-            serial_number=data["serial_number"],
+            vehicle_id=int(v_id) if v_id else None,
+            serial_number=str(data.get("serial_number", "")).strip(),
             brand=data.get("brand"),
             size=data.get("size"),
             status=data.get("status", "جديد"),
@@ -49,9 +57,14 @@ def manage_tire(tire_id):
     data = request.json or {}
     try:
         if "vehicle_id" in data:
-            t.vehicle_id = data.get("vehicle_id") or None
+            v_id = data.get("vehicle_id")
+            plate = data.get("vehicle_plate")
+            if not v_id and plate:
+                v = Vehicle.query.filter(Vehicle.plate_number.like(f"%{plate.strip()}%")).first()
+                if v: v_id = v.id
+            t.vehicle_id = int(v_id) if v_id else None
         if "serial_number" in data:
-            t.serial_number = data["serial_number"]
+            t.serial_number = str(data["serial_number"]).strip()
         if "brand" in data:
             t.brand = data["brand"]
         if "size" in data:
@@ -74,19 +87,27 @@ def manage_tire(tire_id):
 @role_required("admin", "operations", "maintenance")
 def batteries_index():
     branch_id = current_branch_id()
-    batteries = BatteryRecord.query.filter_by(branch_id=branch_id).all()
-    vehicles = Vehicle.query.filter_by(branch_id=branch_id).all()
+    batteries = BatteryRecord.query.filter((BatteryRecord.branch_id == branch_id) | (BatteryRecord.branch_id.is_(None))).all()
+    if not batteries:
+        batteries = BatteryRecord.query.all()
+    vehicles = Vehicle.query.all()
     return render_template("inventory_batteries.html", batteries=batteries, vehicles=vehicles)
 
 @inventory_bp.route("/api/inventory/batteries", methods=["POST"])
 @role_required("admin", "operations", "maintenance")
 def add_battery():
-    data = request.json
+    data = request.json or {}
     try:
+        v_id = data.get("vehicle_id")
+        plate = data.get("vehicle_plate")
+        if not v_id and plate:
+            v = Vehicle.query.filter(Vehicle.plate_number.like(f"%{plate.strip()}%")).first()
+            if v: v_id = v.id
+
         b = BatteryRecord(
             branch_id=current_branch_id(),
-            vehicle_id=data.get("vehicle_id") or None,
-            serial_number=data["serial_number"],
+            vehicle_id=int(v_id) if v_id else None,
+            serial_number=str(data.get("serial_number", "")).strip(),
             brand=data.get("brand"),
             capacity=data.get("capacity"),
             status=data.get("status", "نشط"),
@@ -95,6 +116,6 @@ def add_battery():
         )
         db.session.add(b)
         db.session.commit()
-        return jsonify({"success": True})
+        return jsonify({"success": True, "id": b.id})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
