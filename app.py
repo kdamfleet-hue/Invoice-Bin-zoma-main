@@ -92,13 +92,18 @@ if _db_url:
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.abspath(DB_PATH)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 280,
-    'pool_size': 10,
-    'max_overflow': 20,
-    'pool_timeout': 30
-}
+if _db_url:
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 280,
+        'pool_size': 10,
+        'max_overflow': 20,
+        'pool_timeout': 30
+    }
+else:
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True
+    }
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
