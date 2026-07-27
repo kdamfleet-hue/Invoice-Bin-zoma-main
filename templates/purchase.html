@@ -462,20 +462,22 @@
         let driversData = [];
         async function fetchDrivers() { 
             try { 
-                driversData = await (await fetch('/api/drivers')).json(); 
+                const res = await fetch('/api/drivers'); 
+                const json = await res.json();
+                driversData = Array.isArray(json) ? json : (json.data || []);
                 const dl = document.getElementById('driversList'); 
                 const pl = document.getElementById('platesList');
-                dl.innerHTML = ''; 
-                pl.innerHTML = '';
+                if (dl) dl.innerHTML = ''; 
+                if (pl) pl.innerHTML = '';
                 driversData.forEach(d => { 
-                    if (d.name) {
+                    if (d.name && dl) {
                         const o = document.createElement('option'); o.value = d.name; dl.appendChild(o); 
                     }
-                    if (d.plate && d.plate !== 'None') {
+                    if (d.plate && d.plate !== 'None' && pl) {
                         const o2 = document.createElement('option'); o2.value = d.plate; pl.appendChild(o2); 
                     }
-                }) 
-            } catch (e) { } 
+                }); 
+            } catch (e) { console.error('fetchDrivers error:', e); } 
         }
 
         function poAutofill() {
@@ -493,17 +495,24 @@
         }
 
         function fillDriverFields(d) {
+            if (!d) return;
             if (d.name) document.getElementById('poDriver').value = d.name;
-            if (d.car && d.car !== 'None') {
-                document.getElementById('poCar').value = d.car;
-                const match = d.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
-                if (match) {
-                    document.getElementById('poModel').value = match[1];
-                }
-            }
             if (d.plate && d.plate !== 'None') document.getElementById('poPlate').value = d.plate;
+            if (d.car && d.car !== 'None') document.getElementById('poCar').value = d.car;
+            
+            if (d.model && d.model !== 'None') {
+                document.getElementById('poModel').value = d.model;
+            } else if (d.car && d.car !== 'None') {
+                const match = d.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+                if (match) document.getElementById('poModel').value = match[1];
+            }
+            
+            if (d.odometer || d.current_km || d.km) {
+                document.getElementById('odometer').value = d.odometer || d.current_km || d.km;
+            }
             if (d.empid && d.empid !== 'None') document.getElementById('poEmpid').value = d.empid;
             if (d.phone && d.phone !== 'None') document.getElementById('poPhone').value = d.phone;
+            if (d.job && d.job !== 'None') document.getElementById('poJob').value = d.job;
         }
 
         // Universal search: searches name, iqama, plate, phone

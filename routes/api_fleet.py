@@ -10,30 +10,66 @@ def get_drivers():
     try:
         from flask import session
         from app import current_branch_id
+        from helpers import blob_get
         
-        # If user is admin, they might want all drivers or a specific branch.
-        # If user is not admin, they only see drivers from their branch.
         is_admin = session.get("role") == "admin"
         query = Driver.query
         
-        # We can return all drivers and let the frontend filter, since the fleet dashboard expects all drivers for admin.
         if not is_admin:
             query = query.filter_by(branch_id=current_branch_id())
             
         drivers = query.all()
         result = []
         for d in drivers:
+            try:
+                custody = VehicleCustody.query.filter_by(driver_id=d.id, status='active').first()
+                v = custody.vehicle if custody and custody.vehicle else None
+            except Exception:
+                v = None
+
+            km_val = ""
+            if v:
+                km_val = getattr(v, 'current_km', None) or getattr(v, 'odometer', None) or ""
+            if not km_val and hasattr(d, 'odometer'):
+                km_val = getattr(d, 'odometer', "")
+            
             result.append({
                 "id": d.id,
-                "empid": d.employee_id,
-                "name": d.name,
-                "iqama": d.iqama_number,
-                "phone": d.phone,
-                "job": d.job_title,
+                "empid": d.employee_id or "",
+                "name": d.name or "",
+                "iqama": d.iqama_number or "",
+                "phone": d.phone or "",
+                "job": d.job_title or "",
                 "status": d.status,
-                "branch_id": d.branch_id
+                "branch_id": d.branch_id,
+                "plate": (v.plate_number if v else ""),
+                "car": (v.v_type if v else ""),
+                "model": (v.model if v else ""),
+                "odometer": km_val or ""
             })
-        return jsonify({"success": True, "data": result})
+
+        # Fallback if SQL Driver table is empty
+        if not result:
+            emp_blob = blob_get("employees") or []
+            if isinstance(emp_blob, dict) and "data" in emp_blob:
+                emp_blob = emp_blob["data"]
+            if isinstance(emp_blob, list):
+                for item in emp_blob:
+                    if isinstance(item, dict) and (item.get("name") or item.get("plate")):
+                        result.append({
+                            "id": item.get("id", len(result) + 1),
+                            "name": item.get("name", ""),
+                            "empid": item.get("empid", ""),
+                            "plate": item.get("plate", ""),
+                            "car": item.get("car", item.get("vtype", "")),
+                            "iqama": item.get("iqama", ""),
+                            "phone": item.get("phone", ""),
+                            "job": item.get("job", ""),
+                            "model": item.get("model", ""),
+                            "odometer": item.get("odometer", item.get("current_km", item.get("km", "")))
+                        })
+
+        return jsonify(result)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
