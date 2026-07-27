@@ -747,8 +747,9 @@
                 // أعد تحميل البيانات من السيرفر لتحديث الجدول
                 const r2 = await fetch('/api/washing_data');
                 const d2 = await r2.json();
-                if (d2.success && d2.vehicles && d2.vehicles.length > 0) {
-                    vehicles = d2.vehicles;
+                const vehList = Array.isArray(d2) ? d2 : (d2.vehicles || d2.data || []);
+                if (vehList.length > 0) {
+                    vehicles = vehList;
                     renderTable(document.getElementById('searchInput').value);
                     updateStats();
                 }
@@ -756,7 +757,8 @@
                 showToast('فشلت المزامنة: ' + (data.error || 'خطأ غير معروف'), 'error');
             }
         } catch (e) {
-            showToast('خطأ في الاتصال بالسيرفر', 'error');
+            console.error('fullServerSync error:', e);
+            showToast('خطأ في الاتصال بالسيرفر: ' + (e.message || 'خطأ غير معروف'), 'error');
         }
     }
 

@@ -2705,6 +2705,27 @@ def _drivers_list_for_sync():
             "opcard": sched.get("opcard", ""),
             "notes": sched.get("notes", "")
         })
+
+    # Fallback to blob_get("employees") or sched_lookup if SQL Drivers list is empty
+    if not results:
+        emp_blob = blob_get("employees") or []
+        if isinstance(emp_blob, dict) and "data" in emp_blob:
+            emp_blob = emp_blob["data"]
+        if isinstance(emp_blob, list):
+            for item in emp_blob:
+                if isinstance(item, dict) and (item.get("name") or item.get("plate")):
+                    results.append({
+                        "id": item.get("id", len(results) + 1),
+                        "name": item.get("name", ""),
+                        "empid": item.get("empid", ""),
+                        "plate": item.get("plate", ""),
+                        "car": item.get("car", item.get("vtype", "")),
+                        "iqama": item.get("iqama", ""),
+                        "phone": item.get("phone", ""),
+                        "job": item.get("job", ""),
+                        "model": item.get("model", ""),
+                        "notes": item.get("notes", "")
+                    })
     return store, results
 
 
