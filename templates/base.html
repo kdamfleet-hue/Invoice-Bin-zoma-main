@@ -1,48 +1,95 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
-
+<html lang="ar" dir="rtl" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}نظام إدارة الأسطول | شركة بن زومة{% endblock %}</title>
 
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                        borderCol: '#334155'
+                    }
+                }
+            }
+        }
+    </script>
+    
     <!-- PWA Settings -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1a1a1a">
+    <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="/static/logo_192.png">
-
+    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap">
-
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap">
+    
     <!-- Unified Theme -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css', v=1) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=36) }}">
-
+    
     <!-- Global Scripts -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    {% block extra_head %}{% endblock %}
     {% block head %}{% endblock %}
 </head>
+<body class="bg-darkBg text-gray-100 font-sans antialiased min-h-screen flex flex-col bz-shell {% block body_class %}{% endblock %}">
 
-<body class="{% block body_class %}{% endblock %}">
+    <!-- شريط التنقل العلوي -->
+    <header class="h-16 bg-cardBg border-b border-borderCol flex items-center justify-between px-6 sticky top-0 z-50 shadow-md bz-topbar">
+        <div class="flex items-center space-x-4 space-x-reverse">
+            <a href="/" class="text-xl font-bold text-blue-400 hover:text-blue-300 transition-colors">بن زومة الدولية - إدارة الأسطول</a>
+        </div>
+        <div class="bz-nav hidden md:flex items-center gap-4 text-sm font-medium text-gray-300">
+            <a href="/" class="hover:text-blue-400">🏠 الرئيسية</a>
+            <a href="/fleet_dashboard" class="hover:text-blue-400">📊 لوحة القيادة</a>
+            <a href="/yard" class="hover:text-blue-400">🅿️ الساحات</a>
+            <a href="/schedule" class="hover:text-blue-400">📋 الجدول</a>
+            <a href="/workshop" class="hover:text-blue-400">🔧 الورشة</a>
+        </div>
+        <div class="flex items-center space-x-4 space-x-reverse bz-actions">
+            <span class="text-sm text-gray-300">أهلاً بك، {{ session.get('google_user', {}).get('name') or 'أبو خالد' }}</span>
+            <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white shadow">خ</div>
+        </div>
+    </header>
 
-    <!-- Global Navbar (Can be extended or overridden) -->
-    {% block navbar %}
-    {% endblock %}
+    <!-- المحتوى الرئيسي -->
+    <div class="flex-1 flex overflow-hidden">
+        <!-- الشريط الجانبي الديناميكي -->
+        <aside class="w-64 bg-cardBg border-l border-borderCol hidden lg:flex flex-col p-4 space-y-2 overflow-y-auto bz-sidebar">
+            <a href="/" class="block px-4 py-2.5 rounded-xl bg-blue-600 text-white font-medium shadow">🏠 الرئيسية والتحليلات</a>
+            <a href="/fleet_dashboard" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">📊 لوحة القيادة</a>
+            <a href="/yard" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">🅿️ إدارة الساحات</a>
+            <a href="/workshop" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">🔧 تقارير الورشة والصيانة</a>
+            <a href="/schedule" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">📋 الجدول الأسبوعي</a>
+            <a href="/inventory/tires" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">💿 سجل الإطارات</a>
+            <a href="/inventory/batteries" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">🔋 سجل البطاريات</a>
+            <a href="/oils" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">🛢️ الزيوت والفلاتر</a>
+            <a href="/employees" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">👥 سجل الموظفين</a>
+            <a href="/documents" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">📂 أرشيف الوثائق</a>
+            <a href="/settings" class="block px-4 py-2.5 rounded-xl hover:bg-borderCol text-gray-300 transition-colors">⚙️ الإعدادات</a>
+        </aside>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
-        {% block content %}{% endblock %}
-    </main>
+        <!-- مساحة العمل -->
+        <main class="flex-1 overflow-y-auto p-6 main-content">
+            {% block navbar %}{% endblock %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
 
-    <!-- Global Footer -->
     {% block footer %}
-    <footer style="text-align: center; padding: 1.5rem; color: var(--text-muted, #94a3b8); font-size: 0.85rem;">
-        &copy; 2026 شركة بن زومة. جميع الحقوق محفوظة. | إصدار 2.0 (Alembic Edition)
+    <footer class="bg-cardBg border-t border-borderCol text-center p-4 text-xs text-gray-400">
+        &copy; 2026 شركة بن زومة. جميع الحقوق محفوظة. | نظام إدارة الأسطول الموحد
     </footer>
     {% endblock %}
 
@@ -50,10 +97,10 @@
     <script defer src="{{ url_for('static', filename='app_ux.js', v=37) }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
+            if (window.lucide) lucide.createIcons();
         });
     </script>
+    {% block extra_js %}{% endblock %}
     {% block scripts %}{% endblock %}
 </body>
-
 </html>
