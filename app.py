@@ -92,6 +92,21 @@ if _db_url:
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.abspath(DB_PATH)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 280,
+    'pool_size': 10,
+    'max_overflow': 20,
+    'pool_timeout': 30
+}
+
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    try:
+        db.session.remove()
+    except Exception:
+        pass
+
 db.init_app(app)
 from flask_migrate import Migrate
 migrate = Migrate(app, db)
