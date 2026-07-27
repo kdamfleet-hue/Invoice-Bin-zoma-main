@@ -809,21 +809,20 @@ function injectGlobalNavLinks() {
         { href: '/settings', icon: '⚙️', label: 'الإعدادات' }
     ];
 
-    // Fetch Tab Permissions & Dedicated Mode filter
-    fetch('/api/system/tab_permissions')
+    // Fetch logged-in user specific tab permissions & dedicated mode filter
+    fetch('/api/system/my_permissions')
         .then(r => r.json())
         .then(j => {
-            if (!j.success || !j.permissions) return;
-            const p = j.permissions;
-            const dedicatedMode = p.dedicated_mode || 'all';
-            const disabledSet = new Set(p.disabled_tabs || []);
+            if (!j.success) return;
+            const dedicatedMode = j.dedicated_mode || 'all';
+            const allowedTabsSet = j.allowed_tabs ? new Set(j.allowed_tabs) : null;
 
             let html = '';
             masterNav.forEach(item => {
                 if (!item || !item.href) return;
                 if (item.href !== '/settings' && item.href !== '/logout') {
                     if (dedicatedMode !== 'all' && item.href !== dedicatedMode) return;
-                    if (disabledSet.has(item.href)) return;
+                    if (allowedTabsSet && !allowedTabsSet.has(item.href)) return;
                 }
                 const activeCls = (location.pathname === item.href) ? ' class="active"' : '';
                 html += `<a href="${item.href}"${activeCls}>${item.icon} ${item.label}</a>`;
@@ -834,7 +833,7 @@ function injectGlobalNavLinks() {
             document.querySelectorAll('.bz-sidebar-nav a').forEach(a => {
                 const href = a.getAttribute('href');
                 if (href === '/settings' || href === '/logout') return;
-                if ((dedicatedMode !== 'all' && href !== dedicatedMode) || disabledSet.has(href)) {
+                if ((dedicatedMode !== 'all' && href !== dedicatedMode) || (allowedTabsSet && !allowedTabsSet.has(href))) {
                     a.style.display = 'none';
                 } else {
                     a.style.display = 'flex';

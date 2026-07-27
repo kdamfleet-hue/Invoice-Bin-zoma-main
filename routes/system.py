@@ -103,6 +103,83 @@ def api_tab_permissions():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@system_bp.route("/api/system/user_permissions", methods=["GET", "POST"])
+@login_required
+def api_user_permissions():
+    """
+    Read or update per-user account tab permissions & dedicated workstation modes.
+    """
+    if request.method == "GET":
+        all_perms = blob_get("user_account_permissions") or {}
+        return jsonify({"success": True, "user_permissions": all_perms})
+    
+    try:
+        if not session.get("settings_unlocked"):
+            return jsonify({"error": "الوصول غير مصرح (إعدادات مقفلة)"}), 403
+
+        body = request.get_json(silent=True) or {}
+        target_username = (body.get("username") or "").strip()
+        if not target_username:
+            return jsonify({"success": False, "error": "اسم المستخدم مطلوب"}), 400
+
+        dedicated_mode = body.get("dedicated_mode", "all")
+        allowed_tabs = body.get("allowed_tabs", [])
+
+        all_perms = blob_get("user_account_permissions") or {}
+        all_perms[target_username] = {
+            "dedicated_mode": dedicated_mode,
+            "allowed_tabs": allowed_tabs
+        }
+        blob_set("user_account_permissions", all_perms)
+        _audit_add("تحديث", "صلاحيات حساب مستخدم", detail=f"الحساب: {target_username} | نمط: {dedicated_mode}")
+        return jsonify({
+            "success": True,
+            "username": target_username,
+            "permissions": all_perms[target_username],
+            "message": f"تم حفظ صلاحيات الحساب ({target_username}) بنجاح"
+        })
+    except Exception as e:
+        logger.exception("user_permissions POST error: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@system_bp.route("/api/system/my_permissions", methods=["GET"])
+@login_required
+def api_my_permissions():
+    """
+    Returns current logged in user's specific permissions.
+    """
+    username = session.get("user") or session.get("username") or ""
+    is_admin = session.get("role") == "admin" or bool(session.get("settings_unlocked"))
+
+    all_perms = blob_get("user_account_permissions") or {}
+    user_perm = all_perms.get(username, {})
+
+    # Global tab permissions fallback
+    global_perms = blob_get("tab_permissions") or {}
+    
+    dedicated_mode = user_perm.get("dedicated_mode") or global_perms.get("dedicated_mode", "all")
+    allowed_tabs = user_perm.get("allowed_tabs")
+    
+    if allowed_tabs is None:
+        disabled_tabs = set(global_perms.get("disabled_tabs", []))
+        all_tabs = [
+            "/", "/fleet_dashboard", "/yard", "/schedule", "/handover", "/workshop",
+            "/oils", "/inventory/tires", "/inventory/batteries", "/fuel", "/washing",
+            "/purchase", "/spare_parts", "/finance/petty-cash", "/incidents",
+            "/tracking", "/employees", "/documents", "/records", "/settings"
+        ]
+        allowed_tabs = [t for t in all_tabs if t not in disabled_tabs]
+
+    return jsonify({
+        "success": True,
+        "username": username,
+        "is_admin": is_admin,
+        "dedicated_mode": dedicated_mode,
+        "allowed_tabs": allowed_tabs
+    })
+
+
 @system_bp.route("/api/snapshots", methods=["GET"])
 @login_required
 def api_snapshots():

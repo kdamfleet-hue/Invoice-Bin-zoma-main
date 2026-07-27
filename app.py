@@ -250,18 +250,31 @@ def enforce_dedicated_workstation_and_tab_permissions():
         
     try:
         from modules.db_utils import blob_get
-        perms = blob_get("tab_permissions") or {}
-        dedicated_mode = perms.get("dedicated_mode", "all")
-        disabled_tabs = set(perms.get("disabled_tabs", []))
+        username = session.get("user") or session.get("username") or ""
         
-        # Standard non-unlocked users: enforce single dedicated workstation mode & disabled tabs
+        # 1. Read per-user account permissions first
+        all_user_perms = blob_get("user_account_permissions") or {}
+        user_account_perms = all_user_perms.get(username, {})
+        global_perms = blob_get("tab_permissions") or {}
+        
+        dedicated_mode = user_account_perms.get("dedicated_mode") or global_perms.get("dedicated_mode", "all")
+        user_allowed_tabs = user_account_perms.get("allowed_tabs")
+        
+        # Single Dedicated Workstation Mode restriction
         if dedicated_mode and dedicated_mode != "all":
             if path != dedicated_mode and path != '/settings':
                 return redirect(dedicated_mode)
                 
-        if path in disabled_tabs and path != '/settings':
-            target = dedicated_mode if dedicated_mode != "all" else '/'
-            return redirect(target)
+        # Per-user Allowed Tabs restriction
+        if user_allowed_tabs is not None:
+            if path not in user_allowed_tabs and path != '/settings':
+                target = dedicated_mode if (dedicated_mode and dedicated_mode != "all") else (user_allowed_tabs[0] if user_allowed_tabs else '/')
+                return redirect(target)
+        else:
+            disabled_tabs = set(global_perms.get("disabled_tabs", []))
+            if path in disabled_tabs and path != '/settings':
+                target = dedicated_mode if dedicated_mode != "all" else '/'
+                return redirect(target)
     except Exception as e:
         logger.warning(f"tab_permissions enforcement notice: {e}")
     return None

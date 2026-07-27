@@ -147,6 +147,18 @@
 <h3>📌 تخصيص التبويبات والمحطة الواحدة المخصصة</h3>
 <div class="sub">حدد التبويبات المسموح بها والمغلقة، أو قُم بتقييد الواجهة على <b>صفحة واحدة مخصصة</b> فقط (مثل: طلب شراء فقط، ورشة فقط، محطة غسيل فقط...).</div>
 
+<div style="background: rgba(12, 35, 64, 0.4); border: 1px solid rgba(197,160,89,0.3); border-radius: 14px; padding: 18px; margin-bottom: 16px;">
+    <label for="targetAccountSelect" style="display: block; font-weight: 800; font-size: 0.95rem; color: var(--gold-primary, #c5a059); margin-bottom: 8px;">
+        👤 اختر الحساب المراد تخصيص صلاحياته (Select User Account)
+    </label>
+    <select id="targetAccountSelect" onchange="onAccountSelected()" style="width: 100%; padding: 12px; border-radius: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-primary); font-family: inherit; font-size: 0.95rem;">
+        <option value="__global__">🌐 الإعداد العام لجميع الحسابات (Default Global Permissions)</option>
+    </select>
+    <p style="margin: 8px 0 0 0; color: var(--text-muted); font-size: 0.8rem;">
+        💡 اختر حساباً محدداً لتحديد تبويباته المفتوحة أو تخصيص واجهته على صفحة واحدة فقط.
+    </p>
+</div>
+
 <div style="background: rgba(197,160,89,0.08); border: 1px solid rgba(197,160,89,0.25); border-radius: 14px; padding: 18px; margin-bottom: 20px;">
     <label for="dedicatedModeSelect" style="display: block; font-weight: 800; font-size: 0.95rem; color: var(--gold-primary, #c5a059); margin-bottom: 8px;">
         🎯 نمط الصفحة الواحدة المخصصة (Dedicated Single Page Mode)
@@ -439,59 +451,139 @@
 
   loadFeatures();
 
+  var userPermsCache = {};
+
+  function populateUserAccountSelect() {
+    var sel = $('targetAccountSelect');
+    if (!sel) return;
+    
+    fetch('/api/users').then(function(r) { return r.json(); }).then(function(j) {
+      var users = (j && j.users) || [];
+      users.forEach(function(u) {
+        if (u.username && !sel.querySelector('option[value="' + u.username + '"]')) {
+          var opt = document.createElement('option');
+          opt.value = u.username;
+          opt.textContent = '👤 ' + (u.name || u.username) + ' (' + u.username + ')';
+          sel.appendChild(opt);
+        }
+      });
+    }).catch(function() {});
+
+    fetch('/api/branch_accounts').then(function(r) { return r.json(); }).then(function(j) {
+      var bas = (j && j.accounts) || [];
+      bas.forEach(function(a) {
+        if (a.username && !sel.querySelector('option[value="' + a.username + '"]')) {
+          var opt = document.createElement('option');
+          opt.value = a.username;
+          opt.textContent = '🏢 فرع ' + (a.branch_name || a.username) + ' (' + a.username + ')';
+          sel.appendChild(opt);
+        }
+      });
+    }).catch(function() {});
+  }
+
   function loadTabPermissions() {
+    populateUserAccountSelect();
+    fetch('/api/system/user_permissions')
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        if (j.success) {
+          userPermsCache = j.user_permissions || {};
+        }
+        fetchGlobalTabPermissions();
+      })
+      .catch(function() { fetchGlobalTabPermissions(); });
+  }
+
+  function fetchGlobalTabPermissions() {
     fetch('/api/system/tab_permissions')
       .then(function(r) { return r.json(); })
       .then(function(j) {
         if (j.success && j.permissions) {
-          var p = j.permissions;
-          var dedicatedSelect = $('dedicatedModeSelect');
-          if (dedicatedSelect) dedicatedSelect.value = p.dedicated_mode || 'all';
-          
-          var disabledSet = {};
-          (p.disabled_tabs || []).forEach(function(href) { disabledSet[href] = true; });
-          
-          Array.prototype.forEach.call(document.querySelectorAll('.tab-toggle'), function(cb) {
-            var href = cb.getAttribute('data-href');
-            cb.checked = !disabledSet[href];
-          });
+          userPermsCache['__global__'] = {
+            dedicated_mode: j.permissions.dedicated_mode || 'all',
+            disabled_tabs: j.permissions.disabled_tabs || []
+          };
+          onAccountSelected();
         }
       })
       .catch(function(err) { console.error('Failed to load tab permissions:', err); });
   }
 
+  window.onAccountSelected = function() {
+    var account = $('targetAccountSelect').value;
+    var p = userPermsCache[account] || {};
+    var dedicatedSelect = $('dedicatedModeSelect');
+    if (dedicatedSelect) dedicatedSelect.value = p.dedicated_mode || 'all';
+
+    var allowedTabs = p.allowed_tabs;
+    var disabledSet = {};
+    if (allowedTabs) {
+      var allowedSet = {};
+      allowedTabs.forEach(function(h) { allowedSet[h] = true; });
+      Array.prototype.forEach.call(document.querySelectorAll('.tab-toggle'), function(cb) {
+        var href = cb.getAttribute('data-href');
+        cb.checked = !!allowedSet[href];
+      });
+    } else {
+      (p.disabled_tabs || []).forEach(function(href) { disabledSet[href] = true; });
+      Array.prototype.forEach.call(document.querySelectorAll('.tab-toggle'), function(cb) {
+        var href = cb.getAttribute('data-href');
+        cb.checked = !disabledSet[href];
+      });
+    }
+  };
+
   window.saveTabPermissions = function() {
     var msg = $('tabPermsMsg');
     msg.innerHTML = '<span style="color:var(--text-secondary)">جاري حفظ وتطبيق الصلاحيات...</span>';
 
+    var targetUser = $('targetAccountSelect').value;
     var dedicatedMode = $('dedicatedModeSelect').value;
+    var allowedTabs = [];
     var disabledTabs = [];
+
     Array.prototype.forEach.call(document.querySelectorAll('.tab-toggle'), function(cb) {
-      if (!cb.checked) {
-        disabledTabs.push(cb.getAttribute('data-href'));
-      }
+      var href = cb.getAttribute('data-href');
+      if (cb.checked) allowedTabs.push(href);
+      else disabledTabs.push(href);
     });
 
-    fetch('/api/system/tab_permissions', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        dedicated_mode: dedicatedMode,
-        disabled_tabs: disabledTabs
+    if (targetUser === '__global__') {
+      fetch('/api/system/tab_permissions', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ dedicated_mode: dedicatedMode, disabled_tabs: disabledTabs })
       })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(j) {
-      if (j.success) {
-        msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ وتطبيق صلاحيات التبويبات والمحطات بنجاح!</span>';
-        if (window.showToast) showToast('✓ تم تطبيق الصلاحيات بنجاح', 'success');
-      } else {
-        msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + (j.error || 'تعذر الحفظ') + '</span>';
-      }
-    })
-    .catch(function() {
-      msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذر الاتصال بالخادم.</span>';
-    });
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        if (j.success) {
+          userPermsCache['__global__'] = { dedicated_mode: dedicatedMode, disabled_tabs: disabledTabs };
+          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ التخصيص العام لجميع الحسابات بنجاح!</span>';
+          if (window.showToast) showToast('✓ تم حفظ الإعداد العام بنجاح', 'success');
+        } else {
+          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + (j.error || 'تعذر الحفظ') + '</span>';
+        }
+      })
+      .catch(function() { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذر الاتصال بالخادم.</span>'; });
+    } else {
+      fetch('/api/system/user_permissions', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ username: targetUser, dedicated_mode: dedicatedMode, allowed_tabs: allowedTabs })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        if (j.success) {
+          userPermsCache[targetUser] = { dedicated_mode: dedicatedMode, allowed_tabs: allowedTabs };
+          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ صلاحيات الحساب (' + esc(targetUser) + ') بنجاح!</span>';
+          if (window.showToast) showToast('✓ تم حفظ صلاحيات الحساب بنجاح', 'success');
+        } else {
+          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + (j.error || 'تعذر الحفظ') + '</span>';
+        }
+      })
+      .catch(function() { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذر الاتصال بالخادم.</span>'; });
+    }
   };
 
   loadTabPermissions();
