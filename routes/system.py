@@ -145,6 +145,66 @@ def api_user_permissions():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@system_bp.route("/api/system/create_dedicated_user", methods=["POST"])
+@login_required
+def api_create_dedicated_user():
+    """
+    Creates or updates a dedicated user account with specific password and restricted single-page dedicated workstation mode.
+    """
+    try:
+        if not session.get("settings_unlocked"):
+            return jsonify({"success": False, "error": "الوصول غير مصرح (إعدادات مقفلة)"}), 403
+
+        body = request.get_json(silent=True) or {}
+        username = (body.get("username") or "").strip()
+        password = body.get("password") or ""
+        dedicated_mode = body.get("dedicated_mode") or "/purchase"
+
+        if not username:
+            return jsonify({"success": False, "error": "اسم المستخدم مطلوب"}), 400
+        if not password:
+            return jsonify({"success": False, "error": "كلمة المرور مطلوبة"}), 400
+
+        from models.schema import User
+        from werkzeug.security import generate_password_hash
+        from app import db
+        from helpers import _global_blob_get, _global_blob_set
+
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            user = User(
+                username=username,
+                password_hash=generate_password_hash(password),
+                role="viewer",
+                is_active=True
+            )
+            db.session.add(user)
+        else:
+            user.password_hash = generate_password_hash(password)
+            user.is_active = True
+
+        db.session.commit()
+
+        # Set dedicated workstation mode & allowed tabs
+        all_perms = _global_blob_get("user_account_permissions") or {}
+        all_perms[username] = {
+            "dedicated_mode": dedicated_mode,
+            "allowed_tabs": [dedicated_mode] if dedicated_mode != "all" else []
+        }
+        _global_blob_set("user_account_permissions", all_perms)
+        _audit_add("إضافة/تحديث", "حساب مخصص صفحة واحدة", detail=f"المستخدم: {username} | الصفحة: {dedicated_mode}")
+
+        return jsonify({
+            "success": True,
+            "username": username,
+            "dedicated_mode": dedicated_mode,
+            "message": f"تم إنشاء وتجهيز الحساب المخصص ({username}) بنجاح وتخصيصه للصفحة ({dedicated_mode})"
+        })
+    except Exception as e:
+        logger.exception("create_dedicated_user error: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @system_bp.route("/api/system/my_permissions", methods=["GET"])
 @login_required
 def api_my_permissions():

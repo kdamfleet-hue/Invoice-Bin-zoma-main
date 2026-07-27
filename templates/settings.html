@@ -142,6 +142,53 @@
 <div class="set-card">
 <div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هو وحده من يبدّل بين كل الفروع ويرى <b>مركز الفروع</b>.</span></div>
 </div>
+<!-- ═══════════ قسم إنشاء حساب مخصص برقم سر ومحطة صفحة واحدة ═══════════ -->
+<div class="set-card" id="createDedicatedUserCard" style="border: 1px solid rgba(197,160,89,0.35); background: linear-gradient(135deg, rgba(12,35,64,0.6), rgba(15,23,42,0.8)); margin-bottom: 24px;">
+    <h3 style="color: var(--gold-primary, #c5a059); margin-top: 0; display: flex; align-items: center; gap: 8px;">
+        🔑 إنشاء حساب مخصص برقم سر ومحطة صفحة واحدة
+    </h3>
+    <div class="sub">أدخل بيانات الدخول وحدد الصفحة الحصرية المقيدة لإنشاء حساب مستقل فوراً:</div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 15px;">
+        <div>
+            <label style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px;">
+                اسم المستخدم (Username):
+            </label>
+            <input type="text" id="newDedicatedUser" placeholder="مثال: aaa أو workshop_user" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-primary); font-family: monospace; direction: ltr;">
+        </div>
+        <div>
+            <label style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px;">
+                كلمة المرور (Password):
+            </label>
+            <input type="text" id="newDedicatedPass" placeholder="مثال: 123aaa" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-primary); font-family: monospace; direction: ltr;">
+        </div>
+        <div style="grid-column: span 1 / -1;">
+            <label style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px;">
+                🎯 الصلاحية المقيدة (Dedicated Mode):
+            </label>
+            <select id="newDedicatedPage" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-primary); font-family: inherit;">
+                <option value="/purchase">🛒 طلب شراء فقط (/purchase)</option>
+                <option value="/workshop">🔧 ورشة الصيانة فقط (/workshop)</option>
+                <option value="/washing">🚿 محطة الغسيل فقط (/washing)</option>
+                <option value="/schedule">📋 الجدول الأسبوعي فقط (/schedule)</option>
+                <option value="/inventory/tires">💿 سجل الإطارات فقط (/inventory/tires)</option>
+                <option value="/inventory/batteries">🔋 سجل البطاريات فقط (/inventory/batteries)</option>
+                <option value="/oils">🛢️ الزيوت والفلاتر فقط (/oils)</option>
+                <option value="/fuel">⛽ تموين المحروقات فقط (/fuel)</option>
+                <option value="/handover">🚗 تسليم واستلام مركبة فقط (/handover)</option>
+                <option value="/finance/petty-cash">💵 العهد والمصاريف فقط (/finance/petty-cash)</option>
+            </select>
+        </div>
+    </div>
+    
+    <div style="margin-top: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <button class="btn-submit-gold" onclick="submitCreateDedicatedUser()" style="padding: 10px 20px; font-weight: 800; border-radius: 10px; font-size: 0.95rem;">
+            ➕ إنشاء الحساب المخصص الآن
+        </button>
+        <div id="createDedicatedUserMsg" style="font-weight: 700; font-size: 0.9rem;"></div>
+    </div>
+</div>
+
 <!-- ═══════════ قسم التحكم في التبويبات والمحطات المخصصة ═══════════ -->
 <div class="set-card" id="tabPermsCard">
 <h3>📌 تخصيص التبويبات والمحطة الواحدة المخصصة</h3>
@@ -587,6 +634,42 @@
   };
 
   loadTabPermissions();
+
+  window.submitCreateDedicatedUser = function() {
+    var u = ($('newDedicatedUser').value || '').trim();
+    var p = $('newDedicatedPass').value || '';
+    var mode = $('newDedicatedPage').value;
+    var msg = $('createDedicatedUserMsg');
+
+    if (!u || !p) {
+      msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">يرجى إدخال اسم المستخدم وكلمة المرور معاً.</span>';
+      return;
+    }
+
+    msg.innerHTML = '<span style="color:var(--text-secondary)">جاري إنشاء الحساب المخصص...</span>';
+
+    fetch('/api/system/create_dedicated_user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p, dedicated_mode: mode })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(j) {
+      if (j.success) {
+        msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم إنشاء وتجهيز الحساب المخصص (' + esc(u) + ') لـ (' + esc(mode) + ') بنجاح!</span>';
+        if (window.showToast) showToast('✓ تم إنشاء الحساب المخصص بنجاح', 'success');
+        $('newDedicatedUser').value = '';
+        $('newDedicatedPass').value = '';
+        loadUsers();
+        loadTabPermissions();
+      } else {
+        msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + (j.error || 'تعذر إنشاء الحساب') + '</span>';
+      }
+    })
+    .catch(function() {
+      msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذر الاتصال بالسيرفر.</span>';
+    });
+  };
 })();
 </script>
 {% endblock %}
