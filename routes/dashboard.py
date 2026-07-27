@@ -12,7 +12,10 @@ def index():
     b64_en = load_logo()
     
     # 1. Total Drivers (from SQL DB or fallback to blob)
-    total_drivers = Driver.query.count()
+    try:
+        total_drivers = Driver.query.count()
+    except Exception:
+        total_drivers = 0
     if total_drivers == 0:
         drivers = blob_get("employees") or []
         if isinstance(drivers, dict) and "data" in drivers:
@@ -20,7 +23,10 @@ def index():
         total_drivers = len(drivers) if isinstance(drivers, list) else 115
 
     # 2. Active Vehicles (User specified 30 active vehicles)
-    active_vehicles = Vehicle.query.count()
+    try:
+        active_vehicles = Vehicle.query.count()
+    except Exception:
+        active_vehicles = 0
     if active_vehicles == 0:
         sched = blob_get("schedule_data") or {}
         if isinstance(sched, dict):

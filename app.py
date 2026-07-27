@@ -120,6 +120,36 @@ app.secret_key = _secret
 
 init_db(app)
 
+def ensure_db_columns():
+    try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        with db.engine.begin() as conn:
+            if 'erp_vehicles' in tables:
+                cols = [c['name'] for c in inspector.get_columns('erp_vehicles')]
+                if 'yard_status' not in cols:
+                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_status VARCHAR(50) DEFAULT 'خارج الساحة'"))
+                    logger.info("Auto-migration: Added yard_status to erp_vehicles")
+                if 'yard_condition' not in cols:
+                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_condition VARCHAR(50)"))
+                    logger.info("Auto-migration: Added yard_condition to erp_vehicles")
+                if 'branch_id' not in cols:
+                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN branch_id INTEGER DEFAULT 1"))
+                    logger.info("Auto-migration: Added branch_id to erp_vehicles")
+            if 'erp_drivers' in tables:
+                cols = [c['name'] for c in inspector.get_columns('erp_drivers')]
+                if 'status' not in cols:
+                    conn.execute(text("ALTER TABLE erp_drivers ADD COLUMN status VARCHAR(50) DEFAULT 'متاح'"))
+                    logger.info("Auto-migration: Added status to erp_drivers")
+            if 'erp_audit_logs' in tables:
+                cols = [c['name'] for c in inspector.get_columns('erp_audit_logs')]
+                if 'reason' not in cols:
+                    conn.execute(text("ALTER TABLE erp_audit_logs ADD COLUMN reason TEXT"))
+                    logger.info("Auto-migration: Added reason to erp_audit_logs")
+    except Exception as e:
+        logger.warning(f"ensure_db_columns notice: {e}")
+
 def init_db_on_startup():
     from flask_migrate import upgrade
     with app.app_context():
@@ -134,6 +164,12 @@ def init_db_on_startup():
         except Exception as e:
             logger.error(f"❌ Error migrating database (Alembic): {e}")
             
+        try:
+            ensure_db_columns()
+            logger.info("✅ Column verification completed.")
+        except Exception as e:
+            logger.error(f"❌ Error verifying columns: {e}")
+
         try:
             # Auto-seed admin and initial data to prevent empty database login issues
             import seed_admin
