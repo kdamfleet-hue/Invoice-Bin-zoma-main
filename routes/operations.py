@@ -161,25 +161,59 @@ def workshop_data():
 @operations_bp.route("/api/update_km", methods=["POST"])
 @login_required
 def update_km():
-    """Universal endpoint to securely update a vehicle's odometer by plate."""
+    """Universal endpoint to securely update a vehicle's odometer by plate in JSON blobs."""
     try:
         data = request.json or {}
         plate = str(data.get("plate", "")).strip()
         km_val = str(data.get("km", "")).strip()
-        if plate and km_val:
-            km_int = int("".join(filter(str.isdigit, km_val)))
-            from models.schema import db, Vehicle
-            vehicle = Vehicle.query.filter_by(plate_number=plate).first()
-            if vehicle and (vehicle.current_km is None or km_int > vehicle.current_km):
-                vehicle.current_km = km_int
-                vehicle.odometer = km_int
-                db.session.commit()
-                logger.info(f"✅ Odometer updated for {plate}: {km_int}")
-                return jsonify({"success": True})
+        if not plate or not km_val:
+            return jsonify({"success": False})
+
+        km_int = int("".join(filter(str.isdigit, km_val)))
+        updated = False
+        
+        # 1. Update employees blob (main source of truth for fleet)
+        employees_blob = blob_get("employees")
+        if employees_blob and isinstance(employees_blob, dict) and isinstance(employees_blob.get("data"), list):
+            for row in employees_blob["data"]:
+                if isinstance(row, dict) and str(row.get("plate", "")).strip() == plate:
+                    old_km = str(row.get("odometer", row.get("km", row.get("current_km", ""))))
+                    try:
+                        old_km_int = int("".join(filter(str.isdigit, old_km))) if old_km.strip() else 0
+                    except ValueError:
+                        old_km_int = 0
+                    if km_int > old_km_int:
+                        row["odometer"] = km_int
+                        row["current_km"] = km_int
+                        row["km"] = km_int
+                        updated = True
+            if updated:
+                blob_set("employees", employees_blob)
+                
+        # 2. Update schedule_data blob (secondary source of truth)
+        schedule_blob = blob_get("schedule_data")
+        sch_updated = False
+        if schedule_blob and isinstance(schedule_blob, dict) and isinstance(schedule_blob.get("rows"), list):
+            for row in schedule_blob["rows"]:
+                if isinstance(row, dict) and str(row.get("plate", "")).strip() == plate:
+                    old_km = str(row.get("odometer", row.get("km", "")))
+                    try:
+                        old_km_int = int("".join(filter(str.isdigit, old_km))) if old_km.strip() else 0
+                    except ValueError:
+                        old_km_int = 0
+                    if km_int > old_km_int:
+                        row["odometer"] = km_int
+                        row["km"] = km_int
+                        sch_updated = True
+            if sch_updated:
+                blob_set("schedule_data", schedule_blob)
+                updated = True
+
+        if updated:
+            logger.info(f"✅ Odometer updated for {plate}: {km_int}")
+            return jsonify({"success": True})
     except ValueError:
         pass
     except Exception as e:
-        logger.error(f"Failed to update KM: {e}")
-        from models.schema import db
-        db.session.rollback()
+        logger.error(f"Failed to update KM in blobs: {e}")
     return jsonify({"success": False})
