@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bin-zomah-v1';
+const CACHE_NAME = 'bin-zomah-v2';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -11,6 +11,9 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', (e) => {
+  // Force the waiting service worker to become the active service worker
+  self.skipWaiting();
+  
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(urlsToCache);
@@ -18,29 +21,45 @@ self.addEventListener('install', (e) => {
   );
 });
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then(response => {
-      // Return cached response if found, else fetch from network
-      return response || fetch(e.request);
-    }).catch(() => {
-        // Fallback for offline mode if needed
-    })
+self.addEventListener('activate', (e) => {
+  // Take control of all pages immediately
+  e.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName); // Delete all old caches
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
   );
 });
 
-// Activate event to clean up old caches
-self.addEventListener('activate', (e) => {
-    const cacheWhitelist = [CACHE_NAME];
-    e.waitUntil(
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    if (cacheWhitelist.indexOf(cacheName) === -1) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
-    );
+self.addEventListener('fetch', (e) => {
+  // Skip cross-origin requests
+  if (!e.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // Network-first strategy: Always fetch latest from server, fallback to cache if offline
+  e.respondWith(
+    fetch(e.request).then(response => {
+      // Check if valid response
+      if (!response || response.status !== 200 || response.type !== 'basic') {
+          return response;
+      }
+      
+      // Update cache with the latest version
+      const responseToCache = response.clone();
+      caches.open(CACHE_NAME).then(cache => {
+        cache.put(e.request, responseToCache);
+      });
+      
+      return response;
+    }).catch(() => {
+      // Network failed (offline), try to serve from cache
+      return caches.match(e.request);
+    })
+  );
 });
