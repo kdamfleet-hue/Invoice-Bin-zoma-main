@@ -209,6 +209,18 @@ def update_km():
                 blob_set("schedule_data", schedule_blob)
                 updated = True
 
+        # 3. Update SQL Vehicle model if present
+        try:
+            from models.schema import db, Vehicle
+            v = Vehicle.query.filter_by(plate_number=plate).first()
+            if v and (v.current_km is None or km_int > v.current_km):
+                v.current_km = km_int
+                v.odometer = km_int
+                db.session.commit()
+                updated = True
+        except Exception as e:
+            logger.warning(f"SQL Vehicle update warning: {e}")
+
         if updated:
             logger.info(f"✅ Odometer updated for {plate}: {km_int}")
             return jsonify({"success": True})

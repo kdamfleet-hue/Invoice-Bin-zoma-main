@@ -1,4 +1,4 @@
-﻿from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 db = SQLAlchemy()
@@ -57,6 +57,8 @@ class Vehicle(db.Model):
     gps_device_id = db.Column(db.String(100), nullable=True)
     yard_status = db.Column(db.String(50), default='خارج الساحة')
     yard_condition = db.Column(db.String(50), nullable=True)
+    current_km = db.Column(db.Integer, nullable=True, default=0)
+    odometer = db.Column(db.Integer, nullable=True, default=0)
     
     custodies = db.relationship('VehicleCustody', backref='vehicle', lazy=True)
     incidents = db.relationship('Incident', backref='vehicle', lazy=True)
