@@ -233,7 +233,7 @@ Top Navigation Bar
 </div>
 <div class="meta-item" style="grid-column: 1 / -1;">
 <label>العداد (K/m)</label>
-<input id="carKm" placeholder="150,000" style="max-width:240px;" type="text"/>
+<input id="carKm" onchange="if(typeof syncKm === 'function') syncKm()" placeholder="150,000" style="max-width:240px;" type="text"/>
 </div>
 </div>
 <div class="table-wrapper">
@@ -456,6 +456,19 @@ Top Navigation Bar
             return;
         }
         localStorage.setItem(LS_KEY, JSON.stringify(data));
+    }
+
+    // Universal background sync for odometer
+    async function syncKm() {
+        const plate = document.getElementById('carPlate')?.value;
+        const km = document.getElementById('carKm')?.value;
+        if (plate && km) {
+            fetch('/api/update_km', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plate, km })
+            }).catch(() => {});
+        }
     }
 
     async function loadData() {

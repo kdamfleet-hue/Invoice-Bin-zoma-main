@@ -147,31 +147,7 @@ def _sync_purchase_inventory(body):
 def workshop_data():
     if request.method == "POST":
         try:
-            data = request.json or {}
-            blob_set("workshop_data", data)
-            
-            # Automatically update the vehicle's odometer if plate and km are provided
-            plate = str(data.get("plate", "")).strip()
-            km_val = str(data.get("km", "")).strip()
-            
-            if plate and km_val:
-                try:
-                    km_int = int("".join(filter(str.isdigit, km_val)))
-                    from models.schema import db, Vehicle
-                    vehicle = Vehicle.query.filter_by(plate_number=plate).first()
-                    if vehicle:
-                        # Update if the new value is larger, or if there's no previous value
-                        if vehicle.current_km is None or km_int > vehicle.current_km:
-                            vehicle.current_km = km_int
-                            vehicle.odometer = km_int
-                            db.session.commit()
-                            logger.info(f"✅ Updated KM for vehicle {plate} to {km_int} from Workshop form")
-                except ValueError:
-                    pass # Ignore if km_val has no digits
-                except Exception as e:
-                    logger.error(f"Failed to update vehicle km from workshop: {e}")
-                    db.session.rollback()
-
+            blob_set("workshop_data", request.json or {})
             return jsonify({"success": True})
         except Exception:
             logger.exception("workshop_data POST error")
@@ -181,3 +157,29 @@ def workshop_data():
     except Exception:
         logger.exception("workshop_data GET error")
         return jsonify({"success": False, "data": None})
+
+@operations_bp.route("/api/update_km", methods=["POST"])
+@login_required
+def update_km():
+    """Universal endpoint to securely update a vehicle's odometer by plate."""
+    try:
+        data = request.json or {}
+        plate = str(data.get("plate", "")).strip()
+        km_val = str(data.get("km", "")).strip()
+        if plate and km_val:
+            km_int = int("".join(filter(str.isdigit, km_val)))
+            from models.schema import db, Vehicle
+            vehicle = Vehicle.query.filter_by(plate_number=plate).first()
+            if vehicle and (vehicle.current_km is None or km_int > vehicle.current_km):
+                vehicle.current_km = km_int
+                vehicle.odometer = km_int
+                db.session.commit()
+                logger.info(f"✅ Odometer updated for {plate}: {km_int}")
+                return jsonify({"success": True})
+    except ValueError:
+        pass
+    except Exception as e:
+        logger.error(f"Failed to update KM: {e}")
+        from models.schema import db
+        db.session.rollback()
+    return jsonify({"success": False})
