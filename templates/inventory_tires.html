@@ -137,7 +137,7 @@
             </div>
             <div>
                 <label style="display:block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.88rem;">المركبة المرتبطة</label>
-                <select id="vehicle_id" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                <select id="vehicle_id" class="bz-select2" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
                     <option value="">-- بالمستودع --</option>
                     {% for v in vehicles %}
                     <option value="{{ v.id }}">{{ v.plate_number }} ({{ v.model or 'عام' }})</option>
@@ -205,6 +205,7 @@ function openAddModal() {
     document.getElementById('modalTitle').innerText = 'تسجيل إطار جديد';
     document.getElementById('tire_id').value = '';
     document.getElementById('addForm').reset();
+    if (typeof jQuery !== 'undefined') { $('#vehicle_id').trigger('change.select2'); }
     document.getElementById('addModal').style.display = 'block';
 }
 
@@ -213,6 +214,7 @@ function openEditModal(id, serial, vehicleId, brand, size, status, installDate, 
     document.getElementById('tire_id').value = id;
     document.getElementById('serial').value = serial;
     document.getElementById('vehicle_id').value = vehicleId;
+    if (typeof jQuery !== 'undefined') { $('#vehicle_id').trigger('change.select2'); }
     document.getElementById('brand').value = brand;
     document.getElementById('size').value = size;
     document.getElementById('status').value = status;

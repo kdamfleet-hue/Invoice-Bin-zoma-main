@@ -3365,3 +3365,36 @@ window.hideVehicleProfile = function() {
         modal.style.pointerEvents = 'none';
     }
 };
+
+// Initialize Select2 Comboboxes globally for elements with .bz-select2
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.jQuery && $.fn.select2) {
+        $('.bz-select2').select2({
+            dir: "rtl",
+            width: '100%',
+            placeholder: "ابحث أو اختر...",
+            allowClear: true,
+            tags: true
+        });
+        
+        // Re-initialize when DOM changes (e.g. modals opening)
+        const observer = new MutationObserver(function(mutations) {
+            let shouldInit = false;
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes.length > 0) {
+                    shouldInit = true;
+                }
+            });
+            if (shouldInit) {
+                $('.bz-select2:not(.select2-hidden-accessible)').select2({
+                    dir: "rtl",
+                    width: '100%',
+                    placeholder: "ابحث أو اختر...",
+                    allowClear: true,
+                    tags: true
+                });
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+});

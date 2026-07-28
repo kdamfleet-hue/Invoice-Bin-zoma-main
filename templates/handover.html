@@ -70,20 +70,25 @@
 </div>
 <div class="ho-sec">
 <div class="ho-sec-title">بيانات المركبة الأساسية</div>
-<div class="ho-grp"><label for="ho-plate">رقم تسجيل المركبة / رقم اللوحة</label><input id="ho-plate" list="hoPlatesList" onchange="hoAutofill()" placeholder="أدخل أو اختر رقم اللوحة..." required="" type="text"/></div>
+<div class="ho-grp">
+  <label for="ho-plate">رقم تسجيل المركبة / رقم اللوحة</label>
+  <select id="ho-plate" class="bz-select2" onchange="hoAutofill()" required="">
+    <option value="">أدخل أو اختر رقم اللوحة...</option>
+  </select>
+</div>
 <div class="ho-grp"><label for="ho-date">تاريخ ووقت التسليم</label><input id="ho-date" required="" type="date"/></div>
 </div>
 <div class="ho-sec">
 <div class="ho-sec-title">من السائق (الطرف المسلِّم)</div>
 <div class="ho-row">
-<div class="ho-grp"><label for="ho-from-first">الاسم الأول / بالكامل</label><input id="ho-from-first" list="hoDriversList" onchange="hoAutofill()" placeholder="الاسم الأول أو الكامل" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-from-first">الاسم الأول / بالكامل</label><select id="ho-from-first" class="bz-select2" onchange="hoAutofill()" required=""><option value="">اختر أو أدخل الاسم...</option></select></div>
 <div class="ho-grp"><label for="ho-from-last">الاسم الأخير / العائلة</label><input id="ho-from-last" placeholder="الاسم الأخير" type="text"/></div>
 </div>
 </div>
 <div class="ho-sec">
 <div class="ho-sec-title">إلى السائق (الطرف المستلِم)</div>
 <div class="ho-row">
-<div class="ho-grp"><label for="ho-to-first">الاسم الأول / بالكامل</label><input id="ho-to-first" list="hoDriversList" placeholder="الاسم الأول أو الكامل" required="" type="text"/></div>
+<div class="ho-grp"><label for="ho-to-first">الاسم الأول / بالكامل</label><select id="ho-to-first" class="bz-select2" required=""><option value="">اختر أو أدخل الاسم...</option></select></div>
 <div class="ho-grp"><label for="ho-to-last">الاسم الأخير / العائلة</label><input id="ho-to-last" placeholder="الاسم الأخير" type="text"/></div>
 </div>
 </div>
@@ -206,16 +211,29 @@
       .then(function(r) { return r.json(); })
       .then(function(json) {
         driversData = Array.isArray(json) ? json : (json.data || []);
-        var pl = document.getElementById('hoPlatesList');
-        var dl = document.getElementById('hoDriversList');
-        if (pl) pl.innerHTML = '';
-        if (dl) dl.innerHTML = '';
+        var pl = document.getElementById('ho-plate');
+        var fromFirst = document.getElementById('ho-from-first');
+        var toFirst = document.getElementById('ho-to-first');
+        if (pl) pl.innerHTML = '<option value="">أدخل أو اختر رقم اللوحة...</option>';
+        if (fromFirst) fromFirst.innerHTML = '<option value="">اختر أو أدخل الاسم...</option>';
+        if (toFirst) toFirst.innerHTML = '<option value="">اختر أو أدخل الاسم...</option>';
+        var seenNames = {};
         driversData.forEach(function(d) {
           if (d.plate && d.plate !== 'None' && pl) {
-            var o = document.createElement('option'); o.value = d.plate; pl.appendChild(o);
+            var o = document.createElement('option');
+            o.value = d.plate; o.textContent = d.plate;
+            pl.appendChild(o);
           }
-          if (d.name && dl) {
-            var o2 = document.createElement('option'); o2.value = d.name; dl.appendChild(o2);
+          if (d.name && d.name !== 'None' && !seenNames[d.name]) {
+            seenNames[d.name] = true;
+            if (fromFirst) {
+                var o2 = document.createElement('option'); o2.value = d.name; o2.textContent = d.name;
+                fromFirst.appendChild(o2);
+            }
+            if (toFirst) {
+                var o3 = document.createElement('option'); o3.value = d.name; o3.textContent = d.name;
+                toFirst.appendChild(o3);
+            }
           }
         });
       })
@@ -236,10 +254,14 @@
     }
 
     if (d) {
-      if (d.plate && d.plate !== 'None' && plateEl) plateEl.value = d.plate;
-      if (d.name) {
+      if (d.plate && d.plate !== 'None' && plateEl && plateEl.value !== d.plate) {
+        plateEl.value = d.plate;
+        if (typeof jQuery !== 'undefined') { $(plateEl).trigger('change.select2'); }
+      }
+      if (d.name && driverEl && driverEl.value !== d.name) {
+        driverEl.value = d.name;
+        if (typeof jQuery !== 'undefined') { $(driverEl).trigger('change.select2'); }
         var parts = d.name.split(' ');
-        if (driverEl) driverEl.value = parts[0] || d.name;
         var lastEl = document.getElementById('ho-from-last');
         if (lastEl && parts.length > 1) lastEl.value = parts.slice(1).join(' ');
       }

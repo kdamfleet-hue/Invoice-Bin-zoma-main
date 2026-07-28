@@ -147,16 +147,25 @@
         if (window.FleetData) {
             FleetData.fillDatalist('fuelDriversList').catch(() => {});
             FleetData.load().then(() => {
-                const seen = new Set();
-                const pl = document.getElementById('fuelPlatesList');
-                if (pl) {
-                    pl.innerHTML = FleetData.records().map(d => {
-                        const p = (d.plate || '').trim();
-                        if (!p || p === 'None' || seen.has(p)) return '';
-                        seen.add(p);
-                        return '<option value="' + escapeHtml(p) + '"></option>';
-                    }).join('');
-                }
+                const seenP = new Set();
+                let htmlP = '<option value="">اختر لوحة...</option>';
+                const seenD = new Set();
+                let htmlD = '<option value="">اختر أو أدخل الاسم...</option>';
+                FleetData.records().forEach(d => {
+                    const p = (d.plate || '').trim();
+                    if (p && p !== 'None' && !seenP.has(p)) {
+                        seenP.add(p);
+                        htmlP += '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>';
+                    }
+                    const n = (d.name || '').trim();
+                    if (n && n !== 'None' && !seenD.has(n)) {
+                        seenD.add(n);
+                        htmlD += '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+                    }
+                });
+                window.cachedPlateOptions = htmlP;
+                window.cachedDriverOptions = htmlD;
+                renderFuelTable();
             });
         }
         fetch('/api/fuel_data')
@@ -221,11 +230,31 @@
             if (q && !(e.plate || '').toLowerCase().includes(q) && !(e.driver || '').toLowerCase().includes(q)) return;
             const dist = computeDistance(e);
             const cons = computeConsumption(e);
+            let pSelect = `<select class="bz-select2" style="min-width: 120px;" onchange="updateFuelField(${idx},'plate',this.value)">`;
+            let pOpts = window.cachedPlateOptions || '<option value="">اختر لوحة...</option>';
+            if (e.plate && !pOpts.includes(`value="${escapeHtml(e.plate)}"`)) {
+                pOpts += `<option value="${escapeHtml(e.plate)}">${escapeHtml(e.plate)}</option>`;
+            }
+            if (e.plate) {
+                pOpts = pOpts.replace(`value="${escapeHtml(e.plate)}"`, `value="${escapeHtml(e.plate)}" selected`);
+            }
+            pSelect += pOpts + `</select>`;
+
+            let dSelect = `<select class="bz-select2 driver-edit-input" style="min-width: 150px;" onchange="updateFuelField(${idx},'driver',this.value)">`;
+            let dOpts = window.cachedDriverOptions || '<option value="">اختر أو أدخل الاسم...</option>';
+            if (e.driver && !dOpts.includes(`value="${escapeHtml(e.driver)}"`)) {
+                dOpts += `<option value="${escapeHtml(e.driver)}">${escapeHtml(e.driver)}</option>`;
+            }
+            if (e.driver) {
+                dOpts = dOpts.replace(`value="${escapeHtml(e.driver)}"`, `value="${escapeHtml(e.driver)}" selected`);
+            }
+            dSelect += dOpts + `</select>`;
+
             html += `<tr>
                 <td>${idx + 1}</td>
                 <td><input type="date" value="${escapeHtml(e.date || '')}" onchange="updateFuelField(${idx},'date',this.value)"></td>
-                <td class="cell-plate"><input type="text" list="fuelPlatesList" value="${escapeHtml(e.plate || '')}" onchange="updateFuelField(${idx},'plate',this.value)"></td>
-                <td><input type="text" list="fuelDriversList" value="${escapeHtml(e.driver || '')}" onchange="updateFuelField(${idx},'driver',this.value)"></td>
+                <td class="cell-plate">${pSelect}</td>
+                <td>${dSelect}</td>
                 <td><input type="text" value="${escapeHtml(e.vtype || '')}" onchange="updateFuelField(${idx},'vtype',this.value)"></td>
                 <td><input type="number" step="1" value="${escapeHtml(e.prevOdo || '')}" onchange="updateFuelField(${idx},'prevOdo',this.value)"></td>
                 <td><input type="number" step="1" value="${escapeHtml(e.curOdo || '')}" onchange="updateFuelField(${idx},'curOdo',this.value)"></td>

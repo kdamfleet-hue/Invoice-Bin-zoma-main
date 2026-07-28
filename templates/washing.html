@@ -251,6 +251,27 @@
         // Populate the driver datalist + load fleet records for plate-based autofill
         if (window.FleetData) {
             FleetData.fillDatalist('driversList').catch(err => console.error('FleetData datalist', err));
+            FleetData.load().then(() => {
+                const seenP = new Set();
+                let htmlP = '<option value="">اختر لوحة...</option>';
+                const seenD = new Set();
+                let htmlD = '<option value="">اختر أو أدخل الاسم...</option>';
+                FleetData.records().forEach(d => {
+                    const p = (d.plate || '').trim();
+                    if (p && p !== 'None' && !seenP.has(p)) {
+                        seenP.add(p);
+                        htmlP += '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>';
+                    }
+                    const n = (d.name || '').trim();
+                    if (n && n !== 'None' && !seenD.has(n)) {
+                        seenD.add(n);
+                        htmlD += '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+                    }
+                });
+                window.cachedPlateOptions = htmlP;
+                window.cachedDriverOptions = htmlD;
+                renderTable();
+            });
         }
         // Fetch from server first, fallback to local or default
         fetch('/api/washing_data')
@@ -386,11 +407,31 @@
 
             const total = getTotal(v);
             const driver = v.driver || '';
+            let pSelect = `<select class="bz-select2 plate-edit-input" style="min-width: 120px;" onchange="updateVehicleField(${idx},'plate',this.value)">`;
+            let pOpts = window.cachedPlateOptions || '<option value="">اختر لوحة...</option>';
+            if (v.plate && !pOpts.includes(`value="${escapeHtml(v.plate)}"`)) {
+                pOpts += `<option value="${escapeHtml(v.plate)}">${escapeHtml(v.plate)}</option>`;
+            }
+            if (v.plate) {
+                pOpts = pOpts.replace(`value="${escapeHtml(v.plate)}"`, `value="${escapeHtml(v.plate)}" selected`);
+            }
+            pSelect += pOpts + `</select>`;
+
+            let dSelect = `<select class="bz-select2 driver-edit-input" style="min-width: 150px;" onchange="updateVehicleField(${idx},'driver',this.value)">`;
+            let dOpts = window.cachedDriverOptions || '<option value="">اختر أو أدخل الاسم...</option>';
+            if (driver && !dOpts.includes(`value="${escapeHtml(driver)}"`)) {
+                dOpts += `<option value="${escapeHtml(driver)}">${escapeHtml(driver)}</option>`;
+            }
+            if (driver) {
+                dOpts = dOpts.replace(`value="${escapeHtml(driver)}"`, `value="${escapeHtml(driver)}" selected`);
+            }
+            dSelect += dOpts + `</select>`;
+
             let html = `<tr>
                 <td>${escapeHtml(v.id)}</td>
-                <td class="cell-plate"><input type="text" class="plate-edit-input" value="${escapeHtml(v.plate)}" onchange="updateVehicleField(${idx},'plate',this.value)" title="${escapeHtml(v.plate)}"></td>
+                <td class="cell-plate">${pSelect}</td>
                 <td class="cell-type"><input type="text" class="type-edit-input" value="${escapeHtml(v.type || '')}" onchange="updateVehicleField(${idx},'type',this.value)" title="${escapeHtml(v.type || '')}"></td>
-                <td class="cell-driver"><input type="text" class="driver-edit-input" list="driversList" value="${escapeHtml(driver)}" onchange="autofillWashingDriver(this, ${idx})" title="${escapeHtml(driver)}"></td>
+                <td class="cell-driver">${dSelect}</td>
                 <td><button class="wash-row-del" onclick="deleteWashRow(${idx})" title="حذف هذه المركبة">✕</button></td>`;
 
             for (let mi = 0; mi < 12; mi++) {
