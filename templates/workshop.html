@@ -217,11 +217,11 @@ Top Navigation Bar
 </div>
 <div class="meta-item">
 <label>اسم السائق</label>
-<input id="driverName" list="driverNames" placeholder="اختر السائق" type="text"/>
+<input id="driverName" list="driverNames" oninput="wsAutofill()" onchange="wsAutofill()" placeholder="اختر السائق" type="text"/>
 </div>
 <div class="meta-item">
 <label>رقم اللوحة (P:NO)</label>
-<input id="carPlate" list="plateList" placeholder="أ د ج 1234" type="text"/>
+<input id="carPlate" list="plateList" oninput="wsAutofill()" onchange="wsAutofill()" placeholder="أ د ج 1234" type="text"/>
 </div>
 <div class="meta-item">
 <label>نوع السيارة (V/NAME)</label>
@@ -344,43 +344,77 @@ Top Navigation Bar
         }
     }
 
-    // Populate plate datalist from /api/drivers (live backend data)
+    // Populate datalists from /api/drivers (live backend data)
     async function fetchDrivers() {
         try {
             const res = await fetch('/api/drivers');
             if (!res.ok) return;
             const data = await res.json();
-            driversData = Array.isArray(data) ? data : [];
+            driversData = Array.isArray(data) ? data : (data.data || []);
+            
             const pl = document.getElementById('plateList');
-            if (!pl) return;
-            pl.innerHTML = driversData
-                .filter(d => d.plate && d.plate !== 'None')
-                .map(d => `<option value="${escapeHtml(d.plate)}"></option>`)
-                .join('');
-        } catch (e) { /* offline / no backend — autofill still works via FleetData */ }
+            const dl = document.getElementById('driverNames');
+            
+            if (pl) {
+                pl.innerHTML = driversData
+                    .filter(d => d.plate && d.plate !== 'None')
+                    .map(d => `<option value="${escapeHtml(d.plate)}"></option>`)
+                    .join('');
+            }
+            if (dl) {
+                dl.innerHTML = driversData
+                    .filter(d => d.name && d.name !== 'None')
+                    .map(d => `<option value="${escapeHtml(d.name)}"></option>`)
+                    .join('');
+            }
+        } catch (e) { /* offline / no backend */ }
     }
 
-    // Fill car fields from a fleet/driver record (whatever fields are present)
+    // Bidirectional auto-fill for Workshop
+    function wsAutofill() {
+        const driverVal = (document.getElementById('driverName')?.value || '').trim();
+        const plateVal = (document.getElementById('carPlate')?.value || '').trim();
+        
+        let d = null;
+        
+        // Priority 1: Match by plate number
+        if (plateVal) {
+            d = driversData.find(x => String(x.plate || '').trim() === plateVal);
+            if (!d) d = driversData.find(x => String(x.plate || '').trim().includes(plateVal) || plateVal.includes(String(x.plate || '').trim()));
+        }
+        
+        // Priority 2: Match by driver name
+        if (!d && driverVal) {
+            d = driversData.find(x => String(x.name || '').trim() === driverVal);
+            if (!d) d = driversData.find(x => String(x.name || '').trim().includes(driverVal) || driverVal.includes(String(x.name || '').trim()));
+        }
+        
+        if (d) applyVehicle(d);
+    }
+
+    // Fill car fields from a fleet/driver record
     function applyVehicle(rec) {
         if (!rec) return;
         const set = (id, val) => {
             const el = document.getElementById(id);
-            if (el && val && val !== 'None') el.value = val;
+            if (el && val && val !== 'None' && val !== 'undefined') el.value = val;
         };
+        
+        set('driverName', rec.name);
         set('carType', rec.car);
         set('carPlate', rec.plate);
-    }
-
-    // Plate -> resolve vehicle via FleetData first, then /api/drivers fallback
-    function autofillCarByPlate() {
-        const p = document.getElementById('carPlate').value;
-        if (!p) return;
-        let rec = (window.FleetData && FleetData.byPlate) ? FleetData.byPlate(p) : null;
-        if (!rec) {
-            const norm = window.normalizePlate ? normalizePlate(p) : p;
-            rec = driversData.find(x => (window.normalizePlate ? normalizePlate(x.plate) : x.plate) === norm);
+        
+        // Model
+        if (rec.model && rec.model !== 'None') {
+            set('carModel', rec.model);
+        } else if (rec.car && rec.car !== 'None') {
+            const match = rec.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
+            if (match) set('carModel', match[1]);
         }
-        applyVehicle(rec);
+        
+        // Odometer
+        const kmVal = rec.odometer || rec.current_km || rec.km;
+        if (kmVal) set('carKm', kmVal);
     }
 
     function renderTable() {
