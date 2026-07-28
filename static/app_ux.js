@@ -1709,6 +1709,7 @@ window.escapeHtml = function (value) {
 window.normalizePlate = function (plate) {
     if (plate == null) return '';
     let p = String(plate);
+    p = p.replace(/رقم اللوحة/g, '').replace(/P:NO/ig, '').replace(/[\(\):_.\-]/g, '');
     const ar = '٠١٢٣٤٥٦٧٨٩', en = '0123456789';
     for (let i = 0; i < ar.length; i++) p = p.split(ar[i]).join(en[i]);
     p = p.replace(/\s+/g, '');
@@ -1808,8 +1809,13 @@ window.FleetData = (function () {
         }
         const fields = opts.fields || {};
         function apply() {
-            const rec = byName(nameEl.value);
+            let val = nameEl.value;
+            if (!val) return;
+            val = val.replace(/رقم اللوحة/g, '').replace(/P:NO/ig, '').replace(/[\(\):]/g, '').trim();
+            
+            const rec = byName(val) || byPlate(val) || byIqama(val) || byEmpid(val);
             if (!rec) return;
+            
             ['iqama', 'empid', 'plate', 'car', 'phone'].forEach(function (key) {
                 if (!fields[key]) return;
                 const t = typeof fields[key] === 'string'

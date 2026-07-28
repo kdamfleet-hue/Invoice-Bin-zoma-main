@@ -1,4 +1,4 @@
-﻿import re
+import re
 import json
 import io
 import base64
@@ -245,34 +245,68 @@ def update_driver(driver_id):
 
 @login_required
 def api_fleet_data():
-    from models.schema import Driver, VehicleCustody
+    from models.schema import Driver, Vehicle, VehicleCustody
     fleet = []
     try:
-        drivers = Driver.query.all()
-        for d in drivers:
-            custody = VehicleCustody.query.filter_by(driver_id=d.id, status='active').first()
-            v = custody.vehicle if custody and custody.vehicle else None
+        vehicles = Vehicle.query.all()
+        for v in vehicles:
+            custody = VehicleCustody.query.filter_by(vehicle_id=v.id, status='active').first()
+            d = custody.driver if custody and custody.driver else None
+            
+            driver_name = ""
+            if d:
+                driver_name = d.name or ""
+            else:
+                if v.yard_status in ['معطل', 'معطلة', 'صيانة']:
+                    driver_name = "معطلة"
+                else:
+                    driver_name = "اسبير"
 
             fleet.append({
-                "id": d.id,
-                "name": d.name or "",
-                "empid": d.employee_id or "",
-                "iqama": d.iqama_number or "",
-                "plate": v.plate_number if v else "",
-                "car": v.v_type if v else "",
-                "phone": d.phone or "",
+                "id": d.id if d else f"v_{v.id}",
+                "name": driver_name,
+                "empid": d.employee_id if d else "",
+                "iqama": d.iqama_number if d else "",
+                "plate": v.plate_number or "",
+                "car": v.v_type or "",
+                "phone": d.phone if d else "",
                 "drivercard": "",
-                "job": d.job_title or "",
+                "job": d.job_title if d else "",
                 "empNotes": "",
-                "model": v.model if v else "",
+                "model": v.model or "",
                 "pallets": "",
                 "load": "",
-                "vserial": "",
+                "vserial": v.serial_number or "",
                 "inspect": "",
                 "license": "",
                 "opcard": "",
-                "notes": ""
+                "notes": v.yard_condition or ""
             })
+            
+        drivers = Driver.query.all()
+        assigned_driver_ids = [f["id"] for f in fleet if isinstance(f["id"], int)]
+        for d in drivers:
+            if d.id not in assigned_driver_ids:
+                fleet.append({
+                    "id": d.id,
+                    "name": d.name or "",
+                    "empid": d.employee_id or "",
+                    "iqama": d.iqama_number or "",
+                    "plate": "",
+                    "car": "",
+                    "phone": d.phone or "",
+                    "drivercard": "",
+                    "job": d.job_title or "",
+                    "empNotes": "",
+                    "model": "",
+                    "pallets": "",
+                    "load": "",
+                    "vserial": "",
+                    "inspect": "",
+                    "license": "",
+                    "opcard": "",
+                    "notes": ""
+                })
     except Exception as e:
         # The SQLAlchemy tables this route reads are created by a separate manual
         # migration (migrate_db.py), not by the app's own startup init_db(). On a
