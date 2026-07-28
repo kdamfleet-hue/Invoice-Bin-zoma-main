@@ -1,16 +1,7 @@
-#!/usr/bin/env bash
-echo "=================================================="
-echo "🚀 Bin Zoma Fleet - Production Startup"
-echo "=================================================="
+#!/bin/sh
 
-PORT="${PORT:-3000}"
-WORKERS="${GUNICORN_WORKERS:-3}"
-THREADS="${GUNICORN_THREADS:-2}"
+# 1. Database migrations
+flask db upgrade || echo "⚠️ Migration skipped or failed, continuing..."
 
-echo "Port: $PORT | Workers: $WORKERS | Threads: $THREADS"
-
-echo "⏳ Running database migrations..."
-flask db upgrade 2>/dev/null || echo "ℹ️ Flask-Migrate skipped."
-
-echo "🔥 Starting Gunicorn..."
-exec gunicorn --workers "$WORKERS" --threads "$THREADS" --worker-class gthread --bind "0.0.0.0:$PORT" --timeout 120 --keep-alive 5 --access-logfile - --error-logfile - --log-level info app:app
+# 2. Production Gunicorn: 9 concurrent handlers (3 workers x 3 threads) + memory recycling
+exec gunicorn --workers 3 --threads 3 --worker-class gthread --timeout 120 --max-requests 1000 --max-requests-jitter 50 --keep-alive 5 --bind 0.0.0.0:${PORT:-3000} --access-logfile - --error-logfile - --log-level info app:app
