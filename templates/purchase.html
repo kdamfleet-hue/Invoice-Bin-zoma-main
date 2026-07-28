@@ -461,6 +461,18 @@
 </div> /bz-shell 
 <script>
         let driversData = [];
+
+        // Helper to normalize strings for robust matching (removes spaces, unifies Arabic chars)
+        function normalizeStr(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/أ|إ|آ/g, 'ا')
+                .replace(/ة/g, 'ه')
+                .replace(/ى/g, 'ي')
+                .replace(/\s+/g, '')
+                .toLowerCase();
+        }
+
         async function fetchDrivers() { 
             try { 
                 const res = await fetch('/api/drivers'); 
@@ -499,15 +511,19 @@
             }
             // Priority 2: Exact match by plate number
             if (!d && plateVal) {
-                d = driversData.find(x => String(x.plate || '').trim() === plateVal);
-                // Fallback: partial plate match (contains)
-                if (!d) d = driversData.find(x => String(x.plate || '').trim().includes(plateVal) || plateVal.includes(String(x.plate || '').trim()));
+                const normPlate = normalizeStr(plateVal);
+                d = driversData.find(x => normalizeStr(x.plate) === normPlate);
+                if (!d && normPlate.length >= 3) {
+                    d = driversData.find(x => normalizeStr(x.plate).includes(normPlate));
+                }
             }
             // Priority 3: Exact match by driver name
             if (!d && driverVal) {
-                d = driversData.find(x => String(x.name || '').trim() === driverVal);
-                // Fallback: partial name match (contains)
-                if (!d) d = driversData.find(x => String(x.name || '').trim().includes(driverVal) || driverVal.includes(String(x.name || '').trim()));
+                const normDriver = normalizeStr(driverVal);
+                d = driversData.find(x => normalizeStr(x.name) === normDriver);
+                if (!d && normDriver.length >= 3) {
+                    d = driversData.find(x => normalizeStr(x.name).includes(normDriver));
+                }
             }
 
             if (d) { fillDriverFields(d); }
@@ -515,26 +531,33 @@
 
         function fillDriverFields(d) {
             if (!d) return;
-            const set = (id, val) => { if (val && val !== 'None' && val !== 'undefined') { const el = document.getElementById(id); if (el) el.value = val; } };
+            const setIfNotFocused = (id, val) => {
+                if (val && val !== 'None' && val !== 'undefined') {
+                    const el = document.getElementById(id);
+                    if (el && (document.activeElement !== el || !el.value)) {
+                        el.value = val;
+                    }
+                }
+            };
             
-            set('poDriver', d.name);
-            set('poPlate', d.plate);
-            set('poCar', d.car);
-            set('poEmpid', d.empid);
-            set('poPhone', d.phone);
-            set('poJob', d.job);
+            setIfNotFocused('poDriver', d.name);
+            setIfNotFocused('poPlate', d.plate);
+            setIfNotFocused('poCar', d.car);
+            setIfNotFocused('poEmpid', d.empid);
+            setIfNotFocused('poPhone', d.phone);
+            setIfNotFocused('poJob', d.job);
             
             // Model: prefer direct field, fallback to extracting year from car type
             if (d.model && d.model !== 'None') {
-                set('poModel', d.model);
+                setIfNotFocused('poModel', d.model);
             } else if (d.car && d.car !== 'None') {
                 const match = d.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
-                if (match) document.getElementById('poModel').value = match[1];
+                if (match) setIfNotFocused('poModel', match[1]);
             }
             
             // Odometer/KM
             const kmVal = d.odometer || d.current_km || d.km;
-            if (kmVal) document.getElementById('odometer').value = kmVal;
+            if (kmVal) setIfNotFocused('odometer', kmVal);
         }
 
         // Universal background sync for odometer
