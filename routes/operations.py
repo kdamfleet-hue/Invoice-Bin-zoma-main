@@ -83,6 +83,11 @@ def purchase_data():
         except Exception:
             logger.exception("purchase_data POST error")
             return jsonify({"success": False}), 500
+    try:
+        return jsonify({"success": True, "data": blob_get("purchase_data")})
+    except Exception:
+        logger.exception("purchase_data GET error")
+        return jsonify({"success": False, "data": None}), 500
 
 def _sync_purchase_inventory(body):
     try:
