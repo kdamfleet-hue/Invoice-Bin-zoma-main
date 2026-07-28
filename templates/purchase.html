@@ -305,20 +305,20 @@
 </thead>
 <tbody>
 <tr>
-<th class="excel-label">اسم السائق:</th><td class="excel-input"><input id="poDriver" list="driversList" onchange="poAutofill()" type="text"/></td>
+<th class="excel-label">اسم السائق:</th><td class="excel-input"><input id="poDriver" list="driversList" oninput="poAutofill()" onchange="poAutofill()" type="text"/></td>
 <th class="excel-label">الفرع:</th><td class="excel-input"><input id="poBranch" type="text" value="الدمام"/></td>
 <th class="excel-label">الوظيفة:</th><td class="excel-input"><input id="poJob" type="text" value="سائق"/></td>
 </tr>
 <tr>
 <th class="excel-label">نوع السيارة:</th><td class="excel-input"><input id="poCar" type="text"/></td>
-<th class="excel-label">رقم اللوحة:</th><td class="excel-input"><input id="poPlate" list="platesList" onchange="poAutofill()" type="text"/></td>
+<th class="excel-label">رقم اللوحة:</th><td class="excel-input"><input id="poPlate" list="platesList" oninput="poAutofill()" onchange="poAutofill()" type="text"/></td>
 <th class="excel-label">الموديل:</th><td class="excel-input"><input id="poModel" type="text"/></td>
 </tr>
 <tr>
 <th class="excel-label">عداد السيارة:</th><td class="excel-input" colspan="5"><input id="odometer" placeholder="مثال: 150000" required="" type="number"/></td>
 </tr>
 <tr>
-<th class="excel-label">الرقم الوظيفي:</th><td class="excel-input"><input id="poEmpid" list="empidList" onchange="poAutofill()" type="text"/></td>
+<th class="excel-label">الرقم الوظيفي:</th><td class="excel-input"><input id="poEmpid" list="empidList" oninput="poAutofill()" onchange="poAutofill()" type="text"/></td>
 <th class="excel-label">رقم الجوال:</th><td class="excel-input"><input id="poPhone" type="text"/></td>
 <th class="excel-label">التاريخ:</th><td class="excel-input"><input id="poDate" type="date"/></td>
 </tr>
@@ -492,12 +492,22 @@
             const empidVal = (document.getElementById('poEmpid')?.value || '').trim();
             
             let d = null;
-            if (empidVal && driversData.some(x => String(x.empid || '').trim() === empidVal)) {
+
+            // Priority 1: Exact match by employee ID
+            if (empidVal) {
                 d = driversData.find(x => String(x.empid || '').trim() === empidVal);
-            } else if (driverVal && driversData.some(x => String(x.name || '').trim() === driverVal)) {
-                d = driversData.find(x => String(x.name || '').trim() === driverVal);
-            } else if (plateVal && driversData.some(x => String(x.plate || '').trim() === plateVal)) {
+            }
+            // Priority 2: Exact match by plate number
+            if (!d && plateVal) {
                 d = driversData.find(x => String(x.plate || '').trim() === plateVal);
+                // Fallback: partial plate match (contains)
+                if (!d) d = driversData.find(x => String(x.plate || '').trim().includes(plateVal) || plateVal.includes(String(x.plate || '').trim()));
+            }
+            // Priority 3: Exact match by driver name
+            if (!d && driverVal) {
+                d = driversData.find(x => String(x.name || '').trim() === driverVal);
+                // Fallback: partial name match (contains)
+                if (!d) d = driversData.find(x => String(x.name || '').trim().includes(driverVal) || driverVal.includes(String(x.name || '').trim()));
             }
 
             if (d) { fillDriverFields(d); }
@@ -505,23 +515,26 @@
 
         function fillDriverFields(d) {
             if (!d) return;
-            if (d.name) document.getElementById('poDriver').value = d.name;
-            if (d.plate && d.plate !== 'None') document.getElementById('poPlate').value = d.plate;
-            if (d.car && d.car !== 'None') document.getElementById('poCar').value = d.car;
+            const set = (id, val) => { if (val && val !== 'None' && val !== 'undefined') { const el = document.getElementById(id); if (el) el.value = val; } };
             
+            set('poDriver', d.name);
+            set('poPlate', d.plate);
+            set('poCar', d.car);
+            set('poEmpid', d.empid);
+            set('poPhone', d.phone);
+            set('poJob', d.job);
+            
+            // Model: prefer direct field, fallback to extracting year from car type
             if (d.model && d.model !== 'None') {
-                document.getElementById('poModel').value = d.model;
+                set('poModel', d.model);
             } else if (d.car && d.car !== 'None') {
                 const match = d.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
                 if (match) document.getElementById('poModel').value = match[1];
             }
             
-            if (d.odometer || d.current_km || d.km) {
-                document.getElementById('odometer').value = d.odometer || d.current_km || d.km;
-            }
-            if (d.empid && d.empid !== 'None') document.getElementById('poEmpid').value = d.empid;
-            if (d.phone && d.phone !== 'None') document.getElementById('poPhone').value = d.phone;
-            if (d.job && d.job !== 'None') document.getElementById('poJob').value = d.job;
+            // Odometer/KM
+            const kmVal = d.odometer || d.current_km || d.km;
+            if (kmVal) document.getElementById('odometer').value = kmVal;
         }
 
         // Universal search: searches name, iqama, plate, phone
