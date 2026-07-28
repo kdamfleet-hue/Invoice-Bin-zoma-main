@@ -216,3 +216,47 @@ def delete_driver(driver_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
+
+@api_fleet_bp.route("/api/vehicle_profile/<path:plate>", methods=["GET"])
+@login_required
+def vehicle_profile(plate):
+    """Returns complete 360 profile for a vehicle: current specs, workshop history, fuel logs, and driver."""
+    try:
+        from helpers import blob_get
+        plate_str = str(plate).strip()
+        
+        # 1. Driver/Fleet lookup
+        employees_blob = blob_get("employees") or {}
+        emp_list = employees_blob.get("data", []) if isinstance(employees_blob, dict) else []
+        matched_emp = next((e for e in emp_list if isinstance(e, dict) and str(e.get("plate", "")).strip() == plate_str), {})
+
+        sch_blob = blob_get("schedule_data") or {}
+        sch_list = sch_blob.get("rows", []) if isinstance(sch_blob, dict) else []
+        matched_sch = next((s for s in sch_list if isinstance(s, dict) and str(s.get("plate", "")).strip() == plate_str), {})
+
+        # 2. Fuel records history
+        fuel_blob = blob_get("fuel_data") or []
+        if isinstance(fuel_blob, dict): fuel_blob = fuel_blob.get("data", [])
+        matched_fuel = [f for f in fuel_blob if isinstance(f, dict) and str(f.get("plate", "")).strip() == plate_str]
+
+        # 3. Workshop records history
+        workshop_blob = blob_get("workshop_data") or {}
+        matched_workshop = []
+        if isinstance(workshop_blob, dict) and str(workshop_blob.get("plate", "")).strip() == plate_str:
+            matched_workshop.append(workshop_blob)
+
+        # Build response
+        res_data = {
+            "plate": plate_str,
+            "car": matched_emp.get("car") or matched_sch.get("vtype") or matched_emp.get("vtype", "غير محدد"),
+            "model": matched_emp.get("model") or matched_sch.get("model", "-"),
+            "driver": matched_emp.get("name") or matched_sch.get("name", "غير محدد"),
+            "phone": matched_emp.get("phone") or matched_sch.get("phone", "-"),
+            "odometer": matched_emp.get("odometer") or matched_sch.get("odometer") or matched_emp.get("km", "0"),
+            "fuel_logs_count": len(matched_fuel),
+            "fuel_history": matched_fuel[-5:], # last 5 fuel records
+            "workshop_records": matched_workshop
+        }
+        return jsonify({"success": True, "data": res_data})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500

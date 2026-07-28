@@ -3242,3 +3242,120 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ==========================================================================
+// VEHICLE 360° MASTER PROFILE MODAL & DEEP LINKING
+// ==========================================================================
+window.showVehicleProfile = async function(plate) {
+    if (!plate) return;
+    const cleanPlate = plate.trim();
+    
+    // Create modal element if not exists
+    let modal = document.getElementById('bzVehicleModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'bzVehicleModal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);
+            z-index: 99999; display: flex; align-items: center; justify-content: center;
+            padding: 1rem; opacity: 0; pointer-events: none; transition: all 0.25s ease;
+        `;
+        modal.innerHTML = `
+            <div style="background: var(--bg-card, #ffffff); border-radius: 16px; max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); border: 1px solid rgba(226,232,240,0.8); font-family: system-ui, -apple-system, sans-serif;">
+                <div style="padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color: white; border-top-left-radius: 16px; border-top-right-radius: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span style="font-size: 0.75rem; background: rgba(217, 119, 6, 0.2); color: #F59E0B; padding: 2px 8px; border-radius: 9999px; border: 1px solid rgba(245,158,11,0.3); font-weight: 600;">الملف الشامل 360°</span>
+                        <h3 id="vpTitle" style="margin: 0.25rem 0 0 0; font-size: 1.25rem; font-weight: 700; color: #F8FAFC;">جاري التحميل...</h3>
+                    </div>
+                    <button onclick="hideVehicleProfile()" style="background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;">✕</button>
+                </div>
+                <div id="vpBody" style="padding: 1.5rem; color: #334155;">
+                    <div style="text-align: center; padding: 2rem;"><div class="bz-spinner" style="width:36px;height:36px;border:3px solid #cbd5e1;border-top-color:#2563eb;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 1rem;"></div>جاري جلب البيانات الكاملة للمركبة...</div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Show modal loading state
+    modal.style.opacity = '1';
+    modal.style.pointerEvents = 'auto';
+
+    try {
+        const res = await fetch('/api/vehicle_profile/' + encodeURIComponent(cleanPlate));
+        const json = await res.json();
+        if (!json.success || !json.data) throw new Error('فشل جلب بيانات المركبة');
+        
+        const d = json.data;
+        document.getElementById('vpTitle').innerText = 'اللوحة: ' + d.plate + ' (' + (d.car || 'مركبة') + ')';
+        
+        let fuelRows = (d.fuel_history || []).map(f => `
+            <tr style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem;">
+                <td style="padding: 6px 8px;">${f.date || '-'}</td>
+                <td style="padding: 6px 8px; font-weight: 600;">${f.current_odo || f.km || '-'} كم</td>
+                <td style="padding: 6px 8px; color: #16a34a;">${f.liters || '-'} لتر</td>
+            </tr>
+        `).join('');
+
+        document.getElementById('vpBody').innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
+                <div style="background: #f8fafc; padding: 0.85rem; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <span style="font-size: 0.75rem; color: #64748b; display: block;">نوع السيارة والموديل</span>
+                    <strong style="font-size: 0.95rem; color: #0f172a;">${d.car} - ${d.model}</strong>
+                </div>
+                <div style="background: #f8fafc; padding: 0.85rem; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <span style="font-size: 0.75rem; color: #64748b; display: block;">العداد الحالي (KM)</span>
+                    <strong style="font-size: 1.1rem; color: #2563eb;">${d.odometer || 0} كم</strong>
+                </div>
+                <div style="background: #f8fafc; padding: 0.85rem; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <span style="font-size: 0.75rem; color: #64748b; display: block;">السائق الحالي</span>
+                    <strong style="font-size: 0.95rem; color: #0f172a;">${d.driver}</strong>
+                </div>
+                <div style="background: #f8fafc; padding: 0.85rem; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <span style="font-size: 0.75rem; color: #64748b; display: block;">رقم التواصل</span>
+                    <strong style="font-size: 0.95rem; color: #0f172a;">${d.phone}</strong>
+                </div>
+            </div>
+
+            <h4 style="font-size: 0.9rem; margin: 1rem 0 0.5rem 0; color: #475569; display: flex; align-items: center; justify-content: space-between;">
+                <span>⛽ آخر عمليات تزود بالوقود</span>
+                <span style="font-size: 0.75rem; font-weight: normal; color: #64748b;">إجمالي السجلات: ${d.fuel_logs_count}</span>
+            </h4>
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 1rem;">
+                <table style="width: 100%; border-collapse: collapse; text-align: right;">
+                    <thead>
+                        <tr style="background: #f1f5f9; font-size: 0.75rem; color: #475569;">
+                            <th style="padding: 6px 8px;">التاريخ</th>
+                            <th style="padding: 6px 8px;">قراءة العداد</th>
+                            <th style="padding: 6px 8px;">الكمية</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${fuelRows || '<tr><td colspan="3" style="text-align: center; padding: 10px; color: #94a3b8; font-size: 0.8rem;">لا توجد عمليات وقود مسجلة حديثاً</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="hideVehicleProfile()" style="flex: 1; padding: 0.6rem; background: #e2e8f0; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: #334155;">إغلاق</button>
+            </div>
+        `;
+    } catch(e) {
+        document.getElementById('vpBody').innerHTML = `
+            <div style="text-align: center; padding: 1.5rem; color: #ef4444;">
+                ⚠️ لم يتم العثور على سجلات إضافية لهذه اللوحة أو حدث خطأ بالاتصال.
+                <br/><br/>
+                <button onclick="hideVehicleProfile()" style="padding: 0.5rem 1.25rem; background: #334155; color: white; border: none; border-radius: 6px; cursor: pointer;">إغلاق</button>
+            </div>
+        `;
+    }
+};
+
+window.hideVehicleProfile = function() {
+    const modal = document.getElementById('bzVehicleModal');
+    if (modal) {
+        modal.style.opacity = '0';
+        modal.style.pointerEvents = 'none';
+    }
+};
