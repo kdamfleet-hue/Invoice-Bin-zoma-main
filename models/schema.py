@@ -91,8 +91,11 @@ class SparePart(db.Model):
     branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
     part_number = db.Column(db.String(100), unique=True, nullable=False)
     name = db.Column(db.String(150), nullable=False)
+    category = db.Column(db.String(100), nullable=True)
     quantity = db.Column(db.Integer, default=0)
     price = db.Column(db.Numeric(10, 2), nullable=True)
+    supplier = db.Column(db.String(150), nullable=True)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     usages = db.relationship('WorkshopPartUsage', backref='spare_part', lazy=True)
 

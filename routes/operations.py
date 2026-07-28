@@ -152,10 +152,29 @@ def _sync_purchase_inventory(body):
 def workshop_data():
     if request.method == "POST":
         try:
-            blob_set("workshop_data", request.json or {})
+            data = request.json or {}
+            blob_set("workshop_data", data)
+            
+            plate = data.get("car") or data.get("plate")
+            if plate:
+                from models.schema import Vehicle, WorkshopRecord, db
+                from datetime import datetime
+                v = Vehicle.query.filter_by(plate_number=plate).first()
+                if v:
+                    record = WorkshopRecord.query.filter_by(vehicle_id=v.id, status="مفتوح").first()
+                    if not record:
+                        record = WorkshopRecord(
+                            vehicle_id=v.id,
+                            entry_date=datetime.now().date(),
+                            status="مفتوح"
+                        )
+                        db.session.add(record)
+                    record.mechanic_name = data.get("driver", "")
+                    record.issue_description = str(data.get("notes", ""))
+                    db.session.commit()
             return jsonify({"success": True})
-        except Exception:
-            logger.exception("workshop_data POST error")
+        except Exception as e:
+            logger.exception(f"workshop_data POST error: {e}")
             return jsonify({"success": False}), 500
     try:
         return jsonify({"success": True, "data": blob_get("workshop_data")})
@@ -234,3 +253,116 @@ def update_km():
     except Exception as e:
         logger.error(f"Failed to update KM in blobs: {e}")
     return jsonify({"success": False})
+
+# --- SPARE PARTS & DISPENSING API ---
+@operations_bp.route("/api/spare_parts", methods=["GET", "POST"])
+@login_required
+def api_spare_parts():
+    from models.schema import SparePart, db
+    if request.method == "POST":
+        data = request.json or {}
+        part = SparePart(
+            branch_id=current_branch_id() or 1,
+            part_number=data.get("part_number", "").strip(),
+            name=data.get("name", "").strip(),
+            category=data.get("category", "أخرى"),
+            quantity=int(data.get("quantity", 0)),
+            price=float(data.get("unit_price", data.get("price", 0))),
+            supplier=data.get("supplier", "").strip()
+        )
+        db.session.add(part)
+        db.session.commit()
+        return jsonify({"success": True, "part": {"id": part.id, "name": part.name, "part_number": part.part_number, "quantity": part.quantity, "unit_price": float(part.price or 0), "category": part.category, "supplier": part.supplier}})
+        
+    parts = SparePart.query.all()
+    res = []
+    for p in parts:
+        res.append({
+            "id": p.id,
+            "name": p.name,
+            "part_number": p.part_number,
+            "quantity": p.quantity,
+            "unit_price": float(p.price or 0),
+            "category": p.category,
+            "supplier": p.supplier,
+            "last_updated": p.last_updated.strftime("%Y-%m-%d %H:%M") if p.last_updated else ""
+        })
+    return jsonify(res)
+
+@operations_bp.route("/api/spare_parts/<int:part_id>", methods=["PUT", "DELETE"])
+@login_required
+def api_spare_parts_manage(part_id):
+    from models.schema import SparePart, db
+    p = SparePart.query.get_or_404(part_id)
+    if request.method == "DELETE":
+        db.session.delete(p)
+        db.session.commit()
+        return jsonify({"success": True})
+        
+    data = request.json or {}
+    if "name" in data: p.name = data["name"].strip()
+    if "part_number" in data: p.part_number = data["part_number"].strip()
+    if "category" in data: p.category = data["category"]
+    if "quantity" in data: p.quantity = int(data["quantity"])
+    if "unit_price" in data: p.price = float(data["unit_price"])
+    if "supplier" in data: p.supplier = data["supplier"].strip()
+    db.session.commit()
+    return jsonify({"success": True})
+
+@operations_bp.route("/api/dispense_part", methods=["POST"])
+@login_required
+def dispense_part():
+    from models.schema import SparePart, Vehicle, WorkshopRecord, WorkshopPartUsage, db
+    from datetime import datetime
+    data = request.json or {}
+    plate = data.get("plate")
+    part_id = data.get("part_id")
+    qty = int(data.get("quantity", 1))
+    
+    if not plate or not part_id:
+        return jsonify({"success": False, "error": "Missing plate or part_id"})
+        
+    part = SparePart.query.get(part_id)
+    if not part or part.quantity < qty:
+        return jsonify({"success": False, "error": "Not enough inventory"})
+        
+    v = Vehicle.query.filter_by(plate_number=plate).first()
+    if not v:
+        return jsonify({"success": False, "error": "Vehicle not found"})
+        
+    record = WorkshopRecord.query.filter_by(vehicle_id=v.id, status="مفتوح").first()
+    if not record:
+        record = WorkshopRecord(vehicle_id=v.id, entry_date=datetime.now().date(), status="مفتوح")
+        db.session.add(record)
+        db.session.flush()
+        
+    usage = WorkshopPartUsage(workshop_record_id=record.id, spare_part_id=part.id, quantity_used=qty)
+    part.quantity -= qty
+    
+    db.session.add(usage)
+    db.session.commit()
+    
+    return jsonify({"success": True, "usage_id": usage.id, "remaining_quantity": part.quantity})
+
+@operations_bp.route("/api/refund_part", methods=["POST"])
+@login_required
+def refund_part():
+    from models.schema import SparePart, WorkshopPartUsage, db
+    data = request.json or {}
+    usage_id = data.get("usage_id")
+    
+    if not usage_id:
+        return jsonify({"success": False, "error": "Missing usage_id"})
+        
+    usage = WorkshopPartUsage.query.get(usage_id)
+    if not usage:
+        return jsonify({"success": False, "error": "Usage record not found"})
+        
+    part = SparePart.query.get(usage.spare_part_id)
+    if part:
+        part.quantity += usage.quantity_used
+        
+    db.session.delete(usage)
+    db.session.commit()
+    
+    return jsonify({"success": True, "remaining_quantity": part.quantity if part else 0})
