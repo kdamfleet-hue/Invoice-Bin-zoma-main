@@ -1,4 +1,4 @@
-
+﻿
 import os
 import io
 import psutil
@@ -4666,8 +4666,10 @@ def _sync_from_employees_to_fleet():
 # Auto-Migration Hook for Cloud Deployments (Gunicorn)
 # ====================================================================
 with app.app_context():
+    import models.schema
     try:
         db.create_all()
         print("✅ Database tables checked/created successfully.")
     except Exception as e:
         print(f"⚠️ Failed to verify or create database tables: {e}")
+
