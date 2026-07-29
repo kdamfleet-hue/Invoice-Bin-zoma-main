@@ -119,6 +119,8 @@ def get_operating_costs_summary(branch_id=None, start_date=None, end_date=None):
             'vehicles': summary_list
         }
     except Exception as e:
+        from app import db
+        db.session.rollback()
         return {'success': False, 'error': str(e), 'vehicles': []}
 
 def get_fuel_efficiency_report(branch_id=None):
@@ -191,6 +193,8 @@ def get_fuel_efficiency_report(branch_id=None):
             'report': report
         }
     except Exception as e:
+        from app import db
+        db.session.rollback()
         return {'success': False, 'error': str(e), 'report': []}
 
 def get_operational_kpis(branch_id=None):
@@ -241,4 +245,6 @@ def get_operational_kpis(branch_id=None):
             'completed_workshop_month': completed_month
         }
     except Exception as e:
+        from app import db
+        db.session.rollback()
         return {'success': False, 'error': str(e)}

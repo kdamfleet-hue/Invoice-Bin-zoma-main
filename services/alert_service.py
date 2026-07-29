@@ -60,6 +60,8 @@ def check_document_expirations(branch_id=None):
             'alerts': alerts
         }
     except Exception as e:
+        from app import db
+        db.session.rollback()
         return {'success': False, 'error': str(e), 'alerts': []}
 
 def _check_expiry(alerts_list, exp_date, today, title, entity_type, entity_id, entity_name):
@@ -149,4 +151,6 @@ def check_maintenance_schedules(branch_id=None, odo_threshold_km=5000):
             'maintenance_alerts': maintenance_alerts
         }
     except Exception as e:
+        from app import db
+        db.session.rollback()
         return {'success': False, 'error': str(e), 'maintenance_alerts': []}
