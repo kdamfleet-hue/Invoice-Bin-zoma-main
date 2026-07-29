@@ -4662,5 +4662,12 @@ def _sync_from_employees_to_fleet():
         import logging
         logging.exception(f"sync_from_employees error: {e}")
 
-
-
+# ====================================================================
+# Auto-Migration Hook for Cloud Deployments (Gunicorn)
+# ====================================================================
+with app.app_context():
+    try:
+        db.create_all()
+        print("✅ Database tables checked/created successfully.")
+    except Exception as e:
+        print(f"⚠️ Failed to verify or create database tables: {e}")
