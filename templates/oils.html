@@ -1564,7 +1564,7 @@
                 const tds = tr.querySelectorAll('td');
                 const getVal = (c) => {
                     if(!tds[c]) return '';
-                    const input = tds[c].querySelector('input');
+                    const input = tds[c].querySelector('input, select');
                     if(input) return input.value;
                     return tds[c].innerText.replace('❌','').trim();
                 };
@@ -1954,6 +1954,15 @@
                         pOpts = pOpts.replace(`value="${pVal}"`, `value="${pVal}" selected`);
                     }
 
+                    let dVal = escapeHtml(driver.name || '');
+                    let dOpts = window.cachedDriverOptions || '<option value="">اختر أو أدخل الاسم...</option>';
+                    if (dVal && !dOpts.includes(`value="${dVal}"`)) {
+                        dOpts += `<option value="${dVal}">${dVal}</option>`;
+                    }
+                    if (dVal) {
+                        dOpts = dOpts.replace(`value="${dVal}"`, `value="${dVal}" selected`);
+                    }
+
                     const tr = document.createElement('tr');
                     if (resData.transaction_id) {
                         tr.setAttribute('data-transaction-id', resData.transaction_id);
@@ -1961,7 +1970,7 @@
                     tr.innerHTML = `
                         <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">${rc}</td>
                         <td class="excel-input" style="width:12%;"><select class="bz-select2 plate-edit-input" style="width:100%;" onchange="autoSaveOils()">${pOpts}</select></td>
-                        <td class="excel-input" style="width:18%;"><input type="text" list="oilsDriversList" value="${driver.name}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:18%;"><select class="bz-select2 driver-edit-input" style="width:100%;" onchange="autoSaveOils()">${dOpts}</select></td>
                         <td class="excel-input" style="width:14%;"><input type="date" value="${dateStr}" onchange="autoSaveOils()"></td>
                         <td class="excel-input" style="width:12%;"><input type="text" value="${meter || '0'}" onchange="autoSaveOils()"></td>
                         <td class="excel-input" style="width:12%;"><input type="text" value="${liters}" onchange="autoSaveOils()"></td>
@@ -1969,6 +1978,14 @@
                         <td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
                     `;
                     tbody.insertBefore(tr, tbody.firstChild);
+
+                    if (typeof jQuery !== 'undefined') {
+                        $(tr).find('.bz-select2').select2({
+                            tags: true,
+                            width: '100%',
+                            dir: 'rtl'
+                        });
+                    }
                     
                     renumberRows();
                     updateTotalLiters();
