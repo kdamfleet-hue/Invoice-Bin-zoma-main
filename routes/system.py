@@ -66,6 +66,8 @@ def api_system_features():
         _audit_add("تحديث", "إعدادات النظام", detail="تعديل ميزات النظام")
         return jsonify({"success": True, "features": features})
     except Exception:
+        from app import db
+        db.session.rollback()
         logger.exception("system_features POST error")
         return jsonify({"success": False, "error": "تعذّر حفظ الإعدادات."}), 500
 
@@ -100,6 +102,8 @@ def api_tab_permissions():
         _audit_add("تحديث", "إعدادات التبويبات والمحطات المخصصة", detail=f"نمط التخصيص: {dedicated_mode}")
         return jsonify({"success": True, "permissions": data, "message": "تم حفظ وتطبيق إعدادات التبويبات والمحطات بنجاح"})
     except Exception as e:
+        from app import db
+        db.session.rollback()
         logger.exception("tab_permissions error: %s", e)
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -141,6 +145,8 @@ def api_user_permissions():
             "message": f"تم حفظ صلاحيات الحساب ({target_username}) بنجاح"
         })
     except Exception as e:
+        from app import db
+        db.session.rollback()
         logger.exception("user_permissions POST error: %s", e)
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -201,6 +207,8 @@ def api_create_dedicated_user():
             "message": f"تم إنشاء وتجهيز الحساب المخصص ({username}) بنجاح وتخصيصه للصفحة ({dedicated_mode})"
         })
     except Exception as e:
+        from app import db
+        db.session.rollback()
         logger.exception("create_dedicated_user error: %s", e)
         return jsonify({"success": False, "error": str(e)}), 500
 

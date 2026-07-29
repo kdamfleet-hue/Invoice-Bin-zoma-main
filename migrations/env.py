@@ -10,8 +10,12 @@ from alembic import context
 config = context.config
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
-fileConfig(config.config_file_name)
+# This line sets up loggers basically. disable_existing_loggers=False because this file
+# runs in-process on every app boot (app.py calls flask_migrate.upgrade() directly) —
+# the default True would silently disable the app's own "InvoiceApp" logger (and every
+# other logger not explicitly listed in alembic.ini's [loggers]) for that process's
+# entire lifetime, since it isn't listed there. See Alembic's own FAQ on this exact gotcha.
+fileConfig(config.config_file_name, disable_existing_loggers=False)
 logger = logging.getLogger('alembic.env')
 
 

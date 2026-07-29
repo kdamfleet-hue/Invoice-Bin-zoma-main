@@ -28,4 +28,5 @@ def update_petty_cash_status(id):
         db.session.commit()
         return jsonify({"success": True})
     except Exception as e:
+        db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500

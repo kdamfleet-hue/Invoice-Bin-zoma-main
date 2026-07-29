@@ -140,6 +140,8 @@ def _sync_purchase_inventory(body):
 
         db.session.commit()
     except Exception:
+        from app import db
+        db.session.rollback()
         logger.exception("_sync_purchase_inventory error")
     try:
         return jsonify({"success": True, "data": blob_get("purchase_data")})
@@ -174,6 +176,8 @@ def workshop_data():
                     db.session.commit()
             return jsonify({"success": True})
         except Exception as e:
+            from app import db
+            db.session.rollback()
             logger.exception(f"workshop_data POST error: {e}")
             return jsonify({"success": False}), 500
     try:
@@ -243,6 +247,8 @@ def update_km():
                 db.session.commit()
                 updated = True
         except Exception as e:
+            from app import db
+            db.session.rollback()
             logger.warning(f"SQL Vehicle update warning: {e}")
 
         if updated:

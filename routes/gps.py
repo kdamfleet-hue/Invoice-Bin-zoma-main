@@ -86,6 +86,8 @@ def gps_devices_data():
             blob_set("gps_devices_data", rows)
             return jsonify({"success": True})
         except Exception as e:
+            from app import db
+            db.session.rollback()
             return jsonify({"success": False, "error": str(e)}), 500
     
     # GET logic is currently handled globally by /api/<table>, but added here for completeness

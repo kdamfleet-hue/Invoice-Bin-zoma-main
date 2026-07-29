@@ -57,23 +57,33 @@ def schedule_data():
             try:
                 _harvest_driver_registry(sd)  # learn each driver's card-expiry/job for future autofill
             except Exception:
+                from app import db
+                db.session.rollback()
                 logger.warning("driver_registry harvest failed (non-fatal)")
             try:
                 _harvest_vehicle_registry(sd)  # learn each vehicle's spec for future autofill
             except Exception:
+                from app import db
+                db.session.rollback()
                 logger.warning("vehicle_registry harvest failed (non-fatal)")
             try:
                 _sync_schedule_to_db(sd) # fully sync modifications to central DB
             except Exception:
+                from app import db
+                db.session.rollback()
                 logger.warning("sync_schedule_to_db failed (non-fatal)")
             _n = (len(sd.get("main", []) or []) + len(sd.get("spare", []) or [])) if isinstance(sd, dict) else None
             return jsonify({"success": True})
         except Exception:
+            from app import db
+            db.session.rollback()
             logger.exception("schedule_data POST error")
             return jsonify({"success": False, "error": "تعذّر حفظ الجدول الأسبوعي."}), 500
     try:
         return jsonify({"success": True, "data": blob_get("schedule_data")})
     except Exception:
+        from app import db
+        db.session.rollback()
         logger.exception("schedule_data GET error")
         return jsonify({"success": False, "error": "تعذّر جلب الجدول الأسبوعي."}), 500
 
@@ -88,6 +98,8 @@ def washing_data():
             _audit_add("تحديث", "جدول الغسيل", len(vehicles) if isinstance(vehicles, list) else None)
             return jsonify({"success": True})
         except Exception:
+            from app import db
+            db.session.rollback()
             logger.exception("washing_data POST error")
             return jsonify({"success": False, "error": "تعذّر حفظ جدول الغسيل."}), 500
     try:
@@ -96,6 +108,8 @@ def washing_data():
             return jsonify({"success": True, "vehicles": data})
         return jsonify({"success": False, "vehicles": []})
     except Exception:
+        from app import db
+        db.session.rollback()
         logger.exception("washing_data GET error")
         return jsonify({"success": False, "error": "تعذّر جلب جدول الغسيل."}), 500
 

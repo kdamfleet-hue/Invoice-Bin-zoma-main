@@ -270,6 +270,28 @@
       .sp-stats { grid-template-columns:repeat(2,1fr); }
     }
 
+    /* ── Incident reports tab ── */
+    .incident-policy-card {
+      background: rgba(197,80,80,.08);
+      border: 1px solid rgba(197,80,80,.35);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+    .incident-policy-card h3 { margin: 0 0 10px; color: #e05252; font-size: 15px; }
+    .incident-policy-card ul { margin: 0; padding-inline-start: 20px; }
+    .incident-policy-card li { margin-bottom: 6px; line-height: 1.7; }
+    .incident-deadline { color: #e05252; font-weight: 700; }
+    .inc-section-label {
+      font-weight: 700;
+      color: var(--p-gold2,#c5a059);
+      margin: 16px 0 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed var(--p-border,#3a3527);
+      font-size: 13.5px;
+    }
+    .inc-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 16px; }
+    @media (max-width:640px) { .inc-grid { grid-template-columns: 1fr; } }
+
   </style>
 {% endblock %}
 
@@ -340,6 +362,7 @@
 <button class="bz-tab" id="tabBtnMain" onclick="switchSchedTab('main',this)">🚚 المركبات النشطة <span class="sp-chip" id="chipMain">0</span></button>
 <button class="bz-tab" id="tabBtnSpare" onclick="switchSchedTab('spare',this)">🔧 الأسبير والمعطلة <span class="sp-chip red" id="chipSpare">0</span></button>
 <button class="bz-tab" id="tabBtnVac" onclick="switchSchedTab('vacation',this)">🏖️ السائقون في إجازة <span class="sp-chip" id="chipVac">0</span></button>
+<button class="bz-tab" id="tabBtnIncidents" onclick="switchSchedTab('incidents',this)">🚨 تقارير الحوادث <span class="sp-chip red" id="chipIncidents">0</span></button>
 <!-- Hidden legacy tabs to prevent JS errors if they are referenced -->
 <button class="bz-tab" id="tabBtnUnscheduled" onclick="switchSchedTab('unscheduled',this)" style="display:none;">⚠️ غير المجدولة <span class="sp-chip red" id="chipUnscheduled">0</span></button>
 <button class="bz-tab" id="tabBtnExp" onclick="switchSchedTab('expired',this)" style="display:none;">🔴 تنبيهات الانتهاء <span class="sp-chip red" id="chipExp">0</span></button>
@@ -553,7 +576,37 @@
 </div>
 </div>
 
- Fleet Select Modal 
+<!-- TAB: INCIDENT REPORTS -->
+<div class="sp-panel" id="spPanel-incidents">
+<div class="sec-title"><h2>🚨 تقارير الحوادث — فرع الدمام</h2></div>
+
+<div class="incident-policy-card">
+<h3>📌 الإجراءات المطلوبة منك كمسؤول حركة في الدمام</h3>
+<ul>
+<li><b>تسجيل جميع الحوادث:</b> يجب تسجيل كافة الحوادث (سواء كانت للطرف الأول أو الثالث) دون استثناء.</li>
+<li><b>تعبئة التقارير:</b> تعبئة نموذج تقرير الحوادث لجميع حوادث الشهر الحالي.</li>
+<li><b>الموعد النهائي:</b> إرسال تقرير الحوادث الخاص بالشهر الحالي في موعد أقصاه <span class="incident-deadline">يوم الخميس الموافق 30/07/2026</span>.</li>
+<li><b>الآلية الدورية:</b> إرسال كافة الحوادث فور وقوعها، مع إرسال التقارير الأسبوعية بانتظام إلى إدارة القسم.</li>
+</ul>
+</div>
+
+<div class="bz-actions-bar" style="margin:16px 0 10px;">
+<button class="btn-neon" onclick="openIncidentModal()">➕ تسجيل حادث جديد</button>
+<button class="btn-neon" onclick="exportIncidentsExcel()">📥 تصدير Excel</button>
+<span class="hint" id="incidentSaveHint" style="margin-inline-start:auto;"></span>
+</div>
+
+<div class="sched-table-wrap glass-panel">
+<table class="sched bz-fit">
+<thead><tr>
+<th>#</th><th>رقم الحادث</th><th>التاريخ</th><th>اسم السائق</th><th>اللوحة / نوع السيارة</th><th>مكان الحادث</th><th>طرف آخر؟</th><th>نسبة الخطأ</th><th>حالة السيارة</th><th>إجراء</th>
+</tr></thead>
+<tbody id="bodyIncidents"><tr><td colspan="10" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">لا توجد حوادث مسجّلة لهذا الشهر.</td></tr></tbody>
+</table>
+</div>
+</div>
+
+ Fleet Select Modal
 <div class="modal-overlay" id="fleetModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:9999;">
 <div style="background:var(--surface);padding:2rem;border-radius:12px;width:90%;max-width:400px;">
 <h3 style="margin-top:0;color:var(--brand-navy);">🚚 استدعاء مركبة من الأسطول</h3>
@@ -598,6 +651,62 @@
 <div style="display:flex;gap:.75rem;justify-content:flex-end;">
 <button class="btn-neon" onclick="closeCustodyModal()">إلغاء</button>
 <button class="btn-neon" onclick="confirmCustodyTransfer()">✍️ تأكيد واعتماد النقل</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Incident Report Modal — fields mirror the official "نموذج تقرير حادث سيارة" template exactly -->
+<div class="modal-backdrop" id="incidentModal">
+<div class="modal-content-custom" style="max-width:720px;">
+<div class="modal-header-custom">
+<h2 id="incidentModalTitle">🚨 تسجيل حادث جديد</h2>
+<button class="close-btn" onclick="closeIncidentModal()">✕</button>
+</div>
+<div class="modal-body-custom">
+<input id="incidentId" type="hidden"/>
+
+<div class="inc-section-label">بيانات الحادث</div>
+<div class="inc-grid">
+<div class="custody-field"><label>رقم الحادث</label><input id="incNo" placeholder="مثال: 2026-07-001" type="text"/></div>
+<div class="custody-field"><label>الفرع</label><input id="incBranch" type="text" value="الدمام"/></div>
+<div class="custody-field"><label>تاريخ الحادث</label><input id="incDate" type="date"/></div>
+<div class="custody-field"><label>وقت الحادث</label><input id="incTime" type="time"/></div>
+</div>
+
+<div class="inc-section-label">بيانات السائق والسيارة</div>
+<div class="inc-grid">
+<div class="custody-field"><label>اسم السائق</label><input id="incDriver" list="driverNames" type="text"/></div>
+<div class="custody-field"><label>رقم الجوال</label><input id="incPhone" style="direction:ltr;text-align:right;" type="text"/></div>
+<div class="custody-field"><label>المسمى الوظيفي</label><input id="incJob" type="text"/></div>
+<div class="custody-field"><label>نوع السيارة / اللوحة</label><input id="incVehicle" type="text"/></div>
+</div>
+
+<div class="inc-section-label">تفاصيل الحادث</div>
+<div class="inc-grid">
+<div class="custody-field"><label>مكان وقوع الحادث</label><input id="incLocation" type="text"/></div>
+<div class="custody-field"><label>هل يوجد طرف آخر؟</label>
+<select id="incOtherParty"><option value="لا">لا</option><option value="نعم">نعم</option></select>
+</div>
+<div class="custody-field" style="grid-column:1 / -1;"><label>وصف الحادث</label><textarea id="incDesc" rows="3" style="width:100%;padding:.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);font-family:inherit;"></textarea></div>
+<div class="custody-field"><label>نسبة الخطأ (%)</label><input id="incFault" max="100" min="0" type="number"/></div>
+</div>
+
+<div class="inc-section-label">الإصلاح والتكلفة</div>
+<div class="inc-grid">
+<div class="custody-field"><label>مكان الإصلاح (الورشة / الوكالة)</label><input id="incRepairPlace" type="text"/></div>
+<div class="custody-field"><label>طريقة الدفع</label>
+<select id="incPayment"><option value="تأمين">تأمين</option><option value="نقد">نقد</option><option value="شركة">شركة</option></select>
+</div>
+<div class="custody-field"><label>التكلفة الفعلية</label><input id="incActualCost" min="0" type="number"/></div>
+<div class="custody-field"><label>تكلفة الإصلاح المتوقعة</label><input id="incExpectedCost" min="0" type="number"/></div>
+<div class="custody-field"><label>المدة المتوقعة للإصلاح</label><input id="incDuration" placeholder="مثال: 3 أيام" type="text"/></div>
+<div class="custody-field"><label>حالة السيارة حالياً</label><input id="incVehicleStatus" type="text"/></div>
+</div>
+
+<div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:10px;">
+<button class="btn-neon" onclick="closeIncidentModal()">إلغاء</button>
+<button class="btn-neon" onclick="saveIncident()">✍️ حفظ التقرير</button>
 </div>
 </div>
 </div>
@@ -663,7 +772,7 @@
       return MAIN_COLS;
     }
 
-    let state = { title: '', date: '', main: [], spare: [], vacation: [], summary: {} };
+    let state = { title: '', date: '', main: [], spare: [], vacation: [], summary: {}, incidentReports: [] };
     let DRIVER_REG = {};   // learned per-driver memory: iqama(digits) → {empid,phone,job,drivercard,empNotes}
     let VEH_REG = {};      // learned per-vehicle memory: normalizePlate(plate) → {model,vtype,pallets,load,vserial,inspect,license,opcard,notes}
     let saveTimer = null;
@@ -746,6 +855,7 @@
       const seedVac = parseInt((data.summary && data.summary.vacation) || '0', 10) || 0;
       if (state.vacation.length === 0 && seedVac > 0) for (let i = 0; i < seedVac; i++) state.vacation.push(blankRow('vacation'));
       state.summary = data.summary || {};
+      state.incidentReports = Array.isArray(data.incidentReports) ? data.incidentReports : [];
     }
 
     function renderAll() {
@@ -756,6 +866,7 @@
       renderBody('bodyVac', state.vacation, 'vacation');
       updateSummary();
       renderUnscheduled();
+      renderIncidents();
     }
 
     function renderBody(bodyId, rows, section) {
@@ -1475,6 +1586,194 @@
       const panel = document.getElementById('spPanel-' + name);
       if (panel) panel.classList.add('active');
       if (name === 'vehicles') loadVehicles();
+    }
+
+    // ===== «تقارير الحوادث» — نموذج تقرير حادث سيارة، محفوظ ضمن حالة الجدول نفسها =====
+    function renderIncidents() {
+      const body = document.getElementById('bodyIncidents');
+      const chip = document.getElementById('chipIncidents');
+      const rows = state.incidentReports || [];
+      if (chip) chip.textContent = rows.length;
+      if (!body) return;
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">لا توجد حوادث مسجّلة لهذا الشهر.</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(function (r, i) {
+        return '<tr>' +
+          '<td>' + (i + 1) + '</td>' +
+          '<td>' + vesc(r.incidentNo) + '</td>' +
+          '<td>' + vesc(r.date) + '</td>' +
+          '<td>' + vesc(r.driverName) + '</td>' +
+          '<td>' + vesc(r.vehicleType) + '</td>' +
+          '<td>' + vesc(r.location) + '</td>' +
+          '<td>' + vesc(r.otherParty || 'لا') + '</td>' +
+          '<td>' + vesc(r.faultPercent ? (r.faultPercent + '%') : '') + '</td>' +
+          '<td>' + vesc(r.vehicleStatus) + '</td>' +
+          '<td style="white-space:nowrap;">' +
+            '<button class="btn-neon" style="padding:4px 10px;font-size:12px;" onclick="openIncidentModal(\'' + r.id + '\')" title="تعديل">✏️</button> ' +
+            '<button class="btn-neon" style="padding:4px 10px;font-size:12px;" onclick="printIncident(\'' + r.id + '\')" title="طباعة التقرير">🖨️</button> ' +
+            '<button class="btn-neon" style="padding:4px 10px;font-size:12px;color:#e05252;" onclick="deleteIncident(\'' + r.id + '\')" title="حذف">🗑️</button>' +
+          '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    function openIncidentModal(id) {
+      const f = id ? (state.incidentReports || []).find(function (x) { return x.id === id; }) : null;
+      document.getElementById('incidentId').value = f ? f.id : '';
+      document.getElementById('incidentModalTitle').textContent = f ? '✏️ تعديل تقرير حادث' : '🚨 تسجيل حادث جديد';
+      document.getElementById('incNo').value = f ? (f.incidentNo || '') : '';
+      document.getElementById('incBranch').value = f ? (f.branch || 'الدمام') : 'الدمام';
+      document.getElementById('incDate').value = f ? (f.date || '') : new Date().toISOString().slice(0, 10);
+      document.getElementById('incTime').value = f ? (f.time || '') : '';
+      document.getElementById('incDriver').value = f ? (f.driverName || '') : '';
+      document.getElementById('incPhone').value = f ? (f.phone || '') : '';
+      document.getElementById('incJob').value = f ? (f.jobTitle || '') : '';
+      document.getElementById('incVehicle').value = f ? (f.vehicleType || '') : '';
+      document.getElementById('incLocation').value = f ? (f.location || '') : '';
+      document.getElementById('incDesc').value = f ? (f.description || '') : '';
+      document.getElementById('incOtherParty').value = f ? (f.otherParty || 'لا') : 'لا';
+      document.getElementById('incFault').value = f ? (f.faultPercent || '') : '';
+      document.getElementById('incRepairPlace').value = f ? (f.repairPlace || '') : '';
+      document.getElementById('incPayment').value = f ? (f.paymentMethod || 'تأمين') : 'تأمين';
+      document.getElementById('incActualCost').value = f ? (f.actualCost || '') : '';
+      document.getElementById('incExpectedCost').value = f ? (f.expectedCost || '') : '';
+      document.getElementById('incDuration').value = f ? (f.repairDuration || '') : '';
+      document.getElementById('incVehicleStatus').value = f ? (f.vehicleStatus || '') : '';
+      document.getElementById('incidentModal').classList.add('show');
+    }
+
+    function closeIncidentModal() {
+      document.getElementById('incidentModal').classList.remove('show');
+    }
+
+    function saveIncident() {
+      const id = document.getElementById('incidentId').value;
+      const rec = {
+        id: id || ('inc_' + Date.now()),
+        incidentNo: document.getElementById('incNo').value.trim(),
+        branch: document.getElementById('incBranch').value.trim() || 'الدمام',
+        date: document.getElementById('incDate').value,
+        time: document.getElementById('incTime').value,
+        driverName: document.getElementById('incDriver').value.trim(),
+        phone: document.getElementById('incPhone').value.trim(),
+        jobTitle: document.getElementById('incJob').value.trim(),
+        vehicleType: document.getElementById('incVehicle').value.trim(),
+        location: document.getElementById('incLocation').value.trim(),
+        description: document.getElementById('incDesc').value.trim(),
+        otherParty: document.getElementById('incOtherParty').value,
+        faultPercent: document.getElementById('incFault').value,
+        repairPlace: document.getElementById('incRepairPlace').value.trim(),
+        paymentMethod: document.getElementById('incPayment').value,
+        actualCost: document.getElementById('incActualCost').value,
+        expectedCost: document.getElementById('incExpectedCost').value,
+        repairDuration: document.getElementById('incDuration').value.trim(),
+        vehicleStatus: document.getElementById('incVehicleStatus').value.trim()
+      };
+      if (!rec.driverName || !rec.date) {
+        if (window.showToast) showToast('اسم السائق وتاريخ الحادث إلزاميان', 'error');
+        return;
+      }
+      if (!state.incidentReports) state.incidentReports = [];
+      const idx = state.incidentReports.findIndex(function (x) { return x.id === rec.id; });
+      if (idx >= 0) state.incidentReports[idx] = rec; else state.incidentReports.push(rec);
+      renderIncidents();
+      closeIncidentModal();
+      scheduleSave();
+      syncIncidentToSharedLog(rec, false);
+      if (window.showToast) showToast('تم حفظ تقرير الحادث', 'success');
+    }
+
+    function deleteIncident(id) {
+      if (!confirm('حذف هذا التقرير نهائياً؟')) return;
+      state.incidentReports = (state.incidentReports || []).filter(function (x) { return x.id !== id; });
+      renderIncidents();
+      scheduleSave();
+      syncIncidentToSharedLog({ id: id }, true);
+    }
+
+    // Mirror each schedule-tab incident into the app-wide «الحوادث والمخالفات» log
+    // (/incidents, /api/incidents) so it also shows up in the platform hub counters,
+    // insights analytics, and the main incidents list — not just here. Best-effort: this
+    // page's own state.incidentReports is already saved regardless of whether this succeeds.
+    async function syncIncidentToSharedLog(rec, deleted) {
+      try {
+        const r = await fetch('/api/incidents');
+        const j = await r.json();
+        let rows = (j && j.success && Array.isArray(j.rows)) ? j.rows : [];
+        const idx = rows.findIndex(function (x) { return x.schedIncId === rec.id; });
+        if (deleted) {
+          if (idx >= 0) rows.splice(idx, 1);
+        } else {
+          const mapped = {
+            schedIncId: rec.id,
+            ref: rec.incidentNo || '',
+            date: rec.date || '',
+            type: 'حادث جسيم',
+            severity: rec.otherParty === 'نعم' ? 'عالية' : 'متوسطة',
+            name: rec.driverName || '',
+            iqama: '',
+            plate: rec.vehicleType || '',
+            details: rec.description || '',
+            status: 'مفتوح',
+            responsible: 'مسؤول الحركة',
+            notes: 'نسبة الخطأ: ' + (rec.faultPercent || '—') + '% | مكان الإصلاح: ' + (rec.repairPlace || '—') +
+                   ' | التكلفة الفعلية: ' + (rec.actualCost || '—') + ' | طريقة الدفع: ' + (rec.paymentMethod || '—'),
+            attachments: (idx >= 0 && rows[idx].attachments) ? rows[idx].attachments : []
+          };
+          if (idx >= 0) rows[idx] = Object.assign({}, rows[idx], mapped);
+          else rows.push(mapped);
+        }
+        await fetch('/api/incidents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: rows }) });
+      } catch (e) {
+        // best-effort mirror only — never blocks or reverts the schedule-tab save itself
+      }
+    }
+
+    function printIncident(id) {
+      const r = (state.incidentReports || []).find(function (x) { return x.id === id; });
+      if (!r) return;
+      const w = window.open('', '_blank');
+      if (!w) {
+        if (window.showToast) showToast('يرجى السماح بالنوافذ المنبثقة لهذا الموقع لطباعة التقرير', 'error');
+        return;
+      }
+      const row = function (label, val) {
+        return '<tr><td style="font-weight:700;background:#f5f5f5;padding:6px 10px;border:1px solid #ccc;width:38%;">' + label + '</td><td style="padding:6px 10px;border:1px solid #ccc;">' + (val ? vesc(val) : '—') + '</td></tr>';
+      };
+      w.document.write(
+        '<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير حادث ' + vesc(r.incidentNo) + '</title>' +
+        '<style>body{font-family:Tahoma,Arial,sans-serif;padding:24px;} table{border-collapse:collapse;width:100%;margin-bottom:18px;} h2{border-bottom:3px solid #c5a059;padding-bottom:8px;}</style></head><body>' +
+        '<h2>تقرير حادث سيارة</h2>' +
+        '<table>' + row('رقم الحادث', r.incidentNo) + row('الفرع', r.branch) + row('تاريخ الحادث', r.date) + row('وقت الحادث', r.time) + '</table>' +
+        '<h3>بيانات السائق والسيارة</h3><table>' + row('اسم السائق', r.driverName) + row('رقم الجوال', r.phone) + row('المسمى الوظيفي', r.jobTitle) + row('نوع السيارة / اللوحة', r.vehicleType) + '</table>' +
+        '<h3>تفاصيل الحادث</h3><table>' + row('مكان وقوع الحادث', r.location) + row('وصف الحادث', r.description) + row('هل يوجد طرف آخر؟', r.otherParty) + row('نسبة الخطأ (%)', r.faultPercent) + '</table>' +
+        '<h3>الإصلاح والتكلفة</h3><table>' + row('مكان الإصلاح', r.repairPlace) + row('طريقة الدفع', r.paymentMethod) + row('التكلفة الفعلية', r.actualCost) + row('تكلفة الإصلاح المتوقعة', r.expectedCost) + row('المدة المتوقعة للإصلاح', r.repairDuration) + row('حالة السيارة حالياً', r.vehicleStatus) + '</table>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:60px;"><div>توقيع السائق: ______________</div><div>مسؤول الحركة: ______________</div></div>' +
+        '</body></html>'
+      );
+      w.document.close();
+      w.focus();
+      setTimeout(function () { w.print(); }, 300);
+    }
+
+    async function exportIncidentsExcel() {
+      const rows = state.incidentReports || [];
+      if (!rows.length) { if (window.showToast) showToast('لا توجد حوادث لتصديرها', 'error'); return; }
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('تقارير الحوادث');
+      ws.views = [{ rightToLeft: true }];
+      const headers = ['رقم الحادث', 'الفرع', 'التاريخ', 'الوقت', 'اسم السائق', 'الجوال', 'المسمى الوظيفي', 'نوع السيارة/اللوحة', 'مكان الحادث', 'وصف الحادث', 'طرف آخر؟', 'نسبة الخطأ %', 'مكان الإصلاح', 'طريقة الدفع', 'التكلفة الفعلية', 'التكلفة المتوقعة', 'مدة الإصلاح', 'حالة السيارة'];
+      ws.addRow(headers);
+      ws.getRow(1).font = { bold: true };
+      ws.getRow(1).eachCell(function (c) { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC5A059' } }; });
+      rows.forEach(function (r) {
+        ws.addRow([r.incidentNo, r.branch, r.date, r.time, r.driverName, r.phone, r.jobTitle, r.vehicleType, r.location, r.description, r.otherParty, r.faultPercent, r.repairPlace, r.paymentMethod, r.actualCost, r.expectedCost, r.repairDuration, r.vehicleStatus]);
+      });
+      ws.columns.forEach(function (c) { c.width = 18; });
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf]), 'تقارير_الحوادث_' + new Date().toISOString().slice(0, 10) + '.xlsx');
     }
 
     // ===== «جميع مركبات الفرع» — كل من لديه مركبة من سجل سائقي الفرع =====

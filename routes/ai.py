@@ -243,6 +243,8 @@ def _ai_branch_summary():
         try:
             return _blob_count(blob_get(table))
         except Exception:
+            from app import db
+            db.session.rollback()
             return 0
     try:
         sd = blob_get("schedule_data") or {}
@@ -250,6 +252,8 @@ def _ai_branch_summary():
         ss = len(sd.get("spare") or []) if isinstance(sd, dict) else 0
         sv = len(sd.get("vacation") or []) if isinstance(sd, dict) else 0
     except Exception:
+        from app import db
+        db.session.rollback()
         sm = ss = sv = 0
     try:
         _, drivers = _drivers_list_for_sync()
@@ -257,6 +261,8 @@ def _ai_branch_summary():
         plates = {str(d.get("plate")).strip() for d in drivers if isinstance(d, dict) and str(d.get("plate") or "").strip()}
         ndrivers, nplates = len(drivers), len(plates)
     except Exception:
+        from app import db
+        db.session.rollback()
         ndrivers = nplates = 0
     return {
         "الموظفون (تبويب الموظفين)": c("employees"),

@@ -87,5 +87,6 @@ def submit_petty_cash():
         db.session.commit()
         return jsonify({"success": True})
     except Exception as e:
+        db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
 

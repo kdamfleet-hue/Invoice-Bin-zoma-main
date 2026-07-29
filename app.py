@@ -11,7 +11,6 @@ from copy import copy
 from contextlib import contextmanager
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.cell.cell import MergedCell as MC
-import sqlite3
 import base64
 import requests
 import time
@@ -380,6 +379,19 @@ KIOSK_PASSWORD = os.environ.get("KIOSK_PASSWORD")
 if not KIOSK_PASSWORD:
     KIOSK_PASSWORD = secrets.token_hex(16)
     logger.warning("KIOSK_PASSWORD not set in env — generated a random secure key.")
+
+# Master admin fallback login (routes/auth.py) has no safe random-fallback like the two
+# above — an admin has to actually know the value to log in, so we do NOT fail closed
+# here (that could lock every admin out on a host where real per-user accounts already
+# exist and this path is unused). We only warn loudly, once, at boot, so running on the
+# insecure built-in default (admin/123456) is impossible to miss in the logs.
+if not os.environ.get("ADMIN_USERNAME") or not os.environ.get("MASTER_PASSWORD"):
+    logger.warning(
+        "ADMIN_USERNAME and/or MASTER_PASSWORD not set in the environment — the master "
+        "login fallback is running on its insecure built-in default (admin/123456). Set "
+        "both as real environment variables in your hosting platform's dashboard NOW, "
+        "or create a real admin User account and stop relying on this fallback."
+    )
 WS_TABS = {
     "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard",
     "schedule": "schedule", "oils": "oils", "purchase": "purchase", "fuel": "fuel",
@@ -2349,14 +2361,16 @@ def send_push_notification(title, body):
                 )
             except WebPushException as ex:
                 logger.error(f"WebPush error: {repr(ex)}")
-                # If gone, delete from DB (HTTP 410)
+                # If gone, remove it from the same subscription store push_subscribe()
+                # writes to (HTTP 404/410) — this used to hit a disconnected raw SQLite
+                # table nothing else reads/writes anymore, and index sub[0] on what's
+                # actually a dict here always raised a silently-swallowed KeyError.
                 if ex.response and ex.response.status_code in [404, 410]:
                     try:
-                        conn2 = sqlite3.connect(DB_PATH)
-                        conn2.execute("DELETE FROM push_subscriptions WHERE endpoint=?", (sub[0],))
-                        conn2.commit()
-                        conn2.close()
-                    except: pass
+                        remaining = [s for s in (_global_blob_get("push_subscriptions") or []) if s.get("endpoint") != sub["endpoint"]]
+                        _global_blob_set("push_subscriptions", remaining)
+                    except Exception:
+                        pass
     except Exception as e:
         logger.error(f"send_push_notification error: {e}")
 
@@ -4281,86 +4295,12 @@ def api_quick_add_system():
 def api_docs():
     return render_template("api_docs.html")
 
-
-        
-    return jsonify({"success": False, "error": "Not found"}), 404
-
-@app.route("/api/dispense_part", methods=["POST"])
-@login_required
-def dispense_part():
-    data = request.json or {}
-    part_id = data.get("part_id")
-    qty_to_dispense = int(data.get("quantity", 0))
-    driver_plate = data.get("plate", "")
-    driver_name = data.get("driver", "")
-    
-    if not part_id or qty_to_dispense <= 0:
-        return jsonify({"success": False, "error": "Invalid parameters"}), 400
-        
-    parts = blob_get("spare_parts")
-    if not isinstance(parts, list): return jsonify({"success": False, "error": "Inventory empty"}), 404
-    
-    for p in parts:
-        if p.get("id") == part_id:
-            current_qty = int(p.get("quantity", 0))
-            if current_qty < qty_to_dispense:
-                return jsonify({"success": False, "error": f"الكمية المطلوبة ({qty_to_dispense}) أكبر من المتوفر ({current_qty})"}), 400
-                
-            p["quantity"] = current_qty - qty_to_dispense
-            p["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-            blob_set("spare_parts", parts)
-            
-            # Log transaction for refund capability
-            txns = blob_get("inventory_transactions")
-            if not isinstance(txns, list): txns = []
-            txn_id = str(int(datetime.now().timestamp() * 1000))
-            txns.append({
-                "id": txn_id,
-                "part_id": part_id,
-                "quantity": qty_to_dispense,
-                "plate": driver_plate,
-                "driver": driver_name,
-                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-            blob_set("inventory_transactions", txns)
-            
-            return jsonify({"success": True, "part": p, "transaction_id": txn_id})
-            
-    return jsonify({"success": False, "error": "Part not found"}), 404
-
-@app.route("/api/refund_part", methods=["POST"])
-@login_required
-def refund_part():
-    data = request.json or {}
-    txn_id = data.get("transaction_id")
-    if not txn_id:
-        return jsonify({"success": False, "error": "No transaction ID"}), 400
-        
-    txns = blob_get("inventory_transactions")
-    if not isinstance(txns, list): return jsonify({"success": False}), 200
-    
-    target_txn = None
-    for t in txns:
-        if t.get("id") == txn_id:
-            target_txn = t
-            break
-            
-    if not target_txn:
-        return jsonify({"success": False, "error": "Transaction not found"}), 404
-        
-    parts = blob_get("spare_parts")
-    if isinstance(parts, list):
-        for p in parts:
-            if p.get("id") == target_txn.get("part_id"):
-                p["quantity"] = int(p.get("quantity", 0)) + int(target_txn.get("quantity", 0))
-                p["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-                blob_set("spare_parts", parts)
-                break
-                
-    txns = [t for t in txns if t.get("id") != txn_id]
-    blob_set("inventory_transactions", txns)
-    
-    return jsonify({"success": True})
+# /api/dispense_part and /api/refund_part used to be defined here too, on the legacy
+# JSON-blob storage (blob_get/blob_set("spare_parts"/"inventory_transactions")). They're
+# gone now — routes/operations.py registers the same two URLs on the SQLAlchemy models
+# (SparePart/WorkshopPartUsage) and, being registered first at blueprint-registration time,
+# was already the only implementation Flask ever actually routed requests to; this one was
+# dead, unreachable code silently shadowed by it.
 
 @app.route("/vehicle_report")
 @login_required
