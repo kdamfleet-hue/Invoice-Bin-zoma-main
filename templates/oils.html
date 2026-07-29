@@ -1116,6 +1116,10 @@
         }
 
         const ROW_TEMPLATE = (n, r) => {
+            // Auto-repair corrupted rows saved during the Select2 bug (which injected 2 extra empty search fields)
+            if (r && r.length > 7) {
+                r = [r[0], r[2], r[4], r[5], r[6], r[7], r[8]];
+            }
             const pVal = escapeHtml(r && r[0] || '');
             let pOpts = window.cachedPlateOptions || '<option value="">اختر لوحة...</option>';
             if (pVal && !pOpts.includes(`value="${pVal}"`)) {
@@ -1208,7 +1212,7 @@
             window._oilsServerSaveTimer = setTimeout(() => {
                 const rows = [];
                 document.querySelectorAll('#oilsBody tr').forEach(tr => {
-                    const inputs = tr.querySelectorAll('input, select');
+                    const inputs = tr.querySelectorAll('select, input:not(.select2-search__field)');
                     if(inputs.length > 0) {
                         const rowData = [];
                         inputs.forEach(inp => rowData.push(inp.value));
@@ -1241,7 +1245,7 @@
 
             const rows = [];
             document.querySelectorAll('#oilsBody tr').forEach(tr => {
-                const inputs = tr.querySelectorAll('input, select');
+                const inputs = tr.querySelectorAll('select, input:not(.select2-search__field)');
                 if(inputs.length > 0) {
                     const rowData = [];
                     inputs.forEach(inp => rowData.push(inp.value));
@@ -1564,7 +1568,7 @@
                 const tds = tr.querySelectorAll('td');
                 const getVal = (c) => {
                     if(!tds[c]) return '';
-                    const input = tds[c].querySelector('input, select');
+                    const input = tds[c].querySelector('select, input:not(.select2-search__field)');
                     if(input) return input.value;
                     return tds[c].innerText.replace('❌','').trim();
                 };
