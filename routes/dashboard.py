@@ -8,50 +8,54 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route("/")
 @login_required
 def index():
-    google_user = session.get("google_user")
-    b64_en = load_logo()
-    
-    # 1. Total Drivers (from SQL DB or fallback to blob)
     try:
-        total_drivers = Driver.query.count()
-    except Exception:
-        total_drivers = 0
-    if total_drivers == 0:
-        drivers = blob_get("employees") or []
-        if isinstance(drivers, dict) and "data" in drivers:
-            drivers = drivers["data"]
-        total_drivers = len(drivers) if isinstance(drivers, list) else 115
+        google_user = session.get("google_user")
+        b64_en = load_logo()
+        
+        # 1. Total Drivers (from SQL DB or fallback to blob)
+        try:
+            total_drivers = Driver.query.count()
+        except Exception:
+            total_drivers = 0
+        if total_drivers == 0:
+            drivers = blob_get("employees") or []
+            if isinstance(drivers, dict) and "data" in drivers:
+                drivers = drivers["data"]
+            total_drivers = len(drivers) if isinstance(drivers, list) else 115
 
-    # 2. Active Vehicles (User specified 30 active vehicles)
-    try:
-        active_vehicles = Vehicle.query.count()
-    except Exception:
-        active_vehicles = 0
-    if active_vehicles == 0:
-        sched = blob_get("schedule_data") or {}
-        if isinstance(sched, dict):
-            active_vehicles = len(sched.get("main", []))
+        # 2. Active Vehicles (User specified 30 active vehicles)
+        try:
+            active_vehicles = Vehicle.query.count()
+        except Exception:
+            active_vehicles = 0
         if active_vehicles == 0:
-            active_vehicles = 30
+            sched = blob_get("schedule_data") or {}
+            if isinstance(sched, dict):
+                active_vehicles = len(sched.get("main", []))
+            if active_vehicles == 0:
+                active_vehicles = 30
 
-    # 3. Urgent Alerts (Expired & Critical documents)
-    try:
-        from services.alert_service import check_document_expirations
-        alert_res = check_document_expirations()
-        urgent_alerts = alert_res.get('counts', {}).get('expired', 0) + alert_res.get('counts', {}).get('critical', 0)
-    except Exception:
-        urgent_alerts = 7
+        # 3. Urgent Alerts (Expired & Critical documents)
+        try:
+            from services.alert_service import check_document_expirations
+            alert_res = check_document_expirations()
+            urgent_alerts = alert_res.get('counts', {}).get('expired', 0) + alert_res.get('counts', {}).get('critical', 0)
+        except Exception:
+            urgent_alerts = 7
 
-    if urgent_alerts == 0:
-        urgent_alerts = 7
-    
-    return render_template("index.html", 
-                           google_user=google_user, 
-                           b64_en=b64_en, 
-                           show_invoice_title=False,
-                           total_drivers=total_drivers,
-                           active_vehicles=active_vehicles,
-                           urgent_alerts=urgent_alerts)
+        if urgent_alerts == 0:
+            urgent_alerts = 7
+        
+        return render_template("index.html", 
+                               google_user=google_user, 
+                               b64_en=b64_en, 
+                               show_invoice_title=False,
+                               total_drivers=total_drivers,
+                               active_vehicles=active_vehicles,
+                               urgent_alerts=urgent_alerts)
+    except Exception as e:
+        import traceback
+        return f"<pre>{traceback.format_exc()}</pre>", 500
 
 
 @dashboard_bp.route("/dashboard")
