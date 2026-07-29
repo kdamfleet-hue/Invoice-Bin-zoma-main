@@ -16,6 +16,8 @@ def index():
         try:
             total_drivers = Driver.query.count()
         except Exception:
+            from app import db
+            db.session.rollback()
             total_drivers = 0
         if total_drivers == 0:
             drivers = blob_get("employees") or []
@@ -27,6 +29,8 @@ def index():
         try:
             active_vehicles = Vehicle.query.count()
         except Exception:
+            from app import db
+            db.session.rollback()
             active_vehicles = 0
         if active_vehicles == 0:
             sched = blob_get("schedule_data") or {}
@@ -41,6 +45,8 @@ def index():
             alert_res = check_document_expirations()
             urgent_alerts = alert_res.get('counts', {}).get('expired', 0) + alert_res.get('counts', {}).get('critical', 0)
         except Exception:
+            from app import db
+            db.session.rollback()
             urgent_alerts = 7
 
         if urgent_alerts == 0:
