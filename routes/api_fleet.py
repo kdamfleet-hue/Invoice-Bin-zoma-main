@@ -125,17 +125,23 @@ def add_driver():
     try:
         from flask import session
         from app import current_branch_id
-        
+        from datetime import datetime
+
         data = request.json
         if not data:
             return jsonify({"success": False, "error": "No data provided"}), 400
-            
+
         # Determine branch_id
         is_admin = session.get("role") == "admin"
         branch_id = current_branch_id()
         if is_admin and data.get("branch_id"):
             branch_id = int(data.get("branch_id"))
             
+        def safe_date(d_str):
+            if not d_str or str(d_str).strip() == '': return None
+            try: return datetime.strptime(str(d_str).strip(), '%Y-%m-%d').date()
+            except: return None
+
         new_driver = Driver(
             branch_id=branch_id,
             employee_id=data.get("empid", ""),
@@ -143,11 +149,116 @@ def add_driver():
             iqama_number=data.get("iqama", ""),
             phone=data.get("phone", ""),
             job_title=data.get("job", ""),
-            status=data.get("status", "نشط")
+            status=data.get("status", "نشط"),
+            drivercard=data.get("drivercard", ""),
+            empNotes=data.get("empNotes", ""),
+            medical_exp=safe_date(data.get("medical_exp")),
+            contract_exp=safe_date(data.get("contract_exp"))
         )
         db.session.add(new_driver)
+        
+        # Vehicle logic
+        plate = data.get("plate", "").strip()
+        if plate:
+            vehicle = Vehicle.query.filter_by(plate_number=plate).first()
+            if not vehicle:
+                vehicle = Vehicle(
+                    branch_id=branch_id,
+                    plate_number=plate,
+                    model=data.get("model", ""),
+                    v_type=data.get("car", ""),
+                    serial_number=data.get("vserial", ""),
+                    pallets=data.get("pallets", ""),
+                    load_capacity=data.get("load", ""),
+                    fuel_card=data.get("fuel_card", ""),
+                    notes=data.get("notes", ""),
+                    inspection_expiry=safe_date(data.get("inspect")),
+                    istimara_expiry=safe_date(data.get("license")),
+                    insurance_expiry=safe_date(data.get("opcard"))
+                )
+                db.session.add(vehicle)
+            
+            db.session.flush() # get IDs
+            custody = VehicleCustody(
+                driver_id=new_driver.id,
+                vehicle_id=vehicle.id,
+                received_date=datetime.utcnow().date()
+            )
+            db.session.add(custody)
+
         db.session.commit()
         return jsonify({"success": True, "message": "تم إضافة السائق بنجاح", "id": new_driver.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@api_fleet_bp.route("/api/drivers/<int:driver_id>", methods=["PUT"])
+@login_required
+def update_driver(driver_id):
+    try:
+        from flask import session
+        from datetime import datetime
+
+        data = request.json
+        driver = Driver.query.get(driver_id)
+        if not driver:
+            return jsonify({"success": False, "error": "Driver not found"}), 404
+            
+        def safe_date(d_str):
+            if not d_str or str(d_str).strip() == '': return None
+            try: return datetime.strptime(str(d_str).strip(), '%Y-%m-%d').date()
+            except: return None
+
+        driver.employee_id = data.get("empid", driver.employee_id)
+        driver.name = data.get("name", driver.name)
+        driver.iqama_number = data.get("iqama", driver.iqama_number)
+        driver.phone = data.get("phone", driver.phone)
+        driver.job_title = data.get("job", driver.job_title)
+        driver.status = data.get("status", driver.status)
+        driver.drivercard = data.get("drivercard", driver.drivercard)
+        driver.empNotes = data.get("empNotes", driver.empNotes)
+        if "medical_exp" in data: driver.medical_exp = safe_date(data.get("medical_exp"))
+        if "contract_exp" in data: driver.contract_exp = safe_date(data.get("contract_exp"))
+
+        if session.get("role") == "admin" and "branch_id" in data:
+            val = data.get("branch_id")
+            driver.branch_id = int(val) if val else None
+            
+        # Vehicle logic
+        plate = data.get("plate", "").strip()
+        if plate:
+            vehicle = Vehicle.query.filter_by(plate_number=plate).first()
+            if not vehicle:
+                vehicle = Vehicle(
+                    branch_id=driver.branch_id,
+                    plate_number=plate
+                )
+                db.session.add(vehicle)
+                
+            vehicle.model = data.get("model", vehicle.model)
+            vehicle.v_type = data.get("car", vehicle.v_type)
+            vehicle.serial_number = data.get("vserial", vehicle.serial_number)
+            vehicle.pallets = data.get("pallets", vehicle.pallets)
+            vehicle.load_capacity = data.get("load", vehicle.load_capacity)
+            vehicle.fuel_card = data.get("fuel_card", vehicle.fuel_card)
+            vehicle.notes = data.get("notes", vehicle.notes)
+            if "inspect" in data: vehicle.inspection_expiry = safe_date(data.get("inspect"))
+            if "license" in data: vehicle.istimara_expiry = safe_date(data.get("license"))
+            if "opcard" in data: vehicle.insurance_expiry = safe_date(data.get("opcard"))
+            
+            # Check custody
+            db.session.flush()
+            custody = VehicleCustody.query.filter_by(driver_id=driver.id, vehicle_id=vehicle.id).first()
+            if not custody:
+                custody = VehicleCustody(
+                    driver_id=driver.id,
+                    vehicle_id=vehicle.id,
+                    received_date=datetime.utcnow().date()
+                )
+                db.session.add(custody)
+
+        db.session.commit()
+        return jsonify({"success": True, "message": "تم تحديث بيانات السائق"})
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500

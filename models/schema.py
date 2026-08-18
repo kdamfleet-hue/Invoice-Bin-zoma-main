@@ -40,6 +40,12 @@ class Driver(db.Model):
     license_expiry = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(50), default="متاح")
     
+    # Missing Employee Fields
+    drivercard = db.Column(db.String(50), nullable=True)
+    medical_exp = db.Column(db.Date, nullable=True)
+    contract_exp = db.Column(db.Date, nullable=True)
+    empNotes = db.Column(db.Text, nullable=True)
+    
     custodies = db.relationship('VehicleCustody', backref='driver', lazy=True)
     incidents = db.relationship('Incident', backref='driver', lazy=True)
 
@@ -59,6 +65,13 @@ class Vehicle(db.Model):
     yard_condition = db.Column(db.String(50), nullable=True)
     current_km = db.Column(db.Integer, nullable=True, default=0)
     odometer = db.Column(db.Integer, nullable=True, default=0)
+    
+    # Missing Vehicle Fields
+    pallets = db.Column(db.String(50), nullable=True)
+    load_capacity = db.Column(db.String(50), nullable=True)
+    opcard = db.Column(db.Date, nullable=True)
+    fuel_card = db.Column(db.String(50), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
     
     custodies = db.relationship('VehicleCustody', backref='vehicle', lazy=True)
     incidents = db.relationship('Incident', backref='vehicle', lazy=True)

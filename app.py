@@ -1,4 +1,4 @@
-﻿
+
 import os
 import io
 import psutil
@@ -138,6 +138,7 @@ app.secret_key = _secret
 init_db(app)
 
 def ensure_db_columns():
+    """Auto-migrate any missing columns in existing tables."""
     try:
         from sqlalchemy import inspect, text
         inspector = inspect(db.engine)
@@ -145,20 +146,34 @@ def ensure_db_columns():
         with db.engine.begin() as conn:
             if 'erp_vehicles' in tables:
                 cols = [c['name'] for c in inspector.get_columns('erp_vehicles')]
-                if 'yard_status' not in cols:
-                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_status VARCHAR(50) DEFAULT 'خارج الساحة'"))
-                    logger.info("Auto-migration: Added yard_status to erp_vehicles")
-                if 'yard_condition' not in cols:
-                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN yard_condition VARCHAR(50)"))
-                    logger.info("Auto-migration: Added yard_condition to erp_vehicles")
-                if 'branch_id' not in cols:
-                    conn.execute(text("ALTER TABLE erp_vehicles ADD COLUMN branch_id INTEGER DEFAULT 1"))
-                    logger.info("Auto-migration: Added branch_id to erp_vehicles")
+                new_vehicle_cols = [
+                    ('yard_status', "VARCHAR(50) DEFAULT 'خارج الساحة'"),
+                    ('yard_condition', "VARCHAR(50)"),
+                    ('branch_id', "INTEGER DEFAULT 1"),
+                    ('pallets', "VARCHAR(50)"),
+                    ('load_capacity', "VARCHAR(50)"),
+                    ('opcard', "DATE"),
+                    ('fuel_card', "VARCHAR(50)"),
+                    ('notes', "TEXT"),
+                ]
+                for col_name, col_def in new_vehicle_cols:
+                    if col_name not in cols:
+                        conn.execute(text(f"ALTER TABLE erp_vehicles ADD COLUMN {col_name} {col_def}"))
+                        logger.info(f"Auto-migration: Added {col_name} to erp_vehicles")
             if 'erp_drivers' in tables:
                 cols = [c['name'] for c in inspector.get_columns('erp_drivers')]
-                if 'status' not in cols:
-                    conn.execute(text("ALTER TABLE erp_drivers ADD COLUMN status VARCHAR(50) DEFAULT 'متاح'"))
-                    logger.info("Auto-migration: Added status to erp_drivers")
+                new_driver_cols = [
+                    ('status', "VARCHAR(50) DEFAULT 'متاح'"),
+                    ('drivercard', "VARCHAR(50)"),
+                    ('medical_exp', "DATE"),
+                    ('contract_exp', "DATE"),
+                    ('"empNotes"', "TEXT"),
+                ]
+                for col_name, col_def in new_driver_cols:
+                    bare = col_name.strip('"')
+                    if bare not in cols:
+                        conn.execute(text(f"ALTER TABLE erp_drivers ADD COLUMN {col_name} {col_def}"))
+                        logger.info(f"Auto-migration: Added {bare} to erp_drivers")
             if 'erp_audit_logs' in tables:
                 cols = [c['name'] for c in inspector.get_columns('erp_audit_logs')]
                 if 'reason' not in cols:
@@ -168,19 +183,34 @@ def ensure_db_columns():
         logger.warning(f"ensure_db_columns notice: {e}")
 
 def init_db_on_startup():
-    from flask_migrate import upgrade
     with app.app_context():
         try:
             import models.schema
             db.create_all()
+            logger.info("✅ Database tables checked/created successfully.")
         except Exception as e:
             logger.error(f"❌ Error in db.create_all: {e}")
+        # Alembic: stamp head if migrations are already applied (tables exist) to avoid crash
         try:
+            from flask_migrate import upgrade, stamp
+            from alembic.runtime.migration import MigrationContext
+            from sqlalchemy import inspect as sa_inspect
+            inspector = sa_inspect(db.engine)
+            existing_tables = inspector.get_table_names()
+            # If core tables exist but alembic_version is empty/missing, stamp head first
+            if 'erp_branches' in existing_tables:
+                with db.engine.connect() as conn:
+                    try:
+                        ver = conn.execute(db.text("SELECT version_num FROM alembic_version")).fetchone()
+                    except Exception:
+                        ver = None
+                if not ver:
+                    stamp('head')
+                    logger.info("✅ Alembic stamped at head (tables already exist).")
             upgrade()
-            logger.info("✅ Database migrated successfully (Alembic).")
+            logger.info("✅ Alembic upgrade complete.")
         except Exception as e:
-            logger.error(f"❌ Error migrating database (Alembic): {e}")
-            
+            logger.error(f"❌ Alembic upgrade error (non-fatal): {e}")
         try:
             ensure_db_columns()
             logger.info("✅ Column verification completed.")
@@ -188,6 +218,7 @@ def init_db_on_startup():
             logger.error(f"❌ Error verifying columns: {e}")
 
 init_db_on_startup()
+
 # CORS: the app serves its own same-origin frontend, so cross-origin is disabled by
 # default. Set ALLOWED_ORIGINS (comma-separated) only if external clients are needed.
 _allowed_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
@@ -2736,18 +2767,23 @@ def _drivers_list_for_sync():
             "car": (v.v_type if v else "") or sched.get("car", ""),
             "iqama": d.iqama_number or "",
             "phone": d.phone or "",
-            "drivercard": sched.get("drivercard", "") or (str(d.license_expiry) if d.license_expiry else ""),
+            # Driver fields — SQL first, then blob fallback
+            "drivercard": (getattr(d, "drivercard", None) or "") or sched.get("drivercard", "") or (str(d.license_expiry) if d.license_expiry else ""),
             "job": d.job_title or "",
-            "empNotes": sched.get("empNotes", ""),
+            "empNotes": (getattr(d, "empNotes", None) or "") or sched.get("empNotes", ""),
+            "medical_exp": str(d.medical_exp) if getattr(d, "medical_exp", None) else "",
+            "contract_exp": str(d.contract_exp) if getattr(d, "contract_exp", None) else "",
             "branch_id": d.branch_id,
+            # Vehicle fields — SQL first, then blob fallback
             "model": (v.model if v else "") or sched.get("model", ""),
-            "pallets": sched.get("pallets", ""),
-            "load": sched.get("load", ""),
+            "pallets": (getattr(v, "pallets", None) or "") if v else sched.get("pallets", ""),
+            "load": (getattr(v, "load_capacity", None) or "") if v else sched.get("load", ""),
             "vserial": v_serial or sched.get("vserial", ""),
             "inspect": v_inspect or sched.get("inspect", ""),
             "license": v_license or sched.get("license", ""),
-            "opcard": sched.get("opcard", ""),
-            "notes": sched.get("notes", "")
+            "opcard": (str(v.insurance_expiry) if v and getattr(v, "insurance_expiry", None) else "") or sched.get("opcard", ""),
+            "fuel_card": (getattr(v, "fuel_card", None) or "") if v else "",
+            "notes": (getattr(v, "notes", None) or "") if v else sched.get("notes", "")
         })
 
     # Fallback to blob_get("employees") or sched_lookup if SQL Drivers list is empty
