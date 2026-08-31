@@ -849,6 +849,32 @@ def service_worker():
 
 
 
+
+@app.route("/employee_report")
+@login_required
+def employee_report():
+    from sqlalchemy import text
+    try:
+        result = db.session.execute(text("SELECT * FROM hr_employees")).fetchall()
+        # get column names
+        keys = result[0]._mapping.keys() if result else []
+        columns = list(keys)
+        if "م" not in columns:
+            columns.insert(0, "م")
+        
+        employees = []
+        for row in result:
+            row_dict = dict(row._mapping)
+            if "م" not in row_dict:
+                row_dict["م"] = ""
+            employees.append(row_dict)
+    except Exception as e:
+        app.logger.error(f"Failed to load full employee report: {e}")
+        columns = []
+        employees = []
+        
+    return render_template("employee_report_template.html", columns=columns, employees=employees)
+
 @app.route("/employees")
 @login_required
 def employees():

@@ -1,0 +1,74 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>تقرير الموظفين كامل</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
+  <style>
+    body { font-family: 'Cairo', sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
+    .report-container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h1 { text-align: center; color: #333; margin-bottom: 20px; }
+    table.dataTable thead th {
+      position: sticky;
+      top: 0;
+      background: #007bff;
+      color: white;
+      z-index: 2;
+      text-align: center;
+    }
+    .sticky-col {
+      position: sticky;
+      right: 0;
+      background: #f8f9fa;
+      z-index: 1;
+      font-weight: bold;
+      border-left: 2px solid #dee2e6;
+    }
+    table.dataTable thead th.sticky-col {
+      z-index: 3;
+      background: #0056b3;
+    }
+    .dataTables_wrapper { width: 100%; margin: 0 auto; }
+    table.dataTable tbody td { text-align: center; vertical-align: middle; }
+    .btn-back { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; }
+    .btn-back:hover { background: #5a6268; }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="report-container">
+    <a href="/employees" class="btn-back">🔙 العودة لشاشة الموظفين</a>
+    <h1>تقرير الموظفين الشامل ({{ employees|length }} موظف)</h1>
+    <table id="employees" class="display nowrap" style="width:100%">
+      <thead>
+        <tr>
+          {% for col in columns %}
+            <th{% if col == 'م' %} class="sticky-col"{% endif %}>{{ col }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in employees %}
+          <tr>
+            {% for col in columns %}
+              <td{% if col == 'م' %} class="sticky-col"{% endif %}>{{ emp[col] }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script>
+    $(document).ready(function(){
+      #employees.DataTable({
+        scrollX: true,
+        fixedHeader: true,
+        pageLength: 25,
+        language: { url: "https://cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json" }
+      });
+    });
+  </script>
+</body>
+</html>
