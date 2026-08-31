@@ -145,14 +145,12 @@ aside.bz-sidebar {
 }
 
 .bz-workspace-wrapper {
-    overflow-x: auto; /* يسمح بالتمرير الأفقي عند الحاجة */
+    overflow-x: hidden;
     max-width: 100%;
 }
 
-/* عندما يكون الشريط الجانبي مفتوحاً، نجعل المحتوى يتحرك بداخل مساحة الشريط */
+/* لا نضيف padding مزدوج للمحتوى — الشريط الجانبي flex-item وليس fixed هنا */
 .bz-workspace-wrapper .main-content {
-    padding-left: var(--bz-side-w);
-    padding-right: var(--bz-side-w);
     box-sizing: border-box;
 }
 
@@ -160,7 +158,7 @@ aside.bz-sidebar {
 .fab {
     position: fixed;
     bottom: 1rem;
-    right: 1rem;
+    left: 1rem;
     z-index: 2000;
 }
 
@@ -170,6 +168,8 @@ aside.bz-sidebar .bz-lang-toggle {
     overflow: hidden;
 }
 
+/* موبايل فقط: الشريط يصبح أعلى الصفحة */
+@media (max-width: 900px) {
     .bz-app-container {
         flex-direction: column !important;
     }
@@ -178,12 +178,15 @@ aside.bz-sidebar .bz-lang-toggle {
         max-width: 100% !important;
         min-width: 100% !important;
         height: auto !important;
-        max-height: 240px !important;
+        max-height: 55vh !important;
         border-left: none !important;
         border-bottom: 1px solid rgba(197, 160, 89, 0.25) !important;
+        order: -1;
     }
     .bz-workspace-wrapper {
-        height: calc(100vh - 240px) !important;
+        height: auto !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
     }
 }
 
@@ -1294,8 +1297,7 @@ body.bz-enterprise {
     --bz-side-w: 256px;
     background-image: none !important;
     padding: 0 !important;
-    padding-right: var(--bz-side-w) !important;
-    /* القائمة الجانبية ثابتة دائماً على اليمين في كل التبويبات (موضع فيزيائي مستقل عن اتجاه الصفحة) */
+    /* Sidebar is a flex child — no body padding needed for bz-enterprise-app */
     transition: padding .25s ease;
 }
 
@@ -1311,12 +1313,8 @@ body.bz-enterprise .bz-shell {
     padding-top: 1.5rem;
 }
 
-/* ---- fixed sidebar ---- */
-.bz-sidebar {
-    display: none;
-}
-
-body.bz-enterprise .bz-sidebar {
+/* ---- sidebar (flex layout primary; fixed only as fallback for legacy bz-enterprise) ---- */
+body.bz-enterprise:not(.bz-enterprise-app) .bz-sidebar {
     display: flex;
     flex-direction: column;
     position: fixed;
