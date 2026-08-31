@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
-{% block title %}تحضير جدول الغسيل | شركة بن زومة{% endblock %}
+{% block title %}جدول الغسيل الذكي | شركة بن زومة{% endblock %}
+{% block page_heading %}جدول الغسيل الذكي{% endblock %}
 
 {% block head %}
 <meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
@@ -13,227 +14,327 @@
   }
 </script>
 <script src="{{ url_for('static', filename='washing_data.js') }}"></script>
-<style>
-        /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
-        /* Let bz-fit size each column to its content; allow horizontal scroll on
-           very narrow screens instead of clipping header/cell text. */
-        .wash-table-wrap { overflow-x: auto; }
-        #washTable { border-collapse: collapse; width: 100%; table-layout: auto; }
-        #washTable thead { position: sticky; top: 0; z-index: 5; }
-        #washTable thead th {
-            background: var(--brand-navy, #0C2340);
-            color: #fff; padding: 12px 8px; font-size: 0.8rem; font-weight: 700;
-            text-align: center; white-space: normal; word-break: keep-all;
-            overflow-wrap: normal; hyphens: none; line-height: 1.3;
-            border-bottom: 2px solid var(--accent, #c9a227);
-        }
-        #washTable thead th.col-id { text-align: center; }
-        #washTable thead th.col-plate { text-align: right; }
-        #washTable thead th.col-type { text-align: right; }
-        #washTable thead th.col-driver { text-align: right; }
-        #washTable thead th.col-month { text-align: center; }
-        /* keep-all + overflow-wrap:normal keeps single Arabic words (e.g. المجموع) whole;
-           multi-word headers still wrap at their spaces, column grows instead of breaking. */
-        #washTable thead th { word-break: keep-all; overflow-wrap: normal; }
-        #washTable thead th.col-total { background: var(--accent, #c9a227); color: #0C2340; }
-        /* visible (not hidden) so no header/cell text is ever clipped on screen. */
-        #washTable td, #washTable th { overflow: visible; }
-        /* Current-month emphasis: a gold underline + bold so it reads even in B&W on screen */
-        #washTable thead th.col-month.current-month {
-            background: var(--accent, #c9a227); color: #0C2340; font-weight: 900;
-            box-shadow: inset 0 -3px 0 #0C2340;
-        }
-        #washTable thead th.col-month.current-month::after { content: " ⬇"; font-size: 0.7rem; }
-        #washTable tbody td.cell-wash.current-month { box-shadow: inset 2px 0 0 var(--accent, #c9a227), inset -2px 0 0 var(--accent, #c9a227); }
-
-        #washTable tbody td {
-            padding: 8px 10px; font-size: 0.85rem; text-align: center;
-            border: 1px solid var(--border); transition: background 0.15s ease;
-        }
-        #washTable tbody td.cell-plate { text-align: right; font-weight: 700; font-family: monospace; font-size: 0.9rem; }
-        #washTable tbody td.cell-type { text-align: right; font-size: 0.8rem; color: var(--text-secondary); }
-        #washTable tbody td.cell-driver { text-align: right; font-size: 0.8rem; max-width: 200px; }
-        .driver-edit-input { width: 100%; border: none; background: transparent; color: var(--text-primary); font-family: inherit; font-size: 0.85rem; font-weight: bold; text-align: right; outline: none; padding: 4px; transition: var(--trans); border-radius: 4px; }
-        .driver-edit-input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
-        .plate-edit-input { width: 100%; border: none; background: transparent; color: var(--brand-gold, #c5a059); font-family: monospace; font-size: 0.9rem; font-weight: 700; text-align: right; outline: none; padding: 4px; transition: var(--trans); border-radius: 4px; }
-        .plate-edit-input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
-        .type-edit-input { width: 100%; border: none; background: transparent; color: var(--text-secondary); font-family: inherit; font-size: 0.8rem; text-align: right; outline: none; padding: 4px; transition: var(--trans); border-radius: 4px; }
-        .type-edit-input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
-        #washTable tbody td.cell-total { font-weight: 800; font-size: 1rem; background: var(--surface-hover); }
-        .wash-row-del { background: rgba(220,38,38,0.15); color: #f87171; border: none; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; line-height: 1; transition: background 0.15s; }
-        .wash-row-del:hover { background: #dc2626; color: #fff; }
-        #washTable thead th.col-del { background: rgba(0,0,0,0.3); width: 34px; }
-        #washTable thead th.col-price, #washTable thead th.col-amount { background: var(--accent, #c9a227); color: #0C2340; }
-        #washTable tbody td.cell-amount { font-weight: 800; font-size: 1rem; color: var(--brand-gold-soft, #e0c489); background: rgba(197,160,89,.10); white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .wash-price-in { width: 58px; padding: 5px 4px; text-align: center; border: 1px solid var(--border-strong, #4d4d4d); border-radius: 7px; background: var(--bg-color, #1a1a1a); color: var(--text-primary); font-family: inherit; font-size: .85rem; font-weight: 700; outline: none; -moz-appearance: textfield; }
-        .wash-price-in:focus { border-color: var(--accent, #c5a059); box-shadow: 0 0 0 2px var(--accent-glow, rgba(197,160,89,.26)); }
-        .wash-finance { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 0 auto 1.3rem; max-width: 940px; }
-        .wash-finance .wf-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 17px; font-size: .9rem; font-weight: 700; color: var(--text-secondary); }
-        .wash-finance .wf-item b { font-size: 1.18rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-        .wash-finance .wf-item.total { border-color: rgba(197,160,89,.45); } .wash-finance .wf-item.total b { color: var(--brand-gold, #c5a059); }
-        .wash-finance .wf-item.month { border-color: rgba(96,165,250,.4); } .wash-finance .wf-item.month b { color: #60a5fa; }
-        .wash-finance .wf-item.paid b { color: #10b981; } .wash-finance .wf-item.pend b { color: #f59e0b; }
-        @media print { .wash-price-in { border: none; background: transparent; padding: 0; } }
-        #washTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
-
-        /* Wash status cells — meaning carried by symbol (✓/✗) AND text, never color alone */
-        .cell-wash { cursor: pointer; font-size: 1.1rem; font-weight: 700; min-width: 44px; user-select: none; }
-        .cell-wash.washed { background: #1f9d57 !important; color: #fff; }
-        .cell-wash.not-washed { color: var(--text-muted); }
-        .cell-wash.not-washed .x-mark { opacity: 0.55; }
-        .cell-wash:hover { opacity: 0.85; }
-
-        /* Monthly-invoice summary banner above the table */
-        .month-summary {
-            display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
-            gap: 1.5rem; margin: 0 auto 1.25rem; padding: 0.85rem 1.25rem; max-width: 760px;
-            border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
-            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.08));
-        }
-        .month-summary .ms-title { font-weight: 800; color: var(--text-primary); }
-        .month-summary .ms-pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.95rem; }
-        .month-summary .ms-pill .badge { min-width: 28px; text-align: center; padding: 2px 10px; border-radius: 999px; font-weight: 800; }
-        .month-summary .ms-pill.received .badge { background: #1f9d57; color: #fff; }
-        .month-summary .ms-pill.pending  .badge { background: var(--surface-hover); color: var(--text-primary); border: 1.5px solid var(--border-strong); }
-
-        /* Legend */
-        .legend { display: flex; gap: 2rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
-        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-secondary); }
-        .legend-dot { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
-        .legend-dot.green { background: #1f9d57; color: #fff; }
-        .legend-dot.gray { background: var(--surface-hover); border: 1px solid var(--border-strong); color: var(--text-muted); }
-
-        /* Search */
-        .search-bar { width: 100%; max-width: 500px; margin: 0 auto 1.5rem; position: relative; }
-        .search-bar input { width: 100%; padding: 12px 20px 12px 44px; border-radius: 50px; font-size: 1rem; }
-        .search-bar::before { content: ''; position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; }
-
-        @media (max-width: 768px) {
-            .bz-stats { grid-template-columns: repeat(2, 1fr); }
-        }
-    </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<style>
+/* ===== WASHING 2026 — Modern Command UI ===== */
+:root {
+  --w-gold: #c9a45a;
+  --w-gold-2: #e3c47a;
+  --w-ok: #22c55e;
+  --w-ok-bg: rgba(34,197,94,.14);
+  --w-no: rgba(148,163,184,.18);
+  --w-panel: rgba(13,23,36,.72);
+  --w-line: rgba(201,164,90,.22);
+  --w-soft: rgba(255,255,255,.04);
+}
+html[data-theme="light"] {
+  --w-panel: rgba(255,252,246,.92);
+  --w-soft: rgba(138,106,40,.06);
+}
+
+.wash-hero {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: 1rem; margin-bottom: 1.25rem;
+}
+.wash-hero h1 {
+  margin: 0; font-size: clamp(1.35rem, 2.4vw, 1.85rem); font-weight: 800;
+  color: var(--w-gold-2); letter-spacing: -0.02em;
+}
+.wash-hero p { margin: .35rem 0 0; color: var(--bz-muted, #93a0b3); font-size: .9rem; }
+
+.wash-kpis {
+  display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 12px; margin-bottom: 1.1rem;
+}
+@media (max-width: 900px) { .wash-kpis { grid-template-columns: repeat(2, 1fr); } }
+.wash-kpi {
+  background: linear-gradient(160deg, rgba(201,164,90,.12), var(--w-soft));
+  border: 1px solid var(--w-line); border-radius: 16px;
+  padding: 14px 16px; text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+.wash-kpi .num {
+  font-size: 1.65rem; font-weight: 800; color: var(--w-gold-2);
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+}
+.wash-kpi .label { margin-top: 4px; font-size: .78rem; color: var(--bz-muted, #93a0b3); font-weight: 600; }
+.wash-kpi.warn .num { color: #f87171; }
+.wash-kpi.ok .num { color: var(--w-ok); }
+
+.wash-panels {
+  display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; margin-bottom: 1.1rem;
+}
+@media (max-width: 900px) { .wash-panels { grid-template-columns: 1fr; } }
+.wash-panel {
+  background: var(--w-panel); border: 1px solid var(--w-line); border-radius: 16px;
+  padding: 14px 16px; backdrop-filter: blur(10px);
+}
+.wash-panel .ptitle { font-weight: 800; color: var(--w-gold); font-size: .85rem; margin-bottom: 10px; }
+.month-summary, .wash-finance {
+  display: flex !important; flex-wrap: wrap; gap: 10px 14px; align-items: center;
+  margin: 0 !important; padding: 0 !important; border: none !important;
+  background: transparent !important; box-shadow: none !important; max-width: none !important;
+}
+.ms-pill, .wf-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px; font-size: .85rem; font-weight: 700;
+  background: var(--w-soft); border: 1px solid var(--w-line);
+}
+.ms-pill .badge {
+  min-width: 26px; text-align: center; padding: 2px 8px; border-radius: 999px; font-weight: 800;
+}
+.ms-pill.received .badge { background: var(--w-ok); color: #052e16; }
+.ms-pill.pending .badge { background: rgba(248,113,113,.2); color: #fecaca; border: 1px solid rgba(248,113,113,.35); }
+.wf-item b { color: var(--w-gold-2); margin-inline-start: 4px; }
+.wf-item.paid b { color: var(--w-ok); }
+.wf-item.pend b { color: #fbbf24; }
+
+.wash-toolbar {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  justify-content: space-between; margin-bottom: 12px;
+}
+.wash-search {
+  flex: 1 1 260px; max-width: 420px; position: relative;
+}
+.wash-search input {
+  width: 100%; padding: 12px 16px 12px 42px; border-radius: 14px;
+  border: 1px solid var(--w-line); background: var(--w-soft);
+  color: inherit; font-family: inherit; font-size: .95rem;
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.wash-search input:focus {
+  border-color: var(--w-gold); box-shadow: 0 0 0 3px rgba(201,164,90,.18);
+}
+.wash-search::before {
+  content: "⌕"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  color: var(--w-gold); font-size: 1.1rem; pointer-events: none;
+}
+html[dir="rtl"] .wash-search input { padding: 12px 42px 12px 16px; }
+html[dir="rtl"] .wash-search::before { right: auto; left: 14px; }
+
+.wash-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.wbtn {
+  border: 1px solid var(--w-line); background: var(--w-soft); color: inherit;
+  border-radius: 12px; padding: 9px 14px; font-family: inherit; font-weight: 700;
+  font-size: .82rem; cursor: pointer; transition: .15s ease;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.wbtn:hover { border-color: var(--w-gold); background: rgba(201,164,90,.12); }
+.wbtn.primary {
+  background: linear-gradient(135deg, rgba(201,164,90,.35), rgba(201,164,90,.15));
+  border-color: var(--w-gold); color: var(--w-gold-2);
+}
+.wbtn.success {
+  background: linear-gradient(135deg, rgba(34,197,94,.28), rgba(34,197,94,.1));
+  border-color: rgba(34,197,94,.45); color: #86efac;
+}
+.wbtn.ghost { opacity: .9; }
+
+/* Table shell */
+.wash-card {
+  background: var(--w-panel); border: 1px solid var(--w-line); border-radius: 18px;
+  overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.22);
+}
+.wash-table-wrap { overflow-x: auto; max-width: 100%; }
+#washTable {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  table-layout: auto; font-size: .86rem;
+}
+#washTable thead { position: sticky; top: 0; z-index: 5; }
+#washTable thead th {
+  background: linear-gradient(180deg, #0f1c2e, #0a1422);
+  color: #e8eef8; padding: 12px 10px; font-size: .75rem; font-weight: 800;
+  text-align: center; white-space: nowrap; border-bottom: 1px solid var(--w-line);
+  letter-spacing: .02em;
+}
+#washTable thead th.col-plate,
+#washTable thead th.col-type,
+#washTable thead th.col-driver { text-align: right; }
+#washTable thead th.col-total,
+#washTable thead th.col-price,
+#washTable thead th.col-amount {
+  background: linear-gradient(180deg, rgba(201,164,90,.35), rgba(201,164,90,.18));
+  color: #1a1408;
+}
+#washTable thead th.col-month.current-month {
+  background: linear-gradient(180deg, var(--w-gold), #a8842f) !important;
+  color: #0c0a05 !important; font-weight: 900;
+  box-shadow: inset 0 -3px 0 #0c0a05;
+}
+#washTable thead th.col-month.current-month::after { content: " ●"; font-size: .65rem; }
+#washTable tbody td {
+  padding: 10px 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,.04);
+  vertical-align: middle; background: transparent;
+}
+#washTable tbody tr:hover td { background: rgba(201,164,90,.06); }
+#washTable tbody td.cell-plate { text-align: right; font-weight: 700; }
+#washTable tbody td.cell-type { text-align: right; color: var(--bz-muted, #93a0b3); }
+#washTable tbody td.cell-driver { text-align: right; }
+#washTable tbody td.cell-total {
+  font-weight: 800; font-size: 1rem;
+  background: rgba(201,164,90,.08) !important;
+}
+#washTable tbody td.cell-amount {
+  font-weight: 800; color: var(--w-gold-2);
+  font-variant-numeric: tabular-nums;
+  background: rgba(201,164,90,.1) !important;
+}
+#washTable tbody td.cell-wash {
+  cursor: pointer; user-select: none; transition: transform .12s, background .12s;
+  min-width: 44px;
+}
+#washTable tbody td.cell-wash:hover { transform: scale(1.08); }
+#washTable tbody td.cell-wash.washed {
+  background: var(--w-ok-bg) !important;
+}
+#washTable tbody td.cell-wash.not-washed {
+  background: var(--w-no) !important;
+}
+#washTable tbody td.cell-wash.current-month {
+  box-shadow: inset 0 0 0 2px var(--w-gold);
+}
+.ok-mark {
+  display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center;
+  border-radius: 9px; background: var(--w-ok); color: #052e16; font-weight: 900; font-size: .85rem;
+}
+.x-mark {
+  display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center;
+  border-radius: 9px; background: rgba(100,116,139,.25); color: #94a3b8; font-weight: 800; font-size: .85rem;
+}
+.wash-row-del {
+  width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(248,113,113,.35);
+  background: rgba(248,113,113,.12); color: #f87171; cursor: pointer; font-weight: 800;
+}
+.wash-row-del:hover { background: rgba(248,113,113,.28); }
+#washTable .type-edit-input,
+#washTable .wash-price-in,
+#washTable select {
+  width: 100%; min-width: 90px; max-width: 180px;
+  padding: 7px 8px; border-radius: 10px; border: 1px solid var(--w-line);
+  background: rgba(0,0,0,.25); color: inherit; font-family: inherit; font-size: .82rem;
+}
+#washTable .wash-price-in { max-width: 90px; text-align: center; }
+
+.wash-legend {
+  display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; justify-content: center;
+  padding: 14px; border-top: 1px solid var(--w-line);
+  color: var(--bz-muted, #93a0b3); font-size: .82rem;
+}
+.wash-legend span { display: inline-flex; align-items: center; gap: 8px; }
+
+#emptyStateBanner {
+  margin-top: 12px; border-radius: 14px; padding: 14px 16px;
+  border: 1px solid rgba(248,113,113,.35); background: rgba(248,113,113,.08);
+}
+
+.wash-foot {
+  text-align: center; padding: 1.2rem; color: var(--bz-muted, #93a0b3);
+  font-size: .8rem; margin-top: 1.5rem;
+}
+</style>
 {% endblock %}
 
 {% block content %}
-<header class="bz-topbar">
-<div class="bz-brand">
-<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
-<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
-</div>
-<nav class="bz-nav">
-<a href="/">🏠 الرئيسية</a>
-<a href="/purchase">🛒 طلب شراء</a>
-<a href="/schedule">📋 الجدول الأسبوعي</a>
-<a href="/oils">🛢️ الزيوت والفلاتر</a>
-<a class="active" href="/washing">🚿 الغسيل</a>
-<a href="/workshop">🔧 الورشة</a>
-<a href="/employees">👥 الموظفين</a>
-<a href="/search">🔍 بحث</a>
-<a href="/records">📁 التوثيق</a>
-<a href="/gps_sync">📡 مزامنة GPS</a>
-<a href="/tracking">🛰️ التتبع</a>
-<a href="/cameras">📹 الكاميرات</a>
-</nav>
-<div class="bz-actions">
-<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
-<a class="bz-logout" href="/logout">خروج</a>
-</div>
-</header>
-<datalist id="driversList"></datalist>
-<div class="bz-shell">
-<h2 class="bz-section-title">🚿 تحضير جدول الغسيل — الشهري</h2>
-<p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">جدول غسيل المركبات الشهري — فرع الدمام 2026</p>
-<!-- Stats -->
-<div class="bz-stats">
-<div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
-<div class="bz-stat"><div class="num" id="statWashes">0</div><div class="label">إجمالي الغسلات</div></div>
-<div class="bz-stat"><div class="num" id="statCurrent">0</div><div class="label">غسلات الشهر الحالي</div></div>
-<div class="bz-stat"><div class="num" id="statPending">0</div><div class="label">لم تُغسل هذا الشهر</div></div>
-</div>
-<!-- Monthly-invoice summary (one wash invoice per vehicle per month) -->
-<div aria-live="polite" class="month-summary" id="monthSummary">
-<span class="ms-title">فاتورة الشهر الحالي (<span id="msMonthName">—</span>):</span>
-<span class="ms-pill received">استلم فاتورة <span class="badge" id="msReceived">0</span></span>
-<span class="ms-pill pending">لم يستلم بعد <span class="badge" id="msPending">0</span></span>
-</div>
-<!-- Financial summary — automatic wash-price calculator. Two honest scopes:
-         (1) cumulative year-to-date total = Σ(price × المجموع) = sum of the المبلغ column;
-         (2) THIS month's invoice (one wash/vehicle = its price) split into received vs pending,
-         where مُعتمَد + معلّق = فاتورة الشهر. -->
-<div aria-live="polite" class="wash-finance" id="washFinance">
-<span class="wf-item total">💰 إجمالي فاتورة الغسيل (تراكمي ٢٠٢٦): <b id="wfTotal">0</b> ر.س</span>
-<span class="wf-item month">🧾 فاتورة هذا الشهر (<span id="wfMonthName">—</span>): <b id="wfMonth">0</b> ر.س</span>
-<span class="wf-item paid">✅ مُعتمَد: <b id="wfPaid">0</b> ر.س</span>
-<span class="wf-item pend">⏳ معلّق: <b id="wfPending">0</b> ر.س</span>
-</div>
-<!-- Search -->
-<div class="search-bar">
-<input id="searchInput" oninput="filterTable()" placeholder="ابحث بالاسم أو رقم اللوحة أو نوع السيارة..." type="text"/>
-</div>
-<!-- Table -->
-<div class="bz-card" id="washPrintArea">
-<div class="table-wrapper wash-table-wrap">
-<table class="bz-fit" id="washTable" class="bz-table">
-<colgroup>
-<col style="width:3%"/><col style="width:11%"/><col style="width:15%"/><col style="width:16%"/>
-<col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
-<col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
-<col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
-<col style="width:7%"/><col style="width:7%"/><col style="width:9%"/>
-</colgroup>
-<thead>
-<tr>
-<th class="col-id">#</th>
-<th class="col-plate"><span class="nb">رقم</span> <span class="nb">اللوحة</span></th>
-<th class="col-type"><span class="nb">نوع</span> <span class="nb">السيارة</span></th>
-<th class="col-driver"><span class="nb">اسم</span> <span class="nb">السائق</span></th>
-<th class="col-del" title="حذف">🗑</th>
-<th class="col-month" id="mhead-0">1</th><th class="col-month" id="mhead-1">2</th>
-<th class="col-month" id="mhead-2">3</th><th class="col-month" id="mhead-3">4</th>
-<th class="col-month" id="mhead-4">5</th><th class="col-month" id="mhead-5">6</th>
-<th class="col-month" id="mhead-6">7</th><th class="col-month" id="mhead-7">8</th>
-<th class="col-month" id="mhead-8">9</th><th class="col-month" id="mhead-9">10</th>
-<th class="col-month" id="mhead-10">11</th><th class="col-month" id="mhead-11">12</th>
-<th class="col-total"><span class="nb">المجموع</span></th>
-<th class="col-price"><span class="nb">سعر</span> <span class="nb">الغسلة</span></th>
-<th class="col-amount"><span class="nb">المبلغ</span> <span class="nb">(ر.س)</span></th>
-</tr>
-</thead>
-<tbody id="washBody"></tbody>
-</table>
-</div>
-<!-- Legend -->
-<div class="legend">
-<div class="legend-item"><div class="legend-dot green">✓</div><span>استلم فاتورة الغسيل لهذا الشهر</span></div>
-<div class="legend-item"><div class="legend-dot gray">✗</div><span>لم يستلم فاتورة هذا الشهر</span></div>
-<div class="legend-item" style="font-size:0.8rem;color:var(--text-muted);">العمود المظلل بالذهبي ⬇ هو الشهر الحالي — انقر على أي خلية لتغيير الحالة (فاتورة واحدة لكل مركبة شهرياً)</div>
-</div>
-</div>
-<!-- Empty-state diagnostic banner — shown only when vehicles list is empty after load -->
-<div id="emptyStateBanner" style="display:none;background:linear-gradient(135deg,#1a1020,#2a1520);border:1px solid #c05080;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
-  <div style="font-weight:800;color:#f87171;font-size:1rem;margin-bottom:8px;">⚠️ لا توجد بيانات مركبات — يبدو أن قاعدة البيانات فارغة</div>
-  <div style="font-size:0.88rem;color:#c0a0a0;line-height:1.8;">
-    <div>🔧 <strong style="color:#fff;">الحل السريع:</strong> اضغط على <strong style="color:#fcd34d;">🌐 مزامنة شاملة من السيرفر</strong> لاستيراد بيانات السائقين والمركبات من قاعدة البيانات.</div>
-    <div style="margin-top:6px;">📋 أو اضغط <strong style="color:#60a5fa;">🔄 تحديث من قاعدة البيانات</strong> إذا كانت بيانات FleetData متاحة.</div>
-    <div style="margin-top:6px;font-size:0.8rem;color:#9a8a8a;">💡 إذا استمرت المشكلة: تأكد من أن جدول AppSetting يحتوي على مفتاح <code style="background:#1a1a2e;padding:2px 6px;border-radius:4px;">washing_schedule_branch_1</code></div>
+<div class="wash-hero">
+  <div>
+    <h1>🚿 جدول الغسيل الذكي</h1>
+    <p>فرع الدمام • متابعة شهرية للفواتير والغسلات • بدون تعديل على بيانات السيرفر إلا عند الحفظ</p>
   </div>
-  <button onclick="this.parentElement.style.display='none'" style="margin-top:10px;background:rgba(248,113,113,.15);border:1px solid #f87171;color:#f87171;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:0.82rem;">✕ إخفاء</button>
 </div>
-<!-- Actions -->
-<div class="bz-actions-bar" style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
-<button class="btn-neon success" onclick="addWashRow()" style="background:linear-gradient(135deg,#1f9d57,#16a34a);">➕ إضافة مركبة</button>
-<button class="btn-neon" onclick="syncFromFleet()">🔄 تحديث من قاعدة البيانات</button>
-<button class="btn-neon" onclick="fullServerSync()" style="border-color:rgba(96,165,250,.5);color:#60a5fa;">🌐 مزامنة شاملة من السيرفر</button>
-<button class="btn-neon" onclick="reauditPlates()">↻ مراجعة اللوحات والأنواع</button>
-<button class="btn-neon" id="washExportBtn" onclick="exportXlsx()">📥 تصدير Excel</button>
-<button class="btn-neon" onclick="shareWashing()">📤 مشاركة / تصدير</button>
-<button class="btn-neon" onclick="openWashingReport()" style="border-color:rgba(201,162,71,.6);color:#c9a247;">📋 عرض التقرير الشهري</button>
-<button class="btn-neon success" onclick="saveState()">💾 حفظ التغييرات</button>
+
+<div class="wash-kpis">
+  <div class="wash-kpi"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
+  <div class="wash-kpi"><div class="num" id="statWashes">0</div><div class="label">إجمالي الغسلات</div></div>
+  <div class="wash-kpi ok"><div class="num" id="statCurrent">0</div><div class="label">غسلات الشهر الحالي</div></div>
+  <div class="wash-kpi warn"><div class="num" id="statPending">0</div><div class="label">لم تُغسل هذا الشهر</div></div>
 </div>
-<footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي) — فرع الدمام</footer>
-</div> /bz-shell 
+
+<div class="wash-panels">
+  <div class="wash-panel">
+    <div class="ptitle">فاتورة الشهر الحالي</div>
+    <div aria-live="polite" class="month-summary" id="monthSummary">
+      <span class="ms-title">(<span id="msMonthName">—</span>)</span>
+      <span class="ms-pill received">استلم فاتورة <span class="badge" id="msReceived">0</span></span>
+      <span class="ms-pill pending">لم يستلم بعد <span class="badge" id="msPending">0</span></span>
+    </div>
+  </div>
+  <div class="wash-panel">
+    <div class="ptitle">الملخص المالي</div>
+    <div aria-live="polite" class="wash-finance" id="washFinance">
+      <span class="wf-item total">💰 تراكمي: <b id="wfTotal">0</b> ر.س</span>
+      <span class="wf-item month">🧾 هذا الشهر: <b id="wfMonth">0</b> ر.س</span>
+      <span class="wf-item paid">✅ مُعتمَد: <b id="wfPaid">0</b> ر.س</span>
+      <span class="wf-item pend">⏳ معلّق: <b id="wfPending">0</b> ر.س</span>
+    </div>
+  </div>
+</div>
+
+<div class="wash-toolbar">
+  <div class="wash-search search-bar">
+    <input id="searchInput" oninput="filterTable()" placeholder="ابحث باللوحة أو السائق أو نوع المركبة..." type="text"/>
+  </div>
+  <div class="wash-actions bz-actions-bar">
+    <button class="wbtn success" onclick="addWashRow()">➕ إضافة مركبة</button>
+    <button class="wbtn" onclick="syncFromFleet()">🔄 من قاعدة البيانات</button>
+    <button class="wbtn ghost" onclick="fullServerSync()">🌐 مزامنة شاملة</button>
+    <button class="wbtn" onclick="reauditPlates()">↻ مراجعة اللوحات</button>
+    <button class="wbtn" id="washExportBtn" onclick="exportXlsx()">📥 Excel</button>
+    <button class="wbtn" onclick="shareWashing()">📤 مشاركة</button>
+    <button class="wbtn" onclick="openWashingReport()">📋 التقرير</button>
+    <button class="wbtn primary" onclick="saveState()">💾 حفظ</button>
+  </div>
+</div>
+
+<div class="wash-card" id="washPrintArea">
+  <div class="table-wrapper wash-table-wrap">
+    <table class="bz-fit bz-table" id="washTable">
+      <colgroup>
+        <col style="width:3%"/><col style="width:11%"/><col style="width:15%"/><col style="width:16%"/>
+        <col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
+        <col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
+        <col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
+        <col style="width:7%"/><col style="width:7%"/><col style="width:9%"/>
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="col-id">#</th>
+          <th class="col-plate">رقم اللوحة</th>
+          <th class="col-type">نوع السيارة</th>
+          <th class="col-driver">اسم السائق</th>
+          <th class="col-del" title="حذف">🗑</th>
+          <th class="col-month" id="mhead-0">1</th><th class="col-month" id="mhead-1">2</th>
+          <th class="col-month" id="mhead-2">3</th><th class="col-month" id="mhead-3">4</th>
+          <th class="col-month" id="mhead-4">5</th><th class="col-month" id="mhead-5">6</th>
+          <th class="col-month" id="mhead-6">7</th><th class="col-month" id="mhead-7">8</th>
+          <th class="col-month" id="mhead-8">9</th><th class="col-month" id="mhead-9">10</th>
+          <th class="col-month" id="mhead-10">11</th><th class="col-month" id="mhead-11">12</th>
+          <th class="col-total">المجموع</th>
+          <th class="col-price">سعر الغسلة</th>
+          <th class="col-amount">المبلغ (ر.س)</th>
+        </tr>
+      </thead>
+      <tbody id="washBody"></tbody>
+    </table>
+  </div>
+  <div class="wash-legend legend">
+    <span class="legend-item"><span class="ok-mark">✓</span> استلم فاتورة هذا الشهر</span>
+    <span class="legend-item"><span class="x-mark">✗</span> لم يستلم بعد</span>
+    <span>العمود الذهبي ● = الشهر الحالي — انقر الخلية لتبديل الحالة</span>
+  </div>
+</div>
+
+<div id="emptyStateBanner" style="display:none;">
+  <strong style="color:#f87171;">لا توجد مركبات في جدول الغسيل</strong>
+  <div style="margin-top:6px;font-size:0.85rem;opacity:.9;">استخدم «من قاعدة البيانات» أو «مزامنة شاملة» لجلب البيانات. لا يتم حذف أي بيانات مخزّنة تلقائياً.</div>
+  <button onclick="this.parentElement.style.display='none'" class="wbtn" style="margin-top:10px;">✕ إخفاء</button>
+</div>
+
+<datalist id="driversList"></datalist>
+
+<div class="wash-foot">قسم الحركة — فرع الدمام • نظام إدارة الأسطول</div>
+
 <script>
     const MONTH_NAMES = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
     const CURRENT_MONTH = new Date().getMonth(); // 0-based index of the active invoice month
