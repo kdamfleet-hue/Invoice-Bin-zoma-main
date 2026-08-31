@@ -4010,14 +4010,14 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 </body></html>"""
 
 
-from routes.auth import auth_bp
-from routes.api_fleet import api_fleet_bp
-from routes.api_docs import api_docs_bp
-from routes.ai import ai_bp
-app.register_blueprint(auth_bp)
-app.register_blueprint(api_fleet_bp)
-app.register_blueprint(api_docs_bp)
-app.register_blueprint(ai_bp)
+
+
+
+
+
+
+
+
 
 
 # Mirror every /api/* endpoint under /importantworkstation/api/* (same handler). Because
@@ -4725,6 +4725,14 @@ import routes.invoices        # noqa: F401
 from routes.invoices import invoices_bp
 app.register_blueprint(invoices_bp)
 
+from routes.auth import auth_bp
+from routes.api_fleet import api_fleet_bp
+from routes.api_docs import api_docs_bp
+from routes.ai import ai_bp
+app.register_blueprint(auth_bp)
+app.register_blueprint(api_fleet_bp)
+app.register_blueprint(api_docs_bp)
+app.register_blueprint(ai_bp)
 # ====================================================================
 # Auto-Migration Hook for Cloud Deployments (Gunicorn)
 # ====================================================================
