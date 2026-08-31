@@ -251,44 +251,6 @@ def add_header(response):
     response.headers["Expires"] = "0"
     return response
 
-from routes.dashboard import dashboard_bp
-app.register_blueprint(dashboard_bp)
-from routes.system import system_bp
-app.register_blueprint(system_bp)
-from routes.workstation import workstation_bp
-app.register_blueprint(workstation_bp)
-from routes.operations import operations_bp
-app.register_blueprint(operations_bp)
-from routes.schedule import schedule_bp
-app.register_blueprint(schedule_bp)
-from routes.fleet import fleet_bp
-app.register_blueprint(fleet_bp)
-from routes.documents import documents_bp
-from routes.custody import custody_bp
-from routes.yard import yard_bp
-from routes.inventory import inventory_bp
-from routes.driver_portal import driver_portal_bp
-from routes.finance import finance_bp
-app.register_blueprint(documents_bp)
-app.register_blueprint(custody_bp)
-app.register_blueprint(yard_bp)
-app.register_blueprint(inventory_bp)
-app.register_blueprint(driver_portal_bp)
-app.register_blueprint(finance_bp)
-from routes.gps import gps_bp
-app.register_blueprint(gps_bp)
-from routes.analytics import analytics_bp
-app.register_blueprint(analytics_bp)
-
-# Side-effect imports that register extra routes on existing blueprints
-import routes.dammam          # noqa: F401
-import routes.ops_cycle       # noqa: F401
-import routes.schedule_transport  # noqa: F401
-import routes.schedule_vehicles   # noqa: F401
-import routes.washing_scope   # noqa: F401
-import routes.invoices        # noqa: F401
-from routes.invoices import invoices_bp
-app.register_blueprint(invoices_bp)
 
 @app.route('/manifest.json')
 def manifest():
@@ -4721,6 +4683,47 @@ def _sync_from_employees_to_fleet():
     except Exception as e:
         import logging
         logging.exception(f"sync_from_employees error: {e}")
+
+
+# Register blueprints at the end to avoid circular imports
+from routes.dashboard import dashboard_bp
+app.register_blueprint(dashboard_bp)
+from routes.system import system_bp
+app.register_blueprint(system_bp)
+from routes.workstation import workstation_bp
+app.register_blueprint(workstation_bp)
+from routes.operations import operations_bp
+app.register_blueprint(operations_bp)
+from routes.schedule import schedule_bp
+app.register_blueprint(schedule_bp)
+from routes.fleet import fleet_bp
+app.register_blueprint(fleet_bp)
+from routes.documents import documents_bp
+from routes.custody import custody_bp
+from routes.yard import yard_bp
+from routes.inventory import inventory_bp
+from routes.driver_portal import driver_portal_bp
+from routes.finance import finance_bp
+app.register_blueprint(documents_bp)
+app.register_blueprint(custody_bp)
+app.register_blueprint(yard_bp)
+app.register_blueprint(inventory_bp)
+app.register_blueprint(driver_portal_bp)
+app.register_blueprint(finance_bp)
+from routes.gps import gps_bp
+app.register_blueprint(gps_bp)
+from routes.analytics import analytics_bp
+app.register_blueprint(analytics_bp)
+
+# Side-effect imports that register extra routes on existing blueprints
+import routes.dammam          # noqa: F401
+import routes.ops_cycle       # noqa: F401
+import routes.schedule_transport  # noqa: F401
+import routes.schedule_vehicles   # noqa: F401
+import routes.washing_scope   # noqa: F401
+import routes.invoices        # noqa: F401
+from routes.invoices import invoices_bp
+app.register_blueprint(invoices_bp)
 
 # ====================================================================
 # Auto-Migration Hook for Cloud Deployments (Gunicorn)

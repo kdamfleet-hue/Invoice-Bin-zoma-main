@@ -15,9 +15,10 @@ invoices_bp = Blueprint('invoices', __name__)
 # Import dependencies from app (since they are still there)
 from app import (
     login_required, _audit_add, blob_get, blob_set, 
-    _harvest_driver_registry, _harvest_vehicle_registry, 
     get_template_path, inject_logo, logger
 )
+from routes.schedule import _harvest_driver_registry, _harvest_vehicle_registry
+
 
 def generate_invoice():
     try:
