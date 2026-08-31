@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}سجل مركبات النقل — الجدول الأسبوعي{% endblock %}
+{% block page_heading %}جميع مركبات النقل العام والخاص{% endblock %}
+{% block content %}
+<div class="glass-panel" style="max-width:1200px;margin:0 auto 16px;padding:16px;">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+    <div>
+      <h2 style="margin:0 0 6px;">سجل النقل العام والخاص</h2>
+      <p class="hub-subtitle" style="margin:0;">عرض فقط من بيانات النظام الحالية — بدون تعديل</p>
+    </div>
+    <a class="bz-chip" href="/schedule">العودة للجدول الأسبوعي</a>
+  </div>
+  <div class="stats-wrapper" style="margin-top:16px;">
+    <div class="stat-circle glass-panel"><div class="count-up" id="cAll">0</div><span>الكل مع لوحة</span></div>
+    <div class="stat-circle glass-panel"><div class="count-up" id="cPub">0</div><span>نقل عام</span></div>
+    <div class="stat-circle glass-panel"><div class="count-up" id="cPrv">0</div><span>نقل خاص</span></div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px;">
+    <button class="btn-neon" data-f="all" onclick="setFlt('all',this)">الكل</button>
+    <button class="btn-neon" data-f="pub" onclick="setFlt('pub',this)">نقل عام</button>
+    <button class="btn-neon" data-f="prv" onclick="setFlt('prv',this)">نقل خاص</button>
+    <input id="q" oninput="draw()" placeholder="بحث بالاسم أو اللوحة..." style="flex:1;min-width:180px;padding:10px 12px;">
+  </div>
+  <div class="table-responsive">
+    <table id="roster">
+      <thead><tr>
+        <th>#</th><th>الاسم</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>الموديل</th><th>الجوال</th><th>التصنيف</th><th>الحالة</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+<script>
+let ROWS=[], FLT='all';
+function cls(r){
+  const t = ((r.job||'')+' '+(r.car||'')+' '+(r.status||'')).replace(/\s+/g,' ');
+  if (t.includes('عام')) return 'نقل عام';
+  if (t.includes('خاص')) return 'نقل خاص';
+  return 'غير مصنف';
+}
+function setFlt(v,btn){ FLT=v; document.querySelectorAll('[data-f]').forEach(b=>b.style.opacity=b===btn?'1':'.65'); draw(); }
+function draw(){
+  const q=(document.getElementById('q').value||'').trim().toLowerCase();
+  const tb=document.querySelector('#roster tbody'); let n=0,html='';
+  ROWS.forEach(r=>{
+    const cat=cls(r);
+    if(FLT==='pub' && cat!=='نقل عام') return;
+    if(FLT==='prv' && cat!=='نقل خاص') return;
+    const blob=[r.name,r.plate,r.car,r.model,r.phone,cat].join(' ').toLowerCase();
+    if(q && !blob.includes(q)) return;
+    n++;
+    html += `<tr><td>${n}</td><td>${r.name||'-'}</td><td>${r.plate||'-'}</td><td>${r.car||'-'}</td><td>${r.model||'-'}</td><td>${r.phone||'-'}</td><td>${cat}</td><td>${r.status||'-'}</td></tr>`;
+  });
+  tb.innerHTML = html || '<tr><td colspan="8">لا توجد نتائج</td></tr>';
+}
+(async function(){
+  const raw = await fetch('/api/drivers').then(r=>r.json()).catch(()=>[]);
+  const list = Array.isArray(raw) ? raw : (raw.drivers||raw.data||[]);
+  ROWS = list.filter(r => (r.plate||'').trim());
+  document.getElementById('cAll').textContent = ROWS.length;
+  document.getElementById('cPub').textContent = ROWS.filter(r=>cls(r)==='نقل عام').length;
+  document.getElementById('cPrv').textContent = ROWS.filter(r=>cls(r)==='نقل خاص').length;
+  draw();
+})();
+</script>
+{% endblock %}

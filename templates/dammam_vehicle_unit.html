@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}{{ v.plate if v else 'مركبة' }} | فرع الدمام{% endblock %}
+{% block page_heading %}بطاقة المركبة{% endblock %}
+{% block content %}
+{% if not v %}
+<p>المركبة غير موجودة في قائمة الدمام الـ73.</p>
+<a class="bz-chip" href="/dammam">رجوع للقائمة</a>
+{% else %}
+<div class="glass-panel" style="padding:18px;max-width:860px;margin:0 auto">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <div>
+      <h2 style="margin:0;color:var(--bz-gold-2)">{{ v.plate }}</h2>
+      <div style="color:var(--bz-muted)">{{ v.make }} {{ v.model }} — {{ v.year }} · {{ v.reg_type }}</div>
+    </div>
+    <a class="bz-chip" href="/dammam">رجوع للقائمة</a>
+  </div>
+  <div id="drv" style="margin:14px 0;padding:12px;border:1px solid var(--bz-line);border-radius:12px">جاري ربط السائق...</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+    <div><b>حالة المركبة</b><div>{{ v.status }}</div></div>
+    <div><b>الرقم التسلسلي</b><div>{{ v.serial }}</div></div>
+    <div><b>رقم الهيكل</b><div dir="ltr">{{ v.chassis }}</div></div>
+    <div><b>رخصة السير</b><div>{{ v.lic_greg or v.lic_hijri }} — {{ v.lic_status }}</div></div>
+    <div><b>الفحص الدوري</b><div>{{ v.insp_greg or v.insp_hijri or 'لا يوجد' }} — {{ v.insp_status }}</div></div>
+  </div>
+  <div style="margin-top:16px;padding:12px;border-radius:12px;background:var(--bz-gold-soft)">
+    <b>الملاحظات</b>
+    <div id="notes">{{ v.notes or 'لا توجد ملاحظات' }}</div>
+  </div>
+</div>
+<script>
+const plate = {{ v.plate|tojson }};
+function np(s){return String(s||'').replace(/\s+/g,'');}
+function show(d){
+  document.getElementById('drv').innerHTML = d && d.name
+    ? `<b>السائق الحالي:</b> ${d.name}<br>الجوال: ${d.phone||'—'} · الوظيفة: ${d.job||'—'}`
+    : 'لا يوجد سائق مربوط بهذه اللوحة في السجل الحالي.';
+}
+function pick(list){
+  list = Array.isArray(list)?list:(list&&list.data)||[];
+  return list.find(x=>np(x.plate)===np(plate)) || {};
+}
+fetch('/api/drivers').then(r=>r.json()).then(j=>{
+  const d=pick(j);
+  if(d.name){ show(d); return; }
+  return fetch('/api/drivers_info_data').then(r=>r.json()).then(j2=>show(pick(j2)));
+}).catch(()=>{ document.getElementById('drv').textContent='تعذر جلب السائق'; });
+</script>
+{% endif %}
+{% endblock %}

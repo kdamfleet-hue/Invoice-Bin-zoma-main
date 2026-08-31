@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Tabulator CSS/JS -->
+<link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator_semanticui.min.css" rel="stylesheet">
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
+
+<style>
+    .master-editor-container {
+        padding: 20px;
+        background: var(--glass-bg, #1a1d29);
+        border: 1px solid var(--glass-border, rgba(197, 160, 89, 0.25));
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        margin: 20px;
+        direction: rtl;
+    }
+
+    .editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .editor-header h2 {
+        color: var(--gold-primary, #c5a059);
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .editor-header .subtitle {
+        color: var(--text-muted, #94a3b8);
+        font-size: 0.9rem;
+    }
+
+    #master-table {
+        border-radius: 8px;
+        border: 1px solid var(--glass-border, rgba(197, 160, 89, 0.25));
+        font-family: 'Cairo', sans-serif;
+    }
+
+    .tabulator-row .tabulator-cell {
+        border-right: 1px solid var(--glass-border, rgba(197, 160, 89, 0.25));
+        padding: 8px 12px;
+    }
+
+    /* Make editable cells look slightly different */
+    .tabulator-row .tabulator-cell.tabulator-editable {
+        background-color: var(--glass-hover, rgba(197, 160, 89, 0.08));
+        cursor: text;
+    }
+
+    .tabulator-row .tabulator-cell.tabulator-editing {
+        border: 2px solid var(--gold-primary, #c5a059) !important;
+        background-color: var(--bg-accent, #131722) !important;
+        color: var(--text-main, #f8fafc) !important;
+        outline: none;
+    }
+    
+    /* Notification Toast */
+    #toast {
+        visibility: hidden;
+        min-width: 250px;
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 16px;
+        position: fixed;
+        z-index: 1000;
+        left: 50%;
+        bottom: 30px;
+        transform: translateX(-50%);
+        font-size: 14px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    #toast.show {
+        visibility: visible;
+        -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    }
+    
+    @-webkit-keyframes fadein {
+        from {bottom: 0; opacity: 0;} 
+        to {bottom: 30px; opacity: 1;}
+    }
+    @keyframes fadein {
+        from {bottom: 0; opacity: 0;}
+        to {bottom: 30px; opacity: 1;}
+    }
+    @-webkit-keyframes fadeout {
+        from {bottom: 30px; opacity: 1;} 
+        to {bottom: 0; opacity: 0;}
+    }
+    @keyframes fadeout {
+        from {bottom: 30px; opacity: 1;}
+        to {bottom: 0; opacity: 0;}
+    }
+</style>
+
+<div class="master-editor-container">
+    <div class="editor-header">
+        <div>
+            <h2>📊 التعديل الشامل للبيانات (Master Editor)</h2>
+            <div class="subtitle">اضغط (Click) على أي خلية لتعديلها. يتم الحفظ تلقائياً في جميع أرجاء النظام.</div>
+        </div>
+        <div>
+            <button class="btn-primary" onclick="table.download('csv', 'MasterData.csv')">
+                📥 تصدير Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabulator Table Container -->
+    <div id="master-table"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+    // Named to avoid colliding with the site-wide window.showToast (static/app_ux.js),
+    // which loads after this script and would otherwise silently replace this function —
+    // its own signature (message, type: 'success'/'error'/'info') doesn't match how this
+    // page calls it (message, isError: boolean), so the color-coding here would be lost.
+    function showEditorToast(message, isError=false) {
+        var x = document.getElementById("toast");
+        x.innerHTML = message;
+        x.style.backgroundColor = isError ? "#e74c3c" : "#27ae60";
+        x.className = "show";
+        setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+    }
+
+    var table = new Tabulator("#master-table", {
+        layout: "fitColumns",
+        ajaxURL: "/api/master_data",
+        pagination: "local",
+        paginationSize: 20,
+        textDirection: "rtl",
+        columns: [
+            // Sequential number
+            {title: "م", field: "row_num", width: 55, hozAlign: "center", headerSort: false, cssClass: "tabulator-readonly"},
+            // Driver Fields
+            {title: "الرقم الوظيفي", field: "employee_id", editor: "input", headerFilter: "input", width: 130},
+            {title: "اسم السائق", field: "name", editor: "input", headerFilter: "input", minWidth: 160},
+            {title: "رقم الإقامة", field: "iqama_number", editor: "input", headerFilter: "input", width: 140},
+            {title: "تاريخ الميلاد", field: "birth_date", editor: "input", editorParams:{mask:"9999-99-99", maskAutoFill:true}, width: 130, headerFilter: "input"},
+            {title: "الوظيفة", field: "job_title", editor: "input", headerFilter: "input", width: 140},
+            {title: "رقم الجوال", field: "phone", editor: "input", headerFilter: "input", width: 130},
+            // Vehicle Fields
+            {title: "رقم اللوحة", field: "plate_number", editor: "input", headerFilter: "input", width: 120},
+            {title: "الموديل", field: "model", editor: "input", headerFilter: "input", width: 100},
+            {title: "نوع المركبة", field: "v_type", editor: "input", headerFilter: "input", width: 120},
+            {title: "الحمولة", field: "load_capacity", editor: "input", headerFilter: "input", width: 100},
+            {title: "الرقم التسلسلي", field: "serial_number", editor: "input", headerFilter: "input", width: 140},
+            {title: "تاريخ انتهاء الفحص الدوري", field: "inspection_expiry", editor: "input", editorParams:{mask:"9999-99-99"}, width: 180, headerFilter: "input"},
+            {title: "تاريخ انتهاء رخصة السير", field: "istimara_expiry", editor: "input", editorParams:{mask:"9999-99-99"}, width: 170, headerFilter: "input"},
+            {title: "الملاحظات", field: "notes", editor: "input", headerFilter: "input", minWidth: 160},
+        ],
+    });
+
+    table.on("cellEdited", function(cell){
+        var row = cell.getRow().getData();
+        var field = cell.getField();
+        var newValue = cell.getValue();
+        
+        // Send AJAX request to update the database
+        fetch("/api/master_data/update", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                id: row.id,
+                field: field,
+                value: newValue
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                showEditorToast("✅ تم الحفظ بنجاح: " + field + " -> " + newValue);
+            } else {
+                showEditorToast("❌ فشل الحفظ: " + data.error, true);
+                cell.restoreOldValue(); // Revert on failure
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            showEditorToast("❌ خطأ في الاتصال بالخادم", true);
+            cell.restoreOldValue();
+        });
+    });
+</script>
+{% endblock %}

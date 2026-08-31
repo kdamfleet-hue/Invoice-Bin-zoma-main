@@ -1,0 +1,376 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تقرير محطة الغسيل — {{ active_branch|default('فرع الدمام') }}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #151820;
+    --card: #1c2030;
+    --border: #2a2f45;
+    --gold: #c9a84c;
+    --gold-dim: #8a6e2f;
+    --text: #e8eaf0;
+    --muted: #7a8099;
+    --red: #e05252;
+    --green: #4caf7d;
+    --blue: #4d78cc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Cairo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 20px;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 24px;
+    margin-bottom: 20px;
+  }
+  .brand-logo {
+    width: 48px; height: 48px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 18px; color: #000;
+  }
+  .brand-logo img {
+    width: 100%; height: 100%; border-radius: 50%;
+  }
+  .brand-name { font-size: 18px; font-weight: 700; color: var(--gold); }
+  .brand-sub  { font-size: 12px; color: var(--muted); }
+
+  .report-title {
+    font-size: 26px; font-weight: 900;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .report-meta {
+    margin-top: 6px;
+    font-size: 13px; color: var(--muted);
+    display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;
+  }
+  .report-meta span { display: flex; align-items: center; gap: 4px; }
+
+  /* ── KPI Cards ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--gold);
+    border-radius: 12px 12px 0 0;
+  }
+  .kpi.red::before  { background: var(--red); }
+  .kpi.green::before { background: var(--green); }
+  .kpi.blue::before  { background: var(--blue); }
+
+  .kpi-val {
+    font-size: 36px; font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .kpi.red .kpi-val   { color: var(--red); }
+  .kpi.green .kpi-val { color: var(--green); }
+  .kpi.blue .kpi-val  { color: var(--blue); }
+
+  .kpi-label {
+    font-size: 12px; color: var(--muted);
+  }
+
+  /* ── Finance Row ── */
+  .finance-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .fin-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .fin-label { font-size: 12px; color: var(--muted); }
+  .fin-val   { font-size: 22px; font-weight: 700; color: var(--gold); }
+  .fin-val.pending { color: var(--red); }
+  .fin-val.paid    { color: var(--green); }
+
+  /* ── Invoice Status ── */
+  .invoice-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 24px;
+    margin-bottom: 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .inv-title { font-size: 14px; font-weight: 700; }
+  .inv-badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 12px; font-weight: 700;
+  }
+  .badge-green { background: #1a3a2a; color: var(--green); border: 1px solid var(--green); }
+  .badge-red   { background: #3a1a1a; color: var(--red);   border: 1px solid var(--red); }
+
+  /* ── Table ── */
+  .section-title {
+    font-size: 15px; font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1; height: 1px;
+    background: var(--border);
+  }
+
+  .table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead tr {
+    background: #1a1e2e;
+  }
+  th {
+    padding: 12px 14px;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid #1e2235;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1e2336; }
+
+  .plate {
+    font-weight: 700;
+    background: #1e2235;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    display: inline-block;
+    letter-spacing: 1px;
+    font-size: 12px;
+  }
+  .count-pill {
+    display: inline-block;
+    min-width: 28px; text-align: center;
+    background: #1a2840;
+    border: 1px solid var(--blue);
+    color: var(--blue);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .count-pill.zero {
+    background: #2a1a1a; border-color: #444; color: var(--muted);
+  }
+  .amount { font-weight: 700; color: var(--gold); }
+  .amount.zero { color: var(--muted); }
+  .driver-name { color: var(--text); }
+  .no-driver { color: var(--muted); font-style: italic; }
+
+  .row-num { color: var(--muted); font-size: 11px; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    font-size: 12px; color: var(--muted);
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="brand">
+    <div class="brand-logo">
+      {% if b64_en %}
+      <img src="data:image/png;base64,{{ b64_en }}" alt="BZ">
+      {% else %}
+      BZ
+      {% endif %}
+    </div>
+    <div>
+      <div class="brand-name">BIN ZOMAH INTL.</div>
+      <div class="brand-sub">Trading & Development Co. Ltd</div>
+    </div>
+  </div>
+  <div class="report-title">📋 تقرير محطة الغسيل الشهري</div>
+  <div class="report-meta">
+    <span>📅 التاريخ: {{ report_date }}</span>
+    <span>🏢 الفرع: {{ active_branch|default('الدمام') }}</span>
+    <span>📆 الأسبوع: {{ week_num }}</span>
+    <span>🗓️ الشهر: {{ month_name }}</span>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-val">{{ total_vehicles }}</div>
+    <div class="kpi-label">إجمالي المركبات</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-val">{{ total_washes }}</div>
+    <div class="kpi-label">إجمالي الغسلات للتاريخ</div>
+  </div>
+  <div class="kpi blue">
+    <div class="kpi-val">{{ current_washes }}</div>
+    <div class="kpi-label">غُسلت هذا الشهر</div>
+  </div>
+  <div class="kpi red">
+    <div class="kpi-val">{{ not_washed }}</div>
+    <div class="kpi-label">لم تُغسل هذا الشهر</div>
+  </div>
+</div>
+
+<!-- Finance -->
+<div class="finance-row">
+  <div class="fin-card">
+    <div class="fin-label">💰 إجمالي فاتورة {{ month_name }}</div>
+    <div class="fin-val">{{ month_amt }} ر.س</div>
+  </div>
+  <div class="fin-card">
+    <div class="fin-label">📊 تراكمي السنوي</div>
+    <div class="fin-val">{{ total_amt }} ر.س</div>
+  </div>
+  <div class="fin-card">
+    <div class="fin-label">⏳ معلق (غير معتمد)</div>
+    <div class="fin-val pending">{{ pend_amt }} ر.س</div>
+  </div>
+  <div class="fin-card">
+    <div class="fin-label">✅ معتمد</div>
+    <div class="fin-val paid">{{ paid_amt }} ر.س</div>
+  </div>
+</div>
+
+<!-- Invoice Status -->
+<div class="invoice-bar">
+  <div class="inv-title">📄 فاتورة الشهر الحالي — {{ month_name }}</div>
+  <div class="inv-badges">
+    <span class="badge badge-green">✅ استلم فاتورة: {{ current_washes }}</span>
+    <span class="badge badge-red">❌ لم يستلم: {{ not_washed }}</span>
+  </div>
+</div>
+
+<!-- Table: Active Vehicles -->
+<div class="section-title">🚗 سجل المركبات — بدون تكرار لوحات</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>رقم اللوحة</th>
+        <th>نوع المركبة</th>
+        <th>السائق</th>
+        <th>عدد الغسلات</th>
+        <th>سعر الغسلة</th>
+        <th>الإجمالي</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in vehicles %}
+      {% set price = wash_price_fn(v) %}
+      {% set vw = namespace(total=0) %}
+      {% for wash in v.m %}
+        {% set vw.total = vw.total + (wash|int) %}
+      {% endfor %}
+      <tr>
+        <td class="row-num">{{ loop.index }}</td>
+        <td>
+          <span class="plate">{{ v.plate }}</span>
+        </td>
+        <td>{{ v.type|default('—') }}</td>
+        {% if v.driver and v.driver.strip() %}
+          <td class="driver-name">{{ v.driver }}</td>
+        {% else %}
+          <td class="no-driver">— غير محدد</td>
+        {% endif %}
+
+        <td>
+          <span class="count-pill {% if vw.total == 0 %}zero{% endif %}">
+            {{ vw.total }}
+          </span>
+        </td>
+        <td>{{ price }} ر.س</td>
+
+        <td class="amount {% if vw.total == 0 %}zero{% endif %}">{{ vw.total * price }} ر.س</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Alert -->
+{% if deduplicated_count and deduplicated_count > 0 %}
+<div style="background:#1a3a2a;border:1px solid #4caf7d;border-radius:10px;padding:16px 20px;margin-bottom:24px">
+  <div style="color:#4caf7d;font-weight:700;margin-bottom:6px">✅ تم التنظيف بنجاح: إزالة التكرار آلياً</div>
+  <div style="font-size:13px;color:#a0c0a0">
+    لقد اكتشف النظام وجود تكرار لـ <strong style="color:#fff">{{ deduplicated_count }}</strong> لوحة (أو أكثر) في السجلات السابقة. 
+    قام النظام <strong>آلياً بدمجها وتصحيح قاعدة البيانات بشكل دائم</strong> لضمان صحة الفواتير وعدد الغسلات.
+  </div>
+</div>
+{% endif %}
+
+<div class="footer">
+  تم الإعداد بواسطة قسم الحركة — {{ active_branch|default('فرع الدمام') }} &nbsp;|&nbsp; Sovereign Enterprise Protocol 2.0 &nbsp;|&nbsp; © 2026 شركة بن زومة الدولية
+</div>
+
+</body>
+</html>

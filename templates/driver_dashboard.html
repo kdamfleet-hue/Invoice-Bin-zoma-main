@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة السائقين | الرئيسية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #c5a059;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --bg-panel: #1e293b;
+            --text-muted: #94a3b8;
+        }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #f1f5f9;
+            margin: 0;
+            padding: 0;
+            color: #334155;
+            padding-bottom: 80px;
+        }
+        .header {
+            background: var(--dark);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid var(--primary);
+        }
+        .header img {
+            height: 35px;
+        }
+        .welcome {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .welcome span {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+        .logout-btn {
+            color: #ef4444;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .container {
+            padding: 15px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 10px;
+        }
+        .card-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--dark);
+        }
+        .card-header i {
+            color: var(--primary);
+            font-size: 1.4rem;
+        }
+        
+        .vehicle-tag {
+            display: inline-block;
+            background: var(--dark);
+            color: var(--primary);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .btn-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 12px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            color: var(--dark);
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+        .btn-action:hover, .btn-action:active {
+            background: #e2e8f0;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: var(--dark);
+            border: none;
+        }
+        .btn-primary:hover, .btn-primary:active {
+            background: #b48e48;
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .h-title { font-weight: bold; color: var(--dark); }
+        .h-date { font-size: 0.8rem; color: var(--text-muted); }
+        .h-amount { font-weight: bold; color: #16a34a; }
+        
+        .badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .bg-pending { background: #fef9c3; color: #854d0e; }
+        .bg-approved { background: #dcfce7; color: #166534; }
+        .bg-rejected { background: #fee2e2; color: #991b1b; }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+            align-items: flex-end;
+        }
+        .modal-content {
+            background: white;
+            width: 100%;
+            border-radius: 20px 20px 0 0;
+            padding: 25px;
+            box-sizing: border-box;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="welcome">
+            مرحباً بك، {{ driver.name.split(' ')[0] }}
+            <span>بوابة الخدمة الذاتية</span>
+        </div>
+        <a href="/driver/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-truck"></i>
+                <h3>المركبة الحالية</h3>
+            </div>
+            {% if vehicle %}
+            <div style="text-align: center;">
+                <div class="vehicle-tag">{{ vehicle.plate_number }}</div>
+                <p style="margin: 0 0 15px 0; font-weight: bold;">{{ vehicle.v_type }} - {{ vehicle.model }}</p>
+                <button class="btn-action btn-primary" onclick="alert('سيتم تفعيل الفحص قريباً')"><i class="fas fa-clipboard-check"></i> تسجيل الفحص اليومي (Pre-Trip)</button>
+            </div>
+            {% else %}
+            <p style="text-align: center; color: var(--text-muted); margin: 20px 0;">لا توجد مركبة مسندة إليك حالياً</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-wallet"></i>
+                <h3>تسوية المصاريف (العهد)</h3>
+            </div>
+            <button class="btn-action" onclick="document.getElementById('expenseModal').style.display='flex'"><i class="fas fa-plus-circle"></i> رفع مصروف جديد</button>
+            
+            <h4 style="margin: 15px 0 10px 0; font-size: 0.95rem; color: var(--text-muted);">سجل المصاريف الأخيرة</h4>
+            <div>
+                {% for exp in expenses[:5] %}
+                <div class="history-item">
+                    <div>
+                        <div class="h-title">{{ exp.expense_type }}</div>
+                        <div class="h-date">{{ exp.date }} - {{ exp.description }}</div>
+                    </div>
+                    <div style="text-align: left;">
+                        <div class="h-amount">{{ exp.amount }} ريال</div>
+                        <span class="badge {% if exp.status == 'معلق' %}bg-pending{% elif exp.status == 'معتمد' %}bg-approved{% else %}bg-rejected{% endif %}">{{ exp.status }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <p style="text-align: center; color: #cbd5e1; font-size: 0.9rem;">لا توجد مصاريف سابقة</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense Modal -->
+    <div class="modal" id="expenseModal" onclick="if(event.target==this) this.style.display='none'">
+        <div class="modal-content">
+            <h3 style="margin-top: 0;">رفع مصروف جديد</h3>
+            <form id="expenseForm">
+                <div class="form-group">
+                    <label>نوع المصروف</label>
+                    <select id="expense_type" required>
+                        <option value="رسوم طرق">رسوم طرق (ميزان/بوابات)</option>
+                        <option value="تصليح بنشر">تصليح بنشر</option>
+                        <option value="طوارئ طرق">طوارئ طرق</option>
+                        <option value="أخرى">أخرى</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>المبلغ (ريال)</label>
+                    <input type="number" id="amount" step="0.01" required placeholder="مثال: 50.00">
+                </div>
+                <div class="form-group">
+                    <label>تفاصيل المصروف</label>
+                    <input type="text" id="description" required placeholder="مثال: إصلاح إطار في محطة الخرج">
+                </div>
+                <button type="submit" class="btn-action btn-primary" style="margin-top: 20px;">رفع المصروف</button>
+                <button type="button" class="btn-action" onclick="document.getElementById('expenseModal').style.display='none'" style="border:none;">إلغاء</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData();
+            fd.append('expense_type', document.getElementById('expense_type').value);
+            fd.append('amount', document.getElementById('amount').value);
+            fd.append('description', document.getElementById('description').value);
+            
+            try {
+                const r = await fetch('/api/driver/petty_cash', {
+                    method: 'POST',
+                    body: fd
+                });
+                const res = await r.json();
+                if(res.success) {
+                    location.reload();
+                } else {
+                    alert('خطأ: ' + res.error);
+                }
+            } catch(e) {
+                alert('خطأ في الاتصال');
+            }
+        });
+    </script>
+</body>
+</html>

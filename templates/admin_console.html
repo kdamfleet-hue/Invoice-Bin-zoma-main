@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}لوحة تحكم المدير | شركة بن زومة{% endblock %}
+{% block page_heading %}لوحة تحكم المدير{% endblock %}
+{% block content %}
+<div class="admin-console">
+  <div class="hub-header" style="margin-top:0;">
+    <h1 class="hub-title" style="font-size:1.7rem;">لوحة تحكم المدير</h1>
+    <p class="hub-subtitle">روابط إدارية فقط — لا تعدّل بيانات الأسطول من هذه الشاشة</p>
+  </div>
+
+  <div class="stats-wrapper" id="adminStats">
+    <div class="stat-circle glass-panel"><div class="count-up" id="stHealth">...</div><span>حالة الخادم</span></div>
+    <div class="stat-circle glass-panel"><div class="count-up" id="stEmp">-</div><span>الموظفون</span></div>
+    <div class="stat-circle glass-panel"><div class="count-up" id="stDrv">-</div><span>سجلات الأسطول</span></div>
+  </div>
+
+  <div class="hub-group-title">إدارة النظام</div>
+  <div class="hub-grid">
+    <a class="hub-card glass-panel" href="/settings"><h3>الإعدادات</h3><p>إعدادات مقفلة بكلمة مرور إضافية.</p></a>
+    <a class="hub-card glass-panel" href="/system_commands"><h3>أوامر النظام</h3><p>مزامنة وأوامر تشغيلية.</p></a>
+    <a class="hub-card glass-panel" href="/master_editor"><h3>التعديل الشامل</h3><p>تعديل مركزي للبيانات (عند الحاجة فقط).</p></a>
+    <a class="hub-card glass-panel" href="/tech_updates"><h3>التحديثات التقنية</h3><p>سجل الإصلاحات والإصدارات.</p></a>
+  </div>
+
+  <div class="hub-group-title">المتابعة والوثائق</div>
+  <div class="hub-grid">
+    <a class="hub-card glass-panel" href="/alerts"><h3>تنبيهات الوثائق</h3><p>مراجعة الانتهاءات.</p></a>
+    <a class="hub-card glass-panel" href="/documents"><h3>الوثائق</h3><p>أرشيف وثائق المركبات والسائقين.</p></a>
+    <a class="hub-card glass-panel" href="/kpis"><h3>مؤشرات الأداء</h3><p>مؤشرات الأسطول والتشغيل.</p></a>
+    <a class="hub-card glass-panel" href="/search"><h3>البحث الشامل</h3><p>بحث عبر الصفحات والسجلات.</p></a>
+  </div>
+</div>
+<script>
+(async function(){
+  try {
+    const h = await fetch('/health').then(r=>r.json());
+    document.getElementById('stHealth').textContent = h.status || h.state || 'Online';
+  } catch(e) { document.getElementById('stHealth').textContent = 'N/A'; }
+  try {
+    const e = await fetch('/api/employees').then(r=>r.json());
+    document.getElementById('stEmp').textContent = (e.employees||e.rows||e.data||[]).length || e.count || '-';
+  } catch(e) {}
+  try {
+    const d = await fetch('/api/drivers').then(r=>r.json());
+    document.getElementById('stDrv').textContent = (d.drivers||d.rows||d.data||[]).length || d.count || '-';
+  } catch(e) {}
+})();
+</script>
+{% endblock %}

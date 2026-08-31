@@ -1,0 +1,2010 @@
+{% extends 'base.html' %}
+
+{% block title %}بيان الزيوت والفلاتر | شركة بن زومة{% endblock %}
+
+{% block head %}
+<meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
+<script>
+  const m = document.getElementById("bz-meta");
+  if(m) {
+      window.BZ_BRANCH_ID = parseInt(m.getAttribute("data-branch-id") || "0", 10);
+      window.BZ_BRANCH = m.getAttribute("data-branch") || "";
+      window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
+  }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+        /* Page-specific: Excel-replica sheet styling. Uses design-system tokens. */
+        .oils-toolbar { display: flex; gap: .6rem; flex-wrap: wrap; justify-content: center; margin: 1.25rem 0; }
+
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Tajawal', sans-serif;
+            border: 1.5px solid var(--border-strong);
+            background: var(--surface);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid var(--border);
+            padding: 0;
+            margin: 0;
+        }
+        .excel-header {
+            background: var(--brand-navy) !important;
+            color: #fff !important;
+            text-align: center;
+            font-weight: 700;
+            padding: 12px 8px !important;
+            font-size: 0.9rem;
+            border: 1px solid var(--brand-navy);
+            border-bottom: 3px solid var(--brand-gold);
+            /* On-screen readability: let long headers wrap cleanly at spaces
+               instead of being clipped/cut mid-word by the fixed layout. */
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+            hyphens: none;
+            overflow: visible;
+            line-height: 1.3;
+        }
+        /* Long header "عدد فلاتر الزيت والديزل والهواء" needs more room than its
+           28% colgroup share under table-layout:fixed; reduce header font a touch
+           so every header string is fully visible without ugly mid-word breaks. */
+        .excel-table.bz-fit .excel-header { font-size: 0.82rem; }
+        .excel-rownum {
+            text-align: center;
+            font-weight: 700;
+            border: 1px solid var(--border);
+            background: var(--surface-hover);
+            color: var(--text-primary);
+        }
+        .excel-input input, .excel-table td input {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: none !important;
+            padding: 9px;
+            background: transparent;
+            font-family: 'Tajawal', sans-serif;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+            outline: none;
+            min-height: 42px;
+        }
+        .excel-input input:focus, .excel-table td input:focus {
+            background: var(--accent-glow);
+        }
+        .excel-table tbody tr:nth-child(even) td { background: var(--surface-hover); }
+        .excel-table tbody tr:nth-child(even) td.excel-input { background: var(--surface-hover); }
+        /* Fit tables to page width; allow horizontal scroll only on very narrow
+           screens so nothing is ever clipped (text stays fully readable). */
+        .excel-table-container { overflow-x: auto; }
+        /* Auto layout so each column sizes to its content: single-word headers
+           (السابق/المستهلك/المتبقي/الموديل…) stay whole, long phrases wrap at spaces.
+           overflow:visible so nothing is clipped at the rounded edge. */
+        .excel-table.bz-fit { table-layout: auto; overflow: visible; }
+        .excel-table.bz-fit input { min-width: 0; }
+        .add-filter-cell { text-align:center; padding: 8px !important; border: 1px solid var(--border); }
+        .btn-del {
+            background: transparent; border: none; cursor: pointer; font-size: 1rem;
+            line-height: 1; padding: 4px; border-radius: 6px; transition: var(--trans);
+        }
+        .btn-del:hover { transform: scale(1.2); }
+        @media print {
+            body * { visibility: hidden; }
+            .excel-table-container, .excel-table-container *,
+            .oils-summary-print, .oils-summary-print * { visibility: visible; }
+            .excel-table-container { position: static; width: 100%; }
+            .bz-topbar, .oils-toolbar, footer { display: none !important; }
+            @page { size: landscape; margin: 5mm; }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<header class="bz-topbar">
+<div class="bz-brand">
+<img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
+<div class="bz-brand-text"><strong>BIN ZOMAH INTL.</strong><span>نظام إدارة الأسطول — فرع الدمام</span></div>
+</div>
+<nav class="bz-nav">
+<a href="/">🏠 الرئيسية</a>
+<a href="/purchase">🛒 طلب شراء</a>
+<a href="/schedule">📋 الجدول الأسبوعي</a>
+<a class="active" href="/oils">🛢️ الزيوت والفلاتر</a>
+<a href="/washing">🚿 الغسيل</a>
+<a href="/workshop">🔧 الورشة</a>
+<a href="/employees">👥 الموظفين</a>
+<a href="/search">🔍 بحث</a>
+<a href="/records">📁 التوثيق</a>
+<a href="/gps_sync">📡 مزامنة GPS</a>
+<a href="/tracking">🛰️ التتبع</a>
+<a href="/cameras">📹 الكاميرات</a>
+</nav>
+<div class="bz-actions">
+<button class="bz-icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+<a class="bz-logout" href="/logout">خروج</a>
+</div>
+</header>
+<div class="bz-shell">
+<h2 class="bz-section-title">🛢️ بيان استهلاك الزيوت والفلاتر — فرع الدمام</h2>
+<div class="bz-stats">
+<div class="bz-stat"><div class="num" id="statRows">0</div><div class="label">عدد السيارات</div></div>
+<div class="bz-stat"><div class="num" id="statLiters">0</div><div class="label">إجمالي اللترات</div></div>
+</div>
+<div class="oils-toolbar">
+<button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد</button>
+<button class="btn-primary" onclick="openDispenseModal()" style="background:var(--primary); box-shadow:0 0 15px rgba(212,175,55,0.4);">📦 صرف من المخزون</button>
+<button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
+<button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
+<button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
+</div>
+<div id="oilsPrintable">
+<!-- Excel Table Replica -->
+<div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 20px;">
+<table class="excel-table bz-fit" id="oilsExcelTable">
+<colgroup>
+<col style="width:5%"/><col style="width:13%"/><col style="width:18%"/><col style="width:14%"/>
+<col style="width:13%"/><col style="width:11%"/><col style="width:23%"/><col style="width:3%"/>
+</colgroup>
+<thead>
+<tr>
+<th colspan="8" style="border:none; text-align: center; padding: 14px 8px;">
+<input id="oilsTitle" style="width:100%; text-align:center; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); border: none; font-family: 'Tajawal'; outline: none; background: transparent;" type="text" value="بيان استهلاك الزيوت والفلاتر للسيارات الديزل (فرع الدمام) من تاريخ 2025/12/17 الى تاريخ 2026/2/7"/>
+</th>
+</tr>
+<tr>
+<th class="excel-header" style="width:2%;">م</th>
+<th class="excel-header" style="width:12%;">رقم لوحة السيارة</th>
+<th class="excel-header" style="width:18%;">المستخدم</th>
+<th class="excel-header" style="width:14%;">تاريخ تغيير الزيت</th>
+<th class="excel-header" style="width:12%;">رقم العداد</th>
+<th class="excel-header" style="width:12%;">عدد اللترات</th>
+<th class="excel-header" style="width:28%;">عدد فلاتر الزيت والديزل والهواء</th>
+<th class="excel-header" style="width:3%; border-right:none;">حذف</th>
+</tr>
+</thead>
+<tbody id="oilsBody">
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">1</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3258" selected>ب ط س 3258</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حمداني"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-17"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="123402" selected>123402</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">2</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ح ه 5088" selected>ب ح ه 5088</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حسام ابو المجد"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-18"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="343931" selected>343931</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">3</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب س ل 5541" selected>ب س ل 5541</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كريم عبدالمنعم"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-18"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="210886" selected>210886</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">4</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8715" selected>ا س ح 8715</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="تنفير حسين"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-18"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="116687" selected>116687</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">5</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8670" selected>ا س ح 8670</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="سليم اختر"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-21"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="130021" selected>130021</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">6</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3259" selected>ب ط س 3259</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عمر سمان"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-22"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="102385" selected>102385</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">7</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3263" selected>ب ط س 3263</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مأمون مياه"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-23"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="126946" selected>126946</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">8</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ر د ب 4650" selected>ر د ب 4650</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كرم جلال"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-23"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="122422" selected>122422</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">9</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8031" selected>ا س م 8031</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عمران حسين"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-24"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="56607" selected>56607</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">10</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8015" selected>ا س م 8015</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="علاء عبدالنبي"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-25"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="25174" selected>25174</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">11</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر ع 2233" selected>ا ر ع 2233</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مزايد "/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-27"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="319052" selected>319052</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">12</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ب ق 4866" selected>ب ب ق 4866</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد باشا"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-28"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="718161" selected>718161</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">13</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8714" selected>ا س ح 8714</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كابل مياه"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-29"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="141169" selected>141169</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">14</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3417" selected>ب ط س 3417</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="أمين العاقل"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-30"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="150971" selected>150971</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">15</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ص ق 6853" selected>ا ص ق 6853</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد عبدالنبي"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-30"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="39867" selected>39867</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">16</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ص ق 6855" selected>ا ص ق 6855</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد المندوه"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-30"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="37237" selected>37237</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">17</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ب ق 4868" selected>ب ب ق 4868</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مانو رشيد"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-01"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="694544" selected>694544</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">18</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8022" selected>ا س م 8022</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="فينود"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-01"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="54419" selected>54419</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">19</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8025" selected>ا س م 8025</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="ثابت قاسم"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-01"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="104005" selected>104005</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">20</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر ع 2232" selected>ا ر ع 2232</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="انيل كومار"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-03"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="207192" selected>207192</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت 1 هواء"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">21</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8033" selected>ا س م 8033</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="سايفول"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-03"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="33686" selected>33686</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">22</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا و ب 2759" selected>ا و ب 2759</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="جفري"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-05"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="537158" selected>537158</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">23</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4085" selected>ا ر و 4085</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="أنور"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-05"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="338064" selected>338064</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">24</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8021" selected>ا س م 8021</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="احمد"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-05"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="96519" selected>96519</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">25</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8717" selected>ا س ح 8717</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="اسف"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-06"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="161847" selected>161847</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">26</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8024" selected>ا س م 8024</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عبدالصبور"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-07"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="106127" selected>106127</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">27</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4084" selected>ا ر و 4084</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="راجا"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-08"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="176033" selected>176033</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">28</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3263" selected>ب ط س 3263</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="روبيل"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-10"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="23899HR" selected>23899HR</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">29</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا و ب 2760" selected>ا و ب 2760</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="فهاد"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-11"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="596000" selected>596000</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">30</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4140" selected>ا ر و 4140</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="سيراج"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-11"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="79332" selected>79332</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">31</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ق 7920" selected>ا س ق 7920</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مزايد"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-12"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="476697" selected>476697</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">32</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر ع 2240" selected>ا ر ع 2240</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="نديم"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-12"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="213070" selected>213070</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">33</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8015" selected>ا س م 8015</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="علاء"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-13"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="30420" selected>30420</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">34</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3478" selected>ب ط س 3478</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="تنفير حسين"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-13"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="97217" selected>97217</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">35</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8670" selected>ا س ح 8670</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="سليم اختر"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-13"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="134468" selected>134468</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">36</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ق 7821" selected>ا س ق 7821</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="شوكت علي"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-14"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="591254" selected>591254</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">37</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8715" selected>ا س ح 8715</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد عاطف"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-17"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="121994" selected>121994</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">38</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ق 7776" selected>ا س ق 7776</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="رفيق "/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-17"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="340474" selected>340474</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">39</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ص ط 9959" selected>ب ص ط 9959</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد عاطف"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-18"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="220976" selected>220976</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">40</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب د ل 7208" selected>ب د ل 7208</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="احمد "/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-19"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="453407" selected>453407</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">41</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ص ق 6853" selected>ا ص ق 6853</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عبدالنبي"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-22"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="45058" selected>45058</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">42</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر ع 2234" selected>ا ر ع 2234</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="شامجي"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-25"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="217240" selected>217240</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">43</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4071" selected>ا ر و 4071</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كرم"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-25"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="152697" selected>152697</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">44</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8013" selected>ا س م 8013</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="شيمون"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-26"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="373680" selected>373680</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">45</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ب ق 4866" selected>ب ب ق 4866</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد باشا"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-27"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="723125" selected>723125</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">46</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3258" selected>ب ط س 3258</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حمداني"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-28"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="129089" selected>129089</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">47</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3261" selected>ب ط س 3261</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حسن"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-28"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="118161" selected>118161</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">48</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4085" selected>ا ر و 4085</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="أنور"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-31"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="344134" selected>344134</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">49</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ح ه 5088" selected>ب ح ه 5088</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حسام"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-31"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="351129" selected>351129</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">50</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8717" selected>ا س ح 8717</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="اسف"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-31"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="166994" selected>166994</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">51</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ب ق 4868" selected>ب ب ق 4868</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="رشيد"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-01"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="700040" selected>700040</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">52</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8031" selected>ا س م 8031</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عمران"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-01"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="63040" selected>63040</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">53</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8022" selected>ا س م 8022</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مزايد "/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-04"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="62728" selected>62728</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">54</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب س ل 5541" selected>ب س ل 5541</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كريم"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-04"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="215939" selected>215939</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">55</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8025" selected>ا س م 8025</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="ثابت"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-05"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="109267" selected>109267</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">56</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ر 8873" selected>ا س ر 8873</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="احمد دنقل"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-07"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="81843" selected>81843</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">57</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3263" selected>ب ط س 3263</option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مامون مياه"/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-07"/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="138540" selected>138540</option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+<tr>
+<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">58</td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="" selected></option></select></td>
+<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value=""/></td>
+<td class="excel-input" style="width:14%;"><input type="date" value=""/></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="" selected></option></select></td>
+<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="" selected></option></select></td>
+<td class="excel-input" style="width:30%;"><input type="text" value=""/></td>
+<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Total Consumed Oils -->
+<div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 20px;">
+<table class="excel-table" style="border: 2px solid var(--border-strong); box-shadow: var(--shadow-sm);">
+<tr>
+<td style="background-color: var(--brand-navy); color: #fff; font-weight: 800; font-size: 1.2rem; text-align: center; padding: 15px !important; width: 70%; border: 1px solid var(--brand-navy);">إجمالي الزيوت المستهلكة (عدد اللترات)</td>
+<td id="totalOilsLiters" style="background: var(--surface); color: var(--text-primary); font-weight: 900; font-size: 1.5rem; text-align: center; padding: 15px !important; width: 30%; border: 1px solid var(--border-strong);">0</td>
+</tr>
+</table>
+</div>
+<!-- Summary Section -->
+<div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 20px;">
+<table class="excel-table">
+<tr>
+<td style="background-color: var(--brand-navy); color: #fff; font-weight: bold; text-align: center; padding: 10px !important;">ملاحظات وتفاصيل الفلاتر</td>
+</tr>
+<tr><td style="border:none; height:10px;"></td></tr>
+<tr>
+<td class="excel-input"><input style="text-align: right; padding-right: 15px;" type="text" value="شراء عدد 3 براميل زيت (بترومين) من تاريخ 2025/12/17 الى تاريخ 2026/2/7"/></td>
+</tr>
+<tr>
+<td class="excel-input"><input style="text-align: right; padding-right: 15px;" type="text" value="الكمية= 625 لتر - 622 زيت مستهلك= 3 لتر المتبقي  |  وبناءا عليه تم طلب زيت جديد"/></td>
+</tr>
+<tr>
+<td class="excel-input"><input style="text-align: right; padding-right: 15px;" type="text" value="شراء فلاتر زيت وديزل جديدة + المتبقي من الفلاتر- يخصم منه ما تم تغييره بالبيان"/></td>
+</tr>
+</table>
+</div>
+<!-- Filters Table -->
+<div class="oils-toolbar" data-html2canvas-ignore="true" style="margin: 0 auto 10px auto; max-width:1200px;">
+<button class="btn-primary" onclick="addFilterRow()">＋ إضافة صف للفلاتر (زيت / ديزل / هواء)</button>
+</div>
+<div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px 20px 20px;">
+<table class="excel-table bz-fit" id="filtersExcelTable">
+<colgroup>
+<col style="width:4%"/><col style="width:20%"/><col style="width:8%"/><col style="width:9%"/><col style="width:9%"/>
+<col style="width:4%"/><col style="width:20%"/><col style="width:8%"/><col style="width:9%"/><col style="width:9%"/>
+</colgroup>
+<thead>
+<tr>
+<th class="excel-header" style="width:4%;">م</th>
+<th class="excel-header" style="width:20%;">نوع الفلتر</th>
+<th class="excel-header" style="width:8%;">السابق</th>
+<th class="excel-header" style="width:9%;">المستهلك</th>
+<th class="excel-header" style="width:9%;">المتبقي</th>
+<th class="excel-header" style="width:4%;">م</th>
+<th class="excel-header" style="width:20%;">نوع الفلتر</th>
+<th class="excel-header" style="width:8%;">السابق</th>
+<th class="excel-header" style="width:9%;">المستهلك</th>
+<th class="excel-header" style="width:9%;">المتبقي</th>
+</tr>
+</thead>
+<tbody id="filtersBody">
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">1</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت ميتسوبيشي لوري "/></td>
+<td class="excel-input"><input type="text" value="8"/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+<td class="excel-input"><input type="text" value="6"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">19</td>
+<td class="excel-input"><input type="text" value="فلاتر مكيف تويوتا بك أب"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">2</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت ميتسوبيشي دينا "/></td>
+<td class="excel-input"><input type="text" value="22"/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+<td class="excel-input"><input type="text" value="18"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">20</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء جيب تويوتا"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">3</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت ايسوزو دينا "/></td>
+<td class="excel-input"><input type="text" value="12"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="11"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">21</td>
+<td class="excel-input"><input type="text" value="فلاتر مكيف جيب تويوتا"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">4</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت تويوتا دينا"/></td>
+<td class="excel-input"><input type="text" value="9"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="9"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">22</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء تويوتا كورولا"/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">5</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت بك ايسوزو "/></td>
+<td class="excel-input"><input type="text" value="24"/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+<td class="excel-input"><input type="text" value="20"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">23</td>
+<td class="excel-input"><input type="text" value="فلاتر مكيف تويوتا كورولا"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">6</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت بك ميتسوبيشي"/></td>
+<td class="excel-input"><input type="text" value="10"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="10"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">24</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء فوركلفت تويوتا "/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">7</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت بك وجيب تويوتا + فوركلفت"/></td>
+<td class="excel-input"><input type="text" value="9"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="9"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">25</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء جريت وول بكب"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">8</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت MG بك"/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">26</td>
+<td class="excel-input"><input type="text" value="فلاتر ديزل جريت وول بكب"/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">9</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء ايسوزو دينا"/></td>
+<td class="excel-input"><input type="text" value="9"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="9"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">27</td>
+<td class="excel-input"><input type="text" value="فلاتر مكيف جريت وول بكب"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">10</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء ايسوزو بك اب"/></td>
+<td class="excel-input"><input type="text" value="17"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="17"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">28</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء كيا"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">11</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء ميتسوبيشي لوري"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">29</td>
+<td class="excel-input"><input type="text" value="فلاتر مكيف كيا"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">12</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء ميتسوبيشي دينا "/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">30</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء هونداي اكسنت"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">13</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء بك تويوتا"/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="2"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">31</td>
+<td class="excel-input"><input type="text" value="فلاتر مكيف هونداي اكسنت"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">14</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء ميتسوبيشي بك"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">32</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت جريت وول بكب"/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">15</td>
+<td class="excel-input"><input type="text" value="فلاتر هواء ايسوزو لوري"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">33</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت كيا وهونداي بنزين"/></td>
+<td class="excel-input"><input type="text" value="5"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="5"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">16</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت ايسوزو لوري "/></td>
+<td class="excel-input"><input type="text" value="20"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="19"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">34</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت كورولا بنزين"/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">17</td>
+<td class="excel-input"><input type="text" value="فلاتر ديزل ايسوزو لوري"/></td>
+<td class="excel-input"><input type="text" value="18"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="18"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">35</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت رينو فان "/></td>
+<td class="excel-input"><input type="text" value="5"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="4"/></td>
+</tr>
+<tr>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">18</td>
+<td class="excel-input"><input type="text" value="فلاتر مكيف ايسوزو بكب أب"/></td>
+<td class="excel-input"><input type="text" value="8"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="8"/></td>
+<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">36</td>
+<td class="excel-input"><input type="text" value="فلاتر زيت سوزوكي"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+<td class="excel-input"><input type="text" value="0"/></td>
+<td class="excel-input"><input type="text" value="1"/></td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Diesel Filters Notes -->
+<div style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px;">
+<table class="excel-table" style="border:none;">
+<tr>
+<td style="font-weight:bold; font-size:1.1rem; padding: 5px 15px !important; border:none; text-align:right;">فلاتر الديزل</td>
+</tr>
+<tr>
+<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل ميتسوبيشي لوري + دينا + تويوتا دينا = العدد 17"/></td>
+</tr>
+<tr>
+<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value=" فلاتر ديزل ايسوزو دينا  = العدد 18"/></td>
+</tr>
+<tr>
+<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل بكب ايسوزو =  العدد 11"/></td>
+</tr>
+<tr>
+<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل بكب ميتسوبيشي = العدد 4"/></td>
+</tr>
+<tr>
+<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل بكب وجيب تويوتا + فوركلفت = العدد 7"/></td>
+</tr>
+<tr>
+<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل إم جي بكب = العدد 0"/></td>
+</tr>
+</table>
+</div>
+<!-- Signatures -->
+<div style="width: 100%; max-width: 1200px; margin: 30px auto; padding: 0 20px;">
+<div style="display:flex; justify-content: space-between; font-weight:bold; font-size:1.1rem; padding-top: 10px;">
+<div style="width: 50%; text-align:right;">
+<input id="oilsConclusion" style="width:100%; border:none; text-align:right; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);" type="text" value="وبناءا عليه تم طلب وشراء فلاتر جديدة  —  الحسابات"/>
+</div>
+<div style="width: 20%; text-align:center;">
+<div style="margin-bottom:40px;">قسم الحركة</div>
+<input id="oilsSigDept" style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);" type="text" value="خالد بن محمد الغامدي"/>
+</div>
+<div style="width: 20%; text-align:center;">
+<div style="margin-bottom:40px;">التعميد</div>
+<input id="oilsSigApproval" placeholder="..." style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);" type="text"/>
+</div>
+</div>
+</div>
+</div><!-- /oilsPrintable -->
+<datalist id="oilsDriversList"></datalist>
+<datalist id="oilsPlatesList"></datalist>
+<script>
+
+        function updateTotalLiters() {
+            let total = 0;
+            const rows = document.querySelectorAll('#oilsBody tr');
+            rows.forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if(inputs.length > 4) {
+                    const val = parseFloat(inputs[4].value);
+                    if(!isNaN(val)) total += val;
+                }
+            });
+            const totalEl = document.getElementById('totalOilsLiters');
+            if(totalEl) totalEl.textContent = total.toLocaleString('en-US');
+            const statLiters = document.getElementById('statLiters');
+            if(statLiters) statLiters.textContent = total.toLocaleString('en-US');
+            const statRows = document.getElementById('statRows');
+            if(statRows) statRows.textContent = rows.length;
+        }
+
+        function renumberRows() {
+            document.querySelectorAll('#oilsBody tr').forEach((r, idx) => {
+                const td0 = r.querySelector('td');
+                if(td0 && !td0.querySelector('input')) td0.textContent = idx + 1;
+            });
+        }
+
+        async function deleteRow(btn) {
+            const tr = btn.closest('tr');
+            const txn = tr.getAttribute('data-transaction-id');
+            if (txn) {
+                try {
+                    await fetch('/api/refund_part', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ transaction_id: txn })
+                    });
+                } catch(e) {}
+            }
+            tr.remove();
+            renumberRows();
+            updateTotalLiters();
+            saveToLocalStorage();
+            if(window.showToast) showToast('تم حذف الصف', 'info');
+        }
+
+        const ROW_TEMPLATE = (n, r) => {
+            // Auto-repair corrupted rows saved during the Select2 bug (which injected 2 extra empty search fields)
+            if (r && r.length > 7) {
+                r = [r[0], r[2], r[4], r[5], r[6], r[7], r[8]];
+            }
+            const pVal = escapeHtml(r && r[0] || '');
+            let pOpts = window.cachedPlateOptions || '<option value="">اختر لوحة...</option>';
+            if (pVal && !pOpts.includes(`value="${pVal}"`)) {
+                pOpts += `<option value="${pVal}">${pVal}</option>`;
+            }
+            if (pVal) {
+                pOpts = pOpts.replace(`value="${pVal}"`, `value="${pVal}" selected`);
+            }
+            const dVal = escapeHtml(r && r[1] || '');
+            let dOpts = window.cachedDriverOptions || '<option value="">اختر أو أدخل الاسم...</option>';
+            if (dVal && !dOpts.includes(`value="${dVal}"`)) {
+                dOpts += `<option value="${dVal}">${dVal}</option>`;
+            }
+            if (dVal) {
+                dOpts = dOpts.replace(`value="${dVal}"`, `value="${dVal}" selected`);
+            }
+            return `
+                    <td class="excel-rownum" style="width:2%;">${n}</td>
+                    <td class="excel-input" style="width:12%;"><select class="bz-select2 plate-edit-input" style="width:100%;" onchange="autoSaveOils()">${pOpts}</select></td>
+                    <td class="excel-input" style="width:18%;"><select class="bz-select2 driver-edit-input" style="width:100%;" onchange="autoSaveOils()">${dOpts}</select></td>
+                    <td class="excel-input" style="width:14%;"><input type="date" value="${escapeHtml(r && r[2] || '')}" onchange="autoSaveOils()"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="${escapeHtml(r && r[3] || '')}" onchange="autoSaveOils()"></td>
+                    <td class="excel-input" style="width:12%;"><input type="text" value="${escapeHtml(r && r[4] || '')}" onchange="autoSaveOils()"></td>
+                    <td class="excel-input" style="width:30%;"><input type="text" value="${escapeHtml(r && r[5] || '')}" onchange="autoSaveOils()"></td>
+                    <td class="excel-rownum" style="border-right:none;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>`;
+        };
+
+        function addOilsRow() {
+            const tbody = document.getElementById('oilsBody');
+            const rowCount = tbody.querySelectorAll('tr').length + 1;
+            const tr = document.createElement('tr');
+            tr.innerHTML = ROW_TEMPLATE(rowCount, null);
+            tbody.appendChild(tr);
+            saveToLocalStorage();
+        }
+
+        // --- Filters table dynamic rows (each row = two filter entries: oil/diesel/air) ---
+        const FILTER_ROW_TEMPLATE = (nL, nR, r) => `
+                    <td class="excel-rownum" style="width:4%;">${nL}</td>
+                    <td class="excel-input" style="width:20%;"><input type="text" value="${escapeHtml(r && r[0] || '')}"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="${escapeHtml(r && r[1] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[2] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[3] || '')}"></td>
+                    <td class="excel-rownum" style="width:4%;">${nR}</td>
+                    <td class="excel-input" style="width:20%;"><input type="text" value="${escapeHtml(r && r[4] || '')}"></td>
+                    <td class="excel-input" style="width:8%;"><input type="text" value="${escapeHtml(r && r[5] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[6] || '')}"></td>
+                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[7] || '')}"></td>`;
+
+        function renumberFilterRows() {
+            const rows = document.querySelectorAll('#filtersBody tr');
+            const n = rows.length;
+            rows.forEach((tr, idx) => {
+                // First non-input cell = left index, the cell at position 5 = right index.
+                const tds = tr.querySelectorAll('td');
+                if(tds[0] && !tds[0].querySelector('input')) tds[0].textContent = idx + 1;
+                if(tds[5] && !tds[5].querySelector('input')) tds[5].textContent = idx + 1 + n;
+            });
+        }
+
+        function addFilterRow() {
+            const tbody = document.getElementById('filtersBody');
+            const n = tbody.querySelectorAll('tr').length;
+            const tr = document.createElement('tr');
+            // Left index = n+1, right index = (n+1)+(n+1) recomputed after renumber.
+            tr.innerHTML = FILTER_ROW_TEMPLATE(n + 1, n + 1, null);
+            tbody.appendChild(tr);
+            renumberFilterRows();
+            saveToLocalStorage();
+            if(window.showToast) showToast('تمت إضافة صف للفلاتر', 'success');
+        }
+
+        async function clearOilsData() {
+            if(await window.bzConfirm('سيتم مسح كل البيانات المحفوظة محلياً. هل أنت متأكد؟')) {
+                localStorage.removeItem('excel_oils_data');
+                localStorage.removeItem('excel_filters_data');
+                localStorage.removeItem('excel_oils_title');
+                window.location.reload();
+            }
+        }
+
+        // Workstation sandbox flag (computed locally for robustness vs. script timing).
+        const OILS_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
+
+        // WS: debounced server autosave to /api/oils_data (id=2 isolated store).
+        // The app_ux.js fetch wrapper rewrites the literal '/api/' prefix to the
+        // workstation path, so we MUST use a literal '/api/oils_data' URL here.
+        function saveOilsToServer() {
+            clearTimeout(window._oilsServerSaveTimer);
+            window._oilsServerSaveTimer = setTimeout(() => {
+                const rows = [];
+                document.querySelectorAll('#oilsBody tr').forEach(tr => {
+                    const inputs = tr.querySelectorAll('select, input:not(.select2-search__field)');
+                    if(inputs.length > 0) {
+                        const rowData = [];
+                        inputs.forEach(inp => rowData.push(inp.value));
+                        rowData.push(tr.getAttribute('data-transaction-id') || '');
+                        rows.push(rowData);
+                    }
+                });
+                const filters = [];
+                document.querySelectorAll('#filtersBody tr').forEach(tr => {
+                    const inputs = tr.querySelectorAll('input');
+                    if(inputs.length > 0) {
+                        const rowData = [];
+                        inputs.forEach(inp => rowData.push(inp.value));
+                        filters.push(rowData);
+                    }
+                });
+                const titleEl = document.getElementById('oilsTitle');
+                const payload = { title: titleEl ? titleEl.value : '', oils: rows, filters: filters };
+                fetch('/api/oils_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            }, 700);
+        }
+
+        function saveToLocalStorage() {
+            // WS: persist to the server (isolated id=2 store), NOT localStorage.
+            if(OILS_WS) { saveOilsToServer(); return; }
+
+            const rows = [];
+            document.querySelectorAll('#oilsBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('select, input:not(.select2-search__field)');
+                if(inputs.length > 0) {
+                    const rowData = [];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    rowData.push(tr.getAttribute('data-transaction-id') || '');
+                    rows.push(rowData);
+                }
+            });
+            localStorage.setItem('excel_oils_data', JSON.stringify(rows));
+
+            // Persist the filters table rows too (so added filter rows survive reload).
+            const fRows = [];
+            document.querySelectorAll('#filtersBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if(inputs.length > 0) {
+                    const rowData = [];
+                    inputs.forEach(inp => rowData.push(inp.value));
+                    fRows.push(rowData);
+                }
+            });
+            localStorage.setItem('excel_filters_data', JSON.stringify(fRows));
+
+            const titleVal = document.getElementById('oilsTitle').value;
+            localStorage.setItem('excel_oils_title', titleVal);
+        }
+
+        // WS: empty start + load this sandbox's own persisted data from the server.
+        async function loadOilsFromServer() {
+            const oBody = document.getElementById('oilsBody');
+            const fBody = document.getElementById('filtersBody');
+            // (A) EMPTY START — drop all hardcoded rows before fetching.
+            if(oBody) oBody.innerHTML = '';
+            if(fBody) fBody.innerHTML = '';
+            try {
+                const res = await fetch('/api/oils_data');
+                const json = await res.json();
+                const data = json && json.data;
+                if(data) {
+                    // (B) SERVER LOAD — rebuild tables from persisted data, if any.
+                    if(oBody && Array.isArray(data.oils)) {
+                        data.oils.forEach((r, idx) => {
+                            const tr = document.createElement('tr');
+                            if(r[6]) tr.setAttribute('data-transaction-id', r[6]);
+                            tr.innerHTML = ROW_TEMPLATE(idx + 1, r);
+                            oBody.appendChild(tr);
+                        });
+                    }
+                    if(fBody && Array.isArray(data.filters)) {
+                        data.filters.forEach((r) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = FILTER_ROW_TEMPLATE(0, 0, r);
+                            fBody.appendChild(tr);
+                        });
+                        renumberFilterRows();
+                    }
+                    const titleEl = document.getElementById('oilsTitle');
+                    if(titleEl && typeof data.title === 'string') titleEl.value = data.title;
+                }
+                // data null -> leave tables empty.
+            } catch(e) { console.error('Failed to load oils data from server', e); }
+        }
+        
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem('excel_oils_data');
+            if(savedData) {
+                try {
+                    const rows = JSON.parse(savedData);
+                    const tbody = document.getElementById('oilsBody');
+                    
+                    if(rows.length > 0) {
+                        tbody.innerHTML = '';
+                        rows.forEach((r, idx) => {
+                            const tr = document.createElement('tr');
+                            if(r[6]) tr.setAttribute('data-transaction-id', r[6]);
+                            tr.innerHTML = ROW_TEMPLATE(idx + 1, r);
+                            tbody.appendChild(tr);
+                        });
+                    }
+                } catch(e) { console.error('Failed to load saved oils data', e); }
+            }
+
+            const savedFilters = localStorage.getItem('excel_filters_data');
+            if(savedFilters) {
+                try {
+                    const fRows = JSON.parse(savedFilters);
+                    const fbody = document.getElementById('filtersBody');
+                    if(fbody && fRows.length > 0) {
+                        fbody.innerHTML = '';
+                        fRows.forEach((r) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = FILTER_ROW_TEMPLATE(0, 0, r);
+                            fbody.appendChild(tr);
+                        });
+                        renumberFilterRows();
+                    }
+                } catch(e) { console.error('Failed to load saved filters data', e); }
+            }
+
+            const titleVal = localStorage.getItem('excel_oils_title');
+            if(titleVal) {
+                document.getElementById('oilsTitle').value = titleVal;
+            }
+        }
+
+        // --- Autofill via shared FleetData engine ---
+        // Selecting a driver name in a row fills the plate column automatically.
+        function handleNameAutofill(inputEl) {
+            if(!window.FleetData) return;
+            const rec = FleetData.byName(inputEl.value.trim());
+            if(!rec) return;
+            const tr = inputEl.closest('tr');
+            const plateSel = tr.querySelector('select.bz-select2');
+            if(rec.plate && rec.plate !== 'None' && plateSel) {
+                plateSel.value = rec.plate;
+                if (typeof jQuery !== 'undefined' && $(plateSel).hasClass('select2-hidden-accessible')) {
+                    $(plateSel).trigger('change.select2');
+                }
+            }
+            saveToLocalStorage();
+        }
+
+        document.addEventListener('change', function(e) {
+            if(e.target && e.target.classList && e.target.classList.contains('driver-edit-input')) {
+                handleNameAutofill(e.target);
+            }
+        });
+
+        // Use change instead of input because select2 fires change events
+        document.addEventListener('change', function(e) {
+            if(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+                updateTotalLiters();
+                clearTimeout(window._saveTimer);
+                window._saveTimer = setTimeout(saveToLocalStorage, 800);
+            }
+        });
+
+        async function initFleetData() {
+            if(!window.FleetData) return;
+            await FleetData.load();
+            
+            const seenP = new Set();
+            let pOpts = '<option value="">اختر لوحة...</option>';
+            const seenD = new Set();
+            let dOpts = '<option value="">اختر أو أدخل الاسم...</option>';
+            FleetData.records().forEach(d => {
+                const p = (d.plate || '').trim();
+                if(p && p !== 'None' && !seenP.has(p)) {
+                    seenP.add(p);
+                    pOpts += `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`;
+                }
+                const n = (d.name || '').trim();
+                if(n && n !== 'None' && !seenD.has(n)) {
+                    seenD.add(n);
+                    dOpts += `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`;
+                }
+            });
+            window.cachedPlateOptions = pOpts;
+            window.cachedDriverOptions = dOpts;
+
+            document.querySelectorAll('select.plate-edit-input').forEach(sel => {
+                let currentVal = sel.value;
+                sel.innerHTML = pOpts;
+                if (currentVal && !sel.querySelector(`option[value="${escapeHtml(currentVal)}"]`)) {
+                    sel.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(currentVal)}">${escapeHtml(currentVal)}</option>`);
+                }
+                sel.value = currentVal;
+                if (typeof jQuery !== 'undefined' && $(sel).hasClass('select2-hidden-accessible')) {
+                    $(sel).trigger('change.select2');
+                }
+            });
+            
+            document.querySelectorAll('select.driver-edit-input').forEach(sel => {
+                let currentVal = sel.value;
+                sel.innerHTML = dOpts;
+                if (currentVal && !sel.querySelector(`option[value="${escapeHtml(currentVal)}"]`)) {
+                    sel.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(currentVal)}">${escapeHtml(currentVal)}</option>`);
+                }
+                sel.value = currentVal;
+                if (typeof jQuery !== 'undefined' && $(sel).hasClass('select2-hidden-accessible')) {
+                    $(sel).trigger('change.select2');
+                }
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if(OILS_WS) {
+                loadOilsFromServer().then(updateTotalLiters);
+            } else {
+                loadFromLocalStorage();
+            }
+            updateTotalLiters();
+            initFleetData();
+        });
+
+        // Build the Excel workbook fully from the current DOM (matches the page 1:1)
+        // and return a Blob. Layout flows DYNAMICALLY from the actual row counts, so
+        // added oils rows AND added filter rows are all included.
+        //
+        // Styling below mirrors the reference file "بيان_الزيوت" exactly: Cairo/Tajawal
+        // fonts, muted light-gray panels (not navy banners) for headers/section-titles,
+        // a gold accent only under the main table's A:F header cells, and a genuine
+        // zebra-striped data table (explicit white/gray fills, not "no fill"). The
+        // reference's row-66 stray duplicate note and row-86 stray spacer fill are
+        // deliberately NOT reproduced — the extracted build spec flagged both as almost
+        // certainly leftover artifacts in that file, not a design intent to copy.
+        async function buildOilsBlob() {
+            if(typeof ExcelJS === 'undefined') throw new Error('مكتبة التصدير غير محمّلة بعد');
+            const TL = (window.bzTL || function(s){ return s; });
+
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('بيان الزيوت', { properties: { defaultRowHeight: 22 } });
+
+            // --- Reference-matched palette & fonts ---
+            const TITLE_BLUE = 'FF2E56A5', GOLD = 'FFC9A227', GRID = 'FF595959',
+                  MUTED_L = 'FFF2F2F2', MUTED_D = 'FFD9D9D9', CONCLUSION_FILL = 'FFF5F3EE',
+                  WHITE = 'FFFFFFFF', BLACK = 'FF000000';
+            const thinGrid = { style: 'thin', color: { argb: GRID } };
+            const thinBlack = { style: 'thin', color: { argb: BLACK } };
+            const medBlack = { style: 'medium', color: { argb: BLACK } };
+            const medGold = { style: 'medium', color: { argb: GOLD } };
+            const gridBorder = { top: thinGrid, left: thinGrid, right: thinGrid, bottom: thinGrid };
+            const blackThinBox = { top: thinBlack, left: thinBlack, right: thinBlack, bottom: thinBlack };
+            const COLS = ['A','B','C','D','E','F','G','H','I','J'];
+            const whiteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WHITE } };
+            const zebraFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUTED_L } };
+            const mutedLightFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUTED_L } };
+            const mutedDarkFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUTED_D } };
+
+            ws.columns = [
+                { width: 5 }, { width: 17 }, { width: 20.125 }, { width: 14.5 },
+                { width: 11 }, { width: 10 }, { width: 17 }, { width: 8 },
+                { width: 10 }, { width: 10.625 }
+            ];
+            ws.views = [{ rightToLeft: true }];
+
+            function styleData(cell, isZebra, gridColor) {
+                cell.border = { top: { style: 'thin', color: { argb: gridColor } }, bottom: { style: 'thin', color: { argb: gridColor } }, left: { style: 'thin', color: { argb: gridColor } }, right: { style: 'thin', color: { argb: gridColor } } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: BLACK } };
+                cell.fill = isZebra ? zebraFill : whiteFill;
+            }
+            function styleNoteRow(rowNum, span) {
+                (span || COLS).forEach(col => {
+                    const c = ws.getCell(col + rowNum);
+                    c.border = blackThinBox;
+                    c.fill = whiteFill;
+                    c.font = { name: 'Tajawal', size: 11, bold: true, color: { argb: BLACK } };
+                    c.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true, readingOrder: 'rtl' };
+                });
+                ws.getRow(rowNum).height = 22;
+            }
+            // Muted-panel section title (ملاحظات/فلاتر الديزل headers) — no navy banner.
+            function sectionTitle(rowNum, text, span, opts) {
+                opts = opts || {};
+                const cols = span || ['A','B','C','D','E','F','G','H','I','J'];
+                try { ws.mergeCells(cols[0] + rowNum + ':' + cols[cols.length-1] + rowNum); } catch(e) {}
+                const c = ws.getCell(cols[0] + rowNum);
+                c.value = text;
+                c.fill = opts.dark ? mutedDarkFill : mutedLightFill;
+                c.font = { name: 'Cairo', size: opts.size || 13, bold: true, color: { argb: BLACK } };
+                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: !!opts.wrap };
+                const border = { left: medBlack, right: opts.rightThin ? thinBlack : medBlack };
+                if (!opts.noTop) border.top = medBlack;
+                if (!opts.noBottom) border.bottom = medBlack;
+                cols.forEach(col => { ws.getCell(col + rowNum).border = border; });
+                ws.getRow(rowNum).height = opts.height || 20.25;
+            }
+
+            // Company logo — reserved rows above the title (the reference workbook reserves
+            // this exact space, rows 1-3, for its own embedded logo image).
+            [1, 2, 3].forEach(rn => { ws.getRow(rn).height = 22; });
+            const logoB64 = "{{ b64_en }}";
+            if (logoB64 && logoB64 !== '') {
+                try {
+                    const logoId = wb.addImage({ base64: 'data:image/png;base64,' + logoB64, extension: 'png' });
+                    ws.addImage(logoId, { tl: { col: 0.15, row: 0.1 }, ext: { width: 140, height: 62 } });
+                } catch (e) { console.error('Logo error', e); }
+            }
+
+            let r = 4;
+
+            // 1. Title — colored Cairo text, no fill (matches the reference exactly)
+            try { ws.mergeCells('A'+r+':J'+r); } catch(e) {}
+            const titleCell = ws.getCell('A'+r);
+            titleCell.value = document.getElementById('oilsTitle').value;
+            titleCell.font = { name: 'Cairo', size: 14, bold: true, color: { argb: TITLE_BLUE } };
+            titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            titleCell.border = { top: medBlack, bottom: thinBlack, left: medBlack, right: thinBlack };
+            ws.getRow(r).height = 25.5;
+            r += 1;
+
+            // 2. Oils header row — muted panel fill + gold accent under A:F only (labels via
+            // bzTL so EN export translates)
+            const oilsHeaders = ['م','رقم لوحة السيارة','المستخدم','تاريخ تغيير الزيت','رقم العداد','عدد اللترات','عدد فلاتر الزيت والديزل والهواء'];
+            const oilsHeaderRow = r;
+            ['A','B','C','D','E','F'].forEach((col, i) => {
+                const c = ws.getCell(col + r);
+                c.value = TL(oilsHeaders[i]);
+                c.fill = mutedLightFill;
+                c.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
+                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                c.border = { bottom: medGold, left: thinGrid, right: thinGrid };
+            });
+            ws.getCell('A'+r).border = { bottom: medGold, left: medBlack, right: thinGrid };
+            try { ws.mergeCells('G'+r+':J'+r); } catch(e) {}
+            const gHdr = ws.getCell('G'+r);
+            gHdr.value = TL(oilsHeaders[6]);
+            gHdr.fill = mutedLightFill;
+            gHdr.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
+            gHdr.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            ['G','H','I','J'].forEach(col => { ws.getCell(col+r).border = { bottom: thinBlack }; });
+            ws.getCell('J'+r).border = { bottom: thinBlack, right: thinBlack };
+            ws.getRow(r).height = 24.75;
+            r++;
+
+            // 3. Main Oils Table (ALL dynamic rows) — zebra striping, G:J merged per row
+            const oilsRows = document.querySelectorAll('#oilsBody tr');
+            let liveCount = 0, totalLiters = 0;
+            const firstOilsRow = r, oilsRowsArr = Array.prototype.slice.call(oilsRows);
+            oilsRowsArr.forEach((tr) => {
+                const tds = tr.querySelectorAll('td');
+                const getVal = (c) => {
+                    if(!tds[c]) return '';
+                    const input = tds[c].querySelector('select, input:not(.select2-search__field)');
+                    if(input) return input.value;
+                    return tds[c].innerText.replace('❌','').trim();
+                };
+                const isZebra = (liveCount % 2 === 1);
+                ws.getCell('A'+r).value = liveCount + 1;
+                ws.getCell('B'+r).value = getVal(1);
+                ws.getCell('C'+r).value = getVal(2);
+                ws.getCell('D'+r).value = getVal(3);
+                ws.getCell('E'+r).value = getVal(4);
+                ws.getCell('F'+r).value = getVal(5);
+                ['A','B','C','D','E','F'].forEach(col => styleData(ws.getCell(col + r), isZebra, GRID));
+                const lit = parseFloat(getVal(5));
+                if(!isNaN(lit)) totalLiters += lit;
+                try { ws.mergeCells('G'+r+':J'+r); } catch(e) {}
+                const gCell = ws.getCell('G'+r);
+                gCell.value = getVal(6);
+                ['G','H','I','J'].forEach(col => styleData(ws.getCell(col + r), isZebra, 'FF000000'));
+                const rowObj = ws.getRow(r);
+                rowObj.height = 17.25;
+                liveCount++; r++;
+            });
+            // last data row: drop the bottom border (closed instead by the totals row's top)
+            if (liveCount) {
+                const lastRow = r - 1;
+                COLS.forEach(col => {
+                    const b = Object.assign({}, ws.getCell(col + lastRow).border);
+                    delete b.bottom;
+                    ws.getCell(col + lastRow).border = b;
+                });
+            }
+
+            // 4. Total consumed oils (liters) row — muted-panel label box + plain value box
+            try { ws.mergeCells('A'+r+':E'+r); } catch(e) {}
+            const totLabel = ws.getCell('A'+r);
+            totLabel.value = TL('إجمالي الزيوت المستهلكة (عدد اللترات)');
+            totLabel.fill = mutedLightFill;
+            totLabel.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: BLACK } };
+            totLabel.alignment = { vertical: 'middle', horizontal: 'center' };
+            ['A','B','C','D','E'].forEach(col => { ws.getCell(col+r).border = { top: medBlack, bottom: medBlack, left: col==='A'?medBlack:undefined, right: col==='E'?medBlack:undefined }; });
+            try { ws.mergeCells('F'+r+':J'+r); } catch(e) {}
+            const totVal = ws.getCell('F'+r);
+            totVal.value = totalLiters;
+            totVal.font = { name: 'Tajawal', size: 13, bold: true, color: { argb: BLACK } };
+            totVal.alignment = { vertical: 'middle', horizontal: 'center' };
+            ['F','G','H','I'].forEach(col => { ws.getCell(col+r).border = { top: medBlack, bottom: medBlack, left: col==='F'?medBlack:undefined }; });
+            ws.getCell('J'+r).border = { top: medBlack, bottom: medBlack, right: thinBlack };
+            ws.getRow(r).height = 17.25;
+            r += 2;
+
+            const tables = document.querySelectorAll('.excel-table');
+            const filtersTable = document.getElementById('filtersExcelTable');
+            // Robustly locate the two free-text note tables (NOT the oils/total/filters tables):
+            // the first such table = "ملاحظات وتفاصيل الفلاتر", the last = "فلاتر الديزل".
+            const noteTables = Array.prototype.filter.call(tables, function(t) {
+                return t.id !== 'oilsExcelTable' && t !== filtersTable && t.querySelectorAll('input').length > 0;
+            });
+            const topNotesTable = noteTables[0] || null;
+            const bottomNotesTable = noteTables.length > 1 ? noteTables[noteTables.length - 1] : null;
+
+            // 5. Top Notes (notes & filter details)
+            if(topNotesTable) {
+                sectionTitle(r, TL('ملاحظات وتفاصيل الفلاتر'), null, { wrap: true }); r++;
+                topNotesTable.querySelectorAll('input').forEach(inp => {
+                    try { ws.mergeCells('A'+r+':J'+r); } catch(e) {}
+                    ws.getCell('A'+r).value = inp.value;
+                    styleNoteRow(r);
+                    r++;
+                });
+                r++;
+            }
+
+            // 6. Filters breakdown — one 2N-row list rendered as two side-by-side column
+            // groups (A-E / F-J), matching the reference's "second sub-table" exactly.
+            if(filtersTable) {
+                const fHeaders = ['م','نوع الفلتر','السابق','المستهلك','المتبقي','م','نوع الفلتر','السابق','المستهلك','المتبقي'];
+                COLS.forEach((col, i) => {
+                    const c = ws.getCell(col + r);
+                    c.value = TL(fHeaders[i]);
+                    c.fill = mutedLightFill;
+                    c.font = { name: 'Cairo', size: 10, bold: true, color: { argb: BLACK } };
+                    c.alignment = { vertical: 'middle', horizontal: 'center' };
+                    c.border = { top: thinBlack, bottom: medBlack, left: thinBlack, right: thinBlack };
+                });
+                ws.getCell('A'+r).border = Object.assign({}, ws.getCell('A'+r).border, { left: medBlack });
+                ws.getCell('J'+r).border = Object.assign({}, ws.getCell('J'+r).border, { right: medBlack });
+                ws.getRow(r).height = 21.75;
+                r++;
+
+                const filterRows = filtersTable.querySelectorAll('tbody tr');
+                const filterRowsArr = Array.prototype.slice.call(filterRows);
+                filterRowsArr.forEach((tr, idx) => {
+                    const tds = tr.querySelectorAll('td');
+                    const getVal = (c) => tds[c] ? (tds[c].querySelector('input') ? tds[c].querySelector('input').value : tds[c].innerText.trim()) : '';
+                    const isZebra = (idx % 2 === 1);
+                    ws.getCell('A'+r).value = idx + 1;
+                    ws.getCell('B'+r).value = getVal(1);
+                    ws.getCell('C'+r).value = getVal(2);
+                    ws.getCell('D'+r).value = getVal(3);
+                    ws.getCell('E'+r).value = getVal(4);
+                    ws.getCell('F'+r).value = idx + 1 + filterRowsArr.length;
+                    ws.getCell('G'+r).value = getVal(6);
+                    ws.getCell('H'+r).value = getVal(7);
+                    ws.getCell('I'+r).value = getVal(8);
+                    ws.getCell('J'+r).value = getVal(9);
+                    COLS.forEach(col => {
+                        const cell = ws.getCell(col + r);
+                        cell.border = gridBorder;
+                        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                        cell.font = { name: 'Tajawal', size: 10, bold: true, color: { argb: BLACK } };
+                        cell.fill = isZebra ? zebraFill : whiteFill;
+                    });
+                    ws.getCell('A'+r).border = Object.assign({}, ws.getCell('A'+r).border, { left: medBlack });
+                    ws.getCell('J'+r).border = Object.assign({}, ws.getCell('J'+r).border, { right: medBlack });
+                    ws.getRow(r).height = 24.75;
+                    r++;
+                });
+                if (filterRowsArr.length) {
+                    const lastRow = r - 1;
+                    COLS.forEach(col => { ws.getCell(col+lastRow).border = Object.assign({}, ws.getCell(col+lastRow).border, { bottom: medBlack }); });
+                }
+                r++;
+            }
+
+            // 7. Diesel filters section — darker muted-panel title (open bottom) + bullet
+            // lines framed only by side-rails (no horizontal dividers between them)
+            if(bottomNotesTable) {
+                const bottomNotes = bottomNotesTable.querySelectorAll('input');
+                if(bottomNotes.length) {
+                    sectionTitle(r, TL('فلاتر الديزل'), null, { dark: true, size: 11, noBottom: true, height: 15 }); r++;
+                    bottomNotes.forEach(inp => {
+                        try { ws.mergeCells('A'+r+':J'+r); } catch(e) {}
+                        const c = ws.getCell('A'+r);
+                        c.value = inp.value;
+                        c.font = { name: 'Cairo', size: 11, bold: true, color: { argb: BLACK } };
+                        c.alignment = { vertical: 'middle', horizontal: 'right' };
+                        COLS.forEach(col => { ws.getCell(col+r).border = {}; });
+                        ws.getCell('A'+r).border = { left: medBlack };
+                        ws.getCell('J'+r).border = { right: medBlack };
+                        ws.getRow(r).height = 15.75;
+                        r++;
+                    });
+                }
+            }
+
+            // 8. Conclusion line — distinct fill, fully closed box (seals the diesel section)
+            try { ws.mergeCells('A'+r+':J'+r); } catch(e) {}
+            const conclCell = ws.getCell('A'+r);
+            const conclEl = document.getElementById('oilsConclusion');
+            conclCell.value = conclEl ? conclEl.value : TL('وبناءا عليه تم طلب وشراء فلاتر جديدة — الحسابات');
+            conclCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CONCLUSION_FILL } };
+            conclCell.font = { name: 'Cairo', size: 12, bold: true, color: { argb: BLACK } };
+            conclCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            const medBox = { top: medBlack, bottom: medBlack, left: medBlack, right: medBlack };
+            COLS.forEach(col => { ws.getCell(col+r).border = medBox; ws.getCell(col+r).fill = conclCell.fill; });
+            ws.getRow(r).height = 15.75;
+            r += 1;
+
+            // 9. Signature block — قسم الحركة (A:C) / المحاسب (E) / التعميد (H); only the
+            // first column carries the ruled signature line, matching the reference exactly
+            // (the app doesn't currently collect a "المحاسب" name, so that slot stays blank).
+            try { ws.mergeCells('A'+r+':C'+r); } catch(e) {}
+            ws.getCell('A'+r).value = TL('قسم الحركة');
+            ws.getCell('A'+r).font = { name: 'Cairo', size: 11, bold: true, color: { argb: BLACK } };
+            ws.getCell('A'+r).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws.getCell('A'+r).border = { top: medBlack };
+            ['B','C'].forEach(col => { ws.getCell(col+r).border = { top: medBlack }; });
+            ws.getCell('E'+r).value = TL('المحاسب');
+            ws.getCell('E'+r).font = { name: 'Cairo', size: 11, bold: true, color: { argb: BLACK } };
+            ws.getCell('E'+r).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws.getCell('H'+r).value = TL('التعميد');
+            ws.getCell('H'+r).font = { name: 'Cairo', size: 11, bold: true, color: { argb: BLACK } };
+            ws.getCell('H'+r).alignment = { vertical: 'middle', horizontal: 'center' };
+            ws.getRow(r).height = 28.5;
+            r += 1;
+            try { ws.mergeCells('A'+r+':C'+r); } catch(e) {}
+            const sigDeptEl = document.getElementById('oilsSigDept');
+            ws.getCell('A'+r).value = sigDeptEl ? sigDeptEl.value : '';
+            ws.getCell('A'+r).font = { name: 'Cairo', size: 10, bold: true, color: { argb: BLACK } };
+            ws.getCell('A'+r).alignment = { vertical: 'middle', horizontal: 'center' };
+            const sigApprovalEl = document.getElementById('oilsSigApproval');
+            ws.getCell('H'+r).value = sigApprovalEl ? sigApprovalEl.value : '';
+            ws.getCell('H'+r).font = { name: 'Cairo', size: 10, bold: true, color: { argb: BLACK } };
+            ws.getRow(r).height = 21.0;
+
+            // 10. Print setup — clean B&W landscape (DESIGN_SYSTEM §6).
+            ws.pageSetup = {
+                fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+                orientation: 'landscape', horizontalCentered: true,
+                margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+            };
+            ws.printOptions = { gridLines: true, horizontalCentered: true };
+
+            const outBuffer = await wb.xlsx.writeBuffer();
+            return new Blob([outBuffer]);
+        }
+
+        async function exportOilsExcel() {
+            if(typeof ExcelJS === 'undefined') {
+                if(window.showToast) showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+                return;
+            }
+            const btn = document.querySelector('button[onclick="exportOilsExcel()"]');
+            const originalText = btn ? btn.innerHTML : '';
+            if(btn) { btn.innerHTML = 'جاري التصدير... ⏳'; btn.disabled = true; }
+            try {
+                const blob = await buildOilsBlob();
+                if(window.bzDownload) bzDownload(blob, 'بيان_الزيوت_الدمام.xlsx');
+                else saveAs(blob, 'بيان_الزيوت_الدمام.xlsx');
+                if(window.showToast) showToast('تم تصدير ملف الإكسل بنجاح', 'success');
+            } catch (e) {
+                console.error(e);
+                if(window.showToast) showToast('حدث خطأ أثناء التصدير: ' + e.message, 'error');
+            } finally {
+                if(btn) { btn.innerHTML = originalText; btn.disabled = false; }
+            }
+        }
+
+        function shareOils() {
+            if(typeof ExcelJS === 'undefined') {
+                if(window.showToast) showToast('يرجى الانتظار، جاري تحميل مكتبة التصدير...', 'info');
+                return;
+            }
+            if(!window.bzShare) { exportOilsExcel(); return; }
+            bzShare(buildOilsBlob, {
+                filename: 'بيان_الزيوت_الدمام.xlsx',
+                subject: 'بيان استهلاك الزيوت والفلاتر — فرع الدمام',
+                waMessage: 'بيان استهلاك الزيوت والفلاتر — شركة بن زومة (فرع الدمام)',
+                pdfElement: 'oilsPrintable',
+                pdfOrientation: 'landscape'
+            });
+        }
+</script>
+<div class="oils-toolbar" style="margin: 30px auto;">
+<button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد للزيوت</button>
+<button class="btn-primary" onclick="addFilterRow()">＋ إضافة صف للفلاتر</button>
+<button class="btn-primary" onclick="openDispenseModal()" style="background:var(--primary); box-shadow:0 0 15px rgba(212,175,55,0.4);">📦 صرف من المخزون</button>
+<button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
+<button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
+<button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
+<button class="btn-danger" onclick="clearOilsData()">🗑 مسح البيانات</button>
+</div>
+</div> /bz-shell 
+<footer style="text-align:center;padding:20px;color:var(--text-secondary);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);width:100%">
+        أُعدّ بواسطة قسم الحركة — فرع الدمام
+    </footer>
+ Dispense Modal 
+<div class="bz-modal" id="dispenseModal">
+<div class="bz-modal-content" style="max-width: 500px;">
+<div class="bz-modal-header">
+<h3>📦 صرف مواد من المستودع</h3>
+<button class="bz-icon-btn" onclick="closeDispenseModal()" type="button">❌</button>
+</div>
+<div class="bz-modal-body">
+<form id="dispenseForm" onsubmit="submitDispense(event)">
+<div class="bz-form-group">
+<label class="bz-label">السائق / السيارة المستلمة *</label>
+<select class="bz-input" id="dispenseDriver" required="">
+<option value="">-- اختر السائق --</option>
+</select>
+</div>
+<div class="bz-form-group">
+<label class="bz-label">المادة / القطعة المطلوبة *</label>
+<select class="bz-input" id="dispensePart" onchange="updateMaxQty()" required="">
+<option value="">-- جارٍ جلب المستودع... --</option>
+</select>
+<div id="partStockInfo" style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;"></div>
+</div>
+<div class="bz-form-group">
+<label class="bz-label">الكمية المصروفة *</label>
+<input class="bz-input" id="dispenseQty" min="1" required="" step="1" type="number" value="1"/>
+</div>
+<div class="bz-form-group" id="meterGroup" style="display:none;">
+<label class="bz-label">رقم العداد (كيلومتر)</label>
+<input class="bz-input" id="dispenseMeter" placeholder="اختياري" type="text"/>
+</div>
+<div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+<button class="bz-btn-outline" onclick="closeDispenseModal()" type="button">إلغاء</button>
+<button class="bz-btn-primary" id="dispenseSubmitBtn" type="submit">تأكيد الصرف</button>
+</div>
+</form>
+</div>
+</div>
+</div>
+<script>
+        let availableParts = [];
+        let allDrivers = [];
+
+        async function openDispenseModal() {
+            document.getElementById('dispenseModal').classList.add('show');
+            document.getElementById('dispenseForm').reset();
+            document.getElementById('partStockInfo').textContent = '';
+            
+            // Fetch parts
+            try {
+                const r = await fetch('/api/spare_parts');
+                if(r.ok) {
+                    availableParts = await r.json();
+                    const sel = document.getElementById('dispensePart');
+                    sel.innerHTML = '<option value="">-- اختر المادة --</option>';
+                    availableParts.filter(p => p.quantity > 0).forEach(p => {
+                        sel.innerHTML += `<option value="${p.id}">${p.name} (${p.category})</option>`;
+                    });
+                }
+            } catch(e) {}
+
+            // Fetch drivers
+            try {
+                const r = await fetch('/api/fleet_data');
+                if(r.ok) {
+                    const data = await r.json();
+                    allDrivers = data.drivers || [];
+                    const dsel = document.getElementById('dispenseDriver');
+                    dsel.innerHTML = '<option value="">-- اختر السائق --</option>';
+                    allDrivers.forEach(d => {
+                        dsel.innerHTML += `<option value="${d.plate}">${d.name || ''} - ${d.plate || ''} (${d.car || ''})</option>`;
+                    });
+                }
+            } catch(e) {}
+        }
+
+        function closeDispenseModal() {
+            document.getElementById('dispenseModal').classList.remove('show');
+        }
+
+        function updateMaxQty() {
+            const pid = parseInt(document.getElementById('dispensePart').value);
+            const part = availableParts.find(p => p.id === pid);
+            const info = document.getElementById('partStockInfo');
+            const qtyInput = document.getElementById('dispenseQty');
+            if(part) {
+                info.textContent = `المتوفر في المستودع: ${part.quantity}`;
+                info.style.color = part.quantity <= 3 ? 'var(--danger)' : 'var(--primary)';
+                qtyInput.max = part.quantity;
+                document.getElementById('meterGroup').style.display = 'block';
+            } else {
+                info.textContent = '';
+                qtyInput.removeAttribute('max');
+                document.getElementById('meterGroup').style.display = 'none';
+            }
+        }
+
+        async function submitDispense(e) {
+            e.preventDefault();
+            const pid = parseInt(document.getElementById('dispensePart').value);
+            const qty = parseInt(document.getElementById('dispenseQty').value);
+            const plate = document.getElementById('dispenseDriver').value;
+            const meter = document.getElementById('dispenseMeter').value;
+            const btn = document.getElementById('dispenseSubmitBtn');
+            
+            const part = availableParts.find(p => p.id === pid);
+            const driver = allDrivers.find(d => d.plate === plate);
+            if(!part || !driver) return;
+
+            btn.disabled = true;
+            btn.textContent = 'جاري الصرف...';
+
+            try {
+                const r = await fetch('/api/dispense_part', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ part_id: pid, quantity: qty, plate: driver.plate, driver: driver.name })
+                });
+
+                if(r.ok) {
+                    const resData = await r.json();
+                    if(window.showToast) showToast('تم الصرف وخصم الكمية من المستودع بنجاح!', 'success');
+                    
+                    // Add row to oils table automatically!
+                    const tbody = document.getElementById('oilsBody');
+                    const rc = tbody.children.length + 1;
+                    const dateStr = new Date().toISOString().split('T')[0];
+                    
+                    let liters = '0';
+                    let filtersStr = '0';
+                    if (part.category.includes('زيو') || part.name.includes('زيت')) {
+                        liters = qty.toString();
+                    } else {
+                        filtersStr = `${qty} ${part.name}`;
+                    }
+
+                    let pVal = escapeHtml(driver.plate || '');
+                    let pOpts = window.cachedPlateOptions || '<option value="">اختر لوحة...</option>';
+                    if (pVal && !pOpts.includes(`value="${pVal}"`)) {
+                        pOpts += `<option value="${pVal}">${pVal}</option>`;
+                    }
+                    if (pVal) {
+                        pOpts = pOpts.replace(`value="${pVal}"`, `value="${pVal}" selected`);
+                    }
+
+                    let dVal = escapeHtml(driver.name || '');
+                    let dOpts = window.cachedDriverOptions || '<option value="">اختر أو أدخل الاسم...</option>';
+                    if (dVal && !dOpts.includes(`value="${dVal}"`)) {
+                        dOpts += `<option value="${dVal}">${dVal}</option>`;
+                    }
+                    if (dVal) {
+                        dOpts = dOpts.replace(`value="${dVal}"`, `value="${dVal}" selected`);
+                    }
+
+                    const tr = document.createElement('tr');
+                    if (resData.transaction_id) {
+                        tr.setAttribute('data-transaction-id', resData.transaction_id);
+                    }
+                    tr.innerHTML = `
+                        <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">${rc}</td>
+                        <td class="excel-input" style="width:12%;"><select class="bz-select2 plate-edit-input" style="width:100%;" onchange="autoSaveOils()">${pOpts}</select></td>
+                        <td class="excel-input" style="width:18%;"><select class="bz-select2 driver-edit-input" style="width:100%;" onchange="autoSaveOils()">${dOpts}</select></td>
+                        <td class="excel-input" style="width:14%;"><input type="date" value="${dateStr}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:12%;"><input type="text" value="${meter || '0'}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:12%;"><input type="text" value="${liters}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input" style="width:30%;"><input type="text" value="${filtersStr}" onchange="autoSaveOils()"></td>
+                        <td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                    `;
+                    tbody.insertBefore(tr, tbody.firstChild);
+
+                    if (typeof jQuery !== 'undefined') {
+                        $(tr).find('.bz-select2').select2({
+                            tags: true,
+                            width: '100%',
+                            dir: 'rtl'
+                        });
+                    }
+                    
+                    renumberRows();
+                    updateTotalLiters();
+                    saveToLocalStorage();
+                    closeDispenseModal();
+                } else {
+                    const err = await r.json();
+                    if(window.showToast) showToast('خطأ: ' + (err.error || 'فشل الصرف'), 'error');
+                }
+            } catch(error) {
+                if(window.showToast) showToast('خطأ في الاتصال بالخادم', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'تأكيد الصرف';
+            }
+        }
+    </script>
+{% endblock %}

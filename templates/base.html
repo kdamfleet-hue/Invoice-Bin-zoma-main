@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <title>{% block title %}نظام إدارة الأسطول | شركة بن زومة{% endblock %}</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#071018">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/static/logo_192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css', v=2) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=43) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/enterprise_ui.css', v=8) }}">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    {% block head %}{% endblock %}
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bz-enterprise-app {% if is_dedicated %}dedicated-mode{% endif %} {% block body_class %}{% endblock %}">
+    <div class="bz-overlay" id="bzOverlay"></div>
+    <div class="bz-app-container">
+        {% if not is_dedicated %}
+        <aside class="bz-sidebar rail" id="bzSidebar">
+            <div class="side-brand d-flex align-items-center justify-content-between p-3">
+                <div class="d-flex align-items-center gap-2">
+                    <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="BIN ZOMAH" style="height: 36px;">
+                    <div class="brand-text">
+                        <b>BIN ZOMAH INTL.</b>
+                        <span>فرع الدمام — مركز التشغيل</span>
+                    </div>
+                </div>
+                <button type="button" class="bz-pin-btn" id="bzPinBtn" title="تثبيت القائمة" aria-label="تثبيت القائمة">⋯</button>
+            </div>
+            <nav class="bz-sidebar-nav">
+                <div class="nav-section-label">نظرة عامة</div>
+                <a href="/" class="{% if request.path == '/' %}active{% endif %}"><span class="si">🏠</span><span class="slab">الرئيسية</span></a>
+                <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}"><span class="si">👑</span><span class="slab">لوحة المدير</span></a>
+                <a href="/fleet_dashboard" class="{% if request.path == '/fleet_dashboard' %}active{% endif %}"><span class="si">📊</span><span class="slab">لوحة الأسطول</span></a>
+                <a href="/ops" class="{% if request.path == '/ops' %}active{% endif %}"><span class="si">⚙️</span><span class="slab">دورة التشغيل</span></a>
+                <a href="/kpis" class="{% if request.path == '/kpis' %}active{% endif %}"><span class="si">📈</span><span class="slab">مؤشرات الأداء</span></a>
+                <a href="/insights" class="{% if request.path == '/insights' %}active{% endif %}"><span class="si">🧠</span><span class="slab">التحليلات</span></a>
+                <div class="nav-section-label">التشغيل اليومي</div>
+                <a href="/schedule" class="{% if request.path == '/schedule' %}active{% endif %}"><span class="si">📋</span><span class="slab">الجدول الأسبوعي</span></a>
+                <a href="/schedule/transport" class="{% if request.path == '/schedule/transport' %}active{% endif %}"><span class="si">🚚</span><span class="slab">نقل عام وخاص</span></a>
+                <a href="/m/transport" class="{% if request.path == '/m/transport' %}active{% endif %}"><span class="si">📱</span><span class="slab">تطبيق النقل</span></a>
+                <a href="/yard" class="{% if request.path == '/yard' %}active{% endif %}"><span class="si">🅿️</span><span class="slab">إدارة الساحات</span></a>
+                <a href="/tracking" class="{% if request.path == '/tracking' %}active{% endif %}"><span class="si">🛰️</span><span class="slab">التتبع الحي</span></a>
+                <a href="/handover" class="{% if request.path == '/handover' %}active{% endif %}"><span class="si">🔑</span><span class="slab">تسليم واستلام</span></a>
+                <div class="nav-section-label">الأفراد والمركبات</div>
+                <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}"><span class="si">👥</span><span class="slab">الموظفون</span></a>
+                <a href="/dammam" class="{% if request.path.startswith('/dammam') %}active{% endif %}"><span class="si">🚗</span><span class="slab">مركبات الدمام</span></a>
+                <a href="/drivers_info" class="{% if request.path == '/drivers_info' %}active{% endif %}"><span class="si">🚛</span><span class="slab">سائقو النقل</span></a>
+                <a href="/alerts" class="{% if request.path == '/alerts' %}active{% endif %}"><span class="si">🔔</span><span class="slab">تنبيهات الوثائق</span></a>
+                <a href="/documents" class="{% if request.path == '/documents' %}active{% endif %}"><span class="si">📂</span><span class="slab">الوثائق</span></a>
+                <div class="nav-section-label">الصيانة والمخزون</div>
+                <a href="/workshop" class="{% if request.path == '/workshop' %}active{% endif %}"><span class="si">🔧</span><span class="slab">الورشة</span></a>
+                <a href="/fuel" class="{% if request.path == '/fuel' %}active{% endif %}"><span class="si">⛽</span><span class="slab">المحروقات</span></a>
+                <a href="/oils" class="{% if request.path == '/oils' %}active{% endif %}"><span class="si">📜️</span><span class="slab">الزيوت والفلاتر</span></a>
+                <a href="/inventory/tires" class="{% if request.path == '/inventory/tires' %}active{% endif %}"><span class="si">💿</span><span class="slab">الإطارات</span></a>
+                <a href="/inventory/batteries" class="{% if request.path == '/inventory/batteries' %}active{% endif %}"><span class="si">🔋</span><span class="slab">البطاريات</span></a>
+                <a href="/spare_parts" class="{% if request.path == '/spare_parts' %}active{% endif %}"><span class="si">📦</span><span class="slab">قطع الغيار</span></a>
+                <a href="/washing" class="{% if request.path == '/washing' %}active{% endif %}"><span class="si">🚿</span><span class="slab">الغسيل</span></a>
+                <div class="nav-section-label">المالية والسجلات</div>
+                <a href="/purchase" class="{% if request.path.startswith('/purchase') %}active{% endif %}"><span class="si">🛒</span><span class="slab">المشتريات</span></a>
+                <a href="/finance/petty-cash" class="{% if request.path == '/finance/petty-cash' %}active{% endif %}"><span class="si">💵</span><span class="slab">العهد</span></a>
+                <a href="/invoice" class="{% if request.path == '/invoice' %}active{% endif %}"><span class="si">🧾</span><span class="slab">الفواتير</span></a>
+                <a href="/incidents" class="{% if request.path == '/incidents' %}active{% endif %}"><span class="si">🚨</span><span class="slab">الحوادث</span></a>
+                <a href="/records" class="{% if request.path == '/records' %}active{% endif %}"><span class="si">📁</span><span class="slab">السجلات</span></a>
+                <div class="nav-section-label">النظام</div>
+                <a href="/master_editor" class="{% if request.path == '/master_editor' %}active{% endif %}"><span class="si">📝</span><span class="slab">التعديل الشامل</span></a>
+                <a href="/system_commands" class="{% if request.path == '/system_commands' %}active{% endif %}"><span class="si">⚡</span><span class="slab">أوامر النظام</span></a>
+                <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}"><span class="si">⚙️</span><span class="slab">الإعدادات</span></a>
+            </nav>
+        </aside>
+        {% endif %}
+        <div class="bz-workspace-wrapper" id="content-wrapper">
+            {% block navbar %}
+            <header class="bz-topcmd">
+                <div class="bz-topcmd-left">
+                    <button type="button" class="bz-menu-btn bz-sidebar-toggle" id="sidebarToggle" aria-label="القائمة">☰</button>
+                    <div class="bz-crumb">
+                        <b>{% block page_heading %}نظام إدارة الأسطول{% endblock %}</b>
+                        <span>شركة بن زومة الدولية — فرع الدمام</span>
+                    </div>
+                </div>
+                <div class="bz-topcmd-right">
+                    <button type="button" class="bz-chip" id="bzThemeBtn" title="الوضع الداكن/الفاتح">☾</button>
+                    <a class="bz-chip" href="/dammam">مركبات الدمام</a>
+                    <a class="bz-chip optional" href="/ops">دورة التشغيل</a>
+                    <a class="bz-chip optional" href="/purchase/list">طلبات الشراء</a>
+                    <a class="bz-chip" href="/m/transport">الجوال</a>
+                    <a class="bz-chip optional" href="/admin">المدير</a>
+                </div>
+            </header>
+            {% endblock %}
+            <main class="main-content p-4 flex-grow-1">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    <div class="row mb-3"><div class="col-12">
+                            {% for category, message in messages %}
+                              <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm" role="alert">
+                                {{ message }}
+                              </div>
+                            {% endfor %}
+                    </div></div>
+                  {% endif %}
+                {% endwith %}
+                {% block content %}{% endblock %}
+            </main>
+            {% block footer %}
+            <footer style="text-align: center; padding: 1.2rem; color: #93a0b3; font-size: 0.85rem;">&copy; 2026 شركة بن زومة الدولية.</footer>
+            {% endblock %}
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script defer src="{{ url_for('static', filename='app_ux.js', v=43) }}"></script>
+    <script defer src="{{ url_for('static', filename='js/sidebar_guard.js', v=1) }}"></script>
+    {% block scripts %}{% endblock %}
+    {% block extra_js %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/purchase_link.js', v=2) }}"></script>
+    <script src="{{ url_for('static', filename='js/inventory_from_po.js', v=2) }}"></script>
+    <script id="bz-chrome">
+    (function(){
+      if (window.__bzChromeBound) return;
+      window.__bzChromeBound = true;
+      try {
+        const theme = localStorage.getItem('bzTheme') || 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+        document.body.classList.toggle('theme-light', theme==='light');
+      } catch(e) {}
+      const side = document.getElementById('bzSidebar');
+      const toggle = document.getElementById('sidebarToggle');
+      const overlay = document.getElementById('bzOverlay');
+      const pin = document.getElementById('bzPinBtn');
+      const themeBtn = document.getElementById('bzThemeBtn');
+      const isMobile = function(){ return window.matchMedia('(max-width: 900px)').matches; };
+      const isPinned = function(){ try { return localStorage.getItem('bzSidebarPinned') === '1'; } catch(e){ return false; } };
+      function applyPin(){
+        document.body.classList.toggle('sidebar-pinned', isPinned() && !isMobile());
+        if (pin) pin.classList.toggle('on', isPinned());
+      }
+      function closeSide(){
+        if (!side) return;
+        side.classList.add('collapsed');
+        document.body.classList.remove('sidebar-is-open');
+      }
+      function openSide(){
+        if (!side) return;
+        side.classList.remove('collapsed');
+        if (isMobile()) document.body.classList.add('sidebar-is-open');
+        else document.body.classList.remove('sidebar-is-open');
+      }
+      function layout(){
+        if (!side) return;
+        if (isMobile()) {
+          side.classList.remove('rail');
+          if (!side.dataset.userToggled) closeSide();
+        } else {
+          side.classList.add('rail');
+          document.body.classList.remove('sidebar-is-open');
+          if (!side.dataset.userToggled) {
+            if (isPinned()) openSide();
+            else { side.classList.remove('collapsed');
+            }
+          }
+        }
+        applyPin();
+      }
+      layout();
+      let lastMobile = isMobile();
+      window.addEventListener('resize', function(){
+        const now = isMobile();
+        if (now !== lastMobile) { side && (side.dataset.userToggled = ''); lastMobile = now; layout(); }
+      });
+      if (toggle && side) {
+        toggle.addEventListener('click', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          side.dataset.userToggled = '1';
+          if (side.classList.contains('collapsed')) openSide(); else closeSide();
+        }, true);
+      }
+      if (overlay) overlay.addEventListener('click', closeSide);
+      if (side) side.querySelectorAll('a[href]').forEach(function(a){
+        a.addEventListener('click', function(){ if (isMobile()) closeSide(); });
+      });
+      if (pin) pin.addEventListener('click', function(e){
+        e.preventDefault(); e.stopPropagation();
+        try { localStorage.setItem('bzSidebarPinned', isPinned() ? '0' : '1'); } catch(err){}
+        if (!isMobile()) { side.dataset.userToggled = ''; openSide(); }
+        applyPin();
+      });
+      if (themeBtn) {
+        const syncIcon = function(){
+          const light = document.documentElement.getAttribute('data-theme')==='light';
+          themeBtn.textContent = light ? '☀' : '☾';
+        };
+        syncIcon();
+        themeBtn.addEventListener('click', function(){
+          const next = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', next);
+          document.body.classList.toggle('theme-light', next==='light');
+          try { localStorage.setItem('bzTheme', next); } catch(e){}
+          syncIcon();
+        });
+      }
+    })();
+    </script>
+</body>
+</html>

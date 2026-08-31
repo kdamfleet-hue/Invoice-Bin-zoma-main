@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#071018">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="نقل بن زومة">
+<title>تطبيق النقل | بن زومة</title>
+<link rel="manifest" href="/m/transport/manifest.json">
+<link rel="apple-touch-icon" href="/static/logo_192.png">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#071018;--panel:#101b28;--gold:#c9a45a;--gold2:#e3c47a;--text:#eef2f6;--muted:#93a0b3;--line:rgba(201,164,90,.22)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--navy);color:var(--text);font-family:Cairo,sans-serif;min-height:100%}
+body{padding-bottom:84px}
+.appbar{position:sticky;top:0;z-index:20;padding:14px 16px calc(10px + env(safe-area-inset-top));padding-top:max(14px,env(safe-area-inset-top));background:linear-gradient(180deg,#071018,#0b1520);border-bottom:1px solid var(--line)}
+.appbar b{display:block;color:var(--gold2);font-size:1.05rem}
+.appbar span{color:var(--muted);font-size:.78rem}
+.search{margin:12px 16px 8px;display:flex;gap:8px}
+.search input{flex:1;min-height:46px;border-radius:14px;border:1px solid var(--line);background:#0d1724;color:#fff;padding:0 14px;font-family:inherit;font-size:1rem}
+.chips{display:flex;gap:8px;padding:0 16px 12px;overflow:auto}
+.chip{border:1px solid var(--line);background:transparent;color:var(--text);border-radius:999px;padding:8px 14px;min-height:40px;font-family:inherit}
+.chip.on{background:rgba(201,164,90,.22);color:var(--gold2);border-color:var(--gold)}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 16px 14px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center}
+.stat b{display:block;color:var(--gold2);font-size:1.2rem}
+.stat span{color:var(--muted);font-size:.72rem}
+.list{padding:0 12px 20px}
+.card{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin:0 0 10px}
+.card .row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card .name{font-weight:800;font-size:1.02rem}
+.card .plate{color:var(--gold2);font-weight:800;letter-spacing:.3px}
+.card .meta{color:var(--muted);font-size:.82rem;margin-top:6px}
+.badge{font-size:.72rem;border-radius:999px;padding:3px 8px;border:1px solid var(--line)}
+.badge.g{color:#86efac;border-color:rgba(52,211,153,.35)}
+.badge.p{color:var(--gold2);border-color:var(--line)}
+.empty{text-align:center;color:var(--muted);padding:40px 16px}
+.dock{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0b1520;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+.dock a{flex:1;text-align:center;color:var(--muted);text-decoration:none;font-size:.75rem;padding:8px 4px}
+.dock a.on,.dock a:active{color:var(--gold2)}
+.install{margin:0 16px 12px;padding:10px 12px;border-radius:12px;background:rgba(201,164,90,.12);border:1px solid var(--line);display:none}
+.install button{margin-top:8px;width:100%;min-height:42px;border-radius:10px;border:0;background:var(--gold);color:#111;font-weight:800;font-family:inherit}
+</style>
+</head>
+<body>
+<header class="appbar">
+  <b>تطبيق النقل</b>
+  <span>شركة بن زومة — فرع الدمام</span>
+</header>
+<div class="install" id="installBox">
+  لتثبيت التطبيق على الجوال: مشاركة ← إضافة إلى الشاشة الرئيسية
+  <button type="button" id="installBtn" style="display:none">تثبيت التطبيق</button>
+</div>
+<div class="search"><input id="q" placeholder="ابحث بالاسم أو اللوحة" oninput="draw()"></div>
+<div class="chips">
+  <button class="chip on" data-k="all" onclick="setK('all',this)">الكل</button>
+  <button class="chip" data-k="عام" onclick="setK('عام',this)">نقل عام</button>
+  <button class="chip" data-k="خاص" onclick="setK('خاص',this)">نقل خاص</button>
+</div>
+<div class="stats">
+  <div class="stat"><b id="cAll">0</b><span>الكل</span></div>
+  <div class="stat"><b id="cG">0</b><span>عام</span></div>
+  <div class="stat"><b id="cP">0</b><span>خاص</span></div>
+</div>
+<div class="list" id="list"><div class="empty">جارٍ التحميل…</div></div>
+<nav class="dock">
+  <a class="on" href="/m/transport">🚚<br>النقل</a>
+  <a href="/schedule">📋<br>الجدول</a>
+  <a href="/yard">🅿️<br>الساحة</a>
+  <a href="/tracking">🛰️<br>التتبع</a>
+</nav>
+<script>
+let ALL=[], K='all';
+function kind(r){const t=((r.transport_type||'')+' '+(r.job||'')); if(t.includes('خاص'))return 'خاص'; if(t.includes('عام'))return 'عام'; return '';}
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&','<':'<','>':'>','"':'"'}[c]));}
+function setK(k,btn){K=k;document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.k===k));draw();}
+function draw(){
+  const q=(document.getElementById('q').value||'').trim().toLowerCase();
+  const rows=ALL.filter(r=>{
+    const k=kind(r); if(K!=='all'&&k!==K)return false;
+    if(!q)return true;
+    return [r.name,r.plate,r.car,r.phone,r.job].some(v=>String(v||'').toLowerCase().includes(q));
+  });
+  document.getElementById('cAll').textContent=ALL.length;
+  document.getElementById('cG').textContent=ALL.filter(r=>kind(r)==='عام').length;
+  document.getElementById('cP').textContent=ALL.filter(r=>kind(r)==='خاص').length;
+  const box=document.getElementById('list');
+  if(!rows.length){box.innerHTML='<div class="empty">لا توجد نتائج</div>';return;}
+  box.innerHTML=rows.map(r=>{
+    const k=kind(r);
+    const href=r.vehicle_id?('/v/'+r.vehicle_id):('#');
+    return `<a class="card" href="${href}">
+      <div class="row"><div class="name">${esc(r.name)||'بدون اسم'}</div><span class="badge ${k==='خاص'?'p':'g'}">${k==='خاص'?'نقل خاص':'نقل عام'}</span></div>
+      <div class="plate">${esc(r.plate)||'—'}</div>
+      <div class="meta">${esc(r.car)} ${esc(r.model)} · ${esc(r.phone)||'بدون جوال'}</div>
+    </a>`;
+  }).join('');
+}
+async function load(){
+  let list=[];
+  try{const r=await fetch('/api/drivers_info_data'); if(r.ok) list=await r.json();}catch(e){}
+  if(!Array.isArray(list)||!list.length){try{const r=await fetch('/api/drivers'); if(r.ok) list=await r.json();}catch(e){}}
+  ALL=(Array.isArray(list)?list:[]).filter(r=>kind(r)==='عام'||kind(r)==='خاص');
+  draw();
+}
+load();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/m/transport/sw.js').catch(()=>{});}
+let deferred;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;document.getElementById('installBox').style.display='block';const b=document.getElementById('installBtn');b.style.display='block';b.onclick=async()=>{deferred.prompt();};});
+if(/iPhone|iPad|iPod/.test(navigator.userAgent)) document.getElementById('installBox').style.display='block';
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}إدارة الساحة{% endblock %}
+{% block header_title %}إدارة ساحات الفرع{% endblock %}
+{% block extra_css %}
+<style>
+.yard-wrap{padding:16px 20px 40px}
+.yard-help{color:var(--text-muted,#64748b);margin:0 0 14px}
+.yard-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}
+@media(max-width:900px){.yard-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.yard-grid{grid-template-columns:1fr}}
+.yard-col{background:rgba(12,35,64,.04);border:1px solid rgba(12,35,64,.12);border-radius:14px;min-height:420px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.yard-col h3{margin:0 0 8px;text-align:center;color:#0C2340;font-size:1rem;border-bottom:2px solid #c9a227;padding-bottom:8px}
+.yard-col.drag-over{outline:2px dashed #c9a227;background:rgba(201,162,39,.12)}
+.yard-item{background:#fff;border-radius:10px;padding:10px 12px;border-right:4px solid #c9a227;box-shadow:0 2px 8px rgba(0,0,0,.06);cursor:grab;user-select:none}
+.yard-item:active{cursor:grabbing}
+.yard-item h4{margin:0 0 4px;font-size:1rem}
+.yard-item p{margin:0;color:#64748b;font-size:.82rem}
+.yard-item .move{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.yard-item .move button{font-size:.72rem;border:1px solid #d6c7a1;background:#fff8e8;border-radius:6px;padding:3px 7px;cursor:pointer;font-family:inherit}
+.badge{padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700}
+.b-out{background:#e2e8f0;color:#334155}
+.b-ready{background:#dcfce7;color:#166534}
+.b-maint{background:#fef08a;color:#854d0e}
+.b-stopped{background:#fee2e2;color:#991b1b}
+.yard-toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#0C2340;color:#fff;padding:10px 16px;border-radius:10px;z-index:80;display:none}
+</style>
+{% endblock %}
+{% block content %}
+<div class="yard-wrap">
+  <p class="yard-help">اسحب المركبة من «خارج الساحة» إلى الخانة المطلوبة. على الجوال استخدم أزرار النقل أسفل البطاقة. الحالة تُحفظ فوراً.</p>
+  <div class="yard-grid">
+    <div class="yard-col" id="col-out" data-col="out"><h3>خارج الساحة (على الطريق)</h3></div>
+    <div class="yard-col" id="col-ready" data-col="ready"><h3>جاهزة للعمل</h3></div>
+    <div class="yard-col" id="col-maint" data-col="maint"><h3>في الصيانة</h3></div>
+    <div class="yard-col" id="col-stopped" data-col="stopped"><h3>موقوفة / أعطال</h3></div>
+  </div>
+</div>
+<div class="yard-toast" id="yardToast"></div>
+<script>
+const COLS = {out:'col-out', ready:'col-ready', maint:'col-maint', stopped:'col-stopped'};
+const LABELS = {out:'خارج الساحة', ready:'جاهزة للعمل', maint:'في الصيانة', stopped:'موقوفة'};
+function toast(m){const t=document.getElementById('yardToast'); t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',2200);}
+function badgeClass(col){return col==='maint'?'b-maint':col==='stopped'?'b-stopped':col==='ready'?'b-ready':'b-out';}
+function cardHTML(v){
+  const col = v.column || 'out';
+  const moves = Object.keys(LABELS).filter(k=>k!==col).map(k=>`<button type="button" data-to="${k}">→ ${LABELS[k]}</button>`).join('');
+  return `<div class="yard-item" draggable="true" id="veh-${v.key}" data-id="${v.id||''}" data-key="${v.key}" data-plate="${(v.plate||'').replace(/"/g,'&quot;')}" data-col="${col}">
+    <h4>${v.plate||'—'}</h4>
+    <p>${v.type||''} <span class="badge ${badgeClass(col)}">${v.condition||LABELS[col]}</span></p>
+    <div class="move">${moves}</div>
+  </div>`;
+}
+function loadYard(){
+  fetch('/api/yard',{credentials:'same-origin'})
+    .then(r=>r.json())
+    .then(data=>{
+      Object.values(COLS).forEach(id=>{
+        const el=document.getElementById(id);
+        const title=el.querySelector('h3').outerHTML;
+        el.innerHTML=title;
+      });
+      (data.vehicles||[]).forEach(v=>{
+        const col=document.getElementById(COLS[v.column]||'col-out');
+        col.insertAdjacentHTML('beforeend', cardHTML(v));
+      });
+      bindCards();
+    }).catch(()=>toast('تعذر تحميل الساحة'));
+}
+function bindCards(){
+  document.querySelectorAll('.yard-item').forEach(item=>{
+    item.addEventListener('dragstart', ev=>{
+      const card=ev.target.closest('.yard-item');
+      ev.dataTransfer.setData('text/plain', card.dataset.key);
+      ev.dataTransfer.setData('plate', card.dataset.plate);
+      ev.dataTransfer.setData('id', card.dataset.id||'');
+      ev.dataTransfer.effectAllowed='move';
+    });
+    item.querySelectorAll('.move button').forEach(btn=>{
+      btn.addEventListener('click', ev=>{
+        ev.preventDefault(); ev.stopPropagation();
+        moveVehicle(item.dataset.id, item.dataset.plate, item.dataset.key, btn.dataset.to);
+      });
+    });
+  });
+}
+function allowDrop(ev){ev.preventDefault();}
+document.querySelectorAll('.yard-col').forEach(col=>{
+  col.addEventListener('dragover', ev=>{ev.preventDefault(); col.classList.add('drag-over');});
+  col.addEventListener('dragleave', ()=>col.classList.remove('drag-over'));
+  col.addEventListener('drop', ev=>{
+    ev.preventDefault(); col.classList.remove('drag-over');
+    const key=ev.dataTransfer.getData('text/plain');
+    const plate=ev.dataTransfer.getData('plate');
+    const id=ev.dataTransfer.getData('id');
+    moveVehicle(id, plate, key, col.dataset.col);
+  });
+});
+function moveVehicle(id, plate, key, column){
+  fetch('/api/yard/move',{
+    method:'POST', credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:id||null, plate, key, column})
+  }).then(r=>r.json()).then(res=>{
+    if(res && res.success){ toast('تم نقل المركبة إلى «'+LABELS[column]+'»'); loadYard(); }
+    else toast('لم يكتمل النقل: '+(res && res.error || 'خطأ'));
+  }).catch(()=>toast('فشل الاتصال أثناء النقل'));
+}
+document.addEventListener('DOMContentLoaded', loadYard);
+</script>
+{% endblock %}

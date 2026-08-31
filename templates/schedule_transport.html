@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}نقل عام وخاص | الجدول الأسبوعي{% endblock %}
+{% block page_heading %}الجدول الأسبوعي — النقل العام والخاص{% endblock %}
+{% block content %}
+<div class="glass-panel" style="padding:18px;">
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+    <div>
+      <h2 style="margin:0;color:var(--bz-gold-2,#e3c47a);">مركبات النقل العام والخاص مع الأسماء</h2>
+      <p style="margin:6px 0 0;color:#93a0b3;">عرض فقط — بدون تعديل البيانات.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <a class="bz-chip" href="/m/transport">📱 تطبيق الموبايل</a>
+      <a class="bz-chip" href="/schedule">↩️ رجوع للجدول الأسبوعي</a>
+      <input id="trSearch" placeholder="بحث بالاسم أو اللوحة..." style="min-width:220px;padding:8px 12px;border-radius:10px;" oninput="filterTransport()">
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:18px;">
+    <div class="glass-panel" style="padding:12px;text-align:center;"><b id="cAll">0</b><div>الإجمالي</div></div>
+    <div class="glass-panel" style="padding:12px;text-align:center;"><b id="cGen">0</b><div>نقل عام</div></div>
+    <div class="glass-panel" style="padding:12px;text-align:center;"><b id="cPriv">0</b><div>نقل خاص</div></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;">
+    <button class="btn-neon" type="button" onclick="showKind('all')">الكل</button>
+    <button class="btn-neon" type="button" onclick="showKind('عام')">نقل عام</button>
+    <button class="btn-neon" type="button" onclick="showKind('خاص')">نقل خاص</button>
+  </div>
+  <div class="table-responsive">
+    <table class="sched" id="trTable" style="width:100%;">
+      <thead>
+        <tr>
+          <th>#</th><th>النوع</th><th>اسم السائق</th><th>رقم اللوحة</th>
+          <th>نوع المركبة</th><th>الموديل</th><th>الوظيفة</th><th>الجوال</th>
+        </tr>
+      </thead>
+      <tbody id="trBody"><tr><td colspan="8">جارٍ التحميل…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script>
+let ALL = [], KIND = 'all';
+function kindOf(r){
+  const t = ((r.transport_type||'') + ' ' + (r.job||'')).toString();
+  if (t.indexOf('خاص') >= 0) return 'خاص';
+  if (t.indexOf('عام') >= 0) return 'عام';
+  return '';
+}
+function esc(s){ return String(s||'').replace(/[&<>"]/g, c => ({'&':'&','<':'<','>':'>','"':'"'}[c])); }
+function rowsFiltered(){
+  const q = (document.getElementById('trSearch').value||'').trim().toLowerCase();
+  return ALL.filter(r => {
+    const k = kindOf(r);
+    if (KIND !== 'all' && k !== KIND) return false;
+    if (!q) return true;
+    return [r.name,r.plate,r.car,r.model,r.job,r.phone].some(v => String(v||'').toLowerCase().includes(q));
+  });
+}
+function render(){
+  const rows = rowsFiltered();
+  document.getElementById('cAll').textContent = ALL.length;
+  document.getElementById('cGen').textContent = ALL.filter(r => kindOf(r)==='عام').length;
+  document.getElementById('cPriv').textContent = ALL.filter(r => kindOf(r)==='خاص').length;
+  const tb = document.getElementById('trBody');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:18px;">لا توجد نتائج</td></tr>'; return; }
+  tb.innerHTML = rows.map((r,i) => {
+    const k = kindOf(r) || '—';
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${k==='خاص'?'🚗 نقل خاص':(k==='عام'?'🚚 نقل عام':k)}</td>
+      <td><b>${esc(r.name)||'—'}</b></td>
+      <td style="font-weight:800;color:#e3c47a;">${esc(r.plate)||'—'}</td>
+      <td>${esc(r.car)}</td>
+      <td>${esc(r.model)}</td>
+      <td>${esc(r.job)}</td>
+      <td dir="ltr">${esc(r.phone)}</td>
+    </tr>`;
+  }).join('');
+}
+function showKind(k){ KIND=k; render(); }
+function filterTransport(){ render(); }
+async function load(){
+  let list = [];
+  try {
+    const r = await fetch('/api/drivers_info_data');
+    if (r.ok) list = await r.json();
+  } catch(e) {}
+  if (!Array.isArray(list) || !list.length) {
+    try {
+      const r2 = await fetch('/api/drivers');
+      if (r2.ok) list = await r2.json();
+    } catch(e) {}
+  }
+  ALL = (Array.isArray(list)?list:[]).filter(r => {
+    const k = kindOf(r);
+    return k === 'عام' || k === 'خاص';
+  }).sort((a,b) => kindOf(a).localeCompare(kindOf(b)) || String(a.name||'').localeCompare(String(b.name||''),'ar'));
+  render();
+}
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+{% block title %}سجل الإطارات ومتابعة المخزون | شركة بن زومة{% endblock %}
+
+{% block content %}
+<div class="glass-panel" style="margin-bottom: 2rem; padding: 1.5rem 2rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+        <div>
+            <h2 style="margin: 0; color: var(--gold-primary); font-weight: 800; font-size: 1.8rem; font-family: 'Cairo', sans-serif;">
+                💿 سجل الإطارات ومتابعة المخزون
+            </h2>
+            <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.9rem;">
+                تتبع حركة الإطارات، تواريخ التركيب، المركبات المرتبطة، وعمليات التدفئة بالتنسيق الداكن الفاخر.
+            </p>
+        </div>
+        <button onclick="openAddModal()" class="btn-neon" style="padding: 10px 22px; font-size: 0.95rem;">
+            ➕ تسجيل إطار جديد
+        </button>
+    </div>
+</div>
+
+<!-- Stat Cards Row -->
+<div class="sp-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    {% set total_tires = tires|length %}
+    {% set installed_tires = tires|selectattr('vehicle_id')|list|length %}
+    {% set warehouse_tires = total_tires - installed_tires %}
+    {% set retreaded_tires = tires|selectattr('status', 'equalto', 'تم التدفئة')|list|length %}
+
+    <div class="sp-stat blue glass-panel">
+        <div class="ico">💿</div>
+        <div class="val">{{ total_tires }}</div>
+        <div class="lbl">إجمالي الإطارات المسجلة</div>
+    </div>
+    <div class="sp-stat green glass-panel">
+        <div class="ico">🚚</div>
+        <div class="val">{{ installed_tires }}</div>
+        <div class="lbl">مركبة على الأسطول</div>
+    </div>
+    <div class="sp-stat orange glass-panel">
+        <div class="ico">📦</div>
+        <div class="val">{{ warehouse_tires }}</div>
+        <div class="lbl">في المستودع</div>
+    </div>
+    <div class="sp-stat brown glass-panel">
+        <div class="ico">🔄</div>
+        <div class="val">{{ retreaded_tires }}</div>
+        <div class="lbl">تم تدفئتها / صيانة</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="glass-panel" style="padding: 1.2rem; margin-bottom: 1.5rem; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+    <div style="flex: 1; min-width: 250px;">
+        <input type="text" id="searchInput" onkeyup="filterTires()" placeholder="🔍 ابحث بالرقم التسلسلي، الماركة، أو رقم اللوحة..." 
+               style="width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main); font-family: 'Cairo', sans-serif;">
+    </div>
+    <div style="min-width: 180px;">
+        <select id="statusFilter" onchange="filterTires()" 
+                style="width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-main); font-family: 'Cairo', sans-serif;">
+            <option value="">جميع الحالات</option>
+            <option value="جديد">جديد</option>
+            <option value="مستخدم">مستخدم</option>
+            <option value="تالف">تالف</option>
+            <option value="تم التدفئة">تم التدفئة</option>
+        </select>
+    </div>
+</div>
+
+<!-- Table Container -->
+<div class="table-responsive glass-panel" style="border-radius: 14px; overflow: hidden;">
+    <table id="tiresTable" style="width: 100%; border-collapse: collapse; text-align: right; font-family: 'Cairo', sans-serif;">
+        <thead style="background: rgba(0,0,0,0.4); border-bottom: 1px solid var(--glass-border);">
+            <tr>
+                <th style="padding: 14px 16px; color: var(--gold-primary); font-weight: 700;"># الرقم التسلسلي</th>
+                <th style="padding: 14px 16px; color: var(--text-main); font-weight: 700;">المركبة المرتبطة</th>
+                <th style="padding: 14px 16px; color: var(--text-main); font-weight: 700;">الماركة / المقاس</th>
+                <th style="padding: 14px 16px; color: var(--text-main); font-weight: 700;">تاريخ التركيب</th>
+                <th style="padding: 14px 16px; color: var(--text-main); font-weight: 700;">الحالة</th>
+                <th style="padding: 14px 16px; color: var(--text-main); font-weight: 700;">تاريخ التدفئة</th>
+                <th style="padding: 14px 16px; color: var(--text-main); font-weight: 700; text-align: center;">الإجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="tiresBody">
+            {% for tire in tires %}
+            <tr class="tire-row" data-status="{{ tire.status }}" style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">
+                <td style="padding: 14px 16px; font-weight: bold; color: var(--gold-light);">{{ tire.serial_number }}</td>
+                <td style="padding: 14px 16px; color: var(--text-main);">
+                    {% if tire.vehicle_id %}
+                        {% for v in vehicles %}
+                            {% if v.id == tire.vehicle_id %}🚛 {{ v.plate_number }} ({{ v.model or 'عام' }}){% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <span style="color: var(--text-muted); font-style: italic;">📦 في المستودع</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 14px 16px; color: var(--text-main);">{{ tire.brand or '—' }} {% if tire.size %}({{ tire.size }}){% endif %}</td>
+                <td style="padding: 14px 16px; color: var(--text-muted);">{{ tire.install_date or '—' }}</td>
+                <td style="padding: 14px 16px;">
+                    <span style="padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; display: inline-block;
+                        {% if tire.status == 'جديد' %}background: rgba(34,197,94,0.2); color:#4ade80; border: 1px solid rgba(34,197,94,0.4);
+                        {% elif tire.status == 'مستخدم' %}background: rgba(234,179,8,0.2); color:#facc15; border: 1px solid rgba(234,179,8,0.4);
+                        {% elif tire.status == 'تم التدفئة' %}background: rgba(168,85,247,0.2); color:#c084fc; border: 1px solid rgba(168,85,247,0.4);
+                        {% else %}background: rgba(239,68,68,0.2); color:#f87171; border: 1px solid rgba(239,68,68,0.4);{% endif %}">
+                        {{ tire.status }}
+                    </span>
+                </td>
+                <td style="padding: 14px 16px; color: var(--text-muted);">{{ tire.retread_date or '—' }}</td>
+                <td style="padding: 14px 16px; text-align: center;">
+                    <button onclick="openEditModal({{ tire.id }}, '{{ tire.serial_number }}', '{{ tire.vehicle_id or '' }}', '{{ tire.brand or '' }}', '{{ tire.size or '' }}', '{{ tire.status }}', '{{ tire.install_date or '' }}', '{{ tire.notes or '' }}')" 
+                            title="تعديل الإطار" style="background: rgba(197,160,89,0.15); color: var(--gold-primary); border: 1px solid rgba(197,160,89,0.3); border-radius: 6px; padding: 4px 10px; cursor: pointer; margin-left: 4px;">✏️</button>
+                    <button onclick="deleteTire({{ tire.id }})" 
+                            title="حذف السجل" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; padding: 4px 10px; cursor: pointer;">🗑️</button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="padding: 40px; text-align: center; color: var(--text-muted); font-size: 1rem;">
+                    💿 لا توجد إطارات مسجلة حتى الآن. اضغط على زر "تسجيل إطار جديد" لإضافة أول سجل.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Modal -->
+<div id="addModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; backdrop-filter: blur(6px);">
+    <div class="glass-panel" style="width: 480px; max-width: 90vw; margin: 60px auto; padding: 0; overflow: hidden;">
+        <div style="padding: 18px 24px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+            <h3 id="modalTitle" style="margin: 0; color: var(--gold-primary); font-family: 'Cairo', sans-serif;">تسجيل إطار جديد</h3>
+            <button onclick="closeModal()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.4rem;">&times;</button>
+        </div>
+        <form id="addForm" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+            <input type="hidden" id="tire_id">
+            <div>
+                <label style="display:block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.88rem;">الرقم التسلسلي (إلزامي)</label>
+                <input type="text" id="serial" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+            </div>
+            <div>
+                <label style="display:block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.88rem;">المركبة المرتبطة</label>
+                <select id="vehicle_id" class="bz-select2" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                    <option value="">-- بالمستودع --</option>
+                    {% for v in vehicles %}
+                    <option value="{{ v.id }}">{{ v.plate_number }} ({{ v.model or 'عام' }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <div style="flex:1;">
+                    <label style="display:block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.88rem;">الماركة</label>
+                    <input type="text" id="brand" placeholder="مثال: Bridgestone" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.88rem;">المقاس</label>
+                    <input type="text" id="size" placeholder="مثال: 315/80 R22.5" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <div style="flex:1;">
+                    <label style="display:block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.88rem;">تاريخ التركيب</label>
+                    <input type="date" id="install_date" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: white; color-scheme: dark;">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.88rem;">الحالة</label>
+                    <select id="status" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                        <option value="جديد">جديد</option>
+                        <option value="مستخدم">مستخدم</option>
+                        <option value="تم التدفئة">تم التدفئة</option>
+                        <option value="تالف">تالف</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label style="display:block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.88rem;">ملاحظات / مسوّغ</label>
+                <input type="text" id="notes" placeholder="أدخل أي ملاحظات إضافية..." style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                <button type="button" onclick="closeModal()" style="background: transparent; border: 1px solid var(--glass-border); color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer;">إلغاء</button>
+                <button type="submit" class="btn-neon" style="padding: 10px 24px;">حفظ والتغيير</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function filterTires() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const status = document.getElementById('statusFilter').value;
+    const rows = document.querySelectorAll('#tiresBody .tire-row');
+
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        const rowStatus = row.getAttribute('data-status');
+        const matchesSearch = text.includes(search);
+        const matchesStatus = !status || rowStatus === status;
+
+        if (matchesSearch && matchesStatus) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function openAddModal() {
+    document.getElementById('modalTitle').innerText = 'تسجيل إطار جديد';
+    document.getElementById('tire_id').value = '';
+    document.getElementById('addForm').reset();
+    if (typeof jQuery !== 'undefined') { $('#vehicle_id').trigger('change.select2'); }
+    document.getElementById('addModal').style.display = 'block';
+}
+
+function openEditModal(id, serial, vehicleId, brand, size, status, installDate, notes) {
+    document.getElementById('modalTitle').innerText = 'تعديل بيانات الإطار';
+    document.getElementById('tire_id').value = id;
+    document.getElementById('serial').value = serial;
+    document.getElementById('vehicle_id').value = vehicleId;
+    if (typeof jQuery !== 'undefined') { $('#vehicle_id').trigger('change.select2'); }
+    document.getElementById('brand').value = brand;
+    document.getElementById('size').value = size;
+    document.getElementById('status').value = status;
+    document.getElementById('install_date').value = installDate;
+    document.getElementById('notes').value = notes;
+    document.getElementById('addModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('addModal').style.display = 'none';
+}
+
+document.getElementById('addForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('tire_id').value;
+    const url = id ? `/api/inventory/tires/${id}` : '/api/inventory/tires';
+    const method = id ? 'PUT' : 'POST';
+
+    const data = {
+        serial_number: document.getElementById('serial').value,
+        vehicle_id: document.getElementById('vehicle_id').value,
+        brand: document.getElementById('brand').value,
+        size: document.getElementById('size').value,
+        install_date: document.getElementById('install_date').value,
+        status: document.getElementById('status').value,
+        notes: document.getElementById('notes').value
+    };
+    
+    try {
+        const r = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const res = await r.json();
+        if (res.success) {
+            location.reload();
+        } else {
+            alert('حدث خطأ: ' + (res.error || 'فشل العملية'));
+        }
+    } catch(err) {
+        console.error(err);
+        alert('خطأ في الاتصال بالنظام.');
+    }
+});
+
+async function deleteTire(id) {
+    if (!confirm('هل أنت تأكد من رغبتك في حذف هذا الإطار من السجل؟')) return;
+    try {
+        const r = await fetch(`/api/inventory/tires/${id}`, { method: 'DELETE' });
+        const res = await r.json();
+        if (res.success) {
+            location.reload();
+        } else {
+            alert('تعذر الحذف: ' + res.error);
+        }
+    } catch(err) {
+        alert('خطأ في الاتصال بالنظام.');
+    }
+}
+</script>
+{% endblock %}

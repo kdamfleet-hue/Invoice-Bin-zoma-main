@@ -1,0 +1,278 @@
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
+
+db = SQLAlchemy()
+
+class Branch(db.Model):
+    __tablename__ = 'erp_branches'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    code = db.Column(db.String(20), unique=True, nullable=True)
+
+    users = db.relationship('User', backref='branch', lazy=True)
+    drivers = db.relationship('Driver', backref='branch', lazy=True)
+    vehicles = db.relationship('Vehicle', backref='branch', lazy=True)
+    documents = db.relationship('Document', backref='branch', lazy=True)
+    spare_parts = db.relationship('SparePart', backref='branch', lazy=True)
+
+class User(db.Model):
+    __tablename__ = 'erp_users'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), nullable=False, default='viewer') # admin, branch_manager, data_entry, viewer, kiosk
+    is_active = db.Column(db.Boolean, default=True)
+    last_login = db.Column(db.DateTime, nullable=True)
+    
+    audit_logs = db.relationship('AuditLog', backref='user', lazy=True)
+
+class Driver(db.Model):
+    __tablename__ = 'erp_drivers'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
+    employee_id = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(150), nullable=False)
+    iqama_number = db.Column(db.String(50), unique=True, nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    job_title = db.Column(db.String(100), nullable=True)
+    iqama_expiry = db.Column(db.Date, nullable=True)
+    license_expiry = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(50), default="متاح")
+    
+    # Missing Employee Fields
+    drivercard = db.Column(db.String(50), nullable=True)
+    medical_exp = db.Column(db.Date, nullable=True)
+    contract_exp = db.Column(db.Date, nullable=True)
+    empNotes = db.Column(db.Text, nullable=True)
+    birth_date = db.Column(db.Date, nullable=True)
+    
+    custodies = db.relationship('VehicleCustody', backref='driver', lazy=True)
+    incidents = db.relationship('Incident', backref='driver', lazy=True)
+
+class Vehicle(db.Model):
+    __tablename__ = 'erp_vehicles'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
+    plate_number = db.Column(db.String(50), unique=True, nullable=False)
+    model = db.Column(db.String(100), nullable=True)
+    v_type = db.Column(db.String(50), nullable=True)
+    serial_number = db.Column(db.String(100), nullable=True)
+    insurance_expiry = db.Column(db.Date, nullable=True)
+    istimara_expiry = db.Column(db.Date, nullable=True)
+    inspection_expiry = db.Column(db.Date, nullable=True)
+    gps_device_id = db.Column(db.String(100), nullable=True)
+    yard_status = db.Column(db.String(50), default='خارج الساحة')
+    yard_condition = db.Column(db.String(50), nullable=True)
+    current_km = db.Column(db.Integer, nullable=True, default=0)
+    odometer = db.Column(db.Integer, nullable=True, default=0)
+    
+    # Missing Vehicle Fields
+    pallets = db.Column(db.String(50), nullable=True)
+    load_capacity = db.Column(db.String(50), nullable=True)
+    opcard = db.Column(db.Date, nullable=True)
+    fuel_card = db.Column(db.String(50), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    
+    custodies = db.relationship('VehicleCustody', backref='vehicle', lazy=True)
+    incidents = db.relationship('Incident', backref='vehicle', lazy=True)
+    workshop_records = db.relationship('WorkshopRecord', backref='vehicle', lazy=True)
+
+class VehicleCustody(db.Model):
+    __tablename__ = 'erp_vehicle_custody'
+    id = db.Column(db.Integer, primary_key=True)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=False)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=False)
+    received_date = db.Column(db.Date, nullable=False)
+    returned_date = db.Column(db.Date, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(50), default="active")
+
+class Incident(db.Model):
+    __tablename__ = 'erp_incidents'
+    id = db.Column(db.Integer, primary_key=True)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=False)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=False)
+    incident_date = db.Column(db.Date, nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+    amount = db.Column(db.Numeric(10, 2), nullable=True)
+    location = db.Column(db.String(255), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+
+class SparePart(db.Model):
+    __tablename__ = 'erp_spare_parts'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
+    part_number = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(150), nullable=False)
+    category = db.Column(db.String(100), nullable=True)
+    quantity = db.Column(db.Integer, default=0)
+    price = db.Column(db.Numeric(10, 2), nullable=True)
+    supplier = db.Column(db.String(150), nullable=True)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    usages = db.relationship('WorkshopPartUsage', backref='spare_part', lazy=True)
+
+class WorkshopRecord(db.Model):
+    __tablename__ = 'erp_workshop_records'
+    id = db.Column(db.Integer, primary_key=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=False)
+    entry_date = db.Column(db.Date, nullable=False)
+    exit_date = db.Column(db.Date, nullable=True)
+    issue_description = db.Column(db.Text, nullable=True)
+    mechanic_name = db.Column(db.String(150), nullable=True)
+    status = db.Column(db.String(50), default="مفتوح")
+    
+    part_usages = db.relationship('WorkshopPartUsage', backref='workshop_record', lazy=True)
+
+class WorkshopPartUsage(db.Model):
+    __tablename__ = 'erp_workshop_part_usage'
+    id = db.Column(db.Integer, primary_key=True)
+    workshop_record_id = db.Column(db.Integer, db.ForeignKey('erp_workshop_records.id'), nullable=False)
+    spare_part_id = db.Column(db.Integer, db.ForeignKey('erp_spare_parts.id'), nullable=False)
+    quantity_used = db.Column(db.Integer, nullable=False)
+
+class Document(db.Model):
+    __tablename__ = 'erp_documents'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
+    doc_type = db.Column(db.String(50), nullable=False)
+    entity_type = db.Column(db.String(50), nullable=True)
+    entity_ref = db.Column(db.String(255), nullable=True)
+    number = db.Column(db.String(100), nullable=True)
+    expiry = db.Column(db.Date, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    file_data = db.Column(db.Text, nullable=True) # Base64 for backwards compatibility
+    mime_type = db.Column(db.String(50), nullable=True)
+    file_size = db.Column(db.Integer, default=0)
+    file_path = db.Column(db.String(255), nullable=False)
+    upload_date = db.Column(db.Date, default=datetime.utcnow)
+
+class AuditLog(db.Model):
+    __tablename__ = 'erp_audit_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('erp_users.id'), nullable=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    action = db.Column(db.String(100), nullable=False)
+    target_table = db.Column(db.String(100), nullable=True)
+    target_id = db.Column(db.String(50), nullable=True)
+    reason = db.Column(db.Text, nullable=True) # التوثيق الإلزامي للمخالفة أو المبرر
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class FuelRecord(db.Model):
+    __tablename__ = 'erp_fuel_records'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=True)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    prev_odo = db.Column(db.Integer, nullable=True)
+    current_odo = db.Column(db.Integer, nullable=True)
+    liters = db.Column(db.Numeric(10, 2), nullable=True)
+    cost = db.Column(db.Numeric(10, 2), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+class WashingRecord(db.Model):
+    __tablename__ = 'erp_washing_records'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=True)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+class ScheduleData(db.Model):
+    __tablename__ = 'erp_schedule_data'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    task_type = db.Column(db.String(100), nullable=True)
+    details = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(50), default="pending")
+
+class PurchaseRecord(db.Model):
+    __tablename__ = 'erp_purchase_records'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    item_name = db.Column(db.String(150), nullable=False)
+    cost = db.Column(db.Numeric(10, 2), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+class HandoverRecord(db.Model):
+    __tablename__ = 'erp_handover_records'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+class CustodyItem(db.Model):
+    __tablename__ = 'erp_custody_items'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=False)
+    item_type = db.Column(db.String(100), nullable=False)
+    item_details = db.Column(db.String(255), nullable=True)
+    received_date = db.Column(db.Date, nullable=False)
+    returned_date = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(50), default="في العهدة")
+    notes = db.Column(db.Text, nullable=True)
+
+
+class TireRecord(db.Model):
+    __tablename__ = 'erp_tires'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=True)
+    serial_number = db.Column(db.String(100), unique=True, nullable=False)
+    brand = db.Column(db.String(100), nullable=True)
+    size = db.Column(db.String(50), nullable=True)
+    install_date = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(50), default="جديد") # جديد, مستخدم, تالف, تم التدفئة
+    retread_date = db.Column(db.Date, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+class BatteryRecord(db.Model):
+    __tablename__ = 'erp_batteries'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('erp_vehicles.id'), nullable=True)
+    serial_number = db.Column(db.String(100), unique=True, nullable=False)
+    brand = db.Column(db.String(100), nullable=True)
+    capacity = db.Column(db.String(50), nullable=True)
+    install_date = db.Column(db.Date, nullable=True)
+    warranty_expiry = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(50), default="نشط") # نشط, تالف, مستبدل
+    notes = db.Column(db.Text, nullable=True)
+
+
+class PettyCash(db.Model):
+    __tablename__ = 'erp_petty_cash'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=False)
+    driver_id = db.Column(db.Integer, db.ForeignKey('erp_drivers.id'), nullable=True)
+    driver = db.relationship('Driver', backref='petty_cash_requests', lazy=True)
+    amount = db.Column(db.Float, nullable=False)
+    expense_type = db.Column(db.String(100), nullable=False) # رسوم طرق، صيانة، طوارئ، رسوم ميناء
+    description = db.Column(db.Text, nullable=True)
+    date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(50), default="معلق") # معلق، معتمد، مرفوض
+    receipt_image = db.Column(db.String(255), nullable=True) # مسار الصورة
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+class AppSetting(db.Model):
+    __tablename__ = 'erp_app_settings'
+    key = db.Column(db.String(100), primary_key=True)
+    value = db.Column(db.Text, nullable=True)
+
+class Snapshot(db.Model):
+    __tablename__ = 'erp_snapshots'
+    id = db.Column(db.Integer, primary_key=True)
+    tab = db.Column(db.String(100), nullable=True)
+    branch_id = db.Column(db.Integer, nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    data = db.Column(db.Text, nullable=False)
+
+

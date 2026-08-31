@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}مركبات فرع الدمام (73){% endblock %}
+{% block page_heading %}مركبات فرع الدمام — 73 مركبة فقط{% endblock %}
+{% block content %}
+<div class="glass-panel" style="padding:16px">
+  <p style="color:var(--bz-muted);margin:0 0 12px">هذه هي مركبات فرع الدمام المعتمدة فقط (73). لا تُعرض سجلات بلا لوحة. اسم السائق يُربط من سجل السائقين إن وُجدت نفس اللوحة.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <input id="q" placeholder="بحث باللوحة أو السائق أو النوع أو الملاحظة" style="flex:1;min-width:200px;padding:10px;border-radius:10px" oninput="draw()">
+    <select id="k" onchange="draw()" style="padding:10px;border-radius:10px">
+      <option value="">كل الأنواع</option>
+      <option>نقل عام</option>
+      <option>نقل خاص</option>
+      <option>خاص</option>
+    </select>
+    <select id="note" onchange="draw()" style="padding:10px;border-radius:10px">
+      <option value="">كل الملاحظات</option>
+      <option value="has">فيها ملاحظة</option>
+      <option value="exp">رخصة/فحص منتهي أو قريب</option>
+    </select>
+  </div>
+  <div id="stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px"></div>
+  <div class="table-responsive">
+    <table class="sched" style="width:100%">
+      <thead><tr>
+        <th>#</th><th>اللوحة</th><th>السائق</th><th>التسجيل</th><th>المركبة</th><th>الحالة</th><th>الملاحظات</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+</div>
+<script>
+const CARS = {{ vehicles|tojson }};
+function np(s){return String(s||'').replace(/\s+/g,'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));}
+let DRV=[];
+function findDriver(plate){
+  const n=np(plate);
+  if(!n) return {};
+  return DRV.find(d=>np(d.plate)===n) || DRV.find(d=>n && np(d.plate).includes(n)) || {};
+}
+function draw(){
+  const q=(document.getElementById('q').value||'').trim();
+  const k=document.getElementById('k').value;
+  const note=document.getElementById('note').value;
+  const rows=CARS.filter(v=>{
+    if(!v.plate) return false;
+    if(k && v.reg_type!==k) return false;
+    if(note==='has' && (!v.notes || v.notes==='لا توجد ملاحظات')) return false;
+    if(note==='exp' && !/منتهي|قريب/.test((v.notes||'')+(v.lic_status||'')+(v.insp_status||''))) return false;
+    if(!q) return true;
+    const d=findDriver(v.plate);
+    return [v.plate,v.make,v.model,v.status,v.notes,d.name,v.serial,v.chassis].join(' ').includes(q);
+  });
+  const hasNote=CARS.filter(v=>v.notes && v.notes!=='لا توجد ملاحظات').length;
+  document.getElementById('stats').innerHTML=`
+    <div class="glass-panel" style="padding:10px;text-align:center"><b>${CARS.length}</b><div>المركبات</div></div>
+    <div class="glass-panel" style="padding:10px;text-align:center"><b>${CARS.filter(v=>v.reg_type==='نقل عام').length}</b><div>نقل عام</div></div>
+    <div class="glass-panel" style="padding:10px;text-align:center"><b>${CARS.filter(v=>v.reg_type!=='نقل عام').length}</b><div>خاص / نقل خاص</div></div>
+    <div class="glass-panel" style="padding:10px;text-align:center"><b>${hasNote}</b><div>عليها ملاحظات</div></div>`;
+  document.getElementById('tb').innerHTML=rows.map(v=>{
+    const d=findDriver(v.plate);
+    const noteCls=/منتهي/.test(v.notes||'')?'color:#f87171':(/قريب/.test(v.notes||'')?'color:#fbbf24':'');
+    return `<tr onclick="location.href='/dammam/v/${v.n}'" style="cursor:pointer">
+      <td>${v.n}</td>
+      <td style="font-weight:800;color:var(--bz-gold-2)">${v.plate}</td>
+      <td>${d.name||'غير مربوط'}</td>
+      <td>${v.reg_type||''}</td>
+      <td>${v.make||''} ${v.model||''} ${v.year||''}</td>
+      <td>${v.status||''}</td>
+      <td style="${noteCls}">${v.notes||'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7">لا نتائج</td></tr>';
+}
+function loadDrivers(){
+  return fetch('/api/drivers').then(r=>r.json()).catch(()=>null)
+    .then(j=>{ if(Array.isArray(j)&&j.length) return j; return fetch('/api/drivers_info_data').then(r=>r.json()); })
+    .then(j=>{ DRV=Array.isArray(j)?j:(j.data||[]); draw(); })
+    .catch(()=>draw());
+}
+loadDrivers();
+</script>
+{% endblock %}

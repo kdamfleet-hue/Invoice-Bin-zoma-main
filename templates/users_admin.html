@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}إدارة المستخدمين | شركة بن زومة{% endblock %}
+
+{% block head %}
+<style>
+    .admin-shell { padding: 20px 28px; min-height: 80vh; }
+
+    .admin-title {
+        display: flex; align-items: center; gap: 12px;
+        margin-bottom: 24px;
+    }
+    .admin-title h2 {
+        margin: 0; font-size: 1.3rem; font-weight: 800;
+        color: var(--gold-primary, #c5a059);
+    }
+    .admin-title h2 span {
+        display: block; font-size: .8rem; font-weight: 400;
+        color: var(--text-muted, #94a3b8); margin-top: 4px;
+    }
+
+    /* ── Form Card ── */
+    .admin-form-card {
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    .admin-form-card h3 {
+        margin: 0 0 18px; font-size: 1rem; font-weight: 700;
+        color: var(--gold-primary, #c5a059);
+        display: flex; align-items: center; gap: 8px;
+    }
+    .admin-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+        margin-bottom: 18px;
+    }
+    .admin-grid input,
+    .admin-grid select {
+        width: 100%; padding: 10px 14px;
+        background: rgba(0,0,0,0.25);
+        border: 1px solid var(--glass-border, rgba(197,160,89,0.25));
+        color: var(--text-main, #f8fafc);
+        border-radius: 8px;
+        font-family: 'Cairo', sans-serif;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+        transition: border-color 0.3s;
+    }
+    .admin-grid input:focus,
+    .admin-grid select:focus {
+        border-color: var(--gold-primary, #c5a059);
+        outline: none;
+    }
+    .admin-grid input::placeholder { color: var(--text-muted, #94a3b8); }
+    .admin-grid label {
+        display: flex; align-items: center; gap: 10px;
+        color: var(--text-muted, #94a3b8); font-size: 0.9rem;
+    }
+    .admin-grid label input[type="checkbox"] {
+        width: auto; accent-color: var(--gold-primary, #c5a059);
+    }
+
+    /* ── Table ── */
+    .admin-table-card { overflow: hidden; }
+    .admin-table {
+        width: 100%; border-collapse: collapse;
+        font-size: 0.88rem;
+    }
+    .admin-table thead th {
+        background: rgba(0,0,0,0.3);
+        color: var(--gold-primary, #c5a059);
+        font-weight: 700; padding: 12px 14px;
+        text-align: right; white-space: nowrap;
+        border-bottom: 2px solid var(--gold-primary, #c5a059);
+    }
+    .admin-table tbody tr {
+        border-bottom: 1px solid var(--glass-border, rgba(197,160,89,0.15));
+        transition: background 0.15s;
+    }
+    .admin-table tbody tr:hover {
+        background: rgba(197, 160, 89, 0.06);
+    }
+    .admin-table tbody td {
+        padding: 12px 14px;
+        color: var(--text-main, #f8fafc);
+        vertical-align: middle;
+    }
+
+    /* Badges */
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
+    .badge.ok { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    .badge.bad { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
+    @media (max-width: 768px) {
+        .admin-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-shell">
+
+    <div class="admin-title">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--gold-primary,#c5a059);display:flex;align-items:center;justify-content:center;font-size:1.3rem;">👥</div>
+        <h2>إدارة مستخدمي النظام والصلاحيات
+            <span>إضافة، تعديل، وإدارة حسابات المستخدمين وأدوارهم</span>
+        </h2>
+    </div>
+
+    <!-- Add/Edit Form -->
+    <div class="glass-panel admin-form-card">
+        <h3>➕ إضافة / تعديل مستخدم</h3>
+        <form id="userForm">
+            <input type="hidden" id="userId">
+            <div class="admin-grid">
+                <input type="text" id="username" placeholder="اسم المستخدم" required>
+                <input type="password" id="password" placeholder="كلمة المرور (اختياري عند التعديل)">
+                <select id="role" required>
+                    <option value="" disabled selected>-- اختر الصلاحية --</option>
+                    <option value="admin">مدير أسطول / مسؤول (Admin)</option>
+                    <option value="operations">قسم الحركة (Operations)</option>
+                    <option value="maintenance">قسم الصيانة (Maintenance)</option>
+                    <option value="finance">قسم الحسابات (Finance)</option>
+                    <option value="viewer">مُطلع (Viewer)</option>
+                    <option value="kiosk">محطة عمل / ورشة (Kiosk)</option>
+                </select>
+                <select id="branch_id">
+                    <option value="">كل الفروع (عام)</option>
+                </select>
+                <label>
+                    <input type="checkbox" id="is_active" checked>
+                    الحساب مفعل
+                </label>
+            </div>
+            <button type="submit" class="btn-neon success">💾 حفظ المستخدم</button>
+        </form>
+    </div>
+
+    <!-- Users Table -->
+    <div class="glass-panel admin-table-card">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>المعرف</th>
+                    <th>اسم المستخدم</th>
+                    <th>الصلاحية</th>
+                    <th>الفرع</th>
+                    <th>الحالة</th>
+                    <th>آخر دخول</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="usersList"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+function loadUsers() {
+    fetch('/api/users')
+    .then(r => r.json())
+    .then(data => {
+        const tbody = document.getElementById('usersList');
+        tbody.innerHTML = '';
+        data.users.forEach(u => {
+            const roleMap = {
+                'admin': 'مدير الأسطول',
+                'operations': 'قسم الحركة',
+                'maintenance': 'قسم الصيانة',
+                'finance': 'قسم الحسابات',
+                'viewer': 'مُطلع',
+                'kiosk': 'محطة عمل / ورشة'
+            };
+            const activeBadge = u.is_active ? '<span class="badge ok">مفعل</span>' : '<span class="badge bad">موقوف</span>';
+            tbody.innerHTML += `
+                <tr>
+                    <td>${u.id}</td>
+                    <td style="font-weight:700;color:var(--gold-primary,#c5a059);">${u.username}</td>
+                    <td>${roleMap[u.role] || u.role}</td>
+                    <td>${u.branch}</td>
+                    <td>${activeBadge}</td>
+                    <td style="color:var(--text-muted);">${u.last_login}</td>
+                    <td>
+                        <button class="btn-neon" style="padding:4px 12px;font-size:.8rem;" onclick="editUser(${u.id}, '${u.username}', '${u.role}', '${u.branch_id}', ${u.is_active})">✏️ تعديل</button>
+                        ${u.username !== 'admin' ? `<button class="btn-neon danger" style="padding:4px 12px;font-size:.8rem;" onclick="deleteUser(${u.id})">🗑 حذف</button>` : ''}
+                    </td>
+                </tr>
+            `;
+        });
+    });
+}
+
+function loadBranches() {
+    fetch('/api/legacy/branches')
+    .then(r => r.json())
+    .then(data => {
+        const sel = document.getElementById('branch_id');
+        (data.branches || data).forEach(b => {
+            sel.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+        });
+    }).catch(e => console.log("Branches API not found, or returns different format."));
+}
+
+function editUser(id, username, role, branch_id, is_active) {
+    document.getElementById('userId').value = id;
+    document.getElementById('username').value = username;
+    document.getElementById('role').value = role;
+    document.getElementById('branch_id').value = branch_id !== 'null' ? branch_id : '';
+    document.getElementById('is_active').checked = is_active;
+    document.getElementById('username').readOnly = true;
+}
+
+function deleteUser(id) {
+    if(!confirm("هل أنت متأكد من حذف هذا المستخدم؟")) return;
+    fetch('/api/users', {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id: id})
+    }).then(r => r.json()).then(data => {
+        if(data.success) loadUsers();
+        else alert(data.error);
+    });
+}
+
+document.getElementById('userForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const payload = {
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        role: document.getElementById('role').value,
+        branch_id: document.getElementById('branch_id').value,
+        is_active: document.getElementById('is_active').checked
+    };
+    
+    fetch('/api/users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(data => {
+        if(data.success) {
+            alert("تم الحفظ بنجاح");
+            document.getElementById('userForm').reset();
+            document.getElementById('username').readOnly = false;
+            document.getElementById('userId').value = '';
+            loadUsers();
+        } else {
+            alert(data.error || data.reason);
+        }
+    });
+});
+
+window.onload = () => {
+    loadUsers();
+    loadBranches();
+};
+</script>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}دورة تشغيل الأسطول | بن زومة{% endblock %}
+{% block page_heading %}دورة التشغيل اليومية والأسبوعية{% endblock %}
+{% block content %}
+<style>
+.ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+.ops-card{background:var(--bz-panel,#101b28);border:1px solid rgba(201,164,90,.22);border-radius:14px;padding:14px}
+.ops-card b{display:block;font-size:1.4rem;color:var(--bz-gold-2,#e3c47a)}
+.ops-card span{color:#93a0b3;font-size:.8rem}
+.ops-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
+.ops-tabs button{border:1px solid rgba(201,164,90,.25);background:transparent;color:inherit;border-radius:999px;padding:8px 14px;font-family:inherit}
+.ops-tabs button.on{background:rgba(201,164,90,.2);color:#e3c47a}
+.ops-pane{display:none}
+.ops-pane.on{display:block}
+.ops-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:12px}
+.ops-form input,.ops-form select,.ops-form textarea{padding:10px;border-radius:10px;border:1px solid rgba(201,164,90,.22);background:#0d1724;color:#fff;font-family:inherit}
+table.ops{width:100%;border-collapse:collapse;font-size:.86rem}
+table.ops th,table.ops td{padding:8px;border-bottom:1px solid rgba(255,255,255,.06);text-align:right}
+.flag-bad{color:#f87171;font-weight:700}
+@media(max-width:700px){.ops-form{grid-template-columns:1fr}}
+</style>
+<div class="ops-grid" id="kpis"></div>
+<div class="ops-tabs">
+  <button class="on" onclick="pane('daily',this)">التشغيل اليومي</button>
+  <button onclick="pane('weekly',this)">التحليل الأسبوعي</button>
+  <button onclick="pane('garage',this)">دورة الورشة</button>
+  <button onclick="pane('sop',this)">إجراءات العمل</button>
+</div>
+<section class="ops-pane on" id="p-daily">
+  <div class="ops-card" style="margin-bottom:12px">
+    <h3 style="margin-top:0">فحص ما قبل الشفت</h3>
+    <form class="ops-form" onsubmit="return savePretrip(event)">
+      <input name="plate" required placeholder="رقم اللوحة">
+      <input name="driver" placeholder="اسم السائق">
+      <input name="odo" type="number" placeholder="قراءة العداد">
+      <input name="gps_odo" type="number" placeholder="عداد GPS إن وُجد">
+      <label><input type="checkbox" name="oil"> مستوى الزيت</label>
+      <label><input type="checkbox" name="tires"> ضغط الإطارات</label>
+      <label><input type="checkbox" name="lights"> الإضاءة</label>
+      <input name="fault" placeholder="عطل ملاحظ (إن وجد)">
+      <button class="btn-neon" type="submit">حفظ الفحص</button>
+    </form>
+  </div>
+  <div class="ops-card"><h3>فحوصات اليوم</h3><div id="checks"></div></div>
+</section>
+<section class="ops-pane" id="p-weekly">
+  <div class="ops-card" style="margin-bottom:12px"><h3>معدل الاستهلاك كم/لتر</h3><div id="fuel"></div></div>
+  <div class="ops-card" style="margin-bottom:12px"><h3>صيانة وقائية متوقعة</h3><div id="pm"></div></div>
+  <div class="ops-card">
+    <h3>ساعات التوقف Idle</h3>
+    <form class="ops-form" onsubmit="return saveIdle(event)">
+      <input name="plate" required placeholder="اللوحة">
+      <input name="hours" type="number" step="0.1" placeholder="ساعات">
+      <input name="note" placeholder="ملاحظة">
+      <button class="btn-neon" type="submit">تسجيل</button>
+    </form>
+    <div id="idle"></div>
+  </div>
+</section>
+<section class="ops-pane" id="p-garage">
+  <div class="ops-card" style="margin-bottom:12px">
+    <h3>فتح أمر شغل</h3>
+    <form class="ops-form" onsubmit="return openWO(event)">
+      <input name="plate" required placeholder="اللوحة">
+      <select name="type"><option>علاجية</option><option>وقائية</option></select>
+      <input name="mechanic" placeholder="الفني">
+      <input name="issue" placeholder="العطل">
+      <button class="btn-neon" type="submit">فتح الأمر</button>
+    </form>
+  </div>
+  <div class="ops-card"><h3>أوامر الشغل</h3><div id="wo"></div></div>
+</section>
+<section class="ops-pane" id="p-sop">
+  <div class="ops-card">
+    <h3>إجراءات الحركة والورشة</h3>
+    <ol>
+      <li>فحص الزيت والإطارات والإضاءة قبل الشفت.</li>
+      <li>مطابقة العداد مع GPS.</li>
+      <li>تسجيل العطل يفتح أمر شغل: مفتوح → قيد التنفيذ → جاهزة للتشغيل.</li>
+      <li>صرف القطع من المخزن على حساب المركبة.</li>
+      <li>أسبوعياً: كم/لتر والصيانة الوقائية وساعات التوقف.</li>
+    </ol>
+  </div>
+</section>
+<script>
+function pane(id,btn){document.querySelectorAll('.ops-pane').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.ops-tabs button').forEach(b=>b.classList.remove('on'));document.getElementById('p-'+id).classList.add('on');btn.classList.add('on');}
+function tbl(headers, rows){if(!rows.length) return '<p style="color:#93a0b3">لا بيانات بعد</p>';return '<div class="table-responsive"><table class="ops"><thead><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${c??'—'}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>';}
+async function load(){
+  const s=await fetch('/api/ops/summary').then(r=>r.json());
+  const r=s.readiness||{}, w=s.workshop||{};
+  document.getElementById('kpis').innerHTML=[['المركبات',r.total],['جاهزة',r.ready],['في الورشة',r.workshop],['على الطريق',r.road],['أوامر مفتوحة',w.open],['MTTR ساعة',w.mttr_hours],['تكرار %',w.repeat_rate],['فحوصات اليوم',s.today_checks]].map(x=>`<div class="ops-card"><b>${x[1]??0}</b><span>${x[0]}</span></div>`).join('');
+  document.getElementById('fuel').innerHTML=tbl(['اللوحة','السائق','كم','لتر','كم/لتر','الحالة'],(s.fuel_alerts||[]).map(f=>[f.plate,f.driver,f.km,f.liters,f.kml,f.flag]));
+  document.getElementById('pm').innerHTML=tbl(['اللوحة','المركبة','العداد','آخر خدمة','المتبقي','الحالة'],(s.pm_due||[]).map(p=>[p.plate,`${p.make||''} ${p.model||''}`,p.current_km,p.last_service_km,p.remaining_km,p.status]));
+  const ch=await fetch('/api/ops/pretrip').then(r=>r.json());
+  document.getElementById('checks').innerHTML=tbl(['التاريخ','اللوحة','السائق','العداد','عطل','النتيجة'],(ch.rows||[]).slice(0,30).map(c=>[c.date+' '+c.time,c.plate,c.driver,c.odo,c.fault||'—',c.ok?'سليم':(c.odo_mismatch?'فرق عداد':'عطل')]));
+  const wo=await fetch('/api/ops/work_orders').then(r=>r.json());
+  document.getElementById('wo').innerHTML=tbl(['#','اللوحة','النوع','الحالة','الفتح','الإغلاق','التكلفة','إجراء'],(wo.rows||[]).slice(-40).reverse().map(o=>[o.id,o.plate,o.type,o.status,o.opened,o.closed||'—',o.cost,`<button class="bz-chip" onclick="woAct(${o.id},'progress')">تنفيذ</button> <button class="bz-chip" onclick="woAct(${o.id},'ready')">جاهزة</button>`]));
+  const idle=await fetch('/api/ops/idle').then(r=>r.json());
+  document.getElementById('idle').innerHTML=`<p>ساعات الأسبوع: <b>${idle.week_hours||0}</b></p>`+tbl(['التاريخ','اللوحة','ساعات','ملاحظة'],(idle.rows||[]).map(i=>[i.date,i.plate,i.hours,i.note]));
+}
+async function savePretrip(e){e.preventDefault();const f=e.target;await fetch('/api/ops/pretrip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plate:f.plate.value,driver:f.driver.value,odo:f.odo.value,gps_odo:f.gps_odo.value,oil:f.oil.checked,tires:f.tires.checked,lights:f.lights.checked,fault:f.fault.value})});f.reset();load();return false;}
+async function openWO(e){e.preventDefault();const f=e.target;await fetch('/api/ops/work_orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'open',plate:f.plate.value,type:f.type.value,mechanic:f.mechanic.value,issue:f.issue.value})});f.reset();load();return false;}
+async function woAct(id,action){await fetch('/api/ops/work_orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,action})});load();}
+async function saveIdle(e){e.preventDefault();const f=e.target;await fetch('/api/ops/idle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plate:f.plate.value,hours:f.hours.value,note:f.note.value})});f.reset();load();return false;}
+load();
+</script>
+{% endblock %}

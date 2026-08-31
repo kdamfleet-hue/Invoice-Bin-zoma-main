@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}لوحة القيادة المركزية | شركة بن زومة{% endblock %}
+{% block page_heading %}مركز التشغيل الموحد{% endblock %}
+{% block head %}
+    <meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
+    <script>
+      const m = document.getElementById("bz-meta");
+      if(m) {
+          window.BZ_BRANCH_ID = parseInt(m.getAttribute("data-branch-id") || "0", 10);
+          window.BZ_BRANCH = m.getAttribute("data-branch") || "";
+          window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
+      }
+    </script>
+{% endblock %}
+{% block content %}
+    <div class="hub-header">
+        <h1 class="hub-title">نظام إدارة الأسطول</h1>
+        <p class="hub-subtitle">فرع الدمام • نظرة سريعة ثم الانتقال من القائمة الجانبية</p>
+        <button id="enablePushBtn" class="btn-neon success" style="margin-top: 1rem; border-radius: 20px;" onclick="subscribePush()">
+            <i data-lucide="bell"></i> تفعيل الإشعارات المباشرة
+        </button>
+    </div>
+    <div class="stats-wrapper">
+        <div class="stat-circle glass-panel" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_drivers')" style="cursor: pointer;">
+            <div class="count-up" data-count="{{ total_drivers|default(0) }}" data-format="{n}">{{ total_drivers|default(0) }}</div>
+            <span>موظف وسائق</span>
+        </div>
+        <div class="stat-circle glass-panel" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_vehicles')" style="cursor: pointer;">
+            <div class="count-up" data-count="{{ active_vehicles|default(0) }}" data-format="{n}">{{ active_vehicles|default(0) }}</div>
+            <span>مركبة نشطة</span>
+        </div>
+        <div class="stat-circle glass-panel" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('expired_documents')" style="border-color: rgba(239, 68, 68, 0.3); cursor: pointer;">
+            <div class="count-up" data-count="{{ urgent_alerts|default(0) }}" data-format="{n}" style="color: #ef4444;">{{ urgent_alerts|default(0) }}</div>
+            <span>تنبيه عاجل</span>
+        </div>
+    </div>
+    <div class="glass-panel" style="max-width: 1180px; margin: 0 auto 2rem auto; padding: 1.2rem 1.4rem;">
+        <h3 style="margin-top:0; color: var(--bz-gold, #c9a45a);">ملخص الحالة</h3>
+        <div style="height: 280px; width: 100%;"><canvas id="fleetChart"></canvas></div>
+    </div>
+    <p class="hub-section-sub">اختصارات أساسية فقط — بقية الصفحات من القائمة الجانبية لتجنب التكرار</p>
+    <div class="hub-group-title">التشغيل</div>
+    <div class="hub-grid">
+        <a href="/fleet_dashboard" class="hub-card glass-panel"><h3>لوحة الأسطول</h3><p>مؤشرات المركبات والسائقين والتنبيهات.</p></a>
+        <a href="/schedule" class="hub-card glass-panel"><h3>الجدول الأسبوعي</h3><p>توزيع الحركة اليومية.</p></a>
+        <a href="/yard" class="hub-card glass-panel"><h3>إدارة الساحات</h3><p>دخول وخروج المركبات.</p></a>
+        <a href="/tracking" class="hub-card glass-panel"><h3>التتبع الحي</h3><p>مواقع المركبات عبر GPS.</p></a>
+    </div>
+    <div class="hub-group-title">الأفراد والوثائق</div>
+    <div class="hub-grid">
+        <a href="/employees" class="hub-card glass-panel"><h3>الموظفون</h3><p>سجل موظفي الفرع.</p></a>
+        <a href="/alerts" class="hub-card glass-panel"><h3>تنبيهات الوثائق</h3><p>انتهاء الاستمارات والفحص.</p></a>
+        <a href="/workshop" class="hub-card glass-panel"><h3>الورشة</h3><p>الصيانة والإصلاحات.</p></a>
+        <a href="/fuel" class="hub-card glass-panel"><h3>المحروقات</h3><p>التموين والاستهلاك.</p></a>
+    </div>
+{% endblock %}
+{% block scripts %}
+    <script>
+        lucide.createIcons();
+        async function subscribePush() {
+            const btn = document.getElementById('enablePushBtn');
+            try {
+                if (!('serviceWorker' in navigator) || !('PushManager' in window)) { alert('متصفحك لا يدعم الإشعارات المباشرة'); return; }
+                const registration = await navigator.serviceWorker.ready;
+                let subscription = await registration.pushManager.getSubscription();
+                if (!subscription) {
+                    const response = await fetch('/api/push/vapid_public_key');
+                    const vapidData = await response.json();
+                    subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidData.public_key) });
+                }
+                await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(subscription) });
+                btn.innerHTML = 'الإشعارات مفعلة';
+            } catch (error) { btn.innerHTML = 'فشل التفعيل'; }
+        }
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const statCircles = document.querySelectorAll('.stat-circle .count-up');
+            let totalDrivers = 0, activeVehicles = 0, urgentAlerts = 0;
+            if (statCircles.length >= 3) {
+                totalDrivers = parseInt(statCircles[0].getAttribute('data-count')) || 0;
+                activeVehicles = parseInt(statCircles[1].getAttribute('data-count')) || 0;
+                urgentAlerts = parseInt(statCircles[2].getAttribute('data-count')) || 0;
+            }
+            const ctx = document.getElementById('fleetChart');
+            if (ctx) {
+                if (typeof Chart === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.onload = () => renderChart(ctx, totalDrivers, activeVehicles, urgentAlerts);
+                    document.head.appendChild(script);
+                } else { renderChart(ctx, totalDrivers, activeVehicles, urgentAlerts); }
+            }
+        });
+        function renderChart(ctx, d1, d2, d3) {
+            new Chart(ctx, {
+                type: 'bar',
+                data: { labels: ['موظف وسائق', 'مركبة نشطة', 'تنبيه عاجل'], datasets: [{ label: 'العدد', data: [d1, d2, d3], backgroundColor: ['rgba(201,164,90,0.75)', 'rgba(56,189,248,0.7)', 'rgba(248,113,113,0.7)'], borderRadius: 8 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#93a0b3', font: { family: 'Cairo' } } }, x: { grid: { display: false }, ticks: { color: '#93a0b3', font: { family: 'Cairo', size: 13 } } } } }
+            });
+        }
+    </script>
+{% endblock %}

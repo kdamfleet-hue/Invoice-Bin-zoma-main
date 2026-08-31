@@ -1,0 +1,751 @@
+{% extends 'base.html' %}
+
+{% block title %}معلومات سائقو النقل العام والخاص — BIN ZOMAH INTL.{% endblock %}
+
+{% block head %}
+<style>
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border);
+    }
+    .page-header h1 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .page-header .icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, var(--brand-gold), #f59e0b);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        flex-shrink: 0;
+    }
+    .tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid var(--border);
+        overflow-x: auto;
+    }
+    .tab-btn {
+        padding: 0.6rem 1.4rem;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        white-space: nowrap;
+        transition: all 0.2s;
+        border-radius: 8px 8px 0 0;
+        font-family: inherit;
+    }
+    .tab-btn:hover { color: var(--brand-gold); background: rgba(201,162,39,0.07); }
+    .tab-btn.active {
+        color: var(--brand-gold);
+        border-bottom-color: var(--brand-gold);
+        background: rgba(201,162,39,0.1);
+    }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .toolbar {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.2rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .search-box {
+        flex: 1;
+        min-width: 260px;
+        position: relative;
+    }
+    .search-box input {
+        width: 100%;
+        padding: 0.65rem 1rem 0.65rem 2.5rem;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        background: var(--bg);
+        color: var(--text-primary);
+        transition: var(--trans);
+        font-family: inherit;
+    }
+    .search-box input:focus {
+        border-color: var(--brand-gold);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(201,162,39,0.2);
+    }
+    .search-box .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-secondary);
+        pointer-events: none;
+    }
+    .stats-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.2rem;
+    }
+    .stat-pill {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 100px;
+        padding: 0.4rem 1.1rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .stat-pill strong { color: var(--text-primary); }
+    .stat-pill.gold { border-color: var(--brand-gold); color: var(--brand-gold); }
+    .driver-table-wrap {
+        overflow-x: auto;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+    }
+    .driver-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+        min-width: 900px;
+    }
+    .driver-table th {
+        background: var(--bg);
+        padding: 0.75rem 1rem;
+        text-align: right;
+        font-weight: 600;
+        color: var(--text-secondary);
+        border-bottom: 2px solid var(--border);
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+    .driver-table td {
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-primary);
+        vertical-align: middle;
+    }
+    .driver-table tr:last-child td { border-bottom: none; }
+    .driver-table tbody tr:hover { background: rgba(201,162,39,0.04); }
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.65rem;
+        border-radius: 100px;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+    .badge-green { background: rgba(34,197,94,0.15); color: #16a34a; }
+    .badge-blue  { background: rgba(59,130,246,0.15); color: #2563eb; }
+    .badge-gold  { background: rgba(201,162,39,0.15); color: var(--brand-gold); }
+    .badge-red   { background: rgba(239,68,68,0.15); color: #dc2626; }
+    .no-data {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-secondary);
+        font-size: 1rem;
+    }
+    .no-data .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .btn-action {
+        padding: 0.5rem 1.1rem;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.88rem;
+        font-weight: 600;
+        font-family: inherit;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .btn-primary { background: var(--brand-gold); color: #000; }
+    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--brand-gold); border: 2px solid var(--brand-gold); }
+    .btn-outline:hover { background: rgba(201,162,39,0.1); }
+    .filter-group {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .filter-chip {
+        padding: 0.35rem 0.85rem;
+        border-radius: 100px;
+        border: 1.5px solid var(--border);
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+    .filter-chip:hover, .filter-chip.active {
+        border-color: var(--brand-gold);
+        color: var(--brand-gold);
+        background: rgba(201,162,39,0.08);
+    }
+    
+    /* Modal styles */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 1000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-content {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 500px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .modal-header h2 { margin: 0; font-size: 1.3rem; color: var(--text-primary); }
+    .close-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.4rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .form-group input, .form-group select {
+        width: 100%; padding: 0.75rem; border: 2px solid var(--border);
+        border-radius: 8px; background: var(--bg); color: var(--text-primary);
+        font-family: inherit; font-size: 0.95rem;
+    }
+    .form-group input:focus, .form-group select:focus {
+        border-color: var(--brand-gold); outline: none;
+    }
+    .modal-footer { margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem; }
+    
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="registry-container" style="background:var(--surface);padding:1.5rem;border-radius:12px;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+
+    <div class="page-header">
+        <div class="icon">🚛</div>
+        <div style="flex:1;">
+            <h1>معلومات سائقو النقل العام والخاص</h1>
+            <p style="margin:0;color:var(--text-secondary);font-size:0.9rem;">فرع الدمام — بيانات السائقين وأرقام اللوحات</p>
+        </div>
+        <div>
+            <button class="btn-action btn-primary" onclick="openModal()">+ إضافة سائق/مركبة</button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('public')" id="tab-public">🟢 النقل العام</button>
+        <button class="tab-btn" onclick="switchTab('private')" id="tab-private">🔵 النقل الخاص</button>
+        <button class="tab-btn" onclick="switchTab('all')" id="tab-all">📋 الكل</button>
+    </div>
+
+    <!-- Tab: النقل العام -->
+    <div class="tab-pane active" id="pane-public">
+        <div class="toolbar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchPublic" placeholder="ابحث باسم السائق أو رقم اللوحة أو نوع المركبة..." oninput="filterTable('public', this.value)">
+            </div>
+            <div class="filter-group">
+                <button class="filter-chip active" onclick="setFilter('public','all',this)">الكل</button>
+                <button class="filter-chip" onclick="setFilter('public','نشط',this)">نشط</button>
+                <button class="filter-chip" onclick="setFilter('public','إجازة',this)">إجازة</button>
+                <button class="filter-chip" onclick="setFilter('public','has_vehicle',this)">لديه مركبة 🚙</button>
+                <button class="filter-chip" onclick="setFilter('public','no_vehicle',this)">ليس لديه مركبة 🚶</button>
+            </div>
+            <button class="btn-action btn-outline" onclick="exportTable('public')">📤 تصدير Excel</button>
+        </div>
+        <div class="stats-row" id="stats-public"></div>
+        <div class="driver-table-wrap">
+            <table class="driver-table" id="table-public">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الاسم</th>
+                        <th>رقم الإقامة</th>
+                        <th>الوظيفة</th>
+                        <th>رقم الجوال</th>
+                        <th>رقم اللوحة</th>
+                        <th>نوع المركبة</th>
+                        <th>موديل</th>
+                        <th>الحالة</th>
+                        <th>إجراء</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-public">
+                    <tr><td colspan="10" class="no-data"><div class="icon">⏳</div><div>جارٍ تحميل البيانات...</div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab: النقل الخاص -->
+    <div class="tab-pane" id="pane-private">
+        <div class="toolbar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchPrivate" placeholder="ابحث باسم السائق أو رقم اللوحة أو نوع المركبة..." oninput="filterTable('private', this.value)">
+            </div>
+            <div class="filter-group">
+                <button class="filter-chip active" onclick="setFilter('private','all',this)">الكل</button>
+                <button class="filter-chip" onclick="setFilter('private','نشط',this)">نشط</button>
+                <button class="filter-chip" onclick="setFilter('private','إجازة',this)">إجازة</button>
+                <button class="filter-chip" onclick="setFilter('private','has_vehicle',this)">لديه مركبة 🚙</button>
+                <button class="filter-chip" onclick="setFilter('private','no_vehicle',this)">ليس لديه مركبة 🚶</button>
+            </div>
+            <button class="btn-action btn-outline" onclick="exportTable('private')">📤 تصدير Excel</button>
+        </div>
+        <div class="stats-row" id="stats-private"></div>
+        <div class="driver-table-wrap">
+            <table class="driver-table" id="table-private">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الاسم</th>
+                        <th>رقم الإقامة</th>
+                        <th>الوظيفة</th>
+                        <th>رقم الجوال</th>
+                        <th>رقم اللوحة</th>
+                        <th>نوع المركبة</th>
+                        <th>موديل</th>
+                        <th>الحالة</th>
+                        <th>إجراء</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-private">
+                    <tr><td colspan="10" class="no-data"><div class="icon">⏳</div><div>جارٍ تحميل البيانات...</div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab: الكل -->
+    <div class="tab-pane" id="pane-all">
+        <div class="toolbar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchAll" placeholder="ابحث في جميع السائقين..." oninput="filterTable('all', this.value)">
+            </div>
+            <div class="filter-group">
+                <button class="filter-chip active" onclick="setFilter('all','all',this)">الكل</button>
+                <button class="filter-chip" onclick="setFilter('all','نقل عام',this)">نقل عام</button>
+                <button class="filter-chip" onclick="setFilter('all','نقل خاص',this)">نقل خاص</button>
+                <button class="filter-chip" onclick="setFilter('all','has_vehicle',this)">لديه مركبة 🚙</button>
+                <button class="filter-chip" onclick="setFilter('all','no_vehicle',this)">ليس لديه مركبة 🚶</button>
+            </div>
+            <button class="btn-action btn-outline" onclick="exportTable('all')">📤 تصدير الكل</button>
+        </div>
+        <div class="stats-row" id="stats-all"></div>
+        <div class="driver-table-wrap">
+            <table class="driver-table" id="table-all">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الاسم</th>
+                        <th>رقم الإقامة</th>
+                        <th>الوظيفة</th>
+                        <th>رقم الجوال</th>
+                        <th>رقم اللوحة</th>
+                        <th>نوع المركبة</th>
+                        <th>موديل</th>
+                        <th>نوع النقل</th>
+                        <th>الحالة</th>
+                        <th>إجراء</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-all">
+                    <tr><td colspan="11" class="no-data"><div class="icon">⏳</div><div>جارٍ تحميل البيانات...</div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Form -->
+<div class="modal-overlay" id="driverModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">إضافة بيانات جديدة</h2>
+            <button class="close-btn" onclick="closeModal()">×</button>
+        </div>
+        <form id="driverForm" onsubmit="saveData(event)">
+            <input type="hidden" id="edit_id">
+            
+            <div class="form-group">
+                <label>الاسم الكامل <span style="color:red">*</span></label>
+                <input type="text" id="edit_name" required onblur="autoFillDriver('name')">
+            </div>
+            <div class="form-group" style="display:flex; gap:1rem;">
+                <div style="flex:1;">
+                    <label>رقم الإقامة</label>
+                    <input type="text" id="edit_iqama" onblur="autoFillDriver('iqama')">
+                </div>
+                <div style="flex:1;">
+                    <label>الجوال</label>
+                    <input type="text" id="edit_phone">
+                </div>
+            </div>
+            <div class="form-group" style="display:flex; gap:1rem;">
+                <div style="flex:1;">
+                    <label>الوظيفة (عام/خاص)</label>
+                    <select id="edit_job">
+                        <option value="سائق نقل عام">سائق نقل عام</option>
+                        <option value="سائق نقل خاص">سائق نقل خاص</option>
+                        <option value="سائق">سائق غير محدد</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label>الحالة</label>
+                    <select id="edit_status">
+                        <option value="نشط">نشط</option>
+                        <option value="إجازة">إجازة</option>
+                        <option value="معطل">معطل</option>
+                    </select>
+                </div>
+            </div>
+            
+            <hr style="border-color:var(--border); margin:1.5rem 0;">
+            <h3 style="font-size:1rem; margin-bottom:1rem; color:var(--brand-gold);">بيانات المركبة (إن وجدت)</h3>
+            
+            <div class="form-group">
+                <label>رقم اللوحة</label>
+                <input type="text" id="edit_plate" placeholder="أ ب ج 1234" onblur="autoFillVehicle()">
+                <small style="color:var(--text-secondary);font-size:0.8rem;">اكتب رقم اللوحة ليتم جلب بيانات المركبة تلقائياً إذا كانت مسجلة.</small>
+            </div>
+            <div class="form-group" style="display:flex; gap:1rem;">
+                <div style="flex:1;">
+                    <label>نوع المركبة</label>
+                    <input type="text" id="edit_car">
+                </div>
+                <div style="flex:1;">
+                    <label>الموديل</label>
+                    <input type="text" id="edit_model">
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn-action btn-outline" onclick="closeModal()">إلغاء</button>
+                <button type="submit" class="btn-action btn-primary" id="saveBtn">حفظ البيانات</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const _filters = { public: 'all', private: 'all', all: 'all' };
+let _data = { public: [], private: [], all: [] };
+let _rawData = [];
+
+function switchTab(name) {
+    ['public','private','all'].forEach(t => {
+        document.getElementById('pane-' + t).classList.toggle('active', t === name);
+        document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    });
+}
+
+function setFilter(tab, val, btn) {
+    _filters[tab] = val;
+    btn.closest('.filter-group').querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const search = document.getElementById('search' + tab.charAt(0).toUpperCase() + tab.slice(1));
+    filterTable(tab, search ? search.value : '');
+}
+
+function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function statusBadge(s) {
+    if (!s || s === 'نشط') return '<span class="badge badge-green">نشط</span>';
+    if (s === 'إجازة') return '<span class="badge badge-gold">إجازة</span>';
+    if (s === 'معطل' || s === 'غير نشط') return '<span class="badge badge-red">' + escHtml(s) + '</span>';
+    return '<span class="badge badge-blue">' + escHtml(s) + '</span>';
+}
+
+function jobBadge(j) {
+    if (!j) return '';
+    if (j.includes('عام')) return '<span class="badge badge-green">' + escHtml(j) + '</span>';
+    if (j.includes('خاص')) return '<span class="badge badge-blue">' + escHtml(j) + '</span>';
+    return escHtml(j);
+}
+
+function renderTable(tab, rows, isAll) {
+    const tbody = document.getElementById('tbody-' + tab);
+    const cols = isAll ? 11 : 10;
+    if (!rows || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${cols}" class="no-data"><div class="icon">🔍</div><div>لا توجد نتائج مطابقة</div></td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map((d, i) => `
+        <tr>
+            <td style="color:var(--text-secondary);font-size:0.8rem;">${i+1}</td>
+            <td style="font-weight:600;"><span title="${escHtml(d.name)}">${escHtml(d.name) || '—'}</span></td>
+            <td style="font-family:monospace;font-size:0.82rem;">${escHtml(d.iqama) || '—'}</td>
+            <td>${escHtml(d.job) || '—'}</td>
+            <td style="font-family:monospace;">${escHtml(d.phone) || '—'}</td>
+            <td style="font-weight:700;color:var(--brand-gold);">${escHtml(d.plate) || '—'}</td>
+            <td>${escHtml(d.car) || '—'}</td>
+            <td style="font-size:0.82rem;">${escHtml(d.model) || '—'}</td>
+            ${isAll ? `<td>${jobBadge(d.transport_type || d.job)}</td>` : ''}
+            <td>${statusBadge(d.status)}</td>
+            <td>
+                <button class="btn-action" style="padding:0.2rem 0.5rem;font-size:0.8rem;background:rgba(201,162,39,0.1);color:var(--brand-gold);" onclick='openEdit(${JSON.stringify(d).replace(/'/g, "&apos;")})'>✏️ تعديل</button>
+            </td>
+        </tr>`).join('');
+}
+
+function filterTable(tab, query) {
+    const q = (query || '').trim().toLowerCase();
+    const filt = _filters[tab];
+    const src = _data[tab] || [];
+    let rows = src.filter(d => {
+        const matchSearch = !q ||
+            (d.name || '').toLowerCase().includes(q) ||
+            (d.plate || '').toLowerCase().includes(q) ||
+            (d.car || '').toLowerCase().includes(q) ||
+            (d.iqama || '').includes(q) ||
+            (d.phone || '').includes(q);
+            
+        let matchFilter = true;
+        if (filt === 'has_vehicle') matchFilter = !!d.plate;
+        else if (filt === 'no_vehicle') matchFilter = !d.plate;
+        else if (filt === 'نقل عام') matchFilter = (d.job || '').includes('عام') || (d.transport_type || '').includes('عام');
+        else if (filt === 'نقل خاص') matchFilter = (d.job || '').includes('خاص') || (d.transport_type || '').includes('خاص');
+        else if (filt !== 'all') matchFilter = (d.status || 'نشط') === filt;
+        
+        return matchSearch && matchFilter;
+    });
+    renderTable(tab, rows, tab === 'all');
+    updateStats(tab, rows, src.length);
+}
+
+function updateStats(tab, filtered, total) {
+    const el = document.getElementById('stats-' + tab);
+    const active = filtered.filter(d => !d.status || d.status === 'نشط').length;
+    el.innerHTML = `
+        <div class="stat-pill gold"><strong>${total}</strong> إجمالي</div>
+        <div class="stat-pill"><strong>${filtered.length}</strong> معروض</div>
+        <div class="stat-pill"><strong>${active}</strong> نشط</div>
+        <div class="stat-pill"><strong>${filtered.filter(d => d.plate).length}</strong> لديه مركبة</div>
+    `;
+}
+
+async function loadDrivers() {
+    try {
+        const res = await fetch('/api/drivers_info_data');
+        let all = await res.json();
+        
+        if (all.error) {
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+            throw new Error(all.error);
+        }
+        if (!Array.isArray(all)) {
+            all = all.data || [];
+        }
+        
+        _rawData = all;
+
+        const pub = all.filter(x => (x.job || '').includes('عام') || (x.transport_type || '').includes('عام'));
+        const priv = all.filter(x => (x.job || '').includes('خاص') || (x.transport_type || '').includes('خاص'));
+
+        _data.public = pub;
+        _data.private = priv;
+        _data.all = all;
+
+        filterTable('public', document.getElementById('searchPublic').value);
+        filterTable('private', document.getElementById('searchPrivate').value);
+        filterTable('all', document.getElementById('searchAll').value);
+    } catch(e) {
+        console.error('loadDrivers error', e);
+        ['public','private','all'].forEach(t => {
+            document.getElementById('tbody-' + t).innerHTML =
+                `<tr><td colspan="11" class="no-data"><div class="icon">⚠️</div><div>تعذّر تحميل البيانات: ${e.message}</div></td></tr>`;
+        });
+    }
+}
+
+// Modal and CRUD logic
+function openModal() {
+    document.getElementById('driverForm').reset();
+    document.getElementById('edit_id').value = '';
+    document.getElementById('modalTitle').textContent = 'إضافة سائق/مركبة جديدة';
+    document.getElementById('driverModal').classList.add('active');
+}
+
+function openEdit(data) {
+    document.getElementById('edit_id').value = data.id || '';
+    document.getElementById('edit_name').value = data.name || '';
+    document.getElementById('edit_iqama').value = data.iqama || '';
+    document.getElementById('edit_phone').value = data.phone || '';
+    document.getElementById('edit_plate').value = data.plate || '';
+    document.getElementById('edit_car').value = data.car || '';
+    document.getElementById('edit_model').value = data.model || '';
+    
+    // Set selects
+    const jSelect = document.getElementById('edit_job');
+    if (data.job) {
+        for(let i=0; i<jSelect.options.length; i++) {
+            if(jSelect.options[i].value === data.job) { jSelect.selectedIndex = i; break; }
+        }
+    }
+    const sSelect = document.getElementById('edit_status');
+    if (data.status) {
+        for(let i=0; i<sSelect.options.length; i++) {
+            if(sSelect.options[i].value === data.status) { sSelect.selectedIndex = i; break; }
+        }
+    }
+    
+    document.getElementById('modalTitle').textContent = 'تعديل بيانات: ' + data.name;
+    document.getElementById('driverModal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('driverModal').classList.remove('active');
+}
+
+async function autoFillDriver(field) {
+    // Only auto-fill if we are creating a new record (edit_id is empty)
+    if (document.getElementById('edit_id').value) return;
+    
+    const query = document.getElementById('edit_' + field).value.trim();
+    if (!query) return;
+    
+    try {
+        const res = await fetch('/api/driver_search?q=' + encodeURIComponent(query));
+        const data = await res.json();
+        if (data && data.length > 0) {
+            const d = data[0];
+            // If they searched by iqama, fill name. If they searched by name, fill iqama
+            if (field === 'iqama' && !document.getElementById('edit_name').value) {
+                document.getElementById('edit_name').value = d.name || '';
+            } else if (field === 'name' && !document.getElementById('edit_iqama').value) {
+                document.getElementById('edit_iqama').value = d.iqama || '';
+            }
+            if (!document.getElementById('edit_phone').value) document.getElementById('edit_phone').value = d.phone || '';
+            
+            const jSelect = document.getElementById('edit_job');
+            if (d.job && jSelect.value === 'سائق') {
+                for(let i=0; i<jSelect.options.length; i++) {
+                    if(jSelect.options[i].value === d.job) { jSelect.selectedIndex = i; break; }
+                }
+            }
+        }
+    } catch (e) { console.error('Error auto-filling driver', e); }
+}
+
+async function autoFillVehicle() {
+    const plate = document.getElementById('edit_plate').value.trim();
+    if (!plate) return;
+    try {
+        const res = await fetch('/api/vehicle_search?q=' + encodeURIComponent(plate));
+        const data = await res.json();
+        if (data && data.length > 0) {
+            const v = data[0];
+            if (!document.getElementById('edit_car').value) document.getElementById('edit_car').value = v.car || '';
+            if (!document.getElementById('edit_model').value) document.getElementById('edit_model').value = v.model || '';
+        }
+    } catch (e) { console.error('Error auto-filling vehicle', e); }
+}
+
+async function saveData(e) {
+    e.preventDefault();
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'جاري الحفظ...';
+    
+    const payload = {
+        id: document.getElementById('edit_id').value,
+        name: document.getElementById('edit_name').value,
+        iqama: document.getElementById('edit_iqama').value,
+        phone: document.getElementById('edit_phone').value,
+        job: document.getElementById('edit_job').value,
+        status: document.getElementById('edit_status').value,
+        plate: document.getElementById('edit_plate').value,
+        car: document.getElementById('edit_car').value,
+        model: document.getElementById('edit_model').value
+    };
+    
+    try {
+        const res = await fetch('/api/drivers_info_save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeModal();
+            await loadDrivers(); // refresh data
+        } else {
+            alert('خطأ في الحفظ: ' + data.error);
+        }
+    } catch(err) {
+        alert('خطأ في الاتصال بالسيرفر');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'حفظ البيانات';
+    }
+}
+
+function exportTable(tab) {
+    const rows = _data[tab] || [];
+    if (!rows.length) return;
+    const isAll = tab === 'all';
+    const headers = ['#','الاسم','رقم الإقامة','الوظيفة','رقم الجوال','رقم اللوحة','نوع المركبة','الموديل', ...(isAll ? ['نوع النقل'] : []), 'الحالة'];
+    const csvRows = [headers.join(',')];
+    rows.forEach((d, i) => {
+        const row = [
+            i+1,
+            `"${(d.name||'').replace(/"/g,'""')}"`,
+            d.iqama || '',
+            `"${(d.job||'').replace(/"/g,'""')}"`,
+            d.phone || '',
+            `"${(d.plate||'').replace(/"/g,'""')}"`,
+            `"${(d.car||'').replace(/"/g,'""')}"`,
+            d.model || '',
+            ...(isAll ? [`"${(d.transport_type||d.job||'').replace(/"/g,'""')}"`] : []),
+            d.status || 'نشط'
+        ];
+        csvRows.push(row.join(','));
+    });
+    const blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `drivers_${tab}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+}
+
+window.addEventListener('load', loadDrivers);
+</script>
+{% endblock %}

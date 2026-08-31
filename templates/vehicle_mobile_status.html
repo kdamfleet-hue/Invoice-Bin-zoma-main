@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حالة المركبة | {{ vehicle.plate_number }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bz-navy: #0f172a;
+            --bz-gold: #c5a059;
+            --bg-light: #f8fafc;
+        }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg-light);
+            margin: 0;
+            padding: 0;
+            color: #1e293b;
+        }
+        .header {
+            background: var(--bz-navy);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 4px solid var(--bz-gold);
+        }
+        .header img {
+            height: 40px;
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+        .header p { margin: 6px 0 0; opacity: 0.8; font-size: 0.9rem; }
+        .card {
+            background: white;
+            margin: 20px;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+        .card h2 {
+            margin-top: 0;
+            color: var(--bz-navy);
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed #e2e8f0;
+            padding-bottom: 5px;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .info-label {
+            color: #64748b;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .info-value {
+            font-weight: 700;
+            text-align: left;
+            direction: ltr;
+        }
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        .b-ok { background: #dcfce7; color: #166534; }
+        .b-warn { background: #fef08a; color: #854d0e; }
+        .b-danger { background: #fee2e2; color: #991b1b; }
+        .b-muted { background: #f1f5f9; color: #64748b; }
+        .hint {
+            margin: 0 20px 10px;
+            padding: 10px 14px;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 10px;
+            color: #92400e;
+            font-size: 0.88rem;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if b64_en %}
+        <img src="data:image/png;base64,{{ b64_en }}" alt="BIN ZOMAH">
+        {% endif %}
+        <h1>حالة المركبة | {{ vehicle.plate_number }}</h1>
+        <p>البيانات التشغيلية للمركبة</p>
+    </div>
+
+    <div class="card">
+        <h2>معلومات أساسية</h2>
+        <div class="info-row">
+            <span class="info-label">رقم اللوحة</span>
+            <span class="info-value">{{ vehicle.plate_number }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">النوع / الموديل</span>
+            <span class="info-value">{{ vehicle.v_type or '—' }}{% if vehicle.model %} ({{ vehicle.model }}){% endif %}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">الرقم التسلسلي</span>
+            <span class="info-value">{{ vehicle.serial_number or '—' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">حالة الساحة</span>
+            <span class="info-value">{{ vehicle.yard_status or '—' }}</span>
+        </div>
+        {% if vehicle.yard_condition %}
+        <div class="info-row">
+            <span class="info-label">حالة المركبة</span>
+            <span class="info-value">{{ vehicle.yard_condition }}</span>
+        </div>
+        {% endif %}
+        <div class="info-row">
+            <span class="info-label">السائق الحالي</span>
+            <span class="info-value">{{ driver_name or 'غير مخصصة' }}</span>
+        </div>
+        {% if driver_phone %}
+        <div class="info-row">
+            <span class="info-label">جوال السائق</span>
+            <span class="info-value">{{ driver_phone }}</span>
+        </div>
+        {% endif %}
+        {% if vehicle.current_km or vehicle.odometer %}
+        <div class="info-row">
+            <span class="info-label">العداد (كم)</span>
+            <span class="info-value">{{ vehicle.current_km or vehicle.odometer }}</span>
+        </div>
+        {% endif %}
+        {% if vehicle.load_capacity %}
+        <div class="info-row">
+            <span class="info-label">الحمولة</span>
+            <span class="info-value">{{ vehicle.load_capacity }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>حالة الوثائق</h2>
+        <div class="info-row">
+            <span class="info-label">الاستمارة / رخصة السير</span>
+            <span class="info-value">
+                {% if vehicle.istimara_expiry %}
+                    <span class="badge b-ok">{{ vehicle.istimara_expiry }}</span>
+                {% else %}
+                    <span class="badge b-muted">غير متوفر في النظام</span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">التأمين</span>
+            <span class="info-value">
+                {% if vehicle.insurance_expiry %}
+                    <span class="badge b-ok">{{ vehicle.insurance_expiry }}</span>
+                {% else %}
+                    <span class="badge b-muted">غير متوفر في النظام</span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">الفحص الدوري</span>
+            <span class="info-value">
+                {% if vehicle.inspection_expiry %}
+                    <span class="badge b-ok">{{ vehicle.inspection_expiry }}</span>
+                {% else %}
+                    <span class="badge b-muted">غير متوفر في النظام</span>
+                {% endif %}
+            </span>
+        </div>
+        {% if vehicle.opcard %}
+        <div class="info-row">
+            <span class="info-label">بطاقة التشغيل</span>
+            <span class="info-value"><span class="badge b-ok">{{ vehicle.opcard }}</span></span>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if docs_missing %}
+    <div class="hint">
+        تواريخ الوثائق غير مسجّلة بعد في قاعدة البيانات لهذه المركبة. يمكن مزامنتها من ملف Excel المدمج أو إدخالها من شاشة الوثائق.
+    </div>
+    {% endif %}
+
+    {% if vehicle.notes %}
+    <div class="card">
+        <h2>ملاحظات</h2>
+        <div class="info-value" style="direction:rtl;text-align:right;font-weight:600;">{{ vehicle.notes }}</div>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>تم استخراج هذه البيانات من منظومة BIN ZOMAH INTL.</p>
+        <p>&copy; 2026 جميع الحقوق محفوظة.</p>
+    </div>
+</body>
+</html>
