@@ -24,14 +24,20 @@ WS_TABS = {
 }
 WS_LOCKED = {"employees", "gps_sync", "cameras", "tracking"}
 
-# ── Workstation example/demo data (FAKE — for the open sandbox only) ──────────
-# Loaded once from ws_example_data.json. The MAIN site never touches any of this.
-WS_EXAMPLE_PATH = os.path.join(os.path.dirname(__file__), "ws_example_data.json")
+# Fake sandbox data only — main site never uses this.
+_HERE = os.path.dirname(__file__)
+_WS_CANDIDATES = [
+    os.path.join(_HERE, "ws_example_data.json"),
+    os.path.join(_HERE, "..", "ws_example_data.json"),
+    "/app/ws_example_data.json",
+    "/app/routes/ws_example_data.json",
+]
+WS_EXAMPLE_PATH = next((p for p in _WS_CANDIDATES if os.path.isfile(p)), _WS_CANDIDATES[0])
 try:
     with open(WS_EXAMPLE_PATH, encoding="utf-8") as _wsf:
         WS_EXAMPLE_DATA = json.load(_wsf)
 except Exception as _e:
-    logger.warning("ws_example_data.json not loaded: %s", _e)
+    logger.info("ws_example_data.json not loaded (optional sandbox file): %s", _e)
     WS_EXAMPLE_DATA = {}
 
 
@@ -83,11 +89,6 @@ def _ws_put2(table, value):
 
 
 def _ws_is_empty(value):
-    """True if a stored blob carries NO real rows — covers a missing row, [], {}, and an
-    'empty shell' object like {title, date:'', main:[], spare:[], vacation:[], summary:{vacation:'0'}}
-    that a stray autosave may have written (this is why a tab can look permanently empty).
-    Rows live ONLY in LIST fields (main/spare/vacation/oils/filters/parts/…); scalar and dict
-    fields (title, date, summary) are metadata and never count as data."""
     if value is None:
         return True
     if isinstance(value, list):
@@ -96,21 +97,16 @@ def _ws_is_empty(value):
         for v in value.values():
             if isinstance(v, list) and len(v) > 0:
                 return False
-        return True  # no non-empty list field → no rows
+        return True
     return False
 
 
 def _ws_write_examples():
-    """Overwrite ALL workstation id=2 stores with the FAKE example data (used by 🧪)."""
     for table, value in WS_EXAMPLE_DATA.items():
         _ws_put2(table, value)
 
 
 def ensure_ws_seeded():
-    """Self-healing seed: on every workstation page load, fill any store that is EMPTY
-    (missing OR an empty/empty-shell blob) from the example data, while PRESERVING any store
-    that holds real rows the user typed. Skipped entirely if the user emptied the sandbox with
-    the 🗑️ button (ws_cleared flag), so a deliberate reset stays empty."""
     try:
         if _ws_meta_get("ws_cleared") == "1":
             return
@@ -124,11 +120,10 @@ def ensure_ws_seeded():
 @workstation_bp.route(WS_PREFIX)
 @workstation_bp.route(WS_PREFIX + "/<path:sub>")
 def workstation_page(sub=""):
-    """Open workstation pages under the prefix. The 3 sensitive tabs require the password."""
-    ensure_ws_seeded()  # first visit fills the sandbox with fake example data
+    ensure_ws_seeded()
     seg = sub.strip("/").split("/")[0] if sub else ""
     if seg == "api":
-        return ("", 404)  # API served by the mirrored /importantworkstation/api/* rules
+        return ("", 404)
     if seg not in WS_TABS:
         return redirect(WS_PREFIX)
     if seg in WS_LOCKED and not session.get("ws_unlocked"):
@@ -157,14 +152,12 @@ def workstation_unlock():
 @workstation_bp.route("/api/ws_reset", methods=["POST"])
 @login_required
 def ws_reset():
-    """Wipe EVERY workstation (id=2) store so /importantworkstation starts truly empty.
-    Workstation-only: the main site can never reach this (guard + path-based mirror)."""
     if not is_workstation():
         return jsonify({"success": False, "error": "workstation only"}), 404
     try:
         AppSetting.query.filter(AppSetting.key.like('%_branch_2')).delete(synchronize_session=False)
         db.session.commit()
-        _ws_meta_set("ws_cleared", "1")  # user emptied it on purpose → don't auto-reseed
+        _ws_meta_set("ws_cleared", "1")
         return jsonify({"success": True})
     except Exception as e:
         db.session.rollback()
@@ -175,13 +168,11 @@ def ws_reset():
 @workstation_bp.route("/api/ws_seed", methods=["POST"])
 @login_required
 def ws_seed():
-    """Fill EVERY workstation (id=2) store with the FAKE example data (demo).
-    Workstation-only: the main site can never reach this."""
     if not is_workstation():
         return jsonify({"success": False, "error": "workstation only"}), 404
     try:
         _ws_write_examples()
-        _ws_meta_set("ws_cleared", "0")  # examples are wanted again → allow auto-seed
+        _ws_meta_set("ws_cleared", "0")
         return jsonify({"success": True})
     except Exception:
         logger.exception("ws_seed error")
