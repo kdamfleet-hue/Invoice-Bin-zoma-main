@@ -27,3 +27,23 @@ try:
     import routes.ops_cycle
 except Exception:
     logger.warning("ops_cycle routes not loaded")
+
+
+@system_bp.route("/admin")
+@login_required
+def admin_console():
+    return render_template(
+        "admin_console.html",
+        google_user=session.get("google_user"),
+        b64_en=load_logo(),
+    )
+
+
+@system_bp.route("/tech_updates")
+@login_required
+def tech_updates_page():
+    return render_template(
+        "tech_updates.html",
+        google_user=session.get("google_user"),
+        b64_en=load_logo(),
+    )
