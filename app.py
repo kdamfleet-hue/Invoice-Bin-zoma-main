@@ -1211,6 +1211,17 @@ def employees_data():
                 return jsonify({"success": False, "error": str(e)}), 400
             
             rows = req_data.get("rows", [])
+            # hr_employees has no branch column, so the DELETE below is global and
+            # unqualified: an empty payload wipes every branch's staff with nothing to
+            # re-insert. That is exactly how the employee names were lost — the grid's
+            # autosave posted its rows under the key "data", this read "rows", and the
+            # DELETE ran against an empty list on every keystroke. Refuse rather than
+            # truncate: a save that carries no rows is never a legitimate "delete everyone".
+            if not isinstance(rows, list) or not rows:
+                logger.warning("employees POST refused: empty/invalid rows payload (keys=%s)",
+                               sorted(req_data.keys()))
+                return jsonify({"success": False,
+                                "error": "لم تصل أي صفوف — رُفض الحفظ لحماية بيانات الموظفين."}), 400
             with db_connection() as db:
                 db.execute("DELETE FROM hr_employees")
                 insert_data = []
@@ -4065,13 +4076,26 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 # is_workstation() is path-based, those calls transparently read/write the id=2 sandbox,
 # while the real /api/* endpoints (id=1) stay completely untouched. The AI routes are
 # EXCLUDED from the mirror so the assistant is never reachable unauthenticated on the WS path.
+#
+# READ-ONLY MIRROR. login_required is a no-op under WS_PREFIX (see the bypass in this file and
+# in helpers.py), so anything mirrored here is reachable by anyone on the internet with no
+# session and no password. Mirroring the write methods therefore published every destructive
+# /api/* handler unauthenticated — a single unauthenticated
+#   POST /importantworkstation/api/employees  {"reason":"cleanup"}
+# reached the unqualified `DELETE FROM hr_employees` and emptied the staff table for every
+# branch. Only GET is mirrored now: the sandbox stays browsable, but nothing outside can
+# mutate real data through it. Sandbox tabs that used to save through a mirrored POST simply
+# stop persisting, which is the correct behaviour for a sandbox.
 for _rule in list(app.url_map.iter_rules()):
     if _rule.rule.startswith("/api/") and _rule.endpoint not in ("ai_chat", "ai_status"):
+        _ws_methods = sorted(_rule.methods & {"GET"})
+        if not _ws_methods:
+            continue
         app.add_url_rule(
             WS_PREFIX + _rule.rule,
             endpoint="ws_" + _rule.endpoint,
             view_func=app.view_functions[_rule.endpoint],
-            methods=sorted(_rule.methods - {"HEAD", "OPTIONS"}),
+            methods=_ws_methods,
         )
 
 # Start the in-process daily scheduler for automatic document-expiry email digests.
@@ -4293,6 +4317,7 @@ def system_health():
     return render_template("system_health.html")
 
 @app.route("/api/system_metrics", methods=["GET"])
+@login_required
 def api_system_metrics():
     try:
         # CPU
@@ -4509,6 +4534,8 @@ if __name__ == "__main__":
 
 
 @app.route('/fix_db')
+@login_required
+@role_required("admin")
 def fix_db_permissions():
     """Emergency route to fix SQLite permissions on strict hosts (cPanel/VPS)."""
     import os, stat
@@ -4555,6 +4582,8 @@ def fix_db_permissions():
         return f"Critical failure: {e}"
 
 @app.route('/admin/force_seed')
+@login_required
+@role_required("admin")
 def force_seed():
     try:
         from models.database import db_connection, _is_header_row, _pk_clause
@@ -4589,9 +4618,15 @@ def force_seed():
 
 
 
-@app.route("/api/seed_from_template")
+@app.route("/api/seed_from_template", methods=["POST"])
 @login_required
+@role_required("admin")
 def seed_from_template():
+    # This REPLACES the branch's whole weekly schedule (main/spare/vacation) with the rows
+    # frozen inside weekly_schedule_template.xlsx — a July roster, not an empty template. It
+    # was a bare GET reachable by any logged-in user, with no role check and no confirmation,
+    # so one visit to the URL silently overwrote the live schedule with stale names. Now it
+    # is admin-only and POST-only, so it cannot fire from a link, a prefetch, or a crawler.
     import openpyxl
     template_path = os.path.join(app.root_path, "weekly_schedule_template.xlsx")
     if not os.path.exists(template_path):
@@ -4631,6 +4666,7 @@ def seed_from_template():
     return "تم سحب البيانات من ملف الإكسل وإدخالها في الموقع بنجاح!"
 
 @app.route('/api/weekly_update', methods=['GET', 'POST'])
+@login_required
 def weekly_update_api():
     file_path = 'تحديث الاسبوعي - فرع الدمام (محدث).xlsx'
     

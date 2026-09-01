@@ -68,28 +68,17 @@ def dammam_vehicle_unit(n):
 def api_dammam_vehicles():
     return jsonify(load_vehicles())
 
-@operations_bp.route("/api/drivers")
-@login_required
-def api_drivers_alias():
-    try:
-        from models.schema import Driver, Vehicle, VehicleCustody
-        from helpers import current_branch_id
-        branch_id = current_branch_id()
-        q = Driver.query
-        if branch_id:
-            q = q.filter_by(branch_id=branch_id)
-        drivers = q.all()
-        vehicles = {v.id: v for v in Vehicle.query.all()}
-        custodies = VehicleCustody.query.filter_by(status="active").all()
-        driver_custody = {c.driver_id: c for c in custodies}
-        data = []
-        for d in drivers:
-            c = driver_custody.get(d.id)
-            v = vehicles.get(c.vehicle_id) if c else None
-            data.append({"id": d.id, "name": d.name or "", "phone": d.phone or "", "job": d.job_title or "", "plate": (v.plate_number if v else "") or "", "car": (v.v_type if v else "") or ""})
-        return jsonify(data)
-    except Exception:
-        return jsonify([])
+# NOTE: a second GET /api/drivers used to live here. It shadowed the real handler in
+# routes/api_fleet.py — operations_bp registers before api_fleet_bp, and Werkzeug serves the
+# first matching rule — so every driver list in the site was served by this weaker copy. It
+# hid drivers three ways: it always applied a branch filter (dropping api_fleet's
+# see-everything bypass for admins), it resolved vehicles only from custody rows explicitly
+# marked status="active" (dropping api_fleet's fallback to the most recent custody, which is
+# how older rows are stored), and it swallowed every error into an empty list. Screens that
+# drop drivers with no plate and no car then omitted those people entirely — which is why
+# driver names "disappeared" from the schedule, handover, documents, invoice, workshop and
+# purchase tabs. It never wrote anything, so nothing was lost: removing it restores the real
+# handler and the names come back on the next request.
 
 @operations_bp.route("/purchase/list")
 @login_required

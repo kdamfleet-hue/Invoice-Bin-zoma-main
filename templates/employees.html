@@ -146,6 +146,10 @@
 </header>
 <div class="bz-shell">
 <h2 class="bz-section-title">بيانات جميع الموظفين في الفرع</h2>
+<div id="empLoadWarn" style="display:none;margin:10px 0;padding:12px 14px;border-radius:10px;border:1px solid #ef4444;background:rgba(239,68,68,.12);color:#ef4444;font-weight:700;line-height:1.7;">
+  ⚠️ تعذّر تحميل بيانات الموظفين من الخادم. ما يظهر بالأسفل قد لا يكون البيانات الحقيقية —
+  <strong>لا تضغط حفظ</strong>، أعد تحميل الصفحة أولاً حتى لا تُستبدل بيانات الموظفين الفعلية.
+</div>
 <div class="emp-toolbar">
 <div class="bz-smart-search" style="margin-bottom:0;">
 <input id="empSearch" oninput="filterEmployees()" placeholder="ابحث باسم الموظف، الإقامة، أو اللوحة..." type="text"/>
@@ -403,16 +407,35 @@
             let rows = null;
 
             // 1) Server is the source of truth (empty in WS on first load)
+            // serverLoadOk records whether we actually HEARD from the server. Without it, a
+            // 502 from a restarting worker or an expired session is indistinguishable from
+            // "this branch has no staff", and the fallbacks below then render a frozen July
+            // roster as if it were live. The operator sees names missing, presses حفظ to
+            // "fix" it, and that stale roster overwrites the real one. This flag is what
+            // stops a temporary outage from becoming permanent data loss.
+            let serverLoadOk = false;
             try {
                 const res = await fetch('/api/employees', { headers: { 'Accept': 'application/json' } });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data && data.success && Array.isArray(data.rows)) rows = data.rows;
+                    if (data && data.success && Array.isArray(data.rows)) {
+                        rows = data.rows;
+                        serverLoadOk = true;   // a real answer, even if it is an empty list
+                    }
                 }
             } catch (e) { /* backend may not be ready yet */ }
+            window.BZ_EMP_SERVER_OK = serverLoadOk;
 
-            // 2) Static seed file — skipped in WS so the tab starts empty
-            if ((!rows || rows.length === 0) && !WS) {
+            if (!serverLoadOk) {
+                // Never silently substitute stale data for live data, and never let a save
+                // go out on top of it.
+                const b = document.getElementById('empLoadWarn');
+                if (b) b.style.display = '';
+                if (window.showToast) showToast('تعذّر تحميل بيانات الموظفين من الخادم — لا تحفظ قبل إعادة تحميل الصفحة.', 'error');
+            }
+
+            // 2) Static seed file — skipped in WS, and skipped whenever the server answered
+            if (!serverLoadOk && (!rows || rows.length === 0) && !WS) {
                 try {
                     const res = await fetch('/static/employees_default.json');
                     if (res.ok) {
@@ -422,8 +445,8 @@
                 } catch (e) { /* ignore */ }
             }
 
-            // 3) Local cache fallback — skipped in WS so the tab starts empty
-            if ((!rows || rows.length === 0) && !WS) {
+            // 3) Local cache fallback — skipped in WS, and skipped whenever the server answered
+            if (!serverLoadOk && (!rows || rows.length === 0) && !WS) {
                 try {
                     const saved = localStorage.getItem(LS_EMPLOYEES_KEY);
                     if (saved) {
@@ -444,16 +467,20 @@
         // behavior stays byte-for-byte unchanged.
         let _autoSaveTimer = null;
         function autoSaveServer() {
-            const WS = window.location.pathname.indexOf('/importantworkstation') === 0;
-            if (!WS) return; // main site: unchanged, no autosave
-            clearTimeout(_autoSaveTimer);
-            _autoSaveTimer = setTimeout(() => {
-                fetch('/api/employees', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ branch_id: window.BZ_BRANCH_ID, data: collectRows(), reason: 'auto-save' })
-                }).catch(() => { /* best-effort autosave */ });
-            }, 700); // debounce ~700ms like the other tabs
+            // DISABLED — this is the origin of the vanished employee names.
+            //
+            // It fired on every keystroke, row add/delete and paste inside the workstation
+            // sandbox, and posted the grid under the key `data` while the server read `rows`
+            // (app.py). So the server saw an empty list every time, and /api/employees deletes
+            // the whole hr_employees table before re-inserting: with nothing to insert, each
+            // keystroke committed an empty staff table — for ALL branches at once, since that
+            // table has no branch column.
+            //
+            // It cannot simply be corrected to `rows`, because that would be worse: the
+            // sandbox would then write its practice edits straight into the real, shared
+            // employee table. A sandbox must not persist to a global store, so this stays off.
+            // Saving from the real employees tab (saveToServer) is unaffected.
+            return;
         }
 
         async function saveToServer(auditReason) {
@@ -462,7 +489,20 @@
                 else alert('⚠️ لم يُحفظ التعديل: السبب إلزامي (5 أحرف على الأقل).');
                 return;
             }
+            // Refuse to save on top of data we never successfully loaded — otherwise a save
+            // made during an outage writes the stale seed (or an empty grid) over the real
+            // roster. Reload first so the grid is showing live data.
+            if (window.BZ_EMP_SERVER_OK === false) {
+                const m = 'تعذّر تحميل البيانات من الخادم — أعد تحميل الصفحة قبل الحفظ حتى لا تُستبدل البيانات الحقيقية.';
+                if (window.showToast) showToast(m, 'error'); else alert(m);
+                return;
+            }
             const rows = collectRows();
+            if (!Array.isArray(rows) || !rows.length) {
+                const m = 'لا توجد صفوف للحفظ — أُلغي الحفظ حمايةً لبيانات الموظفين.';
+                if (window.showToast) showToast(m, 'error'); else alert(m);
+                return;
+            }
             persistLocal();
             try {
                 const res = await fetch('/api/employees', {
