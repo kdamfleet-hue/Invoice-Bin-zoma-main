@@ -371,6 +371,21 @@ app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
 mail = Mail(app)
 
+
+def _mail_send_safe(msg, timeout=20):
+    """Flask-Mail 0.9.1 (pinned in requirements.txt) opens smtplib.SMTP() with no timeout
+    at all and has no config option to set one, so a stalled/unreachable SMTP server blocks
+    the calling request thread indefinitely. With only 3 workers x 3 threads total, a few
+    stuck sends make the whole site unresponsive to every visitor. Scopes the interpreter-wide
+    socket default timeout around just this call (restored in `finally`)."""
+    import socket
+    prev_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(timeout)
+    try:
+        mail.send(msg)
+    finally:
+        socket.setdefaulttimeout(prev_timeout)
+
 # OAuth configuration removed
 
 
@@ -1599,7 +1614,7 @@ def _send_expiry_alert_email(recipients, rows=None, filter_label=""):
             html=_build_alert_email_html(alerts, filter_label),
             sender=app.config.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME"),
         )
-        mail.send(msg)
+        _mail_send_safe(msg)
         return {"sent": True, "count": len(alerts), "recipients": recipients}
     except Exception as e:
         logger.exception("send expiry alert email failed")
@@ -1753,7 +1768,7 @@ def _send_scheduled_digest(recipients, window_days):
             html=_build_digest_html(alerts, window_days),
             sender=app.config.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME"),
         )
-        mail.send(msg)
+        _mail_send_safe(msg)
         return {"sent": True, "count": len(alerts), "recipients": recipients}
     except Exception as e:
         logger.exception("scheduled digest failed")
@@ -2114,7 +2129,7 @@ def _send_handover_email(rec, recipients):
                 ext = (mime or "image/jpeg").split("/")[-1]
                 name = (isinstance(img, dict) and img.get("name")) or ("photo_%d.%s" % (i + 1, ext))
                 msg.attach(name, mime or "image/jpeg", data)
-        mail.send(msg)
+        _mail_send_safe(msg)
         return {"sent": True, "recipients": recipients}
     except Exception as e:
         logger.exception("handover email failed")
@@ -3839,7 +3854,7 @@ def send_email():
             file_data,
         )
 
-        mail.send(msg)
+        _mail_send_safe(msg)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -3876,7 +3891,7 @@ def compose_email():
                 file.read(),
             )
 
-        mail.send(msg)
+        _mail_send_safe(msg)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
