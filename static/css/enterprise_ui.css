@@ -106,21 +106,52 @@ body.sidebar-pinned .bz-pin-btn { opacity: 1; pointer-events: auto; }
 .bz-pin-btn.on { background: var(--bz-gold); color: #08131d; }
 
 @media (min-width: 901px) {
+  /* min-width MUST be declared here. base_styles.css pins the sidebar with
+     `min-width: 280px !important`, and min-width beats width/max-width in box sizing — so
+     without this line the rail width below is computed and then ignored, and the sidebar
+     never folds no matter what class the script sets. */
   body.bz-enterprise-app aside.bz-sidebar.rail {
     flex-basis: var(--bz-rail-w) !important;
     width: var(--bz-rail-w) !important;
+    min-width: var(--bz-rail-w) !important;
     max-width: var(--bz-rail-w) !important;
     overflow-x: hidden;
+    transition: width .18s ease, min-width .18s ease, max-width .18s ease, flex-basis .18s ease;
   }
   body.bz-enterprise-app aside.bz-sidebar.rail .slab,
   body.bz-enterprise-app aside.bz-sidebar.rail .brand-text,
   body.bz-enterprise-app aside.bz-sidebar.rail .nav-section-label {
     opacity: 0; width: 0; overflow: hidden; pointer-events: none;
   }
+
+  /* While folded (not hovered, not pinned open) the labels are gone, so the icons must
+     centre themselves — otherwise they keep the padding meant for a 280px panel and sit
+     off to one side. The section headings also have to give up their vertical space. */
+  body.bz-enterprise-app:not(.sidebar-pinned) aside.bz-sidebar.rail:not(:hover) nav a {
+    justify-content: center;
+    padding-inline: 0;
+    gap: 0;
+    border-inline-start-color: transparent;
+  }
+  body.bz-enterprise-app:not(.sidebar-pinned) aside.bz-sidebar.rail:not(:hover) nav a.active {
+    border-inline-start-color: transparent;
+    box-shadow: inset 0 0 0 1px rgba(197, 160, 89, .45);
+  }
+  body.bz-enterprise-app:not(.sidebar-pinned) aside.bz-sidebar.rail:not(:hover) .nav-section-label {
+    height: 0; margin: 0; padding: 0; border: 0;
+  }
+  body.bz-enterprise-app:not(.sidebar-pinned) aside.bz-sidebar.rail:not(:hover) .side-brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  body.bz-enterprise-app:not(.sidebar-pinned) aside.bz-sidebar.rail:not(:hover) .bz-pin-btn {
+    display: none;
+  }
   body.bz-enterprise-app aside.bz-sidebar.rail:hover,
   body.sidebar-pinned aside.bz-sidebar.rail {
     flex-basis: var(--bz-sidebar-w) !important;
     width: var(--bz-sidebar-w) !important;
+    min-width: var(--bz-sidebar-w) !important;
     max-width: var(--bz-sidebar-w) !important;
     box-shadow: -12px 0 30px rgba(0,0,0,.28);
     z-index: 60;
