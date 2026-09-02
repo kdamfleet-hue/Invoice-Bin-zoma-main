@@ -7,6 +7,24 @@ Create Date: 2026-08-23 13:19:19.267342
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector
+
+def upgrade():
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    existing_columns = [col['name'] for col in inspector.get_columns('erp_vehicles')]
+
+    # قائمة الأعمدة المراد إضافتها
+    columns_to_add = [
+        ('odometer', sa.Integer()),
+        ('current_km', sa.Integer()),
+        # أضف بقية الأعمدة المطلوبة هنا...
+    ]
+
+    for col_name, col_type in columns_to_add:
+        if col_name not in existing_columns:
+            op.add_column('erp_vehicles', sa.Column(col_name, col_type))
+
 
 
 # revision identifiers, used by Alembic.
