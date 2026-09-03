@@ -1,7 +1,9 @@
+import hmac
+import os
 from flask import Blueprint, request, jsonify
 from utils.birth_mapping import load_birth_mapping
 from app import login_required
-from models.schema import db, Driver, Vehicle, VehicleCustody
+from models.schema import db, Driver, Vehicle, VehicleCustody, Branch, Document
 
 api_fleet_bp = Blueprint('api_fleet', __name__)
 
@@ -374,3 +376,24 @@ def vehicle_profile(plate):
         return jsonify({"success": True, "data": res_data})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@api_fleet_bp.route("/api/signal-room/summary", methods=["GET"])
+def signal_room_summary():
+    """Read-only, aggregate data endpoint for the external Signal Room dashboard."""
+    configured_key = (os.environ.get("SIGNAL_ROOM_SERVICE_KEY") or "").strip()
+    provided_key = (request.headers.get("X-Signal-Room-Key") or "").strip()
+    if not configured_key or not provided_key or not hmac.compare_digest(provided_key, configured_key):
+        return jsonify({"success": False, "error": "unauthorized"}), 401
+    try:
+        return jsonify({
+            "success": True,
+            "data": {
+                "branches": Branch.query.count(),
+                "drivers": Driver.query.count(),
+                "vehicles": Vehicle.query.count(),
+                "documents": Document.query.count(),
+            },
+        })
+    except Exception:
+        return jsonify({"success": False, "error": "summary_unavailable"}), 503
