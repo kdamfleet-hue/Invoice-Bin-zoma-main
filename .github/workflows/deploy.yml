@@ -1,12 +1,27 @@
-name: Deploy to invoice-bin-zoma.arabcord.com
+name: Deploy Invoice-Bin-zoma
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy_mode:
+        description: "Choose the deployment transport"
+        required: true
+        default: ssh
+        type: choice
+        options:
+          - ssh
+          - self-hosted
+
+concurrency:
+  group: invoice-bin-zoma-production
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  deploy-ssh:
+    name: Deploy over SSH
+    if: github.event_name == 'push' || inputs.deploy_mode == 'ssh'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,14 +32,23 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Sync files to remote server
+      - name: Verify SSH host resolution
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
         run: |
-          set -e
-          echo "Host: ${{ secrets.SSH_HOST }}"
-          echo "User: ${{ secrets.SSH_USER }}"
-          echo "Path: ${{ secrets.DEPLOY_PATH }}"
+          set -euo pipefail
+          test -n "$SSH_HOST"
+          getent hosts "$SSH_HOST"
+
+      - name: Sync files to remote server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
-          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
           rsync -avz --delete \
             --exclude '.git' \
             --exclude '.github' \
@@ -32,9 +56,54 @@ jobs:
             --exclude '*.pyc' \
             --exclude '.env' \
             -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
-            ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}"
+            ./ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH"
 
       - name: Build and restart Docker container
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          MASTER_PASSWORD: ${{ secrets.MASTER_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GPS_USER: ${{ secrets.GPS_USER }}
+          GPS_PASS: ${{ secrets.GPS_PASS }}
+          GPS_TOKEN: ${{ secrets.GPS_TOKEN }}
+          SIGNAL_ROOM_SERVICE_KEY: ${{ secrets.SIGNAL_ROOM_SERVICE_KEY }}
+        run: |
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 "$SSH_USER@$SSH_HOST" \
+            "DEPLOY_PATH='$DEPLOY_PATH' SECRET_KEY='$SECRET_KEY' MASTER_PASSWORD='$MASTER_PASSWORD' DATABASE_URL='$DATABASE_URL' GPS_USER='$GPS_USER' GPS_PASS='$GPS_PASS' GPS_TOKEN='$GPS_TOKEN' SIGNAL_ROOM_SERVICE_KEY='$SIGNAL_ROOM_SERVICE_KEY' bash -s" <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+          docker ps -aq --filter "name=invoice-bin-zoma" | xargs -r docker rm -f 2>/dev/null || true
+          docker ps -q --filter "publish=5000" | xargs -r docker rm -f 2>/dev/null || true
+          docker build -t invoice-bin-zoma .
+          docker run -d --name invoice-bin-zoma --restart always \
+            -p 5000:5000 \
+            -e PORT=5000 \
+            -e SECRET_KEY="$SECRET_KEY" \
+            -e MASTER_PASSWORD="$MASTER_PASSWORD" \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e GPS_USER="$GPS_USER" \
+            -e GPS_PASS="$GPS_PASS" \
+            -e GPS_TOKEN="$GPS_TOKEN" \
+            -e SIGNAL_ROOM_SERVICE_KEY="$SIGNAL_ROOM_SERVICE_KEY" \
+            invoice-bin-zoma
+          sleep 3
+          docker ps --filter "name=invoice-bin-zoma"
+          REMOTE_SCRIPT
+
+  deploy-self-hosted:
+    name: Deploy on target server runner
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_mode == 'self-hosted'
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build and restart Docker container locally
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           MASTER_PASSWORD: ${{ secrets.MASTER_PASSWORD }}
@@ -42,28 +111,23 @@ jobs:
           GPS_USER: ${{ secrets.GPS_USER }}
           GPS_PASS: ${{ secrets.GPS_PASS }}
           GPS_TOKEN: ${{ secrets.GPS_TOKEN }}
+          SIGNAL_ROOM_SERVICE_KEY: ${{ secrets.SIGNAL_ROOM_SERVICE_KEY }}
         run: |
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
-            set -e
-            cd ${{ secrets.DEPLOY_PATH }}
-            docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
-            docker ps -aq --filter "name=invoice-bin-zoma" | xargs -r docker rm -f 2>/dev/null || true
-            # free common app ports
-            docker ps -q --filter "publish=5000" | xargs -r docker rm -f 2>/dev/null || true
-            docker ps -q --filter "publish=3000" | xargs -r docker rm -f 2>/dev/null || true
-            docker build -t invoice-bin-zoma .
-            docker run -d --name invoice-bin-zoma --restart always \
-              -p 5000:5000 \
-              -e PORT=5000 \
-              -e SECRET_KEY="${SECRET_KEY}" \
-              -e MASTER_PASSWORD="${MASTER_PASSWORD}" \
-              -e DATABASE_URL="${DATABASE_URL}" \
-              -e GPS_USER="${GPS_USER}" \
-              -e GPS_PASS="${GPS_PASS}" \
-              -e GPS_TOKEN="${GPS_TOKEN}" \
-              invoice-bin-zoma
-            sleep 3
-            docker ps --filter "name=invoice-bin-zoma"
-            docker logs --tail 30 invoice-bin-zoma || true
-          EOF
+          set -euo pipefail
+          docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+          docker ps -aq --filter "name=invoice-bin-zoma" | xargs -r docker rm -f 2>/dev/null || true
+          docker ps -q --filter "publish=5000" | xargs -r docker rm -f 2>/dev/null || true
+          docker build -t invoice-bin-zoma .
+          docker run -d --name invoice-bin-zoma --restart always \
+            -p 5000:5000 \
+            -e PORT=5000 \
+            -e SECRET_KEY="$SECRET_KEY" \
+            -e MASTER_PASSWORD="$MASTER_PASSWORD" \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e GPS_USER="$GPS_USER" \
+            -e GPS_PASS="$GPS_PASS" \
+            -e GPS_TOKEN="$GPS_TOKEN" \
+            -e SIGNAL_ROOM_SERVICE_KEY="$SIGNAL_ROOM_SERVICE_KEY" \
+            invoice-bin-zoma
+          sleep 3
+          docker ps --filter "name=invoice-bin-zoma"
