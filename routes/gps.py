@@ -13,13 +13,61 @@ gps_bp = Blueprint('gps', __name__)
 
 GPS_USER = os.environ.get("GPS_USER", "")
 GPS_PASS = os.environ.get("GPS_PASS", "")
-GPS_ASSET_URL = os.environ.get(
-    "GPS_ASSET_URL", "https://fleetmanagement-api-clust03.gpscockpit.com/api/asset"
-)
+GPS_API_BASE = os.environ.get(
+    "GPS_API_BASE", "https://fleetmanagement-api-clust03.gpscockpit.com/api/"
+).rstrip("/")
+# 360Locate loads devices first, then resolves their live positions through StateLookup.
+# Keep URLs configurable so a provider-side cluster change does not require a code edit.
+GPS_DEVICES_URL = os.environ.get("GPS_DEVICES_URL", f"{GPS_API_BASE}/device/Limited")
+GPS_STATE_URL = os.environ.get("GPS_STATE_URL", f"{GPS_API_BASE}/StateLookup")
+GPS_REFRESH_URL = os.environ.get("GPS_REFRESH_URL", f"{GPS_API_BASE}/Authentication/RefreshToken")
 GPS_PERMANENT_TOKEN = os.environ.get("GPS_TOKEN") or os.environ.get("GPS_PERMANENT_TOKEN", "")
+GPS_AUTH_SCHEME = os.environ.get("GPS_AUTH_SCHEME", "GpsCockpitApiKey")
 
 def get_gps_token():
     return GPS_PERMANENT_TOKEN
+
+def _gps_headers(token, scheme=None):
+    return {
+        "Authorization": f"{scheme or GPS_AUTH_SCHEME} {token}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+def _gps_provider_headers(token):
+    """Exchange a modern refresh token for a short-lived access token.
+
+    Legacy API 360 tokens are kept as a fallback for existing deployments.
+    Neither token nor response content is written to logs.
+    """
+    try:
+        response = requests.post(
+            GPS_REFRESH_URL,
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            json={"RefreshToken": token},
+            timeout=20,
+        )
+        if response.status_code == 200:
+            payload = _gps_json(response, "token refresh")
+            access_token = payload.get("token") or payload.get("accessToken") if isinstance(payload, dict) else None
+            if access_token:
+                return _gps_headers(access_token, "Bearer")
+    except (requests.Timeout, requests.ConnectionError):
+        logger.warning("GPS token refresh unavailable; trying configured legacy auth")
+    except Exception:
+        logger.warning("GPS token refresh failed; trying configured legacy auth")
+    return _gps_headers(token)
+
+def _gps_json(response, label):
+    ctype = response.headers.get("Content-Type", "")
+    if "application/json" not in ctype.lower():
+        logger.warning("GPS %s returned non-JSON content type %s", label, ctype[:100])
+        return None
+    try:
+        return response.json()
+    except ValueError:
+        logger.warning("GPS %s returned invalid JSON", label)
+        return None
 
 
 @gps_bp.route("/api/gps")
@@ -32,27 +80,98 @@ def get_gps_locations():
             503,
         )
 
-    headers = {
-        "Authorization": f"GpsCockpitApiKey {token}",
-        "Accept": "application/json",
-    }
+    headers = _gps_provider_headers(token)
     try:
-        response = requests.get(GPS_ASSET_URL, headers=headers, timeout=20)
-        if response.status_code != 200:
-            logger.warning("GPS API non-200 %s: %s", response.status_code, response.text[:300])
-            return jsonify({"error": "تعذّر جلب بيانات GPS من المزوّد حالياً."}), 502
-        
-        ctype = response.headers.get("Content-Type", "")
-        if "application/json" not in ctype:
-            logger.warning("GPS API returned non-JSON (%s). Check GPS_ASSET_URL.", ctype)
-            return jsonify({"error": "استجابة GPS غير صالحة — تأكد من ضبط GPS_ASSET_URL على نقطة API."}), 502
-        return jsonify(response.json())
+        devices_response = requests.get(
+            GPS_DEVICES_URL,
+            headers=headers,
+            params={
+                "isActive": "null",
+                "includeGroups": "false",
+                "uniqueDevices": "false",
+                "includeGroupIds": "true",
+                "IncludeHierarchyGroupIds": "false",
+            },
+            timeout=20,
+        )
+        if devices_response.status_code != 200:
+            logger.warning("GPS device lookup failed with status %s", devices_response.status_code)
+            return jsonify({"error": "تعذّر جلب أجهزة التتبع من المزوّد حالياً."}), 502
+        devices_payload = _gps_json(devices_response, "device lookup")
+        if devices_payload is None:
+            return jsonify({"error": "استجابة أجهزة التتبع غير صالحة من المزوّد."}), 502
+
+        devices = devices_payload if isinstance(devices_payload, list) else (
+            devices_payload.get("items") or devices_payload.get("devices") or []
+        )
+        device_by_id = {}
+        device_ids = []
+        for item in devices:
+            if not isinstance(item, dict) or item.get("id") is None:
+                continue
+            raw_id = item.get("id")
+            try:
+                device_id = int(raw_id)
+            except (TypeError, ValueError):
+                device_id = str(raw_id)
+            device_ids.append(device_id)
+            asset = item.get("asset") or {}
+            device_by_id[str(raw_id)] = {
+                "id": asset.get("id", raw_id),
+                "name": asset.get("name") or item.get("name") or "مركبة",
+                "plate": asset.get("plateNumber") or "",
+            }
+        if not device_ids:
+            return jsonify([])
+
+        state_response = requests.post(
+            GPS_STATE_URL,
+            headers=headers,
+            json={
+                "deviceIds": device_ids,
+                "driverIds": [],
+                "previousLookupTimestamp": None,
+                "deviceState": 0,
+                "activeOnly": False,
+            },
+            timeout=20,
+        )
+        if state_response.status_code != 200:
+            logger.warning("GPS state lookup failed with status %s", state_response.status_code)
+            return jsonify({"error": "تعذّر جلب مواقع الأسطول من المزوّد حالياً."}), 502
+        state_payload = _gps_json(state_response, "state lookup")
+        if state_payload is None:
+            return jsonify({"error": "استجابة مواقع الأسطول غير صالحة من المزوّد."}), 502
+
+        states = state_payload.get("deviceStates", {}) if isinstance(state_payload, dict) else {}
+        locations = []
+        if isinstance(states, dict):
+            for device_id, state in states.items():
+                if not isinstance(state, dict):
+                    continue
+                position = state.get("currentPosition") or state.get("cellPosition") or {}
+                meta = device_by_id.get(str(device_id), {"id": device_id, "name": "مركبة", "plate": ""})
+                latitude = position.get("latitude")
+                longitude = position.get("longitude")
+                communication = state.get("communicationState") or {}
+                locations.append({
+                    "id": meta["id"],
+                    "name": meta["name"],
+                    "plate": meta["plate"],
+                    "lat": latitude,
+                    "lng": longitude,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "online": bool(communication.get("isOnline")) or bool(state.get("isMoving")),
+                    "updated_at": position.get("updateTimestamp"),
+                })
+        return jsonify(locations)
     except requests.Timeout:
         return jsonify({"error": "تجاوز وقت الاستجابة من خدمة GPS."}), 504
     except requests.ConnectionError:
         return jsonify({"error": "تعذّر الاتصال بخدمة GPS."}), 503
     except Exception as e:
-        logger.error("GPS API error: %s", e)
+        logger.error("GPS API error: %s", e, exc_info=True)
         return jsonify({"error": "حدث خطأ غير متوقع أثناء جلب بيانات GPS."}), 500
 
 
