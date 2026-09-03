@@ -5,108 +5,42 @@
     <meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
     <script>
       const m = document.getElementById("bz-meta");
-      if(m) {
-          window.BZ_BRANCH_ID = parseInt(m.getAttribute("data-branch-id") || "0", 10);
-          window.BZ_BRANCH = m.getAttribute("data-branch") || "";
-          window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
-      }
+      if(m) { window.BZ_BRANCH_ID = parseInt(m.getAttribute("data-branch-id") || "0", 10); window.BZ_BRANCH = m.getAttribute("data-branch") || ""; window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || ""; }
     </script>
 {% endblock %}
 {% block content %}
-    <div class="hub-header hub-hero">
-        <div class="hub-hero-copy">
-            <div class="hub-eyebrow"><span class="hub-live-dot"></span> مركز التشغيل الموحد <span>•</span> نظرة تشغيلية سريعة</div>
-        <h1 class="hub-title">نظام إدارة الأسطول</h1>
-        <p class="hub-subtitle">فرع الدمام • نظرة سريعة ثم الانتقال من القائمة الجانبية</p>
-        </div>
-        <button id="enablePushBtn" class="btn-neon success" style="margin-top: 1rem; border-radius: 20px;" onclick="subscribePush()">
-            <i data-lucide="bell"></i> تفعيل الإشعارات المباشرة
-        </button>
+<div class="home-dashboard">
+  <section class="home-hero">
+    <div class="home-hero-copy">
+      <div class="home-eyebrow"><span class="home-live-dot"></span> LIVE OPERATIONS <span>•</span> {{ active_branch|default('فرع الدمام') }}</div>
+      <h1>نظام إدارة الأسطول</h1>
+      <p>نظرة تشغيلية موحدة تساعدك على متابعة المركبات والموظفين والتنبيهات من مكان واحد.</p>
     </div>
-    <div class="stats-wrapper hub-stats">
-        <div class="stat-circle glass-panel" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_drivers')" style="cursor: pointer;">
-            <div class="count-up" data-count="{{ total_drivers|default(0) }}" data-format="{n}">{{ total_drivers|default(0) }}</div>
-            <span>موظف وسائق</span>
-        </div>
-        <div class="stat-circle glass-panel" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_vehicles')" style="cursor: pointer;">
-            <div class="count-up" data-count="{{ active_vehicles|default(0) }}" data-format="{n}">{{ active_vehicles|default(0) }}</div>
-            <span>مركبة نشطة</span>
-        </div>
-        <div class="stat-circle glass-panel" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('expired_documents')" style="border-color: rgba(239, 68, 68, 0.3); cursor: pointer;">
-            <div class="count-up" data-count="{{ urgent_alerts|default(0) }}" data-format="{n}" style="color: #ef4444;">{{ urgent_alerts|default(0) }}</div>
-            <span>تنبيه عاجل</span>
-        </div>
-    </div>
-    <div class="glass-panel hub-chart-panel">
-        <div class="hub-panel-heading"><div><span class="hub-kicker">ملخص سريع</span><h3>ملخص الحالة</h3></div><span class="hub-panel-note">بيانات حية من الفرع</span></div>
-        <div style="height: 280px; width: 100%;"><canvas id="fleetChart"></canvas></div>
-    </div>
-    <p class="hub-section-sub">اختصارات أساسية فقط — بقية الصفحات من القائمة الجانبية لتجنب التكرار</p>
-    <div class="hub-group-title"><span>التشغيل</span><small>الوصول السريع إلى العمليات اليومية</small></div>
-    <div class="hub-grid">
-        <a href="/fleet_dashboard" class="hub-card glass-panel"><h3>لوحة الأسطول</h3><p>مؤشرات المركبات والسائقين والتنبيهات.</p></a>
-        <a href="/schedule" class="hub-card glass-panel"><h3>الجدول الأسبوعي</h3><p>توزيع الحركة اليومية.</p></a>
-        <a href="/yard" class="hub-card glass-panel"><h3>إدارة الساحات</h3><p>دخول وخروج المركبات.</p></a>
-        <a href="/tracking" class="hub-card glass-panel"><h3>التتبع الحي</h3><p>مواقع المركبات عبر GPS.</p></a>
-    </div>
-    <div class="hub-group-title"><span>الأفراد والوثائق</span><small>إدارة الموارد والتنبيهات</small></div>
-    <div class="hub-grid">
-        <a href="/employees" class="hub-card glass-panel"><h3>الموظفون</h3><p>سجل موظفي الفرع.</p></a>
-        <a href="/alerts" class="hub-card glass-panel"><h3>تنبيهات الوثائق</h3><p>انتهاء الاستمارات والفحص.</p></a>
-        <a href="/workshop" class="hub-card glass-panel"><h3>الورشة</h3><p>الصيانة والإصلاحات.</p></a>
-        <a href="/fuel" class="hub-card glass-panel"><h3>المحروقات</h3><p>التموين والاستهلاك.</p></a>
-    </div>
+    <button id="enablePushBtn" class="btn-neon success home-push-btn" onclick="subscribePush()"><i data-lucide="bell"></i> تفعيل الإشعارات المباشرة</button>
+  </section>
+
+  <section class="home-kpi-grid" aria-label="المؤشرات الرئيسية">
+    <button class="home-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_drivers')"><span class="home-kpi-icon gold"><i data-lucide="users"></i></span><span class="home-kpi-label">إجمالي الموظفين والسائقين</span><strong class="count-up" data-count="{{ total_drivers|default(0) }}">{{ total_drivers|default(0) }}</strong><small>السجل التشغيلي الحالي <b>↗</b></small></button>
+    <button class="home-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_vehicles')"><span class="home-kpi-icon teal"><i data-lucide="truck"></i></span><span class="home-kpi-label">المركبات النشطة</span><strong class="count-up" data-count="{{ active_vehicles|default(0) }}">{{ active_vehicles|default(0) }}</strong><small>من الأسطول المسجل <b>↗</b></small></button>
+    <button class="home-kpi alert-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('expired_documents')"><span class="home-kpi-icon red"><i data-lucide="alert-triangle"></i></span><span class="home-kpi-label">تنبيهات تحتاج إجراء</span><strong class="count-up" data-count="{{ urgent_alerts|default(0) }}">{{ urgent_alerts|default(0) }}</strong><small>وثائق أو حالات عاجلة <b>↗</b></small></button>
+  </section>
+
+  <section class="home-content-grid">
+    <article class="glass-panel home-chart-card"><div class="home-panel-heading"><div><span class="home-kicker">ملخص الحالة</span><h2>صورة تشغيلية سريعة</h2></div><span class="home-panel-note">بيانات حية من الفرع</span></div><div class="home-chart-wrap"><canvas id="fleetChart"></canvas></div><div class="home-chart-footer"><span><i data-lucide="clock-3"></i> يتم تحديث المؤشرات تلقائيًا</span><a href="/fleet_dashboard">عرض التفاصيل <i data-lucide="arrow-left"></i></a></div></article>
+    <article class="glass-panel home-actions-card"><div class="home-panel-heading"><div><span class="home-kicker">اختصارات أساسية</span><h2>الوصول السريع</h2></div><i data-lucide="sparkles" class="home-panel-spark"></i></div><a href="/fleet_dashboard" class="home-action-link"><span class="home-action-icon"><i data-lucide="activity"></i></span><span><b>لوحة الأسطول</b><small>مؤشرات المركبات والتنبيهات</small></span><i data-lucide="chevron-left"></i></a><a href="/schedule" class="home-action-link"><span class="home-action-icon"><i data-lucide="calendar-days"></i></span><span><b>الجدول الأسبوعي</b><small>توزيع الحركة اليومية</small></span><i data-lucide="chevron-left"></i></a><a href="/tracking" class="home-action-link"><span class="home-action-icon"><i data-lucide="map-pin"></i></span><span><b>التتبع الحي</b><small>مواقع المركبات عبر GPS</small></span><i data-lucide="chevron-left"></i></a><a href="/employees" class="home-action-link"><span class="home-action-icon"><i data-lucide="users-round"></i></span><span><b>الموظفون</b><small>سجل موظفي الفرع</small></span><i data-lucide="chevron-left"></i></a></article>
+  </section>
+
+  <section class="home-section-heading"><div><span class="home-kicker">التشغيل اليومي</span><h2>كل ما تحتاجه في مكان واحد</h2></div><span>اختر قسمًا للانتقال مباشرة</span></section>
+  <section class="home-link-grid"><a href="/yard" class="home-link-card"><i data-lucide="warehouse"></i><span><b>إدارة الساحات</b><small>دخول وخروج المركبات</small></span><i data-lucide="arrow-left"></i></a><a href="/alerts" class="home-link-card warning-link"><i data-lucide="file-warning"></i><span><b>تنبيهات الوثائق</b><small>انتهاء الاستمارات والفحص</small></span><i data-lucide="arrow-left"></i></a><a href="/workshop" class="home-link-card"><i data-lucide="wrench"></i><span><b>الورشة</b><small>الصيانة والإصلاحات</small></span><i data-lucide="arrow-left"></i></a><a href="/fuel" class="home-link-card"><i data-lucide="fuel"></i><span><b>المحروقات</b><small>التموين والاستهلاك</small></span><i data-lucide="arrow-left"></i></a></section>
+  <footer class="home-footer"><span><i data-lucide="shield-check"></i> بيانات حقيقية — طبقة عرض فقط</span><span>© 2026 شركة بن زومة الدولية</span></footer>
+</div>
 {% endblock %}
 {% block scripts %}
-    <script>
-        lucide.createIcons();
-        async function subscribePush() {
-            const btn = document.getElementById('enablePushBtn');
-            try {
-                if (!('serviceWorker' in navigator) || !('PushManager' in window)) { alert('متصفحك لا يدعم الإشعارات المباشرة'); return; }
-                const registration = await navigator.serviceWorker.ready;
-                let subscription = await registration.pushManager.getSubscription();
-                if (!subscription) {
-                    const response = await fetch('/api/push/vapid_public_key');
-                    const vapidData = await response.json();
-                    subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidData.public_key) });
-                }
-                await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(subscription) });
-                btn.innerHTML = 'الإشعارات مفعلة';
-            } catch (error) { btn.innerHTML = 'فشل التفعيل'; }
-        }
-        function urlBase64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-            return outputArray;
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            const statCircles = document.querySelectorAll('.stat-circle .count-up');
-            let totalDrivers = 0, activeVehicles = 0, urgentAlerts = 0;
-            if (statCircles.length >= 3) {
-                totalDrivers = parseInt(statCircles[0].getAttribute('data-count')) || 0;
-                activeVehicles = parseInt(statCircles[1].getAttribute('data-count')) || 0;
-                urgentAlerts = parseInt(statCircles[2].getAttribute('data-count')) || 0;
-            }
-            const ctx = document.getElementById('fleetChart');
-            if (ctx) {
-                if (typeof Chart === 'undefined') {
-                    const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-                    script.onload = () => renderChart(ctx, totalDrivers, activeVehicles, urgentAlerts);
-                    document.head.appendChild(script);
-                } else { renderChart(ctx, totalDrivers, activeVehicles, urgentAlerts); }
-            }
-        });
-        function renderChart(ctx, d1, d2, d3) {
-            new Chart(ctx, {
-                type: 'bar',
-                data: { labels: ['موظف وسائق', 'مركبة نشطة', 'تنبيه عاجل'], datasets: [{ label: 'العدد', data: [d1, d2, d3], backgroundColor: ['rgba(201,164,90,0.75)', 'rgba(56,189,248,0.7)', 'rgba(248,113,113,0.7)'], borderRadius: 8 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#93a0b3', font: { family: 'Cairo' } } }, x: { grid: { display: false }, ticks: { color: '#93a0b3', font: { family: 'Cairo', size: 13 } } } } }
-            });
-        }
-    </script>
+<script>
+lucide.createIcons();
+async function subscribePush(){const btn=document.getElementById('enablePushBtn');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)){alert('متصفحك لا يدعم الإشعارات المباشرة');return}const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();if(!subscription){const response=await fetch('/api/push/vapid_public_key');const vapidData=await response.json();subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(vapidData.public_key)})}await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(subscription)});btn.innerHTML='الإشعارات مفعلة'}catch(error){btn.innerHTML='فشل التفعيل'}}
+function urlBase64ToUint8Array(base64String){const padding='='.repeat((4-base64String.length%4)%4);const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');const rawData=window.atob(base64);const outputArray=new Uint8Array(rawData.length);for(let i=0;i<rawData.length;++i)outputArray[i]=rawData.charCodeAt(i);return outputArray}
+document.addEventListener('DOMContentLoaded',function(){const statCircles=document.querySelectorAll('.home-kpi .count-up');const vals=[...statCircles].map(el=>parseInt(el.getAttribute('data-count'))||0);const ctx=document.getElementById('fleetChart');if(ctx){if(typeof Chart==='undefined'){const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/chart.js';script.onload=()=>renderChart(ctx,...vals);document.head.appendChild(script)}else renderChart(ctx,...vals)}});
+function renderChart(ctx,d1,d2,d3){new Chart(ctx,{type:'bar',data:{labels:['موظفون وسائقون','مركبات نشطة','تنبيهات عاجلة'],datasets:[{label:'العدد',data:[d1,d2,d3],backgroundColor:['rgba(213,179,106,.8)','rgba(85,200,178,.75)','rgba(239,131,124,.75)'],borderRadius:8,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.06)'},ticks:{color:'#93a0b3',font:{family:'Cairo'}}},x:{grid:{display:false},ticks:{color:'#93a0b3',font:{family:'Cairo',size:12}}}}}})}
+</script>
 {% endblock %}
