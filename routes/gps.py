@@ -20,8 +20,8 @@ GPS_API_BASE = os.environ.get(
 ).rstrip("/")
 # 360Locate loads devices first, then resolves their live positions through StateLookup.
 # Keep URLs configurable so a provider-side cluster change does not require a code edit.
-GPS_DEVICES_URL = os.environ.get("GPS_DEVICES_URL", f"{GPS_API_BASE}/device/Limited")
-GPS_STATE_URL = os.environ.get("GPS_STATE_URL", f"{GPS_API_BASE}/StateLookup")
+GPS_DEVICES_URL = os.environ.get("GPS_DEVICES_URL", f"{GPS_API_BASE}/asset")
+GPS_STATE_URL = os.environ.get("GPS_STATE_URL", f"{GPS_API_BASE}/statelookup")
 GPS_REFRESH_URL = os.environ.get("GPS_REFRESH_URL", f"{GPS_API_BASE}/Authentication/RefreshToken")
 GPS_PERMANENT_TOKEN = os.environ.get("GPS_TOKEN") or os.environ.get("GPS_PERMANENT_TOKEN", "")
 GPS_AUTH_SCHEME = os.environ.get("GPS_AUTH_SCHEME", "Bearer")
@@ -132,13 +132,14 @@ def get_gps_locations():
                 device_id = int(raw_id)
             except (TypeError, ValueError):
                 device_id = str(raw_id)
-            device_ids.append(device_id)
-            asset = item.get("asset") or {}
+            asset = item.get("asset") or item
+            device_ids.append(asset.get("deviceId") or device_id)
             device_by_id[str(raw_id)] = {
                 "id": asset.get("id", raw_id),
                 "name": asset.get("name") or item.get("name") or "مركبة",
                 "plate": asset.get("plateNumber") or "",
             }
+            device_by_id[str(asset.get("deviceId") or device_id)] = device_by_id[str(raw_id)]
         if not device_ids:
             return jsonify([])
 
