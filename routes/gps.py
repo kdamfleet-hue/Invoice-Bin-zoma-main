@@ -4,6 +4,8 @@ import base64
 import requests
 import openpyxl
 import logging
+import secrets
+from urllib.parse import urlsplit
 from flask import Blueprint, render_template, session, request, jsonify
 
 from helpers import login_required, load_logo, blob_set, normalize_plate
@@ -34,7 +36,7 @@ def _gps_headers(token, scheme=None):
         "Content-Type": "application/json",
     }
 
-def _gps_provider_headers(token):
+def _gps_provider_headers(token, request_id=None):
     """Exchange a modern refresh token for a short-lived access token.
 
     Legacy API 360 tokens are kept as a fallback for existing deployments.
@@ -52,6 +54,11 @@ def _gps_provider_headers(token):
             access_token = payload.get("token") or payload.get("accessToken") if isinstance(payload, dict) else None
             if access_token:
                 return _gps_headers(access_token, "Bearer")
+        else:
+            logger.warning(
+                "GPS token refresh rejected request_id=%s host=%s status=%s",
+                request_id, urlsplit(GPS_REFRESH_URL).netloc, response.status_code,
+            )
     except (requests.Timeout, requests.ConnectionError):
         logger.warning("GPS token refresh unavailable; trying configured legacy auth")
     except Exception:
@@ -73,14 +80,15 @@ def _gps_json(response, label):
 @gps_bp.route("/api/gps")
 @login_required
 def get_gps_locations():
+    request_id = secrets.token_hex(6)
     token = get_gps_token()
     if not token:
         return (
-            jsonify({"error": "خدمة التتبع غير مهيأة — لم يتم ضبط مفتاح GPS (GPS_TOKEN)."}),
+            jsonify({"error": "خدمة التتبع غير مهيأة — لم يتم ضبط مفتاح GPS (GPS_TOKEN).", "request_id": request_id}),
             503,
         )
 
-    headers = _gps_provider_headers(token)
+    headers = _gps_provider_headers(token, request_id)
     try:
         devices_response = requests.get(
             GPS_DEVICES_URL,
@@ -95,11 +103,15 @@ def get_gps_locations():
             timeout=20,
         )
         if devices_response.status_code != 200:
-            logger.warning("GPS device lookup failed with status %s", devices_response.status_code)
-            return jsonify({"error": "تعذّر جلب أجهزة التتبع من المزوّد حالياً."}), 502
+            logger.warning("GPS device lookup failed request_id=%s host=%s status=%s", request_id, urlsplit(GPS_DEVICES_URL).netloc, devices_response.status_code)
+            result = jsonify({"error": "تعذّر جلب أجهزة التتبع من المزوّد حالياً.", "request_id": request_id})
+            result.headers["X-GPS-Request-ID"] = request_id
+            return result, 502
         devices_payload = _gps_json(devices_response, "device lookup")
         if devices_payload is None:
-            return jsonify({"error": "استجابة أجهزة التتبع غير صالحة من المزوّد."}), 502
+            result = jsonify({"error": "استجابة أجهزة التتبع غير صالحة من المزوّد.", "request_id": request_id})
+            result.headers["X-GPS-Request-ID"] = request_id
+            return result, 502
 
         devices = devices_payload if isinstance(devices_payload, list) else (
             devices_payload.get("items") or devices_payload.get("devices") or []
@@ -138,10 +150,14 @@ def get_gps_locations():
         )
         if state_response.status_code != 200:
             logger.warning("GPS state lookup failed with status %s", state_response.status_code)
-            return jsonify({"error": "تعذّر جلب مواقع الأسطول من المزوّد حالياً."}), 502
+            result = jsonify({"error": "تعذّر جلب مواقع الأسطول من المزوّد حالياً.", "request_id": request_id})
+            result.headers["X-GPS-Request-ID"] = request_id
+            return result, 502
         state_payload = _gps_json(state_response, "state lookup")
         if state_payload is None:
-            return jsonify({"error": "استجابة مواقع الأسطول غير صالحة من المزوّد."}), 502
+            result = jsonify({"error": "استجابة مواقع الأسطول غير صالحة من المزوّد.", "request_id": request_id})
+            result.headers["X-GPS-Request-ID"] = request_id
+            return result, 502
 
         states = state_payload.get("deviceStates", {}) if isinstance(state_payload, dict) else {}
         locations = []
@@ -165,14 +181,24 @@ def get_gps_locations():
                     "online": bool(communication.get("isOnline")) or bool(state.get("isMoving")),
                     "updated_at": position.get("updateTimestamp"),
                 })
-        return jsonify(locations)
+        result = jsonify(locations)
+        result.headers["X-GPS-Request-ID"] = request_id
+        return result
     except requests.Timeout:
-        return jsonify({"error": "تجاوز وقت الاستجابة من خدمة GPS."}), 504
+        logger.warning("GPS timeout request_id=%s", request_id)
+        result = jsonify({"error": "تجاوز وقت الاستجابة من خدمة GPS.", "request_id": request_id})
+        result.headers["X-GPS-Request-ID"] = request_id
+        return result, 504
     except requests.ConnectionError:
-        return jsonify({"error": "تعذّر الاتصال بخدمة GPS."}), 503
+        logger.warning("GPS connection failure request_id=%s", request_id)
+        result = jsonify({"error": "تعذّر الاتصال بخدمة GPS.", "request_id": request_id})
+        result.headers["X-GPS-Request-ID"] = request_id
+        return result, 503
     except Exception as e:
-        logger.error("GPS API error: %s", e, exc_info=True)
-        return jsonify({"error": "حدث خطأ غير متوقع أثناء جلب بيانات GPS."}), 500
+        logger.exception("GPS API error request_id=%s", request_id)
+        result = jsonify({"error": "حدث خطأ غير متوقع أثناء جلب بيانات GPS.", "request_id": request_id})
+        result.headers["X-GPS-Request-ID"] = request_id
+        return result, 500
 
 
 @gps_bp.route("/gps_dashboard")
