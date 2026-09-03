@@ -24,7 +24,7 @@ GPS_DEVICES_URL = os.environ.get("GPS_DEVICES_URL", f"{GPS_API_BASE}/device/Limi
 GPS_STATE_URL = os.environ.get("GPS_STATE_URL", f"{GPS_API_BASE}/StateLookup")
 GPS_REFRESH_URL = os.environ.get("GPS_REFRESH_URL", f"{GPS_API_BASE}/Authentication/RefreshToken")
 GPS_PERMANENT_TOKEN = os.environ.get("GPS_TOKEN") or os.environ.get("GPS_PERMANENT_TOKEN", "")
-GPS_AUTH_SCHEME = os.environ.get("GPS_AUTH_SCHEME", "GpsCockpitApiKey")
+GPS_AUTH_SCHEME = os.environ.get("GPS_AUTH_SCHEME", "Bearer")
 
 def get_gps_token():
     return GPS_PERMANENT_TOKEN
@@ -46,7 +46,8 @@ def _gps_provider_headers(token, request_id=None):
         response = requests.post(
             GPS_REFRESH_URL,
             headers={"Accept": "application/json", "Content-Type": "application/json"},
-            json={"RefreshToken": token},
+            # 360Locate documents the refresh-token field in camelCase.
+            json={"refreshToken": token},
             timeout=20,
         )
         if response.status_code == 200:
@@ -104,7 +105,12 @@ def get_gps_locations():
         )
         if devices_response.status_code != 200:
             logger.warning("GPS device lookup failed request_id=%s host=%s status=%s", request_id, urlsplit(GPS_DEVICES_URL).netloc, devices_response.status_code)
-            result = jsonify({"error": "تعذّر جلب أجهزة التتبع من المزوّد حالياً.", "request_id": request_id})
+            message = (
+                "رفض مزوّد GPS المصادقة. تحقّق من GPS_TOKEN أو GPS_AUTH_SCHEME في إعدادات الاستضافة."
+                if devices_response.status_code == 401
+                else "تعذّر جلب أجهزة التتبع من المزوّد حالياً."
+            )
+            result = jsonify({"error": message, "request_id": request_id})
             result.headers["X-GPS-Request-ID"] = request_id
             return result, 502
         devices_payload = _gps_json(devices_response, "device lookup")
