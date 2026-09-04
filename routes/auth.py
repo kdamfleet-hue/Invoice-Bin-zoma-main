@@ -136,6 +136,9 @@ def login():
         except Exception:
             logger.exception("Branch account lookup failed during login")
             branch_accounts = []
+        if not isinstance(branch_accounts, list):
+            logger.warning("Branch account storage returned a non-list value")
+            branch_accounts = []
         acct = next((a for a in branch_accounts if isinstance(a, dict) and a.get("username") == username), None)
         branch_password_ok = False
         if acct:
