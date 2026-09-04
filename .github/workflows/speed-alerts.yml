@@ -1,0 +1,29 @@
+name: Periodic GPS speed alerts
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-speed-alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Run protected speed check
+        env:
+          LIVE_APP_URL: ${{ secrets.LIVE_APP_URL }}
+          ALERT_CRON_KEY: ${{ secrets.ALERT_CRON_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$LIVE_APP_URL"
+          test -n "$ALERT_CRON_KEY"
+          curl --fail-with-body --silent --show-error \
+            --max-time 90 \
+            -X POST "$LIVE_APP_URL/api/cron/speed-alerts" \
+            -H "X-Alert-Cron-Key: $ALERT_CRON_KEY" \
+            -H "Accept: application/json"
+          printf '\n'

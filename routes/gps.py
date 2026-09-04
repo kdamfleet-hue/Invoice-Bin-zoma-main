@@ -7,6 +7,7 @@ import logging
 import secrets
 import time
 import threading
+import hmac
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
 from flask import Blueprint, render_template, session, request, jsonify
@@ -45,20 +46,20 @@ GPS_REFRESH_URL = os.environ.get("GPS_REFRESH_URL", f"{GPS_API_BASE}/Authenticat
 GPS_LOGIN_URL = os.environ.get("GPS_LOGIN_URL", f"{GPS_API_BASE}/Authentication/Login")
 GPS_PERMANENT_TOKEN = (os.environ.get("GPS_TOKEN") or os.environ.get("GPS_PERMANENT_TOKEN") or "").strip()
 GPS_AUTH_SCHEME = os.environ.get("GPS_AUTH_SCHEME", "Bearer")
+GPS_ALERT_CRON_KEY = os.environ.get("ALERT_CRON_KEY", "")
 GPS_TIMEOUT = float(os.environ.get("GPS_TIMEOUT", "20"))
-FLEET_CACHE_SECONDS = float(os.environ.get("GPS_CACHE_SECONDS", "5"))   # absorbs several tabs polling
-ONLINE_WINDOW_SECONDS = 15 * 60   # a device with no communication flag counts as online if it reported within this window
+FLEET_CACHE_SECONDS = float(os.environ.get("GPS_CACHE_SECONDS", "5"))
+ONLINE_WINDOW_SECONDS = 15 * 60
 
 _AUTH_STATE_KEY = "gps_auth_state"
 _auth_lock = threading.Lock()
-_auth_mem = {}                     # process mirror of the persisted auth state (never logged)
+_auth_mem = {}
 _diag = {"auth_source": None, "last_auth_error": None, "last_success_at": None, "last_error": None, "last_count": 0}
 _fleet_cache = {"at": 0.0, "data": None}
 
 
 class GpsAuthError(Exception):
     pass
-
 
 def get_gps_token():
     return GPS_PERMANENT_TOKEN
@@ -449,6 +450,28 @@ def gps_status():
         "last_vehicle_count": _diag.get("last_count"),
         "cache_seconds": FLEET_CACHE_SECONDS,
     })
+
+
+@gps_bp.route("/api/cron/speed-alerts", methods=["POST"])
+def run_speed_alert_check():
+    """Protected periodic endpoint; the GPS token never leaves the server."""
+    supplied = request.headers.get("X-Alert-Cron-Key", "")
+    if not GPS_ALERT_CRON_KEY or not hmac.compare_digest(supplied, GPS_ALERT_CRON_KEY):
+        return jsonify({"error": "غير مصرح"}), 401
+    try:
+        from services.speed_alerts import run_speed_check
+        result = run_speed_check()
+        return jsonify({"success": True, "new_alerts": len(result.get("new_alerts", [])), "checked": result.get("checked", 0), "active": len(result.get("active", {})), "limits": result.get("limits", {})})
+    except Exception:
+        logger.exception("periodic speed alert check failed")
+        return jsonify({"success": False, "error": "تعذر تنفيذ فحص السرعة الدوري"}), 502
+
+
+@gps_bp.route("/api/speed-alerts", methods=["GET"])
+@login_required
+def speed_alerts_data():
+    from services.speed_alerts import get_speed_alerts
+    return jsonify(get_speed_alerts())
 
 
 @gps_bp.route("/gps_dashboard")
