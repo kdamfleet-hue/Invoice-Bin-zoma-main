@@ -9,9 +9,9 @@ inventory_bp = Blueprint("inventory_bp", __name__)
 @role_required("admin", "operations", "maintenance")
 def tires_index():
     branch_id = current_branch_id()
+    # No cross-branch fallback: a branch with no tyres yet used to be shown EVERY other
+    # branch's inventory instead of an honest empty list.
     tires = TireRecord.query.filter((TireRecord.branch_id == branch_id) | (TireRecord.branch_id.is_(None))).all()
-    if not tires:
-        tires = TireRecord.query.all()
     vehicles = Vehicle.query.all()
     return render_template("inventory_tires.html", tires=tires, vehicles=vehicles)
 
@@ -45,7 +45,9 @@ def add_tire():
 @inventory_bp.route("/api/inventory/tires/<int:tire_id>", methods=["PUT", "DELETE"])
 @role_required("admin", "operations", "maintenance")
 def manage_tire(tire_id):
-    t = TireRecord.query.get_or_404(tire_id)
+    t = TireRecord.query.filter(TireRecord.id == tire_id, (TireRecord.branch_id == current_branch_id()) | (TireRecord.branch_id.is_(None))).first()
+    if not t:
+        return jsonify({"success": False, "error": "غير موجود"}), 404
     if request.method == "DELETE":
         try:
             db.session.delete(t)
@@ -87,9 +89,8 @@ def manage_tire(tire_id):
 @role_required("admin", "operations", "maintenance")
 def batteries_index():
     branch_id = current_branch_id()
+    # No cross-branch fallback (see tires_index above).
     batteries = BatteryRecord.query.filter((BatteryRecord.branch_id == branch_id) | (BatteryRecord.branch_id.is_(None))).all()
-    if not batteries:
-        batteries = BatteryRecord.query.all()
     vehicles = Vehicle.query.all()
     return render_template("inventory_batteries.html", batteries=batteries, vehicles=vehicles)
 

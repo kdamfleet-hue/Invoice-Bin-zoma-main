@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function injectBranchSwitcher() {
     try {
         if (typeof WS_PREFIX === 'string' && location.pathname.indexOf(WS_PREFIX) === 0) return;
-        var actions = document.querySelector('.bz-topbar .bz-actions');
+        var actions = document.querySelector('.bz-topbar .bz-actions, .bz-topcmd-right.bz-actions');
         if (!actions || document.getElementById('bzBranchWrap')) return;
         fetch('/api/branch', { headers: { 'Accept': 'application/json' } })
             .then(function (r) { return r.ok ? r.json() : null; })

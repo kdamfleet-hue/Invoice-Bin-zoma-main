@@ -2,8 +2,9 @@ import os
 import json
 import hmac
 import logging
-from flask import Blueprint, render_template, session, request, redirect, jsonify
+from flask import Blueprint, render_template, session, request, redirect, jsonify, current_app
 from helpers import WS_PREFIX, _row_id, blob_get, blob_set, is_workstation, login_required, load_logo, _safe_tbl, _loads_blob
+from models.database import db_connection
 from models.schema import db, AppSetting
 
 logger = logging.getLogger("InvoiceApp")
@@ -15,7 +16,7 @@ if not WORKSTATION_PASSWORD:
     WORKSTATION_PASSWORD = secrets.token_hex(16)
 
 WS_TABS = {
-    "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard",
+    "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard_new",
     "schedule": "schedule", "oils": "oils", "purchase": "purchase", "fuel": "fuel",
     "washing": "washing", "workshop": "workshop", "search": "search", "records": "records",
     "incidents": "incidents", "handover": "handover",
@@ -131,6 +132,31 @@ def workstation_page(sub=""):
     ctx = {"google_user": {"name": "Workstation", "email": "ws@system.local"}, "b64_en": load_logo()}
     if seg == "cameras":
         ctx["cameras_url"] = os.environ.get("CAMERAS_URL", "")
+    if seg == "fleet_dashboard":
+        branches = []
+        try:
+            with db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT id, name FROM erp_branches")
+                branches = [{"id": r[0], "name": r[1]} for r in c.fetchall()]
+        except Exception:
+            logger.exception("workstation fleet dashboard branches failed")
+        insights = {"fleet": {"drivers": 0, "with_vehicle": 0, "without_vehicle": 0, "vehicles": 0},
+                    "volume": {"employees": 0, "workshop": 0, "oils": 0, "purchase": 0, "gps_devices": 0},
+                    "score": {"value": 0, "label": "غير متاح"},
+                    "documents": {"expired": 0, "d30": 0}, "documents_top": [],
+                    "generated_at": "—"}
+        try:
+            insight_view = current_app.view_functions.get("api_insights")
+            if insight_view:
+                response = insight_view()
+                payload = response[0] if isinstance(response, tuple) else response
+                data = payload.get_json(silent=True) if hasattr(payload, "get_json") else None
+                if data and data.get("success"):
+                    insights = data["insights"]
+        except Exception:
+            logger.exception("workstation fleet dashboard insights failed")
+        ctx.update(branches=branches, is_admin=False, insights=insights)
     return render_template(WS_TABS[seg] + ".html", **ctx)
 
 

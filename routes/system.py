@@ -161,6 +161,8 @@ def api_tab_history_restore():
 def api_system_features():
     if request.method == "GET":
         return jsonify({"success": True, "features": get_system_features()})
+    if session.get("role") != "admin":
+        return jsonify({"success": False, "error": "غير مصرح لك (Forbidden)"}), 403
     body = request.get_json(silent=True) or {}
     if not isinstance(body, dict) or not body:
         return jsonify({"success": False, "error": "no data"}), 400

@@ -5,6 +5,8 @@ import requests
 import openpyxl
 import logging
 import secrets
+import time
+from datetime import datetime
 from urllib.parse import urlsplit
 from flask import Blueprint, render_template, session, request, jsonify
 
@@ -36,12 +38,19 @@ def _gps_headers(token, scheme=None):
         "Content-Type": "application/json",
     }
 
+_TOKEN_CACHE = {}
+
+
 def _gps_provider_headers(token, request_id=None):
-    """Exchange a modern refresh token for a short-lived access token.
+    """Exchange a modern refresh token for a short-lived access token, cached until shortly
+    before it expires so a busy tracking dashboard does not re-authenticate on every poll.
 
     Legacy API 360 tokens are kept as a fallback for existing deployments.
     Neither token nor response content is written to logs.
     """
+    cached = _TOKEN_CACHE.get(token)
+    if cached and cached[1] > time.time():
+        return cached[0]
     try:
         response = requests.post(
             GPS_REFRESH_URL,
@@ -54,7 +63,17 @@ def _gps_provider_headers(token, request_id=None):
             payload = _gps_json(response, "token refresh")
             access_token = payload.get("token") or payload.get("accessToken") if isinstance(payload, dict) else None
             if access_token:
-                return _gps_headers(access_token, "Bearer")
+                headers = _gps_headers(access_token, "Bearer")
+                expires_at = time.time() + 60
+                raw_expiry = payload.get("tokenExpires") if isinstance(payload, dict) else None
+                if raw_expiry:
+                    try:
+                        parsed = datetime.fromisoformat(str(raw_expiry).replace("Z", "+00:00"))
+                        expires_at = parsed.timestamp() - 30
+                    except (ValueError, TypeError):
+                        pass
+                _TOKEN_CACHE[token] = (headers, expires_at)
+                return headers
         else:
             logger.warning(
                 "GPS token refresh rejected request_id=%s host=%s status=%s",
@@ -177,6 +196,19 @@ def get_gps_locations():
                 latitude = position.get("latitude")
                 longitude = position.get("longitude")
                 communication = state.get("communicationState") or {}
+                # The documented StateLookup schema has no isOnline on communicationState and
+                # no top-level isMoving field, so the two checks above always evaluated False.
+                # Use the fields the provider actually computes for this purpose.
+                calculated_comm = state.get("calculatedCommunicatingState") or {}
+                idling = state.get("idlingState") or {}
+                calculated_device = state.get("calculatedDeviceState") or {}
+                is_online = (
+                    bool(calculated_comm.get("isCommunicating"))
+                    or bool(idling.get("isCurrentlyIdling"))
+                    or bool(communication.get("isOnline"))
+                    or bool(state.get("isMoving"))
+                    or calculated_device.get("deviceState") in (1, 3)
+                )
                 locations.append({
                     "id": meta["id"],
                     "name": meta["name"],
@@ -185,7 +217,7 @@ def get_gps_locations():
                     "lng": longitude,
                     "latitude": latitude,
                     "longitude": longitude,
-                    "online": bool(communication.get("isOnline")) or bool(state.get("isMoving")),
+                    "online": is_online,
                     "updated_at": position.get("updateTimestamp"),
                 })
         result = jsonify(locations)

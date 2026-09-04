@@ -1822,7 +1822,7 @@
       var code = await window.bzPrompt('تأكيد حذف ' + ids.length + ' عنصراً نهائياً.\nأدخل رمز الأدمن السري للمتابعة:', '', { password: true });
       if (code == null || code === '') return;
       try {
-        var r = await fetch('/api/drivers/bulk_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids, lock: code }) });
+        var r = await fetch('/api/legacy/drivers/bulk_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids, lock: code }) });
         var d = await r.json().catch(function () { return {}; });
         if (r.ok && d.success) {
           if (window.showToast) showToast('تم حذف ' + (d.deleted != null ? d.deleted : ids.length) + ' عنصراً ✓', 'success');

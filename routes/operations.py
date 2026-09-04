@@ -348,14 +348,14 @@ def dispense_part():
     db.session.add(usage)
     db.session.commit()
     
-    return jsonify({"success": True, "usage_id": usage.id, "remaining_quantity": part.quantity})
+    return jsonify({"success": True, "usage_id": usage.id, "transaction_id": usage.id, "remaining_quantity": part.quantity})
 
 @operations_bp.route("/api/refund_part", methods=["POST"])
 @login_required
 def refund_part():
     from models.schema import SparePart, WorkshopPartUsage, db
     data = request.json or {}
-    usage_id = data.get("usage_id")
+    usage_id = data.get("usage_id") or data.get("transaction_id")
     
     if not usage_id:
         return jsonify({"success": False, "error": "Missing usage_id"})

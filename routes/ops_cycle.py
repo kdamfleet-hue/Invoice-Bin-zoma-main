@@ -294,7 +294,12 @@ def ops_pretrip():
                     ))
                     db.session.commit()
         except Exception:
-            pass
+            from models.schema import db
+            db.session.rollback()
+            import logging
+            logging.getLogger("InvoiceApp").exception(
+                "pretrip fault: failed to auto-open workshop ticket for plate=%s", plate)
+            rec["workshop_ticket_failed"] = True
     return jsonify({"success": True, "row": rec})
 
 

@@ -34,7 +34,7 @@
                     <img src="{{ url_for('static', filename='nav_logo.png') }}" alt="BIN ZOMAH" style="height: 36px;">
                     <div class="brand-text">
                         <b>BIN ZOMAH INTL.</b>
-                        <span>فرع الدمام — مركز التشغيل</span>
+                        <span>فرع {{ active_branch }} — مركز التشغيل</span>
                     </div>
                 </div>
                 <button type="button" class="bz-pin-btn" id="bzPinBtn" title="تثبيت القائمة" aria-label="تثبيت القائمة">⋯</button>
@@ -89,10 +89,10 @@
                     <button type="button" class="bz-menu-btn bz-sidebar-toggle" id="sidebarToggle" aria-label="القائمة">☰</button>
                     <div class="bz-crumb">
                         <b>{% block page_heading %}نظام إدارة الأسطول{% endblock %}</b>
-                        <span>شركة بن زومة الدولية — فرع الدمام</span>
+                        <span>شركة بن زومة الدولية — فرع {{ active_branch }}</span>
                     </div>
                 </div>
-                <div class="bz-topcmd-right">
+                <div class="bz-topcmd-right bz-actions">
                     <button type="button" class="bz-chip" id="bzThemeBtn" title="الوضع الداكن/الفاتح">☾</button>
                     <a class="bz-chip" href="/dammam">مركبات الدمام</a>
                     <a class="bz-chip optional" href="/ops">دورة التشغيل</a>
@@ -139,6 +139,12 @@
         const theme = localStorage.getItem('bzTheme') || 'dark';
         document.documentElement.setAttribute('data-theme', theme);
         document.body.classList.toggle('theme-light', theme==='light');
+        // base_styles.css's real content palette is driven by .light-mode (app_ux.js's
+        // toggleDarkMode), whose only other trigger is a header that is now display:none
+        // on every page. Drive it from this one visible control too.
+        document.documentElement.classList.toggle('light-mode', theme === 'light');
+        document.body.classList.toggle('light-mode', theme === 'light');
+        localStorage.setItem('darkMode', theme === 'light' ? 'false' : 'true');
       } catch(e) {}
       const side = document.getElementById('bzSidebar');
       const toggle = document.getElementById('sidebarToggle');
@@ -213,7 +219,9 @@
           const next = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light';
           document.documentElement.setAttribute('data-theme', next);
           document.body.classList.toggle('theme-light', next==='light');
-          try { localStorage.setItem('bzTheme', next); } catch(e){}
+          document.documentElement.classList.toggle('light-mode', next === 'light');
+          document.body.classList.toggle('light-mode', next === 'light');
+          try { localStorage.setItem('bzTheme', next); localStorage.setItem('darkMode', next === 'light' ? 'false' : 'true'); } catch(e){}
           syncIcon();
         });
       }

@@ -588,7 +588,7 @@ def _sync_schedule_to_db(sd):
         return
         
     try:
-        from modules.db_utils import db_connection
+        from models.database import db_connection
         import json
         
         with db_connection() as db:

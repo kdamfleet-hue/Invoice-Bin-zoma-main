@@ -10,9 +10,15 @@ from flask import Blueprint, render_template, session, request, jsonify, send_fi
 from helpers import login_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id
 from models.schema import db, Driver, Vehicle, VehicleCustody
 from models.database import db_connection
+from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger("InvoiceApp")
 fleet_bp = Blueprint('fleet', __name__)
+
+import time as _time
+# Cache the modern dashboard's insights payload briefly so several staff opening
+# /fleet_dashboard around the same time don't each pay the full per-branch blob-scan.
+_INSIGHTS_CACHE = {}
 
 @fleet_bp.route("/drivers_info")
 @login_required
@@ -42,13 +48,19 @@ def fleet_dashboard():
                 "documents": {"expired": 0, "d30": 0}, "documents_top": [],
                 "generated_at": "—"}
     try:
-        insight_view = current_app.view_functions.get("api_insights")
-        if insight_view:
-            response = insight_view()
-            payload = response[0] if isinstance(response, tuple) else response
-            data = payload.get_json(silent=True) if hasattr(payload, "get_json") else None
-            if data and data.get("success"):
-                insights = data["insights"]
+        cache_key = current_branch_id()
+        cached = _INSIGHTS_CACHE.get(cache_key)
+        if cached and cached[0] > _time.time():
+            insights = cached[1]
+        else:
+            insight_view = current_app.view_functions.get("api_insights")
+            if insight_view:
+                response = insight_view()
+                payload = response[0] if isinstance(response, tuple) else response
+                data = payload.get_json(silent=True) if hasattr(payload, "get_json") else None
+                if data and data.get("success"):
+                    insights = data["insights"]
+                    _INSIGHTS_CACHE[cache_key] = (_time.time() + 30, insights)
     except Exception:
         logger.exception("modern fleet dashboard insights failed")
     return render_template("fleet_dashboard_new.html", google_user=session.get("google_user"), b64_en=load_logo(), branches=branches, is_admin=is_admin, insights=insights)
@@ -157,10 +169,14 @@ def add_driver():
         logger.info("Driver added via SQLAlchemy: %s (id=%s)", vals['name'], driver.id)
         return jsonify({"success": True, "id": driver.id, **vals})
         
+    except IntegrityError as e:
+        db.session.rollback()
+        logger.error("Error adding driver: IntegrityError (duplicate iqama/employee_id)")
+        return jsonify({"success": False, "error": "رقم الإقامة أو الرقم الوظيفي مستخدم مسبقاً لسائق آخر."}), 400
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error adding driver: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"Error adding driver: {type(e).__name__}: {e}")
+        return jsonify({"success": False, "error": "تعذّر إضافة السائق."}), 500
 
 @fleet_bp.route("/api/legacy/drivers/<int:driver_id>", methods=["PUT"])
 @login_required
@@ -183,7 +199,11 @@ def update_driver(driver_id):
             return None
 
     try:
-        driver = Driver.query.get(driver_id)
+        from flask import session
+        query = Driver.query.filter_by(id=driver_id)
+        if session.get("role") != "admin":
+            query = query.filter_by(branch_id=current_branch_id())
+        driver = query.first()
         if not driver:
             return jsonify({"error": "Driver not found"}), 404
 
@@ -490,7 +510,11 @@ def api_drivers_info_save():
             return jsonify({"success": False, "error": "اسم السائق مطلوب"})
             
         if driver_id:
-            driver = Driver.query.get(driver_id)
+            from flask import session
+            query = Driver.query.filter_by(id=driver_id)
+            if session.get("role") != "admin":
+                query = query.filter_by(branch_id=branch_id)
+            driver = query.first()
             if not driver:
                 return jsonify({"success": False, "error": "السائق غير موجود"})
         else:
@@ -814,12 +838,16 @@ def api_master_data_update():
         if not driver_id or not field:
             return jsonify({"success": False, "error": "Missing parameters"}), 400
             
-        driver = Driver.query.get(driver_id)
+        from flask import session
+        query = Driver.query.filter_by(id=driver_id)
+        if session.get("role") != "admin":
+            query = query.filter_by(branch_id=current_branch_id())
+        driver = query.first()
         if not driver:
             return jsonify({"success": False, "error": "Driver not found"}), 404
             
         # Determine if field belongs to Driver or Vehicle
-        driver_fields = ["name", "iqama_number", "phone", "job_title", "status", "birth_date", "empNotes"]
+        driver_fields = ["employee_id", "name", "iqama_number", "phone", "job_title", "status", "birth_date", "empNotes"]
         vehicle_fields = ["plate_number", "v_type", "model", "serial_number", "current_km",
                           "yard_condition", "load_capacity", "istimara_expiry", "inspection_expiry", "notes"]
         
@@ -839,11 +867,11 @@ def api_master_data_update():
             
         db.session.commit()
         
-        # Log audit
+        # Log audit (utils.audit never existed, so this silently never logged anything)
         try:
-            from utils.audit import log_audit
-            log_audit(f"Inline Edit via Master Editor: Updated {field} for Driver ID {driver_id}")
-        except:
+            from helpers import _audit_add
+            _audit_add("تعديل", "محرر البيانات الرئيسي", None, f"Updated {field} for Driver ID {driver_id}")
+        except Exception:
             pass
             
         return jsonify({"success": True})

@@ -7,9 +7,10 @@ import logging
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
 
-from app import login_required, role_required
+from app import login_required, role_required, limiter
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def login():
     from app import KIOSK_PASSWORD, KIOSK_USER, get_branch_accounts, get_users, BRANCH_IDS
 
@@ -80,6 +81,23 @@ def login():
                 return redirect(url_for("operations.workshop"))
             return redirect(url_for("dashboard.index"))
             
+        acct = next((a for a in get_branch_accounts() if a.get("username") == username), None)
+        if acct and check_password_hash(acct.get("code_hash", ""), password):
+            session.clear()
+            session["authenticated"] = True
+            session.permanent = True
+            session["user"] = username
+            session["username"] = username
+            session["google_user"] = {"name": username, "email": username + "@binzomah.local"}
+            session["is_admin"] = False
+            session["role"] = "branch_manager"
+            bid = acct.get("branch_id")
+            if bid in BRANCH_IDS:
+                session["branch_id"] = bid
+                session["is_branch_user"] = True
+            logger.info(f"Branch account login: {username} -> branch {bid}")
+            return redirect(url_for("dashboard.index"))
+
         else:
             logger.warning("Failed login attempt")
             return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة أو الحساب غير مفعل")
@@ -168,12 +186,13 @@ def api_users():
 
     if request.method == "DELETE":
         user_id = body.get("id")
-        user = User.query.get(user_id)
+        user = User.query.get(user_id) if user_id else User.query.filter_by(username=(body.get("username") or "").strip()).first()
         if user:
             if user.username == "admin":
                 return jsonify({"error": "لا يمكن حذف حساب المدير العام"}), 400
             db.session.delete(user)
             db.session.commit()
-        return jsonify({"success": True})
+            return jsonify({"success": True})
+        return jsonify({"success": False, "error": "المستخدم غير موجود"}), 404
 
 

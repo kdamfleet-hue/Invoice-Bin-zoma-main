@@ -205,9 +205,17 @@ def init_db(app=None):
             ]
             for col in new_cols:
                 if col.lower() not in existing_cols_lower:
-                    db.execute(f'ALTER TABLE drivers ADD COLUMN {col} TEXT')
-                    db.commit()
-                    logger.info(f'Database Migration: Added {col} column to drivers table')
+                    # Guarded: this runs at import time in EVERY process (each `flask db
+                    # upgrade` and each worker boot). Two processes booting together both
+                    # read the column list before either commits, so the second ALTER raises
+                    # DuplicateColumn — which used to propagate and kill that worker's boot.
+                    try:
+                        db.execute(f'ALTER TABLE drivers ADD COLUMN {col} TEXT')
+                        db.commit()
+                        logger.info(f'Database Migration: Added {col} column to drivers table')
+                    except Exception as e:
+                        db.rollback()
+                        logger.warning(f'Column {col} migration skipped (likely a concurrent add): {e}')
 
             # Seed the legacy drivers table ONCE, tracked by a persistent flag — not by a live
             # COUNT(*). With the count check, any time this table was emptied (a bad sync, a

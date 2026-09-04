@@ -3,6 +3,7 @@ from models.schema import Driver, PettyCash, Vehicle, VehicleCustody, db
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
+from app import limiter
 
 driver_portal_bp = Blueprint("driver_portal_bp", __name__)
 
@@ -13,6 +14,7 @@ def get_current_driver():
     return Driver.query.get(driver_id)
 
 @driver_portal_bp.route("/driver", methods=["GET", "POST"])
+@limiter.limit("10 per minute")   # iqama + phone are low-entropy; this is a brute-force surface
 def driver_login():
     if request.method == "POST":
         # Simplified login: iqama_number and phone

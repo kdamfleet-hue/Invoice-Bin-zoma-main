@@ -19,7 +19,12 @@ def update_petty_cash_status(id):
     if status not in ["معتمد", "مرفوض"]:
         return jsonify({"success": False, "error": "حالة غير صالحة"}), 400
         
-    pc = PettyCash.query.get(id)
+    # Scoped to the caller's branch (a claim from another branch is simply "not found");
+    # legacy rows with no branch stay reachable rather than becoming un-approvable.
+    pc = PettyCash.query.filter(
+        PettyCash.id == id,
+        (PettyCash.branch_id == current_branch_id()) | (PettyCash.branch_id.is_(None)),
+    ).first()
     if not pc:
         return jsonify({"success": False, "error": "غير موجود"}), 404
         

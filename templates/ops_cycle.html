@@ -86,17 +86,22 @@ table.ops th,table.ops td{padding:8px;border-bottom:1px solid rgba(255,255,255,.
 function pane(id,btn){document.querySelectorAll('.ops-pane').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.ops-tabs button').forEach(b=>b.classList.remove('on'));document.getElementById('p-'+id).classList.add('on');btn.classList.add('on');}
 function tbl(headers, rows){if(!rows.length) return '<p style="color:#93a0b3">لا بيانات بعد</p>';return '<div class="table-responsive"><table class="ops"><thead><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${c??'—'}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>';}
 async function load(){
-  const s=await fetch('/api/ops/summary').then(r=>r.json());
-  const r=s.readiness||{}, w=s.workshop||{};
-  document.getElementById('kpis').innerHTML=[['المركبات',r.total],['جاهزة',r.ready],['في الورشة',r.workshop],['على الطريق',r.road],['أوامر مفتوحة',w.open],['MTTR ساعة',w.mttr_hours],['تكرار %',w.repeat_rate],['فحوصات اليوم',s.today_checks]].map(x=>`<div class="ops-card"><b>${x[1]??0}</b><span>${x[0]}</span></div>`).join('');
-  document.getElementById('fuel').innerHTML=tbl(['اللوحة','السائق','كم','لتر','كم/لتر','الحالة'],(s.fuel_alerts||[]).map(f=>[f.plate,f.driver,f.km,f.liters,f.kml,f.flag]));
-  document.getElementById('pm').innerHTML=tbl(['اللوحة','المركبة','العداد','آخر خدمة','المتبقي','الحالة'],(s.pm_due||[]).map(p=>[p.plate,`${p.make||''} ${p.model||''}`,p.current_km,p.last_service_km,p.remaining_km,p.status]));
-  const ch=await fetch('/api/ops/pretrip').then(r=>r.json());
-  document.getElementById('checks').innerHTML=tbl(['التاريخ','اللوحة','السائق','العداد','عطل','النتيجة'],(ch.rows||[]).slice(0,30).map(c=>[c.date+' '+c.time,c.plate,c.driver,c.odo,c.fault||'—',c.ok?'سليم':(c.odo_mismatch?'فرق عداد':'عطل')]));
-  const wo=await fetch('/api/ops/work_orders').then(r=>r.json());
-  document.getElementById('wo').innerHTML=tbl(['#','اللوحة','النوع','الحالة','الفتح','الإغلاق','التكلفة','إجراء'],(wo.rows||[]).slice(-40).reverse().map(o=>[o.id,o.plate,o.type,o.status,o.opened,o.closed||'—',o.cost,`<button class="bz-chip" onclick="woAct(${o.id},'progress')">تنفيذ</button> <button class="bz-chip" onclick="woAct(${o.id},'ready')">جاهزة</button>`]));
-  const idle=await fetch('/api/ops/idle').then(r=>r.json());
-  document.getElementById('idle').innerHTML=`<p>ساعات الأسبوع: <b>${idle.week_hours||0}</b></p>`+tbl(['التاريخ','اللوحة','ساعات','ملاحظة'],(idle.rows||[]).map(i=>[i.date,i.plate,i.hours,i.note]));
+  try {
+    const s=await fetch('/api/ops/summary').then(r=>r.json());
+    const r=s.readiness||{}, w=s.workshop||{};
+    document.getElementById('kpis').innerHTML=[['المركبات',r.total],['جاهزة',r.ready],['في الورشة',r.workshop],['على الطريق',r.road],['أوامر مفتوحة',w.open],['MTTR ساعة',w.mttr_hours],['تكرار %',w.repeat_rate],['فحوصات اليوم',s.today_checks]].map(x=>`<div class="ops-card"><b>${x[1]??0}</b><span>${x[0]}</span></div>`).join('');
+    document.getElementById('fuel').innerHTML=tbl(['اللوحة','السائق','كم','لتر','كم/لتر','الحالة'],(s.fuel_alerts||[]).map(f=>[f.plate,f.driver,f.km,f.liters,f.kml,f.flag]));
+    document.getElementById('pm').innerHTML=tbl(['اللوحة','المركبة','العداد','آخر خدمة','المتبقي','الحالة'],(s.pm_due||[]).map(p=>[p.plate,`${p.make||''} ${p.model||''}`,p.current_km,p.last_service_km,p.remaining_km,p.status]));
+    const ch=await fetch('/api/ops/pretrip').then(r=>r.json());
+    document.getElementById('checks').innerHTML=tbl(['التاريخ','اللوحة','السائق','العداد','عطل','النتيجة'],(ch.rows||[]).slice(0,30).map(c=>[c.date+' '+c.time,c.plate,c.driver,c.odo,c.fault||'—',c.ok?'سليم':(c.odo_mismatch?'فرق عداد':'عطل')]));
+    const wo=await fetch('/api/ops/work_orders').then(r=>r.json());
+    document.getElementById('wo').innerHTML=tbl(['#','اللوحة','النوع','الحالة','الفتح','الإغلاق','التكلفة','إجراء'],(wo.rows||[]).slice(-40).reverse().map(o=>[o.id,o.plate,o.type,o.status,o.opened,o.closed||'—',o.cost,`<button class="bz-chip" onclick="woAct(${o.id},'progress')">تنفيذ</button> <button class="bz-chip" onclick="woAct(${o.id},'ready')">جاهزة</button>`]));
+    const idle=await fetch('/api/ops/idle').then(r=>r.json());
+    document.getElementById('idle').innerHTML=`<p>ساعات الأسبوع: <b>${idle.week_hours||0}</b></p>`+tbl(['التاريخ','اللوحة','ساعات','ملاحظة'],(idle.rows||[]).map(i=>[i.date,i.plate,i.hours,i.note]));
+  } catch (e) {
+    console.error('ops load failed', e);
+    ['kpis','fuel','pm','checks','wo','idle'].forEach(id => { const el = document.getElementById(id); if (el && !el.innerHTML) el.innerHTML = '<p style="color:#f87171">تعذّر تحميل البيانات، حدّث الصفحة</p>'; });
+  }
 }
 async function savePretrip(e){e.preventDefault();const f=e.target;await fetch('/api/ops/pretrip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plate:f.plate.value,driver:f.driver.value,odo:f.odo.value,gps_odo:f.gps_odo.value,oil:f.oil.checked,tires:f.tires.checked,lights:f.lights.checked,fault:f.fault.value})});f.reset();load();return false;}
 async function openWO(e){e.preventDefault();const f=e.target;await fetch('/api/ops/work_orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'open',plate:f.plate.value,type:f.type.value,mechanic:f.mechanic.value,issue:f.issue.value})});f.reset();load();return false;}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}إدارة العهد والمفاتيح{% endblock %}
-{% block header_title %}إدارة العهد والمفاتيح{% endblock %}
+{% block page_heading %}إدارة العهد والمفاتيح{% endblock %}
 {% block extra_css %}
 <style>
 .custody-container { padding: 20px; }
@@ -85,14 +85,17 @@ function loadCustody() {
                 if (i.status === 'تم الإرجاع') statusClass = 'status-returned';
                 if (i.status === 'مفقود') statusClass = 'status-lost';
                 
+                // Escaped: item_details is free text an operations-role user types, and it
+                // used to be injected raw into the admin's page (stored XSS).
+                const esc = window._bzEscHtml || (s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
                 tbody.innerHTML += `<tr>
-                    <td>${i.id}</td>
-                    <td>${i.driver_name}</td>
-                    <td>${i.item_type}</td>
-                    <td>${i.item_details}</td>
-                    <td>${i.received_date}</td>
-                    <td>${i.returned_date || '-'}</td>
-                    <td><span class="status-badge ${statusClass}">${i.status}</span></td>
+                    <td>${esc(i.id)}</td>
+                    <td>${esc(i.driver_name)}</td>
+                    <td>${esc(i.item_type)}</td>
+                    <td>${esc(i.item_details)}</td>
+                    <td>${esc(i.received_date)}</td>
+                    <td>${esc(i.returned_date || '-')}</td>
+                    <td><span class="status-badge ${statusClass}">${esc(i.status)}</span></td>
                     <td>
                         <button class="btn-action" style="background:#c5a059;" onclick="markReturned(${i.id})">إرجاع</button>
                         <button class="btn-action" style="background:#ef4444;" onclick="deleteItem(${i.id})">حذف</button>
@@ -117,7 +120,17 @@ document.getElementById('addForm').onsubmit = function(e) {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
-    }).then(() => { closeAddModal(); loadCustody(); });
+    })
+    .then(r => r.json().then(data => ({ ok: r.ok, data: data })))
+    .then(({ ok, data }) => {
+        if (ok && data && data.success) {
+            closeAddModal();
+            loadCustody();
+        } else {
+            alert((data && data.error) || 'تعذّر حفظ العهدة');
+        }
+    })
+    .catch(() => { alert('تعذّر الاتصال بالخادم'); });
 };
 
 function markReturned(id) {

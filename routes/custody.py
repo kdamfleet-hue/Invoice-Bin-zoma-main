@@ -58,7 +58,7 @@ def api_custody():
             )
             db.session.add(new_item)
             
-            from helpers import log_audit
+            from helpers import _audit_add as log_audit
             log_audit("إضافة عهدة", "erp_custody_items", None, f"تسليم عهدة ({data.get('item_type')}) للسائق")
             
             db.session.commit()
@@ -90,7 +90,7 @@ def update_custody(item_id):
             if "notes" in data:
                 item.notes = data["notes"]
                 
-            from helpers import log_audit
+            from helpers import _audit_add as log_audit
             log_audit("تحديث عهدة", "erp_custody_items", item_id, f"تحديث حالة العهدة إلى {item.status}")
                 
             db.session.commit()
@@ -103,7 +103,7 @@ def update_custody(item_id):
         try:
             db.session.delete(item)
             
-            from helpers import log_audit
+            from helpers import _audit_add as log_audit
             log_audit("حذف عهدة", "erp_custody_items", item_id, "تم حذف سجل العهدة")
             
             db.session.commit()

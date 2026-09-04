@@ -1082,7 +1082,7 @@
     if (e.data.schedule) jobs.push(fetch('/api/schedule_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e.data.schedule) }));
     if (e.data.washing) jobs.push(fetch('/api/washing_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicles: e.data.washing }) }));
     if (e.data.records) jobs.push(fetch('/api/records', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: e.data.records }) }));
-    if (e.data.employees) jobs.push(fetch('/api/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: e.data.employees }) }));
+    if (e.data.employees) jobs.push(fetch('/api/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: e.data.employees, reason: 'استعادة نسخة احتياطية بتاريخ ' + when }) }));
     Promise.all(jobs).then(function () {
       if (window.showToast) showToast('تمت الاستعادة بنجاح ✓', 'success'); else alert('تمت الاستعادة بنجاح');
       setTimeout(function () { location.reload(); }, 900);

@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 from flask import Blueprint, render_template, session
 
-from helpers import login_required, load_logo, blob_get
+from helpers import login_required, load_logo, blob_get, current_branch_id
 from models.schema import Driver, Vehicle
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -19,10 +19,13 @@ def index() -> Any:
     try:
         google_user = session.get("google_user")
         b64_en = load_logo()
+        # Branch logins see THEIR branch's numbers; admins/HQ see company-wide totals. These
+        # tiles were never scoped, so a branch manager's homepage showed everyone's counts.
+        bid = current_branch_id() if session.get("is_branch_user") else None
 
         # 1. Total Drivers (DB -> blob fallback)
         try:
-            total_drivers = Driver.query.count()
+            total_drivers = Driver.query.filter_by(branch_id=bid).count() if bid else Driver.query.count()
         except Exception:
             from app import db
             db.session.rollback()
@@ -31,11 +34,11 @@ def index() -> Any:
             drivers = blob_get("employees") or []
             if isinstance(drivers, dict) and "data" in drivers:
                 drivers = drivers["data"]
-            total_drivers = len(drivers) if isinstance(drivers, list) else 115
+            total_drivers = len(drivers) if isinstance(drivers, list) else 0
 
         # 2. Active Vehicles (default 30)
         try:
-            active_vehicles = Vehicle.query.count()
+            active_vehicles = Vehicle.query.filter_by(branch_id=bid).count() if bid else Vehicle.query.count()
         except Exception:
             from app import db
             db.session.rollback()
@@ -44,13 +47,12 @@ def index() -> Any:
             sched = blob_get("schedule_data") or {}
             if isinstance(sched, dict):
                 active_vehicles = len(sched.get("main", []))
-            if active_vehicles == 0:
-                active_vehicles = 30
+            pass  # a real zero (no vehicles in DB or schedule blob) is left as 0
 
         # 3. Urgent Alerts (expired & critical documents)
         try:
             from services.alert_service import check_document_expirations
-            alert_res: Dict[str, Any] = check_document_expirations()
+            alert_res: Dict[str, Any] = check_document_expirations(branch_id=bid)
             urgent_alerts = (
                 alert_res.get("counts", {}).get("expired", 0)
                 + alert_res.get("counts", {}).get("critical", 0)
@@ -58,10 +60,7 @@ def index() -> Any:
         except Exception:
             from app import db
             db.session.rollback()
-            urgent_alerts = 7
-
-        if urgent_alerts == 0:
-            urgent_alerts = 7
+            urgent_alerts = 0
 
         return render_template(
             "index.html",

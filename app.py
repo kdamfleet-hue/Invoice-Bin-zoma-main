@@ -31,7 +31,7 @@ try:
     import psycopg2.extras
 except ImportError:  # psycopg2 only required when DATABASE_URL (PostgreSQL) is used
     psycopg2 = None
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, g
 from flask_cors import CORS
 from dotenv import load_dotenv
 from flask_mail import Mail, Message
@@ -42,8 +42,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
 from flask_talisman import Talisman
 
+load_dotenv()  # MUST run before importing models.database, which reads DATABASE_URL
+               # from os.environ at module import time.
 from models.database import init_db, db_connection, get_db, DB_PATH, DATABASE_URL, USE_POSTGRES
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -87,6 +88,14 @@ if _db_url:
         _db_url = _db_url.replace("postgres://", "postgresql://", 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 else:
+    if os.environ.get("ALLOW_SQLITE_FALLBACK", "false").lower() != "true":
+        raise RuntimeError(
+            "DATABASE_URL is not set (missing or empty). Refusing to silently fall back "
+            "to local SQLite, which would look like an empty production database. Set "
+            "DATABASE_URL, or set ALLOW_SQLITE_FALLBACK=true to explicitly allow local "
+            "SQLite for local development/tests."
+        )
+    logger.warning("DATABASE_URL not set — falling back to local SQLite at %s (ALLOW_SQLITE_FALLBACK=true).", DB_PATH)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.abspath(DB_PATH)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Flask buffers a request body in full before any handler runs; with no cap, one oversized
@@ -143,6 +152,10 @@ cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 cache.init_app(app)
 
 # Initialize Rate Limiter
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[], storage_uri="memory://")
+
 _secret = os.environ.get("SECRET_KEY")
 if not _secret:
     # No hardcoded fallback key (that would let anyone forge sessions).
@@ -376,14 +389,16 @@ def role_required(*roles):
                 return redirect(url_for("auth.login"))
             
             user_role = session.get("role", "viewer")
-            if user_role not in roles and "admin" not in roles and user_role != "admin": # admin has access to everything
-                # Actually, let's strictly check:
-                if user_role != 'admin' and user_role not in roles:
-                    if request.path.startswith("/api/"):
-                        return jsonify({"success": False, "error": "غير مصرح لك (Forbidden)"}), 403
-                    # Add flash or error handling if needed, or simply abort
-                    from flask import abort
-                    abort(403)
+            # Strict check, identical to helpers.role_required. The previous outer condition
+            # (`... and "admin" not in roles ...`) was False whenever "admin" was among the
+            # allowed roles — i.e. for nearly every decorated route — so NO role check ran at
+            # all and any logged-in account passed. Admin always passes; everyone else must be
+            # in the list.
+            if user_role != 'admin' and user_role not in roles:
+                if request.path.startswith("/api/"):
+                    return jsonify({"success": False, "error": "غير مصرح لك (Forbidden)"}), 403
+                from flask import abort
+                abort(403)
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -477,6 +492,38 @@ BRANCHES = [
 ]
 BRANCH_IDS = {b["id"] for b in BRANCHES}
 BRANCH_NAME = {b["id"]: b["name"] for b in BRANCHES}
+
+
+def _seed_branches():
+    """erp_branches (models.schema.Branch) is never populated by any migration or seed — yet
+    User.branch_id is a real FK to it, so assigning a branch to a user via /api/users raised
+    IntegrityError on Postgres. Idempotently mirror BRANCHES into the table (never touching a
+    row that already exists), then bump Postgres' id sequence past the explicit ids so a later
+    plain INSERT cannot collide with them."""
+    try:
+        from models.schema import Branch
+        from sqlalchemy import text as _sa_text
+        added = 0
+        for b in BRANCHES:
+            if db.session.get(Branch, b["id"]) is None:
+                db.session.add(Branch(id=b["id"], name=b["name"]))
+                added += 1
+        db.session.commit()
+        if added and db.engine.dialect.name == "postgresql":
+            db.session.execute(_sa_text(
+                "SELECT setval(pg_get_serial_sequence('erp_branches','id'), "
+                "(SELECT COALESCE(MAX(id), 1) FROM erp_branches))"))
+            db.session.commit()
+        if added:
+            logger.info("Seeded %d missing branch rows into erp_branches", added)
+    except Exception as e:
+        db.session.rollback()
+        logger.warning(f"_seed_branches skipped: {e}")
+
+
+# Runs once per process at import, after init_db_on_startup() above has created the tables.
+with app.app_context():
+    _seed_branches()
 
 
 def current_branch_id():
@@ -1009,6 +1056,8 @@ def cameras_page():
 @login_required
 def vehicles_lookup():
     """Serve the vehicle/driver registry (authenticated — contains personal data)."""
+    if is_workstation():
+        return jsonify([])
     path = os.path.join(app.root_path, "vehicles_lookup.json")
     if not os.path.exists(path):
         return jsonify([])
@@ -1153,7 +1202,7 @@ def generate_invoice():
             for lbl_cell, lbl, val_cell, val in info:
                 ws[lbl_cell] = lbl
                 ws[lbl_cell].font = Font(name="Arial", size=11, bold=True, color=P)
-                ws[val_cell] = val
+                ws[val_cell] = _xl_safe(val)
                 ws[val_cell].font = Font(name="Arial", size=11)
 
             # Table header
@@ -1855,7 +1904,10 @@ def _start_alert_scheduler():
                     if (cfg["enabled"] and cfg["recipients"]
                             and datetime.now().hour >= cfg["hour"] and cfg["last_sent"] != today):
                         alerts = _collect_all_branches_alerts(cfg["window_days"])
-                        alert_count = sum(len(x.get("alerts", [])) for x in alerts)
+                        # _collect_all_branches_alerts returns a FLAT list of alert dicts — there
+                        # is no "alerts" sub-key, so the old sum() was always 0 and the push
+                        # notification below never fired.
+                        alert_count = len(alerts)
                         if alert_count > 0:
                             send_push_notification("تنبيه أسطول بن زومة", f"يوجد {alert_count} مستند على وشك الانتهاء، يرجى مراجعة لوحة القيادة.")
                         res = _send_scheduled_digest(cfg["recipients"], cfg["window_days"])
@@ -2315,10 +2367,11 @@ def _audit_get_at(rid):
 
 @app.route("/api/branch_accounts", methods=["GET", "POST", "DELETE"])
 @login_required
+@role_required("admin")
 def api_branch_accounts():
-    """Manage per-branch login accounts — only from the unlocked Settings tab."""
-    if not session.get("settings_unlocked"):
-        return jsonify({"error": "locked"}), 403
+    """Manage per-branch login accounts — admin only. (This used to require
+    session['settings_unlocked'], which nothing in the codebase ever sets, so the Settings
+    page's branch-accounts panel was permanently locked for everyone.)"""
     if request.method == "GET":
         accts = {a.get("branch_id"): a for a in get_branch_accounts()}
         return jsonify({"success": True, "rows": [
@@ -3618,6 +3671,15 @@ def api_sync_all_from_drivers():
         return jsonify({"success": False, "error": "فشل التزامن"}), 500
 
 
+def _xl_safe(v):
+    """Neutralise spreadsheet formula injection: a client-supplied cell value that starts with
+    = + - @ (or a tab/CR) is executed as a formula by Excel when the exported file is opened —
+    e.g. a "driver name" of =HYPERLINK(...) or =cmd|'/c calc'!A0. Prefixing an apostrophe
+    makes Excel treat it as literal text; it is not shown in the cell."""
+    s = str(v) if v is not None else ""
+    return ("'" + s) if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
+
+
 @app.route("/api/generate_po", methods=["POST"])
 @login_required
 def generate_po():
@@ -3641,11 +3703,11 @@ def generate_po():
         wb = openpyxl.load_workbook(template_path)
         ws = wb.active
 
-        ws["D7"] = data.get("driver", "")
-        ws["G7"] = data.get("branch", "الدمام")
-        ws["I7"] = data.get("job", "سائق")
-        ws["D8"] = data.get("car", "")
-        ws["G8"] = data.get("plate", "")
+        ws["D7"] = _xl_safe(data.get("driver", ""))
+        ws["G7"] = _xl_safe(data.get("branch", "الدمام"))
+        ws["I7"] = _xl_safe(data.get("job", "سائق"))
+        ws["D8"] = _xl_safe(data.get("car", ""))
+        ws["G8"] = _xl_safe(data.get("plate", ""))
         
         model_val = data.get("model", "")
         if not model_val and data.get("car"):
@@ -3655,7 +3717,7 @@ def generate_po():
                 model_val = match.group(1)
         ws["I8"] = model_val
         
-        ws["D9"] = data.get("odometer", "")
+        ws["D9"] = _xl_safe(data.get("odometer", ""))
         
         try:
             ws.unmerge_cells(start_row=9, start_column=5, end_row=9, end_column=9)
@@ -3666,9 +3728,9 @@ def generate_po():
         ws["H8"] = "الموديل:"
 
         ws["F9"] = "رقم الجوال:"
-        ws["G9"] = data.get("phone", "")
+        ws["G9"] = _xl_safe(data.get("phone", ""))
         ws["H9"] = "الرقم الوظيفي:"
-        ws["I9"] = data.get("empid", "")
+        ws["I9"] = _xl_safe(data.get("empid", ""))
         
         from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
         label_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")  # neutral gray, B&W-print-safe
@@ -3716,9 +3778,9 @@ def generate_po():
                             cell.value = float(val)
                             cell.number_format = '#,##0.00'
                         except:
-                            cell.value = val
+                            cell.value = _xl_safe(val)
                     else:
-                        cell.value = val
+                        cell.value = _xl_safe(val)   # parts/notes come straight from the client
                 else:
                     cell.value = None
                 cell.alignment = center_align
@@ -3853,7 +3915,7 @@ def generate_oils():
         def safe_set(row, col, val):
             cell = ws.cell(row=row, column=col)
             if not isinstance(cell, MC):
-                cell.value = val
+                cell.value = _xl_safe(val)
 
         # Update title (row 4)
         title = data.get("title", "")
@@ -4190,7 +4252,7 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 # returned the real staff roster — names, iqama numbers, phones, IBANs — to anyone with the
 # URL and no login. Everything else mirrored here reads branch-2 blobs and is genuinely
 # isolated (verified endpoint by endpoint).
-_WS_NEVER_MIRROR = {"ai_chat", "ai_status", "employees_data"}
+_WS_NEVER_MIRROR = {"ai_chat", "ai_status", "employees_data", "api_fleet_summary"}
 for _rule in list(app.url_map.iter_rules()):
     if _rule.rule.startswith("/api/") and _rule.endpoint not in _WS_NEVER_MIRROR:
         _ws_methods = sorted(_rule.methods & {"GET"})
@@ -4536,13 +4598,18 @@ def api_quick_add_system():
                 blob["main"] = []
             blob["main"].append(new_entry)
         else:
-            if not isinstance(blob, list):
-                if isinstance(blob, dict) and "data" in blob:
-                    blob = blob["data"] # Handover might use 'data' key?
-                else:
-                    blob = []
-            blob.append(new_entry)
-            
+            if isinstance(blob, list):
+                blob.append(new_entry)
+            elif blob is None:
+                blob = [new_entry]
+            elif isinstance(blob, dict) and isinstance(blob.get("data"), list):
+                blob["data"].append(new_entry)
+            else:
+                # oils_data/purchase_data/workshop_data are stored as dicts with their own
+                # shape (e.g. {"oils": [...]}) -- coercing that to [] here used to silently
+                # replace every existing record with one fake row. Refuse instead.
+                return jsonify({"success": False, "error": f"الإضافة السريعة غير مدعومة لهذا القسم: {sys_key}"}), 400
+
         blob_set(blob_key, blob)
         
         return jsonify({"success": True, "message": f"Added {driver_name} to {sys_key}"})
@@ -4831,12 +4898,12 @@ def api_audit_deep_link():
 
 def _sync_from_employees_to_fleet():
     try:
-        from modules.db_utils import db_connection, blob_get, blob_set
+        from models.database import db_connection
         with db_connection() as db:
             c = db.cursor()
             c.execute("SELECT name, plate, job FROM hr_employees")
             emp_rows = c.fetchall()
-        
+
         # Build map of plate -> name
         emp_map = {}
         for r in emp_rows:
@@ -4845,19 +4912,25 @@ def _sync_from_employees_to_fleet():
             if name and plate:
                 np = plate.replace(' ', '').lower()
                 emp_map[np] = {'name': name, 'plate': plate, 'type': str(r[2] or '').strip()}
-        
+
         if not emp_map:
             return
-            
-        # Update Schedule
+
+        # Update Schedule -- schedule_data is a dict whose main/spare/vacation arrays hold
+        # the rows, and each row's driver-name field is "name", not "driver" (that key is
+        # only correct for washing_schedule, handled separately below). This function never
+        # ran before: it imported a `modules` package that does not exist.
         sched = blob_get("schedule_data")
-        if isinstance(sched, list):
+        if isinstance(sched, dict):
             changed = False
-            for v in sched:
-                np = str(v.get("plate", "")).replace(' ', '').lower()
-                if np in emp_map and v.get("driver") != emp_map[np]['name']:
-                    v["driver"] = emp_map[np]['name']
-                    changed = True
+            for section in ("main", "spare", "vacation"):
+                for v in (sched.get(section) or []):
+                    if not isinstance(v, dict):
+                        continue
+                    np = str(v.get("plate", "")).replace(' ', '').lower()
+                    if np in emp_map and v.get("name") != emp_map[np]['name']:
+                        v["name"] = emp_map[np]['name']
+                        changed = True
             if changed:
                 blob_set("schedule_data", sched)
                 

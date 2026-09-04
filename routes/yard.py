@@ -55,7 +55,7 @@ def yard_page():
 def api_yard():
     from models.schema import Vehicle
     board = _board()
-    vehicles = Vehicle.query.all()
+    vehicles = Vehicle.query.filter_by(branch_id=current_branch_id()).all()
     result = []
     seen = set()
     for v in vehicles:
@@ -127,14 +127,14 @@ def move_yard(extra=None):
     v = None
     if vid:
         try:
-            v = Vehicle.query.get(int(vid))
+            v = Vehicle.query.filter_by(id=int(vid), branch_id=current_branch_id()).first()
         except (TypeError, ValueError):
             v = None
     if not v and plate:
-        v = Vehicle.query.filter(Vehicle.plate_number == plate).first()
+        v = Vehicle.query.filter(Vehicle.plate_number == plate, Vehicle.branch_id == current_branch_id()).first()
         if not v:
             like = f"%{plate}%"
-            v = Vehicle.query.filter(Vehicle.plate_number.like(like)).first()
+            v = Vehicle.query.filter(Vehicle.plate_number.like(like), Vehicle.branch_id == current_branch_id()).first()
 
     if v:
         v.yard_status = status

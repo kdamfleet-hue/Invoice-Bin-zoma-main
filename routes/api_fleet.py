@@ -2,7 +2,7 @@ import hmac
 import os
 from flask import Blueprint, request, jsonify
 from utils.birth_mapping import load_birth_mapping
-from app import login_required
+from app import login_required, role_required
 from models.schema import db, Driver, Vehicle, VehicleCustody, Branch, Document
 
 api_fleet_bp = Blueprint('api_fleet', __name__)
@@ -207,13 +207,18 @@ def add_driver():
 
 @api_fleet_bp.route("/api/drivers/<int:driver_id>", methods=["PUT"])
 @login_required
+@role_required("admin", "branch_manager", "data_entry")
 def update_driver(driver_id):
     try:
         from flask import session
         from datetime import datetime
+        from app import current_branch_id
 
         data = request.json
-        driver = Driver.query.get(driver_id)
+        query = Driver.query.filter_by(id=driver_id)
+        if session.get("role") != "admin":
+            query = query.filter_by(branch_id=current_branch_id())
+        driver = query.first()
         if not driver:
             return jsonify({"success": False, "error": "Driver not found"}), 404
             
@@ -320,9 +325,15 @@ def update_driver_branch():
 
 @api_fleet_bp.route("/api/drivers/<int:driver_id>", methods=["DELETE"])
 @login_required
+@role_required("admin", "branch_manager", "data_entry")
 def delete_driver(driver_id):
     try:
-        driver = Driver.query.get(driver_id)
+        from flask import session
+        from app import current_branch_id
+        query = Driver.query.filter_by(id=driver_id)
+        if session.get("role") != "admin":
+            query = query.filter_by(branch_id=current_branch_id())
+        driver = query.first()
         if not driver:
             return jsonify({"success": False, "error": "Driver not found"}), 404
             

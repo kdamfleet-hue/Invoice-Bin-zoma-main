@@ -20,10 +20,11 @@
   const links = `<div style="margin-top:8px"><a class="bz-chip" href="/purchase/list">رجوع لقائمة المشتريات</a> <a class="bz-chip" href="/purchase?serial=${encodeURIComponent(po)}">فتح الطلب ${po}</a></div>`;
   const plate = item.plate || plateQ || '';
   if(path.indexOf('/inventory/tires')===0){
-    banner(`<b>وارد من طلب شراء ${po}</b> — لوحة ${plate||'—'} · سائق ${item.driver||'—'}<br>عدد سجلات الكفرات: ${(item.tires||[]).length}${links}`);
-    (item.tires||[]).forEach((t,i)=>{
+    const tires = item.tires||[];
+    banner(`<b>وارد من طلب شراء ${po}</b> — لوحة ${plate||'—'} · سائق ${item.driver||'—'}<br>عدد سجلات الكفرات: ${tires.length}${links}`);
+    Promise.allSettled(tires.map((t,i)=>{
       const serial = t.serial || t.serial_number || (`PO-${po}-T${i+1}`);
-      fetch('/api/inventory/tires',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      return fetch('/api/inventory/tires',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
         serial_number: serial,
         vehicle_plate: plate,
         brand: t.brand || 'طلب شراء',
@@ -31,7 +32,10 @@
         install_date: t.date || '',
         status: 'جديد',
         notes: `طلب شراء ${po} — العدد ${t.count||1}`
-      })}).catch(()=>{});
+      })}).then(r => r.json().then(d => r.ok && d && d.success));
+    })).then(results => {
+      const okCount = results.filter(x => x.status==='fulfilled' && x.value).length;
+      if (okCount < tires.length) banner(`<b style="color:#ef4444">تعذّر حفظ ${tires.length-okCount} من ${tires.length} كفر (قد تكون مستوردة مسبقاً أو ببيانات ناقصة)</b>${links}`);
     });
   }
   if(path.indexOf('/inventory/batteries')===0){
