@@ -7,6 +7,7 @@ import os
 import hmac
 import logging
 import re
+from functools import wraps
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
@@ -46,8 +47,26 @@ def _send_account_notification(user, event):
 
 from app import login_required, role_required, limiter
 
+
+def _safe_login_errors(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        try:
+            return view(*args, **kwargs)
+        except Exception:
+            try:
+                from app import db
+                db.session.rollback()
+            except Exception:
+                pass
+            logger.exception("Unhandled login exception")
+            return render_template("login.html", error="تعذر إتمام تسجيل الدخول حاليًا. حاول مرة أخرى أو تواصل مع الدعم الفني."), 200
+    return wrapped
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
+@_safe_login_errors
 def login():
     from app import KIOSK_PASSWORD, KIOSK_USER, get_branch_accounts, get_users, BRANCH_IDS
 
