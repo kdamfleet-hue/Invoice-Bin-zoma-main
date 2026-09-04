@@ -14,10 +14,17 @@ depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {column["name"] for column in inspector.get_columns("erp_users")}
+    unique_names = {constraint.get("name") for constraint in inspector.get_unique_constraints("erp_users")}
     with op.batch_alter_table("erp_users", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("password_reset_token_hash", sa.String(length=64), nullable=True))
-        batch_op.add_column(sa.Column("password_reset_expires_at", sa.DateTime(), nullable=True))
-        batch_op.create_unique_constraint("uq_erp_users_password_reset_token_hash", ["password_reset_token_hash"])
+        if "password_reset_token_hash" not in columns:
+            batch_op.add_column(sa.Column("password_reset_token_hash", sa.String(length=64), nullable=True))
+        if "password_reset_expires_at" not in columns:
+            batch_op.add_column(sa.Column("password_reset_expires_at", sa.DateTime(), nullable=True))
+        if "uq_erp_users_password_reset_token_hash" not in unique_names:
+            batch_op.create_unique_constraint("uq_erp_users_password_reset_token_hash", ["password_reset_token_hash"])
 
 
 def downgrade():

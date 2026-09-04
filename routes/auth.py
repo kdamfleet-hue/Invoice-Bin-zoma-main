@@ -231,7 +231,11 @@ def reset_password(token):
     from app import db
 
     token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
-    user = User.query.filter_by(password_reset_token_hash=token_hash, is_active=True).first()
+    try:
+        user = User.query.filter_by(password_reset_token_hash=token_hash, is_active=True).first()
+    except Exception:
+        logger.exception("Password reset token lookup failed")
+        return render_template("reset_password.html", error="الرابط غير صالح أو انتهت صلاحيته.", token=None), 400
     if not user or not user.password_reset_expires_at or user.password_reset_expires_at < datetime.utcnow():
         return render_template("reset_password.html", error="الرابط غير صالح أو انتهت صلاحيته.", token=None), 400
 

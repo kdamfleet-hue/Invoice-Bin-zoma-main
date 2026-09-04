@@ -230,6 +230,18 @@ def ensure_db_columns():
                 if 'reason' not in cols:
                     conn.execute(text("ALTER TABLE erp_audit_logs ADD COLUMN reason TEXT"))
                     logger.info("Auto-migration: Added reason to erp_audit_logs")
+            if 'erp_users' in tables:
+                cols = [c['name'] for c in inspector.get_columns('erp_users')]
+                if 'password_reset_token_hash' not in cols:
+                    conn.execute(text("ALTER TABLE erp_users ADD COLUMN password_reset_token_hash VARCHAR(64)"))
+                    logger.info("Auto-migration: Added password_reset_token_hash to erp_users")
+                if 'password_reset_expires_at' not in cols:
+                    conn.execute(text("ALTER TABLE erp_users ADD COLUMN password_reset_expires_at TIMESTAMP"))
+                    logger.info("Auto-migration: Added password_reset_expires_at to erp_users")
+                try:
+                    conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_erp_users_password_reset_token_hash ON erp_users (password_reset_token_hash)"))
+                except Exception as index_err:
+                    logger.warning(f"Auto-migration: reset-token index skipped: {index_err}")
     except Exception as e:
         logger.warning(f"ensure_db_columns notice: {e}")
 
