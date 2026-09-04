@@ -230,7 +230,12 @@ def reset_password(token):
     from models.schema import User
     from app import db
 
-    token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    # A valid secrets.token_urlsafe(32) value is substantially longer than this.
+    # Reject malformed links before touching the database, including during schema rollout.
+    if not token or len(token) < 40 or len(token) > 128 or not re.fullmatch(r"[A-Za-z0-9_-]+", token):
+        return render_template("reset_password.html", error="الرابط غير صالح أو انتهت صلاحيته.", token=None), 400
+
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     try:
         user = User.query.filter_by(password_reset_token_hash=token_hash, is_active=True).first()
     except Exception:
