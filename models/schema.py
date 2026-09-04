@@ -20,6 +20,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
+    email = db.Column(db.String(255), nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False, default='viewer') # admin, branch_manager, data_entry, viewer, kiosk
     is_active = db.Column(db.Boolean, default=True)

@@ -8,6 +8,39 @@ import re
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
 
+
+def _send_account_notification(user, event):
+    """Best-effort account email; never includes a password or blocks the account change."""
+    from flask import current_app
+    if not current_app.config.get("ACCOUNT_EMAIL_NOTIFICATIONS_ENABLED"):
+        return "disabled"
+    recipient = (getattr(user, "email", None) or "").strip().lower()
+    if not recipient or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", recipient):
+        return "missing_email"
+    try:
+        from flask_mail import Message
+        from app import mail, _mail_send_safe
+        subject = "تنبيه أمني لحسابك — BIN ZOMAH INTL."
+        action = "تم إنشاء حسابك" if event == "created" else "تمت إعادة ضبط كلمة مرور حسابك"
+        msg = Message(
+            subject=subject,
+            recipients=[recipient],
+            sender=current_app.config.get("MAIL_DEFAULT_SENDER"),
+            body=(
+                f"مرحبًا {user.username}،\n\n{action}. "
+                "عند أول تسجيل دخول سيطلب منك النظام اختيار كلمة مرور خاصة بك. "
+                "لأسباب أمنية، لا تتضمن هذه الرسالة أي كلمة مرور.\n\n"
+                "إذا لم تطلب هذا الإجراء، تواصل مع مسؤول النظام فورًا."
+            ),
+        )
+        _mail_send_safe(msg)
+        logger.info("Account security email sent for user %s", user.username)
+        return "sent"
+    except Exception:
+        logger.exception("Account security email failed for user %s", user.username)
+        return "failed"
+
+
 from app import login_required, role_required, limiter
 
 @auth_bp.route("/login", methods=["GET", "POST"])
@@ -174,6 +207,7 @@ def api_users():
             {
                 "id": u.id,
                 "username": u.username,
+                "email": u.email or "",
                 "role": u.role,
                 "is_active": u.is_active,
                 "must_change_password": bool(getattr(u, "must_change_password", False)),
@@ -189,6 +223,7 @@ def api_users():
     if request.method == "POST":
         username = (body.get("username") or "").strip()
         password = body.get("password") or ""
+        email = (body.get("email") or "").strip().lower()
         role = body.get("role") or "viewer"
         branch_id = body.get("branch_id")
         
@@ -196,6 +231,8 @@ def api_users():
             return jsonify({"error": "missing", "reason": "اسم المستخدم مطلوب"}), 400
         if not re.match(r"^[A-Za-z0-9_.@-]{2,40}$", username):
             return jsonify({"error": "bad_username", "reason": "اسم المستخدم: حروف/أرقام إنجليزية فقط"}), 400
+        if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+            return jsonify({"error": "bad_email", "reason": "صيغة البريد الإلكتروني غير صحيحة"}), 400
             
         user = User.query.filter_by(username=username).first()
         
@@ -207,12 +244,14 @@ def api_users():
                 user.password_hash = generate_password_hash(password)
                 user.must_change_password = True
 
+            user.email = email or user.email
             user.role = role
             user.branch_id = int(branch_id) if branch_id else None
             if 'is_active' in body:
                 user.is_active = bool(body.get('is_active'))
             db.session.commit()
-            return jsonify({"success": True, "message": "تم التحديث بنجاح"})
+            notification = _send_account_notification(user, "reset") if password else "not_applicable"
+            return jsonify({"success": True, "message": "تم التحديث بنجاح", "notification": notification})
             
         # Create new
         if not password or len(password) < 12:
@@ -220,6 +259,7 @@ def api_users():
             
         new_user = User(
             username=username,
+            email=email or None,
             password_hash=generate_password_hash(password),
             role=role,
             branch_id=int(branch_id) if branch_id else None,
@@ -228,7 +268,8 @@ def api_users():
         )
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({"success": True})
+        notification = _send_account_notification(new_user, "created")
+        return jsonify({"success": True, "notification": notification})
 
     if request.method == "DELETE":
         user_id = body.get("id")

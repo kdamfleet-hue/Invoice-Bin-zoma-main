@@ -95,12 +95,13 @@
 <div class="set-wrap">
 <div class="set-card">
 <h3>🔑 مشاركة الموقع — حسابات الدخول</h3>
-<div class="sub">أنشئ <b>اسم مستخدم وكلمة مرور</b> لكل شخص تريد مشاركته الموقع. يستطيع الدخول من صفحة تسجيل الدخول بنفس البيانات. تُحفظ كلمات المرور <b>مشفّرة</b> ولا تظهر مرة أخرى.</div>
+<div class="sub">أنشئ <b>اسم مستخدم وكلمة مرور</b> لكل شخص تريد مشاركته الموقع. عند إضافة بريد صحيح، سيصله إشعار أمني دون إرسال كلمة المرور. يستطيع الدخول من صفحة تسجيل الدخول بنفس البيانات. تُحفظ كلمات المرور <b>مشفّرة</b> ولا تظهر مرة أخرى.</div>
 <form autocomplete="off" class="set-form" id="addForm">
 <div class="fld"><label for="u-name">الاسم</label><input id="u-name" placeholder="مثال: محمد العتيبي" type="text"/></div>
 <div class="fld"><label for="u-username">اسم المستخدم</label><input id="u-username" placeholder="مثال: m.alotaibi" required="" type="text"/></div>
+<div class="fld"><label for="u-email">البريد الإلكتروني (اختياري)</label><input id="u-email" placeholder="name@example.com" type="email"/></div>
 <div class="fld"><label for="u-pass">كلمة المرور</label>
-<div class="pw-wrap"><input id="u-pass" placeholder="4 أحرف على الأقل" required="" type="password"/>
+<div class="pw-wrap"><input id="u-pass" placeholder="12 حرفًا على الأقل" required="" type="password"/>
 <button class="eye" onclick="hoTogglePw()" title="إظهار/إخفاء" type="button">👁️</button></div>
 </div>
 <button class="btn-submit-gold set-add" type="submit">➕ إضافة مستخدم</button>
@@ -306,14 +307,14 @@
 
   $('addForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    var name = $('u-name').value.trim(), username = $('u-username').value.trim(), password = $('u-pass').value;
+    var name = $('u-name').value.trim(), username = $('u-username').value.trim(), email = $('u-email').value.trim(), password = $('u-pass').value;
     var msg = $('addMsg');
-    fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, username: username, password: password }) })
+    fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, username: username, email: email, password: password }) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (res.ok && res.j.success) {
           msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تمت إضافة المستخدم «' + esc(username) + '»</span>';
-          $('u-name').value = ''; $('u-username').value = ''; $('u-pass').value = '';
+          $('u-name').value = ''; $('u-username').value = ''; $('u-email').value = ''; $('u-pass').value = '';
           if (window.showToast) showToast('تمت إضافة المستخدم ✓', 'success');
           loadUsers();
         } else {

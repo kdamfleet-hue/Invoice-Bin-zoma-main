@@ -286,6 +286,7 @@ def api_create_dedicated_user():
     body = request.get_json(silent=True) or {}
     username = (body.get("username") or "").strip()
     password = body.get("password") or ""
+    email = (body.get("email") or "").strip().lower()
     mode = (body.get("dedicated_mode") or "all").strip() or "all"
 
     if not username or not password:
@@ -294,19 +295,28 @@ def api_create_dedicated_user():
         return jsonify({"success": False, "error": "اسم المستخدم: حروف/أرقام إنجليزية فقط"}), 400
     if len(password) < 12:
         return jsonify({"success": False, "error": "كلمة المرور قصيرة جداً (12 حرفًا على الأقل)"}), 400
+    if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        return jsonify({"success": False, "error": "صيغة البريد الإلكتروني غير صحيحة"}), 400
 
     try:
         user = User.query.filter_by(username=username).first()
         if user:
             user.password_hash = generate_password_hash(password)
             user.must_change_password = True
+            user.email = email or user.email
             user.is_active = True
+            notification_event = "reset"
         else:
-            db.session.add(User(username=username,
-                                password_hash=generate_password_hash(password),
-                                role="viewer", is_active=True,
-                                must_change_password=True))
+            user = User(username=username,
+                        email=email or None,
+                        password_hash=generate_password_hash(password),
+                        role="viewer", is_active=True,
+                        must_change_password=True)
+            db.session.add(user)
+            notification_event = "created"
         db.session.commit()
+        from routes.auth import _send_account_notification
+        notification = _send_account_notification(user, notification_event)
     except Exception:
         db.session.rollback()
         logger.exception("create_dedicated_user failed for %s", username)
@@ -316,7 +326,7 @@ def api_create_dedicated_user():
     all_perms[username] = {"dedicated_mode": mode}
     _global_blob_set("user_account_permissions", all_perms)
     _audit_add("إضافة", "حساب مخصص", None, f"الحساب: {username} — الصفحة: {mode}")
-    return jsonify({"success": True, "username": username, "dedicated_mode": mode})
+    return jsonify({"success": True, "username": username, "dedicated_mode": mode, "notification": notification})
 
 
 @system_bp.route("/api/system/my_permissions")

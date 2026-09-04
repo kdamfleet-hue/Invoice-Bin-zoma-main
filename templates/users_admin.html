@@ -112,6 +112,7 @@
             <input type="hidden" id="userId">
             <div class="admin-grid">
                 <input type="text" id="username" placeholder="اسم المستخدم" required>
+                <input type="email" id="email" placeholder="البريد الإلكتروني (اختياري)">
                 <input type="password" id="password" placeholder="كلمة المرور (اختياري عند التعديل)">
                 <select id="role" required>
                     <option value="" disabled selected>-- اختر الصلاحية --</option>
@@ -141,6 +142,7 @@
                 <tr>
                     <th>المعرف</th>
                     <th>اسم المستخدم</th>
+                    <th>البريد الإلكتروني</th>
                     <th>الصلاحية</th>
                     <th>الفرع</th>
                     <th>الحالة</th>
@@ -175,12 +177,13 @@ function loadUsers() {
                 <tr>
                     <td>${u.id}</td>
                     <td style="font-weight:700;color:var(--gold-primary,#c5a059);">${u.username}</td>
+                    <td>${u.email || '—'}</td>
                     <td>${roleMap[u.role] || u.role}</td>
                     <td>${u.branch}</td>
                     <td>${activeBadge}</td>
                     <td style="color:var(--text-muted);">${u.last_login}</td>
                     <td>
-                        <button class="btn-neon" style="padding:4px 12px;font-size:.8rem;" onclick="editUser(${u.id}, '${u.username}', '${u.role}', '${u.branch_id}', ${u.is_active})">✏️ تعديل</button>
+                        <button class="btn-neon" style="padding:4px 12px;font-size:.8rem;" onclick="editUser(${u.id}, '${u.username}', '${u.role}', '${u.branch_id}', ${u.is_active}, '${u.email || ''}')">✏️ تعديل</button>
                         ${u.username !== 'admin' ? `<button class="btn-neon danger" style="padding:4px 12px;font-size:.8rem;" onclick="deleteUser(${u.id})">🗑 حذف</button>` : ''}
                     </td>
                 </tr>
@@ -200,9 +203,10 @@ function loadBranches() {
     }).catch(e => console.log("Branches API not found, or returns different format."));
 }
 
-function editUser(id, username, role, branch_id, is_active) {
+function editUser(id, username, role, branch_id, is_active, email) {
     document.getElementById('userId').value = id;
     document.getElementById('username').value = username;
+    document.getElementById('email').value = email || '';
     document.getElementById('role').value = role;
     document.getElementById('branch_id').value = branch_id !== 'null' ? branch_id : '';
     document.getElementById('is_active').checked = is_active;
@@ -225,6 +229,7 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const payload = {
         username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
         password: document.getElementById('password').value,
         role: document.getElementById('role').value,
         branch_id: document.getElementById('branch_id').value,
@@ -237,7 +242,7 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
         body: JSON.stringify(payload)
     }).then(r => r.json()).then(data => {
         if(data.success) {
-            alert("تم الحفظ بنجاح");
+            alert(data.notification === 'failed' ? "تم الحفظ لكن تعذر إرسال الإشعار البريدي" : "تم الحفظ بنجاح");
             document.getElementById('userForm').reset();
             document.getElementById('username').readOnly = false;
             document.getElementById('userId').value = '';
