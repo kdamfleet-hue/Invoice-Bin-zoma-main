@@ -1,5 +1,8 @@
-from flask import Blueprint, request, session, redirect, url_for, render_template, jsonify
+from flask import Blueprint, request, session, redirect, url_for, render_template, jsonify, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import hashlib
+import secrets
 import os
 import hmac
 import logging
@@ -147,7 +150,107 @@ def login():
             logger.warning("Failed login attempt")
             return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة أو الحساب غير مفعل")
 
-    return render_template("login.html")
+    return render_template("login.html", reset_success=(request.args.get("reset") == "success"))
+
+
+def _password_policy_error(password, confirmation=None):
+    if len(password or "") < 12:
+        return "كلمة المرور يجب أن تتكون من 12 حرفًا على الأقل"
+    if not re.search(r"[A-Z]", password) or not re.search(r"[a-z]", password) or not re.search(r"\d", password):
+        return "يجب أن تحتوي كلمة المرور على حرف كبير وحرف صغير ورقم"
+    if confirmation is not None and password != confirmation:
+        return "تأكيد كلمة المرور غير مطابق"
+    return None
+
+
+def _send_password_reset_email(user, reset_url):
+    recipient = (getattr(user, "email", None) or "").strip().lower()
+    if not recipient or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", recipient):
+        return "missing_email"
+    try:
+        from flask_mail import Message
+        from app import _mail_send_safe
+        msg = Message(
+            subject="استعادة كلمة المرور — BIN ZOMAH INTL.",
+            recipients=[recipient],
+            sender=current_app.config.get("MAIL_DEFAULT_SENDER"),
+            body=(
+                f"مرحبًا {user.username}،\n\n"
+                "تم طلب إعادة تعيين كلمة مرور حسابك. افتح الرابط التالي خلال 30 دقيقة:\n\n"
+                f"{reset_url}\n\n"
+                "إذا لم تطلب ذلك، تجاهل الرسالة وتواصل مع مسؤول النظام.\n"
+                "لا تشارك هذا الرابط مع أي شخص."
+            ),
+        )
+        _mail_send_safe(msg)
+        logger.info("Password reset email sent for user %s", user.username)
+        return "sent"
+    except Exception:
+        logger.exception("Password reset email failed for user %s", user.username)
+        return "failed"
+
+
+@auth_bp.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per hour", methods=["POST"])
+def forgot_password():
+    """Request a short-lived, single-use password reset link without account enumeration."""
+    from models.schema import User
+    from app import db
+
+    message = None
+    if request.method == "POST":
+        identifier = (request.form.get("identifier") or "").strip()
+        generic = "إذا كان الحساب موجودًا وله بريد مسجل، فستصل رسالة الاستعادة خلال دقائق."
+        try:
+            user = User.query.filter(
+                db.or_(User.username == identifier, db.func.lower(User.email) == identifier.lower())
+            ).filter_by(is_active=True).first()
+            if user and (user.email or "").strip():
+                raw_token = secrets.token_urlsafe(32)
+                user.password_reset_token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+                user.password_reset_expires_at = datetime.utcnow() + timedelta(minutes=30)
+                db.session.commit()
+                base_url = (os.environ.get("PUBLIC_BASE_URL") or request.url_root).rstrip("/")
+                reset_url = f"{base_url}{url_for('auth.reset_password', token=raw_token)}"
+                result = _send_password_reset_email(user, reset_url)
+                if result != "sent":
+                    logger.warning("Password reset requested but email was not sent for user %s: %s", user.username, result)
+            message = generic
+        except Exception:
+            db.session.rollback()
+            logger.exception("Password reset request failed")
+            message = generic
+    return render_template("forgot_password.html", message=message)
+
+
+@auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+@limiter.limit("10 per hour", methods=["POST"])
+def reset_password(token):
+    """Consume a valid reset token and force a fresh password selection."""
+    from models.schema import User
+    from app import db
+
+    token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    user = User.query.filter_by(password_reset_token_hash=token_hash, is_active=True).first()
+    if not user or not user.password_reset_expires_at or user.password_reset_expires_at < datetime.utcnow():
+        return render_template("reset_password.html", error="الرابط غير صالح أو انتهت صلاحيته.", token=None), 400
+
+    error = None
+    if request.method == "POST":
+        new_password = request.form.get("new_password", "")
+        confirmation = request.form.get("confirm_password", "")
+        error = _password_policy_error(new_password, confirmation)
+        if not error and check_password_hash(user.password_hash, new_password):
+            error = "اختر كلمة مرور مختلفة عن كلمة المرور الحالية"
+        if not error:
+            user.password_hash = generate_password_hash(new_password)
+            user.must_change_password = False
+            user.password_reset_token_hash = None
+            user.password_reset_expires_at = None
+            db.session.commit()
+            logger.info("Password reset completed for user %s", user.username)
+            return redirect(url_for("auth.login", reset="success"))
+    return render_template("reset_password.html", error=error, token=token)
 
 
 @auth_bp.route("/force-password-change", methods=["GET", "POST"])

@@ -339,7 +339,7 @@ def enforce_dedicated_workstation_and_tab_permissions():
             return redirect(url_for("auth.force_password_change"))
 
     # Skip static assets, login/logout, API endpoints, manifest
-    if path.startswith('/static') or path.startswith('/api/') or path in ['/login', '/logout', '/manifest.json']:
+    if path.startswith('/static') or path.startswith('/api/') or path in ['/login', '/logout', '/forgot-password', '/manifest.json'] or path.startswith('/reset-password/'):
         return None
     
     # Tab restrictions exist to confine kiosk / dedicated / branch accounts to their pages.
