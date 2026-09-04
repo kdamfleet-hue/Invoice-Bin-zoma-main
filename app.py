@@ -315,8 +315,12 @@ def add_header(response):
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
-    # Report-Only is deliberately non-blocking during the migration period.
-    response.headers["Content-Security-Policy-Report-Only"] = CSP_REPORT_ONLY
+    # Keep Report-Only during migration; operators can promote the reviewed policy
+    # without a code change after inline scripts and third-party assets are migrated.
+    if os.environ.get("CSP_ENFORCE", "false").lower() == "true":
+        response.headers["Content-Security-Policy"] = CSP_REPORT_ONLY
+    else:
+        response.headers["Content-Security-Policy-Report-Only"] = CSP_REPORT_ONLY
     # Do not expose exception text or tracebacks from legacy JSON endpoints.
     if response.status_code >= 500 and response.is_json:
         payload = response.get_json(silent=True) or {}
