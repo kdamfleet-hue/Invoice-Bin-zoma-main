@@ -292,18 +292,20 @@ def api_create_dedicated_user():
         return jsonify({"success": False, "error": "اسم المستخدم وكلمة المرور مطلوبان"}), 400
     if not re.match(r"^[A-Za-z0-9_.@-]{2,40}$", username):
         return jsonify({"success": False, "error": "اسم المستخدم: حروف/أرقام إنجليزية فقط"}), 400
-    if len(password) < 4:
-        return jsonify({"success": False, "error": "كلمة المرور قصيرة جداً (4 أحرف على الأقل)"}), 400
+    if len(password) < 12:
+        return jsonify({"success": False, "error": "كلمة المرور قصيرة جداً (12 حرفًا على الأقل)"}), 400
 
     try:
         user = User.query.filter_by(username=username).first()
         if user:
             user.password_hash = generate_password_hash(password)
+            user.must_change_password = True
             user.is_active = True
         else:
             db.session.add(User(username=username,
                                 password_hash=generate_password_hash(password),
-                                role="viewer", is_active=True))
+                                role="viewer", is_active=True,
+                                must_change_password=True))
         db.session.commit()
     except Exception:
         db.session.rollback()

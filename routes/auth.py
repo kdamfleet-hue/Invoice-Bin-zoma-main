@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import hmac
 import logging
+import re
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
@@ -69,6 +70,7 @@ def login():
             session["google_user"] = {"name": user.username, "email": user.username + "@binzomah.local"}
             session["is_admin"] = (user.role == 'admin')
             session["role"] = user.role
+            session["must_change_password"] = bool(getattr(user, "must_change_password", False))
             
             if user.branch_id:
                 session["branch_id"] = user.branch_id
@@ -76,7 +78,9 @@ def login():
 
             session["kiosk"] = (user.role == 'kiosk')
             logger.info(f"Successful login for user: {user.username} with role: {user.role}")
-            
+
+            if session.get("must_change_password"):
+                return redirect(url_for("auth.force_password_change"))
             if user.role == 'kiosk':
                 return redirect(url_for("operations.workshop"))
             return redirect(url_for("dashboard.index"))
@@ -103,6 +107,44 @@ def login():
             return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة أو الحساب غير مفعل")
 
     return render_template("login.html")
+
+
+@auth_bp.route("/force-password-change", methods=["GET", "POST"])
+@login_required
+def force_password_change():
+    """Require a user account to choose a private password before continuing."""
+    from models.schema import User
+    from app import db
+
+    username = session.get("username") or session.get("user")
+    user = User.query.filter_by(username=username, is_active=True).first()
+    if not user:
+        session.clear()
+        return redirect(url_for("auth.login"))
+    if not getattr(user, "must_change_password", False):
+        return redirect(url_for("dashboard.index"))
+
+    error = None
+    if request.method == "POST":
+        new_password = request.form.get("new_password", "")
+        confirm = request.form.get("confirm_password", "")
+        if len(new_password) < 12:
+            error = "كلمة المرور يجب أن تتكون من 12 حرفًا على الأقل"
+        elif not re.search(r"[A-Z]", new_password) or not re.search(r"[a-z]", new_password) or not re.search(r"\d", new_password):
+            error = "يجب أن تحتوي كلمة المرور على حرف كبير وحرف صغير ورقم"
+        elif new_password != confirm:
+            error = "تأكيد كلمة المرور غير مطابق"
+        elif check_password_hash(user.password_hash, new_password):
+            error = "اختر كلمة مرور مختلفة عن كلمة المرور الحالية"
+        else:
+            user.password_hash = generate_password_hash(new_password)
+            user.must_change_password = False
+            db.session.commit()
+            session["must_change_password"] = False
+            logger.info("Mandatory password change completed for user: %s", user.username)
+            return redirect(url_for("dashboard.index"))
+
+    return render_template("force_password_change.html", error=error, username=user.username)
 
 
 @auth_bp.route("/logout")
@@ -134,6 +176,7 @@ def api_users():
                 "username": u.username,
                 "role": u.role,
                 "is_active": u.is_active,
+                "must_change_password": bool(getattr(u, "must_change_password", False)),
                 "branch": u.branch.name if u.branch else "الكل",
                 "branch_id": u.branch_id,
                 "last_login": u.last_login.strftime("%Y-%m-%d %H:%M") if u.last_login else "-"
@@ -159,9 +202,11 @@ def api_users():
         if user:
             # Update existing
             if password:
-                if len(password) < 4:
-                    return jsonify({"error": "weak", "reason": "كلمة المرور قصيرة جداً"}), 400
+                if len(password) < 12:
+                    return jsonify({"error": "weak", "reason": "كلمة المرور يجب أن تكون 12 حرفًا على الأقل"}), 400
                 user.password_hash = generate_password_hash(password)
+                user.must_change_password = True
+
             user.role = role
             user.branch_id = int(branch_id) if branch_id else None
             if 'is_active' in body:
@@ -170,15 +215,16 @@ def api_users():
             return jsonify({"success": True, "message": "تم التحديث بنجاح"})
             
         # Create new
-        if not password or len(password) < 4:
-            return jsonify({"error": "weak", "reason": "كلمة المرور مطلوبة (4 أحرف على الأقل)"}), 400
+        if not password or len(password) < 12:
+            return jsonify({"error": "weak", "reason": "كلمة المرور مطلوبة (12 حرفًا على الأقل)"}), 400
             
         new_user = User(
             username=username,
             password_hash=generate_password_hash(password),
             role=role,
             branch_id=int(branch_id) if branch_id else None,
-            is_active=True
+            is_active=True,
+            must_change_password=True
         )
         db.session.add(new_user)
         db.session.commit()

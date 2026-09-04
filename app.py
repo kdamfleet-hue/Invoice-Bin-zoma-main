@@ -327,6 +327,17 @@ def manifest():
 @app.before_request
 def enforce_dedicated_workstation_and_tab_permissions():
     path = request.path
+
+    # A newly created or reset account must choose a private password before using
+    # any application page. Keep only the change form, logout, and its API reachable.
+    # This is intentionally centralized so routes without login_required cannot bypass it.
+    if session.get("authenticated") and session.get("must_change_password"):
+        allowed = path in ['/force-password-change', '/logout'] or path == '/api/auth/change-password'
+        if not allowed and not path.startswith('/static'):
+            if path.startswith('/api/'):
+                return jsonify({"success": False, "error": "يجب تغيير كلمة المرور أولاً", "code": "PASSWORD_CHANGE_REQUIRED"}), 428
+            return redirect(url_for("auth.force_password_change"))
+
     # Skip static assets, login/logout, API endpoints, manifest
     if path.startswith('/static') or path.startswith('/api/') or path in ['/login', '/logout', '/manifest.json']:
         return None

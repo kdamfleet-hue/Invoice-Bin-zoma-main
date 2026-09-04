@@ -90,4 +90,67 @@
       syncIcon();
     });
   }
+
+  // Organize the long navigation into searchable, collapsible groups. This runs only
+  // on the dashboard shell, where the server-rendered sidebar already carries role-aware links.
+  const nav = document.querySelector('#bzSidebar .bz-sidebar-nav');
+  if (nav && !nav.dataset.organized) {
+    nav.dataset.organized = '1';
+    const search = nav.querySelector('#bzSidebarSearch');
+    const children = Array.from(nav.children).filter(el => !el.classList.contains('bz-sidebar-search'));
+    const groups = [];
+    let group = null;
+    children.forEach(el => {
+      if (el.classList.contains('nav-section-label')) {
+        group = document.createElement('section');
+        const key = (el.textContent || 'section').trim().replace(/[^\u0600-\u06FF\w]+/g, '-').toLowerCase();
+        group.className = 'bz-nav-group';
+        group.dataset.groupKey = key;
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'bz-nav-group-toggle';
+        toggle.innerHTML = '<span>' + el.textContent.trim() + '</span><b aria-hidden="true">⌄</b>';
+        toggle.setAttribute('aria-expanded', 'false');
+        const items = document.createElement('div');
+        items.className = 'bz-nav-group-items';
+        group.append(toggle, items);
+        nav.appendChild(group);
+        groups.push({group, toggle, items, key});
+      } else if (group && el.tagName === 'A') {
+        group.items.appendChild(el);
+      }
+    });
+    children.forEach(el => { if (el.parentElement === nav) el.remove(); });
+
+    const setOpen = (entry, open, persist = true) => {
+      entry.group.classList.toggle('open', open);
+      entry.toggle.setAttribute('aria-expanded', String(open));
+      if (persist) { try { localStorage.setItem('bzNavGroup:' + entry.key, open ? '1' : '0'); } catch(e){} }
+    };
+    groups.forEach((entry, index) => {
+      const active = entry.items.querySelector('a.active');
+      let saved = null;
+      try { saved = localStorage.getItem('bzNavGroup:' + entry.key); } catch(e){}
+      setOpen(entry, saved === null ? Boolean(active || index === 0) : saved === '1', false);
+      entry.toggle.addEventListener('click', () => setOpen(entry, !entry.group.classList.contains('open')));
+      entry.items.querySelectorAll('a[href]').forEach(a => {
+        if (a.classList.contains('active')) a.setAttribute('aria-current', 'page');
+      });
+    });
+
+    const applyFilter = (value) => {
+      const q = (value || '').trim().toLocaleLowerCase('ar');
+      groups.forEach(entry => {
+        let matches = 0;
+        entry.items.querySelectorAll('a[href]').forEach(a => {
+          const hit = !q || (a.textContent || '').toLocaleLowerCase('ar').includes(q);
+          a.hidden = !hit;
+          if (hit) matches++;
+        });
+        entry.group.hidden = matches === 0;
+        if (q && matches) setOpen(entry, true, false);
+      });
+    };
+    if (search) search.addEventListener('input', e => applyFilter(e.target.value));
+  }
 })();

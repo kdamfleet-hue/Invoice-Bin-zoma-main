@@ -23,6 +23,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False, default='viewer') # admin, branch_manager, data_entry, viewer, kiosk
     is_active = db.Column(db.Boolean, default=True)
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
     last_login = db.Column(db.DateTime, nullable=True)
     
     audit_logs = db.relationship('AuditLog', backref='user', lazy=True)
