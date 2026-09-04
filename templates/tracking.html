@@ -102,6 +102,7 @@
         }
         @keyframes bz-spin { to { transform: rotate(360deg); } }
 
+        .asset-item.following { outline: 2px solid #c5a059; outline-offset: -2px; }
         .custom-marker {
             width: 32px; height: 32px; border-radius: 50%; border: 3px solid #fff;
             box-shadow: 0 2px 10px rgba(0,0,0,0.45); display: flex; align-items: center;
@@ -144,11 +145,13 @@
 </header>
 <div class="bz-shell">
 <h2 class="bz-section-title">🛰️ التتبع المباشر للأسطول</h2>
-<div class="bz-stats" style="margin-bottom:1rem;">
+<div class="bz-stats" style="margin-bottom:.5rem;">
 <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
-<div class="bz-stat"><div class="num" id="statOnline">0</div><div class="label">نشطة الآن</div></div>
-<div class="bz-stat"><div class="num" id="statOffline">0</div><div class="label">متوقفة</div></div>
+<div class="bz-stat"><div class="num" id="statOnline">0</div><div class="label">متصلة الآن</div></div>
+<div class="bz-stat"><div class="num" id="statMoving">0</div><div class="label">متحركة</div></div>
+<div class="bz-stat"><div class="num" id="statOffline">0</div><div class="label">غير متصلة</div></div>
 </div>
+<div id="liveStatus" style="margin:0 0 .75rem;font-size:.85rem;font-weight:700;color:var(--text-secondary)">⏳ جاري الاتصال بخدمة التتبع…</div>
 <div class="track-layout">
 <div class="card track-sidebar" id="assetPanel">
 <div class="side-head">
@@ -175,9 +178,25 @@
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+        // ── Live tracking: /api/gps → Leaflet markers, refreshed every REFRESH_MS without reload ──
+        const REFRESH_MS = 12000;           // 10–15 s per requirement
         let map = null;
-        let markers = {};
+        let markers = {};                   // id -> L.marker (updated in place, never rebuilt)
         let currentAssets = [];
+        let lastGood = [];                  // last successful snapshot, kept on screen during errors
+        let lastUpdatedAt = null;
+        let firstFit = false;
+        let followId = null;                // vehicle the map keeps centred on
+        let timer = null;
+        let inFlight = false;
+
+        const STATUS = {
+            moving:    { label: 'متحركة',      color: '#10b981' },
+            idling:    { label: 'تعمل بلا حركة', color: '#f59e0b' },
+            engine_on: { label: 'المحرك يعمل',  color: '#f59e0b' },
+            stopped:   { label: 'متوقفة',      color: '#64748b' },
+            offline:   { label: 'غير متصلة',   color: '#ef4444' }
+        };
 
         function initMap() {
             if (map) return;
@@ -186,10 +205,12 @@
                 attribution: 'Tiles &copy; Esri'
             }).addTo(map);
             L.control.zoom({ position: 'topright' }).addTo(map);
+            map.on('dragstart', function () { followId = null; });   // manual pan cancels follow mode
         }
 
         function setState(mode, opts = {}) {
             const el = document.getElementById('mapState');
+            if (!el) return;
             if (mode === 'hidden') { el.classList.add('hidden'); return; }
             el.classList.remove('hidden');
             if (mode === 'loading') {
@@ -202,90 +223,187 @@
                     + '<h3>تعذّر جلب مواقع الأسطول حالياً</h3>'
                     + '<p>قد تكون خدمة التتبع غير مُفعّلة أو يتعذّر الوصول إليها الآن. يمكنك إعادة المحاولة.</p>'
                     + detail
-                    + '<button class="btn-primary" onclick="fetchData()">🔄 إعادة المحاولة</button>';
+                    + '<button class="btn-primary" onclick="fetchData(true)">🔄 إعادة المحاولة</button>';
             } else if (mode === 'empty') {
                 el.innerHTML = '<div class="state-icon">🚗</div>'
                     + '<h3>لا توجد مركبات لعرضها</h3>'
                     + '<p>لم تُرجِع خدمة التتبع أي مركبات في الوقت الحالي.</p>'
-                    + '<button class="btn-outline" onclick="fetchData()">🔄 تحديث</button>';
+                    + '<button class="btn-outline" onclick="fetchData(true)">🔄 تحديث</button>';
             }
         }
 
-        async function fetchData() {
+        function setLive(text, ok) {
+            const el = document.getElementById('liveStatus');
+            if (!el) return;
+            el.textContent = text;
+            el.style.color = ok ? '#10b981' : '#ef4444';
+        }
+
+        function timeAgo(iso, ageSeconds) {
+            let s = (typeof ageSeconds === 'number') ? ageSeconds : null;
+            if (s === null && iso) {
+                const t = Date.parse(iso);
+                if (!isNaN(t)) s = Math.max(0, Math.round((Date.now() - t) / 1000));
+            }
+            if (s === null) return 'غير معروف';
+            if (s < 60) return 'قبل ' + s + ' ث';
+            if (s < 3600) return 'قبل ' + Math.round(s / 60) + ' د';
+            if (s < 86400) return 'قبل ' + Math.round(s / 3600) + ' س';
+            return 'قبل ' + Math.round(s / 86400) + ' يوم';
+        }
+
+        // Manual refresh (button) shows the loading overlay + a toast; the timer refresh is silent
+        // and keeps the last known markers on screen if the provider hiccups.
+        async function fetchData(manual) {
+            if (inFlight) return;
+            inFlight = true;
             const btn = document.getElementById('refreshBtn');
-            if (btn) { btn.disabled = true; }
-            setState('loading');
+            if (btn) btn.disabled = true;
+            if (manual || !lastGood.length) setState('loading');
             try {
-                const response = await fetch('/api/gps');
+                const response = await fetch('/api/gps', { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
                 let data = null;
                 try { data = await response.json(); } catch (_) { data = null; }
 
                 if (!response.ok || (data && data.error)) {
                     const msg = (data && data.error) ? data.error : ('HTTP ' + response.status);
-                    setState('error', { detail: msg });
-                    renderAssets([]);
+                    if (lastGood.length) {
+                        // keep the map as it is; just say the data is stale
+                        setLive('⚠️ آخر تحديث ' + timeAgo(null, Math.round((Date.now() - lastUpdatedAt) / 1000)) + ' — ' + msg, false);
+                        setState('hidden');
+                    } else {
+                        setState('error', { detail: msg });
+                        renderAssets([]);
+                        setLive('⚠️ ' + msg, false);
+                    }
                     return;
                 }
 
                 const items = Array.isArray(data)
                     ? data
-                    : (data && (Array.isArray(data.assets) ? data.assets
+                    : (data && (Array.isArray(data.vehicles) ? data.vehicles
+                        : Array.isArray(data.assets) ? data.assets
                         : Array.isArray(data.items) ? data.items : []));
 
                 renderAssets(items || []);
+                lastGood = items || [];
+                lastUpdatedAt = Date.now();
                 if (!items || items.length === 0) {
                     setState('empty');
+                    setLive('لا توجد مركبات — آخر فحص ' + new Date().toLocaleTimeString('ar-SA'), true);
                 } else {
                     setState('hidden');
-                    if (typeof showToast === 'function') showToast('تم تحديث مواقع الأسطول', 'success');
+                    setLive('🟢 مباشر — آخر تحديث ' + new Date().toLocaleTimeString('ar-SA') + ' (يتجدد كل ' + Math.round(REFRESH_MS / 1000) + ' ث)', true);
+                    if (manual && typeof showToast === 'function') showToast('تم تحديث مواقع الأسطول', 'success');
                 }
             } catch (e) {
-                setState('error', { detail: 'تعذّر الاتصال بالخادم' });
-                renderAssets([]);
+                if (lastGood.length) {
+                    setLive('⚠️ تعذّر الاتصال بالخادم — تُعرض آخر مواقع معروفة', false);
+                } else {
+                    setState('error', { detail: 'تعذّر الاتصال بالخادم' });
+                    renderAssets([]);
+                }
             } finally {
-                if (btn) { btn.disabled = false; }
+                inFlight = false;
+                if (btn) btn.disabled = false;
             }
         }
 
         function normalize(item) {
             const lat = item.lat != null ? item.lat : item.latitude;
             const lng = item.lng != null ? item.lng : item.longitude;
-            const isOnline = !!(item.online || item.is_online
-                || item.status === 'moving' || item.status === 'idling');
+            const online = !!(item.online || item.is_online || item.status === 'moving' || item.status === 'idling');
+            const status = STATUS[item.status] ? item.status : (online ? 'stopped' : 'offline');
             const name = item.name || item.plate_number || item.plate || 'مركبة';
-            const id = item.id != null ? item.id : (item.asset_id != null ? item.asset_id : '');
-            return { id, name, lat, lng, isOnline, raw: item };
+            const id = item.id != null ? item.id : (item.asset_id != null ? item.asset_id : (item.device_id != null ? item.device_id : name));
+            return {
+                id, name, lat, lng, status, online,
+                plate: item.plate || item.plate_number || '',
+                driver: item.driver || '',
+                speed: (item.speed_kmh != null ? item.speed_kmh : (item.speed != null ? item.speed : null)),
+                heading: item.heading,
+                ignition: item.ignition_on,
+                address: item.address || '',
+                lastUpdate: item.last_update || item.updated_at || null,
+                age: item.last_update_age_s,
+                odometer: item.odometer_km,
+                raw: item
+            };
         }
 
+        function popupHtml(a) {
+            const st = STATUS[a.status] || STATUS.offline;
+            const engine = a.ignition === true ? '🟢 يعمل' : (a.ignition === false ? '⚪ متوقف' : '—');
+            const speed = (a.speed != null) ? (Math.round(a.speed) + ' كم/س') : '—';
+            return '<div style="min-width:220px;line-height:1.7">'
+                + '<div style="font-weight:800;font-size:1rem">' + escapeHtml(a.name) + '</div>'
+                + (a.plate ? '<div>🔢 اللوحة: <b>' + escapeHtml(a.plate) + '</b></div>' : '')
+                + (a.driver ? '<div>👤 السائق: ' + escapeHtml(a.driver) + '</div>' : '')
+                + '<div>⚡ السرعة: <b>' + speed + '</b></div>'
+                + '<div>🔑 المحرك: ' + engine + '</div>'
+                + '<div>📶 الحالة: <span style="color:' + st.color + ';font-weight:700">' + st.label + '</span></div>'
+                + (a.odometer != null ? '<div>🛣️ العداد: ' + Math.round(a.odometer).toLocaleString('ar-SA') + ' كم</div>' : '')
+                + (a.address ? '<div>📍 ' + escapeHtml(a.address) + '</div>' : '')
+                + '<div style="color:#94a3b8;font-size:.8rem">🕓 آخر إشارة: ' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</div>'
+                + '<button class="btn-outline" style="margin-top:.4rem;padding:.25rem .6rem;font-size:.78rem" onclick="followVehicle(' + JSON.stringify(String(a.id)) + ')">🎯 تتبّع هذه المركبة</button>'
+                + '</div>';
+        }
+
+        function markerIcon(a) {
+            const st = STATUS[a.status] || STATUS.offline;
+            const rot = (typeof a.heading === 'number' && a.status === 'moving') ? a.heading : 0;
+            const arrow = a.status === 'moving' ? '<span style="display:inline-block;transform:rotate(' + rot + 'deg)">➤</span> ' : '';
+            return L.divIcon({
+                className: 'custom-marker-container',
+                html: '<div class="custom-marker" style="background:' + st.color + '" title="' + escapeHtml(a.name) + '">'
+                    + arrow + escapeHtml(a.plate || String(a.id)) + '</div>'
+            });
+        }
+
+        // Update markers IN PLACE: existing ones glide to their new position (no flicker, open
+        // popups stay open), new ones are added, vanished ones removed.
         function renderAssets(items) {
-            // clear existing markers
-            Object.values(markers).forEach(m => { try { map && map.removeLayer(m); } catch (_) {} });
-            markers = {};
-
             currentAssets = (items || []).map(normalize);
-
-            const online = currentAssets.filter(a => a.isOnline).length;
-            document.getElementById('statTotal').innerText = currentAssets.length;
-            document.getElementById('statOnline').innerText = online;
-            document.getElementById('statOffline').innerText = currentAssets.length - online;
-            document.getElementById('assetCount').innerText = '(' + currentAssets.length + ')';
-
+            const seen = {};
             currentAssets.forEach(a => {
-                if (a.lat != null && a.lng != null && map) {
-                    const color = a.isOnline ? '#10b981' : '#ef4444';
-                    const icon = L.divIcon({
-                        className: 'custom-marker-container',
-                        html: '<div class="custom-marker" style="background:' + color + '">'
-                            + escapeHtml(String(a.id)) + '</div>'
-                    });
-                    const marker = L.marker([a.lat, a.lng], { icon: icon }).addTo(map)
-                        .bindPopup('<b>' + escapeHtml(a.name) + '</b><br>الحالة: '
-                            + (a.isOnline ? 'نشط' : 'متوقف'));
-                    markers[a.id] = marker;
+                if (a.lat == null || a.lng == null || !map) return;
+                seen[a.id] = true;
+                const ll = [a.lat, a.lng];
+                if (markers[a.id]) {
+                    markers[a.id].setLatLng(ll);
+                    markers[a.id].setIcon(markerIcon(a));
+                    markers[a.id].getPopup() && markers[a.id].getPopup().setContent(popupHtml(a));
+                } else {
+                    markers[a.id] = L.marker(ll, { icon: markerIcon(a) }).addTo(map).bindPopup(popupHtml(a));
                 }
             });
+            Object.keys(markers).forEach(id => {
+                if (!seen[id]) { try { map.removeLayer(markers[id]); } catch (_) {} delete markers[id]; }
+            });
 
+            const online = currentAssets.filter(a => a.online).length;
+            const moving = currentAssets.filter(a => a.status === 'moving').length;
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+            set('statTotal', currentAssets.length);
+            set('statOnline', online);
+            set('statMoving', moving);
+            set('statOffline', currentAssets.length - online);
+            set('assetCount', '(' + currentAssets.length + ')');
+
+            if (!firstFit && map) {
+                const pts = currentAssets.filter(a => a.lat != null && a.lng != null).map(a => [a.lat, a.lng]);
+                if (pts.length) { try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 }); } catch (_) {} firstFit = true; }
+            }
+            if (followId && markers[followId]) {
+                try { map.panTo(markers[followId].getLatLng(), { animate: true }); } catch (_) {}
+            }
             renderList();
+        }
+
+        function followVehicle(id) {
+            followId = String(id);
+            const m = markers[followId];
+            if (m && map) { map.flyTo(m.getLatLng(), Math.max(map.getZoom(), 15)); m.openPopup(); }
         }
 
         function renderList() {
@@ -294,7 +412,8 @@
             list.innerHTML = '';
 
             const shown = currentAssets.filter(a =>
-                !term || a.name.toLowerCase().includes(term) || String(a.id).toLowerCase().includes(term));
+                !term || a.name.toLowerCase().includes(term) || String(a.id).toLowerCase().includes(term)
+                || (a.plate && a.plate.toLowerCase().includes(term)) || (a.driver && a.driver.toLowerCase().includes(term)));
 
             if (shown.length === 0) {
                 const empty = document.createElement('div');
@@ -305,17 +424,20 @@
             }
 
             shown.forEach(a => {
+                const st = STATUS[a.status] || STATUS.offline;
                 const div = document.createElement('div');
-                div.className = 'asset-item';
+                div.className = 'asset-item' + (String(a.id) === String(followId) ? ' following' : '');
                 div.innerHTML =
-                    '<div class="status-dot" style="background:' + (a.isOnline ? '#10b981' : '#ef4444') + '"></div>'
-                    + '<div><div class="asset-name">' + escapeHtml(a.name) + '</div>'
-                    + '<div class="asset-meta">' + (a.isOnline ? 'نشط' : 'متوقف')
-                    + (a.id !== '' ? ' • #' + escapeHtml(String(a.id)) : '') + '</div></div>';
+                    '<div class="status-dot" style="background:' + st.color + '"></div>'
+                    + '<div style="flex:1"><div class="asset-name">' + escapeHtml(a.name)
+                    + (a.plate ? ' <small style="color:var(--text-secondary)">' + escapeHtml(a.plate) + '</small>' : '') + '</div>'
+                    + '<div class="asset-meta">' + st.label
+                    + (a.speed != null ? ' • ' + Math.round(a.speed) + ' كم/س' : '')
+                    + (a.driver ? ' • ' + escapeHtml(a.driver) : '')
+                    + ' • ' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</div></div>';
                 div.onclick = () => {
                     if (a.lat != null && a.lng != null && map) {
-                        map.flyTo([a.lat, a.lng], 15);
-                        if (markers[a.id]) markers[a.id].openPopup();
+                        followVehicle(a.id);
                     } else if (typeof showToast === 'function') {
                         showToast('لا يتوفر موقع لهذه المركبة', 'info');
                     }
@@ -344,9 +466,21 @@
             });
         }
 
+        // ── real-time loop: poll only while the tab is visible; refresh immediately on return ──
+        function startLoop() {
+            if (timer) clearInterval(timer);
+            timer = setInterval(function () {
+                if (document.visibilityState === 'visible') fetchData(false);
+            }, REFRESH_MS);
+        }
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') fetchData(false);
+        });
+
         window.addEventListener('load', function () {
             try { initMap(); } catch (_) {}
-            fetchData();
+            fetchData(true);
+            startLoop();
         });
     </script>
 {% endblock %}

@@ -4252,7 +4252,8 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 # returned the real staff roster — names, iqama numbers, phones, IBANs — to anyone with the
 # URL and no login. Everything else mirrored here reads branch-2 blobs and is genuinely
 # isolated (verified endpoint by endpoint).
-_WS_NEVER_MIRROR = {"ai_chat", "ai_status", "employees_data", "api_fleet_summary"}
+_WS_NEVER_MIRROR = {"ai_chat", "ai_status", "employees_data", "api_fleet_summary",
+                    "gps.get_gps_locations", "gps.gps_status"}   # live fleet positions are not for the open sandbox
 for _rule in list(app.url_map.iter_rules()):
     if _rule.rule.startswith("/api/") and _rule.endpoint not in _WS_NEVER_MIRROR:
         _ws_methods = sorted(_rule.methods & {"GET"})
