@@ -143,8 +143,26 @@ migrate = Migrate(app, db)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Initialize Security Headers
-# content_security_policy=None to allow existing inline scripts to continue working
-# force_https=False to prevent 302 redirects on internal health checks (Render/Railway)
+# Keep enforcement disabled while we inventory existing inline scripts and third-party assets.
+# The report-only policy is intentionally strict enough to surface migration work without
+# blocking the current UI. Once violations are resolved, promote it to enforcement.
+CSP_REPORT_ONLY = "; ".join([
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "script-src 'self' https://unpkg.com https://code.jquery.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plot.ly https://cdn.tailwindcss.com https://cdn.datatables.net",
+    "style-src 'self' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https://server.arcgisonline.com https://*.basemaps.cartocdn.com https://www.hik-connect.com",
+    "media-src 'self' https://assets.mixkit.co",
+    "connect-src 'self' https://generativelanguage.googleapis.com https://fleetmanagement-api-clust03.gpscockpit.com https://*.basemaps.cartocdn.com",
+    "frame-src 'self' https://www.hik-connect.com",
+    "form-action 'self' https://wa.me",
+    "report-uri /csp-report",
+])
+# content_security_policy=None preserves the current non-blocking behavior while the
+# after_request hook below emits CSP-Report-Only for observability.
 Talisman(app, content_security_policy=None, force_https=False)
 
 # Initialize Caching
@@ -281,7 +299,25 @@ def add_header(response):
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
+    # Report-Only is deliberately non-blocking during the migration period.
+    response.headers["Content-Security-Policy-Report-Only"] = CSP_REPORT_ONLY
     return response
+
+
+@app.route('/csp-report', methods=['POST'])
+@limiter.limit("30 per minute")
+def csp_report():
+    """Receive browser CSP violation reports without exposing report contents to users."""
+    if request.content_length and request.content_length > 8192:
+        return ("", 413)
+    report = request.get_json(silent=True) or {}
+    # Keep logs bounded; reports are diagnostics, not application data.
+    try:
+        encoded = json.dumps(report, ensure_ascii=False, separators=(",", ":"))[:4096]
+    except (TypeError, ValueError):
+        encoded = "<invalid-json>"
+    logger.warning("CSP violation report: %s", encoded)
+    return ("", 204)
 
 
 @app.route('/manifest.json')

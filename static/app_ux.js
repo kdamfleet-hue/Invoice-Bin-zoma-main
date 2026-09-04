@@ -620,7 +620,7 @@ function injectLucide() {
         if (document.getElementById('bzLucideLib')) { bzReplaceEmojis(document.body); _startEmojiObserver(); return; }
         var s = document.createElement('script');
         s.id = 'bzLucideLib';
-        s.src = 'https://unpkg.com/lucide@latest';
+        s.src = 'https://unpkg.com/lucide@1.40.0/dist/umd/lucide.min.js';
         s.onload = function () { bzReplaceEmojis(document.body); try { window.bzApplyBranchLabel(); } catch (e) { } _startEmojiObserver(); };
         s.onerror = function () { /* offline: emoji simply remain */ };
         document.head.appendChild(s);
