@@ -201,25 +201,72 @@ def api_tab_permissions():
     return jsonify({"success": True, "permissions": perms})
 
 
-@system_bp.route("/api/system/user_permissions", methods=["GET", "POST"])
+def _all_sidebar_tabs():
+    """Every tab the Settings page can toggle — read from the page itself so the two never drift."""
+    import re as _re
+    try:
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "settings.html"),
+                  encoding="utf-8") as fh:
+            return set(_re.findall(r'class="tab-toggle"[^>]*data-href="([^"]+)"', fh.read()))
+    except Exception:
+        return set()
+
+
+def _current_username():
+    guser = session.get("google_user")
+    gname = guser.get("name") if isinstance(guser, dict) else ""
+    return session.get("user") or session.get("username") or gname or ""
+
+
+@system_bp.route("/api/system/user_permissions", methods=["GET", "POST", "DELETE"])
 @login_required
 @role_required("admin")
 def api_user_permissions():
-    """Per-account tab restrictions, keyed by username."""
+    """Per-account tab restrictions, keyed by username.
+
+    Guard rails, because a bad save here locks a person out of the site with no visible
+    cause: an empty allow-list is refused (it would confine the account to the home page);
+    an allow-list that covers every tab is stored as NO allow-list (a full list is not a
+    restriction, and it would silently exclude any tab added later); and you cannot restrict
+    the account you are logged in with."""
     all_perms = _global_blob_get("user_account_permissions") or {}
     if request.method == "GET":
         return jsonify({"success": True, "user_permissions": all_perms})
+
     body = request.get_json(silent=True) or {}
     username = (body.get("username") or "").strip()
     if not username or username == "__global__":
         return jsonify({"success": False, "error": "اسم المستخدم مطلوب"}), 400
+
+    if request.method == "DELETE":
+        removed = all_perms.pop(username, None) is not None
+        _global_blob_set("user_account_permissions", all_perms)
+        _audit_add("حذف", "صلاحيات حساب", None, f"إزالة كل القيود عن الحساب: {username}")
+        return jsonify({"success": True, "removed": removed, "user_permissions": all_perms})
+
+    if username == _current_username():
+        return jsonify({"success": False,
+                        "error": "لا يمكن تقييد الحساب الذي تستخدمه الآن — سجّل الدخول بحساب مدير آخر."}), 400
+
     allowed = body.get("allowed_tabs")
     if allowed is not None and not isinstance(allowed, list):
         return jsonify({"success": False, "error": "allowed_tabs must be a list"}), 400
+    if allowed is not None:
+        allowed = [str(t) for t in allowed]
+        if not allowed:
+            return jsonify({"success": False,
+                            "error": "لا يمكن حفظ قائمة تبويبات فارغة — سيُحبس الحساب في الصفحة الرئيسية."}), 400
+        every = _all_sidebar_tabs()
+        if every and every.issubset(set(allowed)):
+            allowed = None  # everything allowed == no restriction
+
     entry = {"dedicated_mode": (body.get("dedicated_mode") or "all")}
     if allowed is not None:
-        entry["allowed_tabs"] = [str(t) for t in allowed]
-    all_perms[username] = entry
+        entry["allowed_tabs"] = allowed
+    if entry["dedicated_mode"] == "all" and "allowed_tabs" not in entry:
+        all_perms.pop(username, None)       # nothing restricted: keep the store clean
+    else:
+        all_perms[username] = entry
     _global_blob_set("user_account_permissions", all_perms)
     _audit_add("تعديل", "صلاحيات حساب", None, f"الحساب: {username}")
     return jsonify({"success": True, "user_permissions": all_perms})
@@ -275,14 +322,16 @@ def api_my_permissions():
     nav. It did not exist (404), so the menu never reflected per-account restrictions even
     though the server enforced them. Resolves identity exactly like app.py's @before_request
     enforcement so the menu and the server agree, including the settings-unlocked bypass."""
-    if session.get("settings_unlocked"):
+    # Mirrors app.py exactly: admins are never restricted, and the branch<N> fallback only
+    # applies to branch logins, not to anyone who merely switched the active branch.
+    if session.get("settings_unlocked") or session.get("is_admin"):
         return jsonify({"success": True, "dedicated_mode": "all", "disabled_tabs": []})
     guser = session.get("google_user")
     gname = guser.get("name") if isinstance(guser, dict) else ""
     username = session.get("user") or session.get("username") or gname or ""
     all_perms = _global_blob_get("user_account_permissions") or {}
     mine = all_perms.get(username) or {}
-    if not mine and session.get("branch_id"):
+    if not mine and session.get("is_branch_user") and session.get("branch_id"):
         mine = all_perms.get(f"branch{session.get('branch_id')}") or {}
     glob = _global_blob_get("tab_permissions") or {}
     out = {

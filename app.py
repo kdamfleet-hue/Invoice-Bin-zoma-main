@@ -282,21 +282,30 @@ def enforce_dedicated_workstation_and_tab_permissions():
     if path.startswith('/static') or path.startswith('/api/') or path in ['/login', '/logout', '/manifest.json']:
         return None
     
-    # Admins with unlocked settings can access everything
-    if session.get("settings_unlocked"):
+    # Tab restrictions exist to confine kiosk / dedicated / branch accounts to their pages.
+    # They must never apply to an administrator: `settings_unlocked` was the intended bypass
+    # but nothing ever sets it, so admins were being confined too — one per-account save from
+    # the Settings page (whose tab toggles started unchecked, with "/" first in the list)
+    # bounced 30 of 31 sidebar tabs to the home page for the admin who made it, with no way
+    # to see why. Admins are exempt outright; the settings-unlocked flag is kept for
+    # compatibility.
+    if session.get("settings_unlocked") or session.get("is_admin"):
         return None
-        
+
     try:
         guser = session.get("google_user")
         gname = guser.get("name") if isinstance(guser, dict) else ""
         username = session.get("user") or session.get("username") or gname or ""
-        
+
         # 1. Read per-user account permissions using global system-wide storage
         all_user_perms = _global_blob_get("user_account_permissions") or {}
         user_account_perms = all_user_perms.get(username, {})
-        
-        # Check branch account key fallback if user account perm not found
-        if not user_account_perms and session.get("branch_id"):
+
+        # The "branch<N>" key is the restriction set for a BRANCH LOGIN. It used to apply to
+        # anyone whose session merely had that branch active — so switching the active
+        # branch made a user inherit that branch account's allow-list. Only branch accounts
+        # themselves fall back to it now.
+        if not user_account_perms and session.get("is_branch_user") and session.get("branch_id"):
             branch_key = f"branch{session.get('branch_id')}"
             user_account_perms = all_user_perms.get(branch_key, {})
 
