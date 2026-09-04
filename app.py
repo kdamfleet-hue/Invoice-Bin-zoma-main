@@ -25,6 +25,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 from functools import wraps
+from urllib.parse import urlparse
 
 try:
     import psycopg2
@@ -172,7 +173,10 @@ cache.init_app(app)
 # Initialize Rate Limiter
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[], storage_uri="memory://")
+RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI") or os.environ.get("REDIS_URL") or "memory://"
+limiter = Limiter(app=app, key_func=get_remote_address, default_limits=[], storage_uri=RATELIMIT_STORAGE_URI)
+if RATELIMIT_STORAGE_URI == "memory://":
+    logger.warning("RATELIMIT_STORAGE_URI is memory://; limits are per worker. Configure Redis/shared storage in production.")
 
 _secret = os.environ.get("SECRET_KEY")
 if not _secret:
@@ -313,6 +317,12 @@ def add_header(response):
     response.headers["Expires"] = "0"
     # Report-Only is deliberately non-blocking during the migration period.
     response.headers["Content-Security-Policy-Report-Only"] = CSP_REPORT_ONLY
+    # Do not expose exception text or tracebacks from legacy JSON endpoints.
+    if response.status_code >= 500 and response.is_json:
+        payload = response.get_json(silent=True) or {}
+        if isinstance(payload, dict) and ("traceback" in payload or "error" in payload):
+            response.set_data(json.dumps({"success": False, "error": "حدث خطأ داخلي"}, ensure_ascii=False))
+            response.headers["Content-Type"] = "application/json; charset=utf-8"
     return response
 
 
@@ -339,6 +349,19 @@ def manifest():
 @app.before_request
 def enforce_dedicated_workstation_and_tab_permissions():
     path = request.path
+
+    # Browser-origin protection for state-changing requests. SameSite=Lax and
+    # closed CORS remain useful defenses, but this explicit check also protects
+    # when a future integration changes cookie or CORS settings. Non-browser
+    # cron/webhook clients that omit Origin and Referer remain compatible.
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"} and path != "/csp-report":
+        source = request.headers.get("Origin") or request.headers.get("Referer")
+        if source:
+            parsed = urlparse(source)
+            if parsed.netloc and parsed.netloc != request.host:
+                if path.startswith("/api/"):
+                    return jsonify({"success": False, "error": "مصدر الطلب غير مسموح"}), 403
+                return "مصدر الطلب غير مسموح", 403
 
     # A newly created or reset account must choose a private password before using
     # any application page. Keep only the change form, logout, and its API reachable.
@@ -510,17 +533,13 @@ if not KIOSK_PASSWORD:
     KIOSK_PASSWORD = secrets.token_hex(16)
     logger.warning("KIOSK_PASSWORD not set in env — generated a random secure key.")
 
-# Master admin fallback login (routes/auth.py) has no safe random-fallback like the two
-# above — an admin has to actually know the value to log in, so we do NOT fail closed
-# here (that could lock every admin out on a host where real per-user accounts already
-# exist and this path is unused). We only warn loudly, once, at boot, so running on the
-# insecure built-in default (admin/123456) is impossible to miss in the logs.
+# The optional master-admin fallback is fail-closed when production credentials
+# are absent. Database-backed admin users remain available through the normal flow.
 if not os.environ.get("ADMIN_USERNAME") or not os.environ.get("MASTER_PASSWORD"):
     logger.warning(
-        "ADMIN_USERNAME and/or MASTER_PASSWORD not set in the environment — the master "
-        "login fallback is running on its insecure built-in default (admin/123456). Set "
-        "both as real environment variables in your hosting platform's dashboard NOW, "
-        "or create a real admin User account and stop relying on this fallback."
+        "ADMIN_USERNAME and/or MASTER_PASSWORD are not set; the optional master "
+        "login fallback is disabled. Use a database-backed admin account or configure "
+        "both production variables securely."
     )
 WS_TABS = {
     "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard",
@@ -2465,7 +2484,8 @@ def api_branch_accounts():
         return jsonify({"success": False, "reason": "اسم المستخدم: حروف/أرقام إنجليزية و . _ @ - فقط"}), 400
     if len(code) < 4:
         return jsonify({"success": False, "reason": "الرمز قصير جداً (4 أحرف على الأقل)"}), 400
-    if username == os.environ.get("ADMIN_USERNAME", "admin"):
+    configured_admin = os.environ.get("ADMIN_USERNAME")
+    if configured_admin and username == configured_admin:
         return jsonify({"success": False, "reason": "اسم المستخدم محجوز للمدير"}), 400
     if any(a.get("username") == username and a.get("branch_id") != bid for a in accounts):
         return jsonify({"success": False, "reason": "اسم المستخدم مستخدم في فرع آخر"}), 400
@@ -4553,6 +4573,8 @@ def api_registry_data():
 # =====================================================================
 
 @app.route("/system_health")
+@login_required
+@role_required("admin")
 def system_health():
     return render_template("system_health.html")
 
@@ -4685,6 +4707,8 @@ def api_quick_add_system():
 
 
 @app.route("/api/docs")
+@login_required
+@role_required("admin")
 def api_docs():
     return render_template("api_docs.html")
 

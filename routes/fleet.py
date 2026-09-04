@@ -616,8 +616,8 @@ def api_force_db_fix():
         db.session.commit()
         return jsonify({"success": True, "results": results})
     except Exception as e:
-        import traceback
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        logger.exception("force_db_fix failed")
+        return jsonify({"error": "تعذر إكمال إصلاح قاعدة البيانات"}), 500
 
 @fleet_bp.route("/api/sync_live_numbers_data")
 @login_required

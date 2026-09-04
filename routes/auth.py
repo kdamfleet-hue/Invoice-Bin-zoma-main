@@ -98,9 +98,9 @@ def login():
             return redirect(url_for("operations.workshop"))
 
         # Hardcoded master admin fallback (from ENV)
-        master_user = os.environ.get("ADMIN_USERNAME", "admin")
-        master_pass = os.environ.get("MASTER_PASSWORD", "123456")
-        if hmac.compare_digest(username, master_user) and hmac.compare_digest(password, master_pass):
+        master_user = os.environ.get("ADMIN_USERNAME")
+        master_pass = os.environ.get("MASTER_PASSWORD")
+        if master_user and master_pass and hmac.compare_digest(username, master_user) and hmac.compare_digest(password, master_pass):
             session.clear()
             session["authenticated"] = True
             session.permanent = True

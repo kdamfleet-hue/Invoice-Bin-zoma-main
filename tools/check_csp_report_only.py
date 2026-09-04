@@ -12,6 +12,10 @@ for path in ("/login", "/api/docs", "/system_health"):
     assert policy, f"missing CSP Report-Only on {path}"
     assert "object-src 'none'" in policy
     assert "base-uri 'self'" in policy
+    if path in ("/api/docs", "/system_health"):
+        assert response.status_code in (302, 401), (path, response.status_code)
+    else:
+        assert response.status_code == 200, (path, response.status_code)
     print(path, response.status_code, "CSP-Report-Only: present")
 
 report = client.post("/csp-report", json={"csp-report": {"blocked-uri": "https://example.invalid"}})
