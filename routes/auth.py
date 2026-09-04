@@ -129,8 +129,21 @@ def login():
                 return redirect(url_for("operations.workshop"))
             return redirect(url_for("dashboard.index"))
             
-        acct = next((a for a in get_branch_accounts() if a.get("username") == username), None)
-        if acct and check_password_hash(acct.get("code_hash", ""), password):
+        # Branch-account storage is legacy/global data. A malformed record or storage
+        # read failure must never turn an invalid login into HTTP 500.
+        try:
+            branch_accounts = get_branch_accounts()
+        except Exception:
+            logger.exception("Branch account lookup failed during login")
+            branch_accounts = []
+        acct = next((a for a in branch_accounts if isinstance(a, dict) and a.get("username") == username), None)
+        branch_password_ok = False
+        if acct:
+            try:
+                branch_password_ok = check_password_hash(acct.get("code_hash", ""), password)
+            except Exception:
+                logger.exception("Invalid branch password hash for username %s", username)
+        if acct and branch_password_ok:
             session.clear()
             session["authenticated"] = True
             session.permanent = True
