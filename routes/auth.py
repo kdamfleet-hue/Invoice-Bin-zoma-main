@@ -61,7 +61,7 @@ def login():
         from datetime import datetime
         from app import db
 
-        user = User.query.filter_by(username=username, is_active=True).first()
+        user = None
 
         # Handle Kiosk override explicitly if needed
         from app import KIOSK_PASSWORD, KIOSK_USER
@@ -90,6 +90,14 @@ def login():
             session["kiosk"] = False
             logger.info("Master admin login via hardcoded credentials")
             return redirect(url_for("dashboard.index"))
+
+        # A database/schema failure must not turn the login form into a 500 for
+        # the master admin fallback. Log it and continue with safe fallbacks.
+        try:
+            user = User.query.filter_by(username=username, is_active=True).first()
+        except Exception:
+            logger.exception("User lookup failed during login")
+            user = None
 
         if user and check_password_hash(user.password_hash, password):
             user.last_login = datetime.now()
