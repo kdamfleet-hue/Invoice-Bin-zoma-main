@@ -6,7 +6,7 @@ import openpyxl
 import logging
 import qrcode
 from datetime import datetime, date
-from flask import Blueprint, render_template, session, request, jsonify, send_file
+from flask import Blueprint, render_template, session, request, jsonify, send_file, current_app
 from helpers import login_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id
 from models.schema import db, Driver, Vehicle, VehicleCustody
 from models.database import db_connection
@@ -25,7 +25,8 @@ def drivers_info():
 @fleet_bp.route("/fleet_dashboard")
 @login_required
 def fleet_dashboard():
-    # Standalone fleet KPI dashboard (ported from Antigravity).
+    # Modern server-rendered dashboard. It reads the same protected insight API
+    # used by the analytics page, so credentials/tokens never reach the browser.
     branches = []
     is_admin = session.get("role") == "admin"
     try:
@@ -35,7 +36,22 @@ def fleet_dashboard():
             branches = [{"id": r[0], "name": r[1]} for r in c.fetchall()]
     except Exception as e:
         logger.error(f"Failed to fetch branches: {e}")
-    return render_template("fleet_dashboard.html", google_user=session.get("google_user"), b64_en=load_logo(), branches=branches, is_admin=is_admin)
+    insights = {"fleet": {"drivers": 0, "with_vehicle": 0, "without_vehicle": 0, "vehicles": 0},
+                "volume": {"employees": 0, "workshop": 0, "oils": 0, "purchase": 0, "gps_devices": 0},
+                "score": {"value": 0, "label": "غير متاح"},
+                "documents": {"expired": 0, "d30": 0}, "documents_top": [],
+                "generated_at": "—"}
+    try:
+        insight_view = current_app.view_functions.get("api_insights")
+        if insight_view:
+            response = insight_view()
+            payload = response[0] if isinstance(response, tuple) else response
+            data = payload.get_json(silent=True) if hasattr(payload, "get_json") else None
+            if data and data.get("success"):
+                insights = data["insights"]
+    except Exception:
+        logger.exception("modern fleet dashboard insights failed")
+    return render_template("fleet_dashboard_new.html", google_user=session.get("google_user"), b64_en=load_logo(), branches=branches, is_admin=is_admin, insights=insights)
 
 @fleet_bp.route("/api/legacy/drivers", methods=["GET"])
 @login_required
@@ -832,5 +848,4 @@ def api_master_data_update():
         import traceback
         logger.error(f"Error updating master data: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
-
 
