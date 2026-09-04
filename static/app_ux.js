@@ -732,7 +732,14 @@ function setupNotifications() {
             }).catch(function () { });
     }
     load(true);
-    setInterval(function () { load(false); }, 20000);
+    // Was every 20 s regardless of visibility. The server side of this walks all six
+    // branches and loads their whole document blobs; a handful of open admin tabs polling
+    // together was enough to spike the worker into OOM. Poll every 2 min, only while the tab
+    // is actually visible, and refresh once when it becomes visible again.
+    setInterval(function () { if (document.visibilityState === 'visible') load(false); }, 120000);
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') load(false);
+    });
 }
 
 // --- PWA: manifest + theme color + service worker (تثبيت كتطبيق + عمل دون اتصال) ---

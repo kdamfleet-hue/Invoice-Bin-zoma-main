@@ -19,7 +19,12 @@ USE_POSTGRES = bool(DATABASE_URL) and psycopg2 is not None
 db_pool = None
 if USE_POSTGRES:
     try:
-        db_pool = pool.SimpleConnectionPool(1, 20, DATABASE_URL)
+        # ThreadedConnectionPool, not SimpleConnectionPool: psycopg2 documents Simple as
+        # "not safe for multi-threaded applications", and gunicorn runs gthread workers with
+        # several threads. Two threads handed the same connection interleave statements on one
+        # session and one thread's commit/rollback applies to the other's work — which
+        # reproduces "the DELETE committed, the INSERTs vanished" with no code bug at all.
+        db_pool = pool.ThreadedConnectionPool(1, 20, DATABASE_URL)
     except Exception as e:
         logger.error(f"Failed to create connection pool: {e}")
 if DATABASE_URL and psycopg2 is None:
@@ -141,6 +146,8 @@ def init_db(app=None):
             db.execute('CREATE TABLE IF NOT EXISTS app_secret_key (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS data_snapshots (id %s, tab TEXT, ts TEXT, data TEXT, mode INTEGER)' % _pk_clause())
             db.execute('CREATE TABLE IF NOT EXISTS drivers_ws (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
+            # One-time markers (e.g. "the legacy drivers table has been seeded") — see below.
+            db.execute('CREATE TABLE IF NOT EXISTS app_flags (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS oils_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS fuel_data (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS spare_parts (id INTEGER PRIMARY KEY, data TEXT NOT NULL)')
@@ -202,8 +209,17 @@ def init_db(app=None):
                     db.commit()
                     logger.info(f'Database Migration: Added {col} column to drivers table')
 
+            # Seed the legacy drivers table ONCE, tracked by a persistent flag — not by a live
+            # COUNT(*). With the count check, any time this table was emptied (a bad sync, a
+            # manual cleanup, a failed import) the next worker boot silently refilled it with
+            # the frozen July roster from drivers_data.js, so stale names "came back" on their
+            # own. A table that already holds rows is marked as seeded on first sight.
+            seeded_flag = db.execute("SELECT data FROM app_flags WHERE id = 1").fetchone()
             count = db.execute('SELECT COUNT(*) AS cnt FROM drivers').fetchone()['cnt']
-            if count == 0:
+            if seeded_flag is None and count > 0:
+                db.execute("INSERT INTO app_flags (id, data) VALUES (1, 'drivers_seeded')")
+                db.commit()
+            if count == 0 and seeded_flag is None:
                 js_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'drivers_data.js')
                 if os.path.exists(js_path):
                     try:
@@ -226,6 +242,7 @@ def init_db(app=None):
                                 ),
                             )
                             seeded += 1
+                        db.execute("INSERT INTO app_flags (id, data) VALUES (1, 'drivers_seeded')")
                         db.commit()
                         logger.info('Database seeded once with %d drivers from drivers_data.js', seeded)
                     except Exception as e:

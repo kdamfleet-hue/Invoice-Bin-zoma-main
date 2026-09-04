@@ -113,7 +113,10 @@ def _pm_due():
     catalog = _dammam_catalog()
     oils = blob_get("oils_data") or []
     last_oil = {}
-    rows = oils.get("rows") if isinstance(oils, dict) else (oils if isinstance(oils, list) else [])
+    # The oils tab stores {title, oils, filters} — no "rows" key — so this was None and the
+    # loop raised, taking /api/ops/summary (دورة التشغيل) down after any oils save.
+    rows = ((oils.get("rows") or oils.get("oils") or []) if isinstance(oils, dict)
+            else (oils if isinstance(oils, list) else []))
     for row in rows:
         plate, odo = "", 0
         if isinstance(row, dict):

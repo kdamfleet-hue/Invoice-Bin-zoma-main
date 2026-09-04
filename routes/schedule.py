@@ -102,8 +102,11 @@ def washing_report():
             merged_vehicles[plate] = v
 
     if deduplicated_count > 0:
+        # Report view only. This used to blob_set() the merged list right here — a GET page
+        # view rewrote the stored washing roster, silently dropping the second driver whenever
+        # two rows shared a plate, with no confirmation and no audit entry. The stored data is
+        # left exactly as it is; the merge is for display.
         vehicles = list(merged_vehicles.values())
-        blob_set("washing_schedule", vehicles)
         
     total_vehicles = len(vehicles)
     total_washes   = sum(sum(v["m"]) for v in vehicles)

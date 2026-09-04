@@ -197,6 +197,11 @@ def blob_set(table, data_obj):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error saving blob {key}: {e}")
+        # Re-raise. Swallowing this made every caller answer "saved" for a write that never
+        # landed, and then recorded a snapshot of data that was not in the table — a second way
+        # for names to "disappear", and a version history that could not be trusted. A failed
+        # save is now a real error, and only a committed save reaches _snapshot below.
+        raise
 
     _snapshot(table, data_str)
 
@@ -249,15 +254,22 @@ def _snapshot(table, data_str):
         return
     mode = _row_id()
     try:
-        last = Snapshot.query.filter_by(tab=table, branch_id=mode).order_by(Snapshot.id.desc()).first()
-        if last and last.data == data_str:
+        # Compare against the latest body INSIDE the database rather than pulling it into
+        # Python — these payloads can be many MB (incidents/records embed attachments inline).
+        latest_id = (db.session.query(Snapshot.id).filter_by(tab=table, branch_id=mode)
+                     .order_by(Snapshot.id.desc()).limit(1).scalar())
+        if latest_id is not None and db.session.query(Snapshot.id).filter(
+                Snapshot.id == latest_id, Snapshot.data == data_str).first() is not None:
             return
         new_snap = Snapshot(tab=table, branch_id=mode, data=data_str)
         db.session.add(new_snap)
-        snaps = Snapshot.query.filter_by(tab=table, branch_id=mode).order_by(Snapshot.id.desc()).all()
-        if len(snaps) > SNAP_KEEP:
-            for s in snaps[SNAP_KEEP:]:
-                db.session.delete(s)
+        # Trim by id only. The old code hydrated all 31 full bodies just to count them.
+        db.session.flush()  # give the new row an id so it counts toward SNAP_KEEP
+        stale_ids = [r[0] for r in db.session.query(Snapshot.id)
+                     .filter_by(tab=table, branch_id=mode)
+                     .order_by(Snapshot.id.desc()).offset(SNAP_KEEP).all()]
+        if stale_ids:
+            Snapshot.query.filter(Snapshot.id.in_(stale_ids)).delete(synchronize_session=False)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -265,9 +277,12 @@ def _snapshot(table, data_str):
 
 
 def _snapshot_list(tab, mode):
-    from models.schema import Snapshot
-    snaps = Snapshot.query.filter_by(tab=tab, branch_id=mode).order_by(Snapshot.id.desc()).all()
-    return [{"id": s.id, "ts": s.timestamp.strftime('%Y-%m-%d %H:%M:%S') if s.timestamp else ""} for s in snaps]
+    """ids + timestamps only — the UI lists versions; it never needs the bodies, and loading
+    30 multi-MB bodies to render a dropdown is how a plain read could spike a worker."""
+    from models.schema import Snapshot, db
+    rows = (db.session.query(Snapshot.id, Snapshot.timestamp)
+            .filter_by(tab=tab, branch_id=mode).order_by(Snapshot.id.desc()).all())
+    return [{"id": sid, "ts": ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ""} for sid, ts in rows]
 
 
 def _restore_snapshot(sid, mode, require_tab=None):

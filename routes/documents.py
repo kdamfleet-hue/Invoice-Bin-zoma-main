@@ -260,7 +260,9 @@ def alerts_center_update():
                 if store_idx not in (10, 11):  # matches employees.html COLS[10]/[11] = إقامة/جواز expiry
                     return jsonify({"success": False, "error": "طلب غير صالح."}), 400
             elif target_field == "plate":
-                store_idx = 9  # COLS[9] = رقم اللوحة
+                # COLS[33] = رقم اللوحة (templates/employees.html). COLS[9] is الايبان —
+                # the old index silently overwrote the employee's IBAN with the plate.
+                store_idx = 33
             with _ALERTS_CENTER_LOCK:
                 rows = blob_get("employees")
                 if not isinstance(rows, list) or idx < 0 or idx >= len(rows) or not isinstance(rows[idx], list):

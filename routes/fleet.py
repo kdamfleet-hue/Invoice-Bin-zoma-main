@@ -252,6 +252,10 @@ def update_driver(driver_id):
         # Legacy sync (keep for tabs not yet rewritten)
         if old_name != vals['name'] or old_plate != vals['plate']:
             try:
+                # Lives in app.py and was never imported here, so this raised NameError on every
+                # rename — swallowed by the except below, so the UI said "updated" while the
+                # old name stayed in the schedule, washing and every other tab.
+                from app import _sync_all_tabs_from_drivers
                 _sync_all_tabs_from_drivers(
                     old_name=old_name, old_plate=old_plate,
                     new_name=vals['name'], new_plate=vals['plate'], new_car=vals['car']

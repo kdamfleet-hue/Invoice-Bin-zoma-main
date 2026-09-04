@@ -266,3 +266,49 @@ def api_create_dedicated_user():
     _global_blob_set("user_account_permissions", all_perms)
     _audit_add("إضافة", "حساب مخصص", None, f"الحساب: {username} — الصفحة: {mode}")
     return jsonify({"success": True, "username": username, "dedicated_mode": mode})
+
+
+@system_bp.route("/api/system/my_permissions")
+@login_required
+def api_my_permissions():
+    """The calling account's own tab restrictions — what static/app_ux.js uses to filter the
+    nav. It did not exist (404), so the menu never reflected per-account restrictions even
+    though the server enforced them. Resolves identity exactly like app.py's @before_request
+    enforcement so the menu and the server agree, including the settings-unlocked bypass."""
+    if session.get("settings_unlocked"):
+        return jsonify({"success": True, "dedicated_mode": "all", "disabled_tabs": []})
+    guser = session.get("google_user")
+    gname = guser.get("name") if isinstance(guser, dict) else ""
+    username = session.get("user") or session.get("username") or gname or ""
+    all_perms = _global_blob_get("user_account_permissions") or {}
+    mine = all_perms.get(username) or {}
+    if not mine and session.get("branch_id"):
+        mine = all_perms.get(f"branch{session.get('branch_id')}") or {}
+    glob = _global_blob_get("tab_permissions") or {}
+    out = {
+        "success": True,
+        "dedicated_mode": mine.get("dedicated_mode") or glob.get("dedicated_mode") or "all",
+        "disabled_tabs": glob.get("disabled_tabs", []),
+    }
+    if mine.get("allowed_tabs") is not None:
+        out["allowed_tabs"] = mine["allowed_tabs"]
+    return jsonify(out)
+
+
+@system_bp.route("/api/legacy/branches")
+@login_required
+def api_legacy_branches():
+    """Branch list for the users-admin form (templates/users_admin.html) — was a 404, so the
+    branch dropdown there stayed empty. Ids come from erp_branches because that is what
+    routes/auth.py stores in User.branch_id; the hardcoded helpers.BRANCHES list is only a
+    fallback for an empty table."""
+    from models.schema import Branch
+    try:
+        rows = [{"id": b.id, "name": b.name} for b in Branch.query.order_by(Branch.id).all()]
+    except Exception:
+        logger.exception("legacy/branches: Branch query failed")
+        rows = []
+    if not rows:
+        from helpers import BRANCHES
+        rows = [{"id": b["id"], "name": b["name"]} for b in BRANCHES]
+    return jsonify({"success": True, "branches": rows})

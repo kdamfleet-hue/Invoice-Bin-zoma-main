@@ -89,6 +89,25 @@ if _db_url:
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.abspath(DB_PATH)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Flask buffers a request body in full before any handler runs; with no cap, one oversized
+# upload can exhaust the worker's memory (routes/gps.py accepts two workbooks with no limit).
+# 64 MB sits above the largest legitimate body — a whole branch documents blob is capped at
+# DOC_MAX_BLOB_BYTES = 45 MB — while still bounding the pathological case (Flask answers 413).
+app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024
+
+
+@app.before_request
+def _refuse_oversized_bodies():
+    """MAX_CONTENT_LENGTH on its own is enforced only when the body is READ — inside the view —
+    and most views wrap their body in `except Exception`, which turned that 413 into a 500
+    after the bytes had already been streamed in. Refuse up-front on the declared length so
+    the body is never read at all and the client gets a proper 413."""
+    from flask import abort
+    limit = app.config.get("MAX_CONTENT_LENGTH")
+    if limit and request.content_length and request.content_length > limit:
+        abort(413)
+
+
 if _db_url:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_pre_ping': True,
@@ -552,6 +571,11 @@ def blob_set(table, data_obj):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error saving blob {key}: {e}")
+        # Re-raise. Swallowing this made every caller answer "saved" for a write that never
+        # landed, and then recorded a snapshot of data that was not in the table — a second way
+        # for names to "disappear", and a version history that could not be trusted. A failed
+        # save is now a real error, and only a committed save reaches _snapshot below.
+        raise
         
     _snapshot(table, data_str)
 
@@ -577,18 +601,24 @@ def _snapshot(table, data_str):
     mode = _row_id()
     
     try:
-        last = Snapshot.query.filter_by(tab=table, branch_id=mode).order_by(Snapshot.id.desc()).first()
-        if last and last.data == data_str:
+        # Compare against the latest body INSIDE the database rather than pulling it into
+        # Python — these payloads can be many MB (incidents/records embed attachments inline).
+        latest_id = (db.session.query(Snapshot.id).filter_by(tab=table, branch_id=mode)
+                     .order_by(Snapshot.id.desc()).limit(1).scalar())
+        if latest_id is not None and db.session.query(Snapshot.id).filter(
+                Snapshot.id == latest_id, Snapshot.data == data_str).first() is not None:
             return  # no change since the last snapshot
             
         new_snap = Snapshot(tab=table, branch_id=mode, data=data_str)
         db.session.add(new_snap)
         
-        # Cleanup old snapshots
-        snaps = Snapshot.query.filter_by(tab=table, branch_id=mode).order_by(Snapshot.id.desc()).all()
-        if len(snaps) > SNAP_KEEP:
-            for s in snaps[SNAP_KEEP:]:
-                db.session.delete(s)
+        # Trim by id only. The old code hydrated all 31 full bodies just to count them.
+        db.session.flush()  # give the new row an id so it counts toward SNAP_KEEP
+        stale_ids = [r[0] for r in db.session.query(Snapshot.id)
+                     .filter_by(tab=table, branch_id=mode)
+                     .order_by(Snapshot.id.desc()).offset(SNAP_KEEP).all()]
+        if stale_ids:
+            Snapshot.query.filter(Snapshot.id.in_(stale_ids)).delete(synchronize_session=False)
                 
         db.session.commit()
     except Exception as e:
@@ -1234,7 +1264,9 @@ def employees_data():
                     empid = str(row[0] or '').strip()
                     iqama = str(row[1] or '').strip()
                     name = str(row[2] or '').strip()
-                    plate = str(row[9] or '').strip()
+                    # Column 33 is رقم اللوحة (templates/employees.html COLS). Column 9 is the
+                    # IBAN — reading it here stored bank account numbers in hr_employees.plate.
+                    plate = str(row[33] or '').strip()
                     phone = str(row[7] or '').strip()
                     job = str(row[6] or '').strip()
                     details_json = json.dumps(row)
@@ -1453,7 +1485,9 @@ def _collect_expiry_alerts(window_days=90, rid=None):
             if not isinstance(row, list):
                 continue
             nm = (row[2] if len(row) > 2 else "") or (row[3] if len(row) > 3 else "")
-            pl = row[9] if len(row) > 9 else ""
+            # Column 33 is the plate; column 9 is the IBAN. The old index printed every
+            # employee's bank account number under a "plate" heading in the alert e-mails.
+            pl = row[33] if len(row) > 33 else ""
             if len(row) > 10:
                 add(nm, pl, "انتهاء الإقامة", row[10])
             if len(row) > 11:
@@ -1472,7 +1506,12 @@ def _collect_expiry_alerts(window_days=90, rid=None):
     # Odometer-Based Maintenance Alerts
     latest_oil = {}
     oils = _bg("oils_data") or []
-    orows = oils.get("rows") if isinstance(oils, dict) else (oils if isinstance(oils, list) else [])
+    # The oils tab saves {title, oils: [...], filters: [...]} — there is no "rows" key, so
+    # .get("rows") returned None and the loop below raised TypeError. That single crash took
+    # down /api/insights AND made _collect_expiry_alerts return nothing, i.e. document-expiry
+    # alerts silently went to zero the moment anyone saved the oils tab.
+    orows = ((oils.get("rows") or oils.get("oils") or []) if isinstance(oils, dict)
+             else (oils if isinstance(oils, list) else []))
     for row in orows:
         if isinstance(row, list) and len(row) > 3:
             plate = str(row[0] or "").strip()
@@ -1484,7 +1523,8 @@ def _collect_expiry_alerts(window_days=90, rid=None):
 
     latest_fuel = {}
     fuel = _bg("fuel_data") or []
-    frows = fuel.get("rows") if isinstance(fuel, dict) else (fuel if isinstance(fuel, list) else [])
+    frows = ((fuel.get("rows") or fuel.get("entries") or []) if isinstance(fuel, dict)
+             else (fuel if isinstance(fuel, list) else []))
     for row in frows:
         if isinstance(row, dict):
             plate = str(row.get("plate") or "").strip()
@@ -2489,6 +2529,40 @@ def send_push_notification(title, body):
     except Exception as e:
         logger.error(f"send_push_notification error: {e}")
 
+# ── Process-local TTL memo for the all-branches admin aggregates ─────────────────────────
+# /api/notifications and /api/branches_overview walk every branch and load whole blobs
+# (documents_data alone is capped at 45 MB per branch). Every open admin tab polls them on a
+# timer, so without a memo each poll repeated the full multi-branch scan — the recurring
+# memory spikes behind the 502s. Results are memoised per worker for a short window.
+_TTL_CACHE = {}
+_TTL_LOCK = threading.Lock()
+
+
+def _ttl_cached(key, ttl_seconds, builder):
+    now = time.time()
+    with _TTL_LOCK:
+        hit = _TTL_CACHE.get(key)
+        if hit and hit[0] > now:
+            return hit[1]
+    val = builder()
+    with _TTL_LOCK:
+        _TTL_CACHE[key] = (now + ttl_seconds, val)
+    return val
+
+
+def _expiry_counts_for(bid):
+    """{expired, d30, d90} for one branch. Never raises: one branch's malformed blob must not
+    take the whole notifications feed down with it."""
+    ac = {"expired": 0, "d30": 0, "d90": 0}
+    try:
+        for a in _collect_expiry_alerts(rid=bid):
+            if a["key"] in ac:
+                ac[a["key"]] += 1
+    except Exception:
+        logger.exception("expiry counts failed for branch %s", bid)
+    return ac
+
+
 @app.route("/api/notifications", methods=["GET"])
 @login_required
 def api_notifications():
@@ -2510,10 +2584,9 @@ def api_notifications():
                 "title": "%s — %s" % (e.get("action", "تحديث"), target),
                 "branch": b["name"], "user": e.get("user", "") or "النظام", "ts": ts,
             })
-        ac = {"expired": 0, "d30": 0, "d90": 0}
-        for a in _collect_expiry_alerts(rid=b["id"]):
-            if a["key"] in ac:
-                ac[a["key"]] += 1
+        # Memoised per branch: this is the expensive part (loads schedule, employees and the
+        # documents blob for the branch), and it is re-polled by every admin tab.
+        ac = _ttl_cached("expiry_counts:%s" % b["id"], 120, lambda bid=b["id"]: _expiry_counts_for(bid))
         if sum(ac.values()):
             items.append({
                 "key": "docs|%s|%s|%s|%s" % (b["id"], ac["expired"], ac["d30"], ac["d90"]),
@@ -2707,22 +2780,29 @@ def api_branches_overview():
     """Per-branch record counts across every data category. HQ/admin only."""
     if not session.get("is_admin"):
         return jsonify({"error": "forbidden"}), 403
-    acct_by_branch = {a.get("branch_id"): a.get("username") for a in get_branch_accounts()}
-    cats = [{"key": c["key"], "label": c["label"]} for c in BRANCH_DATA_CATEGORIES]
-    branches, totals = [], {c["key"]: 0 for c in BRANCH_DATA_CATEGORIES}
-    for b in BRANCHES:
-        counts = {}
-        for c in BRANCH_DATA_CATEGORIES:
-            n = _branch_driver_count(b["id"]) if c["key"] == "drivers" else _blob_count(_blob_get_at(c["table"], b["id"]))
-            counts[c["key"]] = n
-            totals[c["key"]] += n
-        entries = _audit_get_at(b["id"])
-        branches.append({"id": b["id"], "name": b["name"],
-                         "username": acct_by_branch.get(b["id"], ""),
-                         "last_ts": max((e.get("ts", "") for e in entries), default=""),
-                         "counts": counts, "total": sum(counts.values())})
-    return jsonify({"success": True, "categories": cats, "branches": branches,
-                    "totals": totals, "grand_total": sum(totals.values())})
+
+    def _build():
+        acct_by_branch = {a.get("branch_id"): a.get("username") for a in get_branch_accounts()}
+        cats = [{"key": c["key"], "label": c["label"]} for c in BRANCH_DATA_CATEGORIES]
+        branches, totals = [], {c["key"]: 0 for c in BRANCH_DATA_CATEGORIES}
+        for b in BRANCHES:
+            counts = {}
+            for c in BRANCH_DATA_CATEGORIES:
+                n = _branch_driver_count(b["id"]) if c["key"] == "drivers" else _blob_count(_blob_get_at(c["table"], b["id"]))
+                counts[c["key"]] = n
+                totals[c["key"]] += n
+            entries = _audit_get_at(b["id"])
+            branches.append({"id": b["id"], "name": b["name"],
+                             "username": acct_by_branch.get(b["id"], ""),
+                             "last_ts": max((e.get("ts", "") for e in entries), default=""),
+                             "counts": counts, "total": sum(counts.values())})
+        return {"success": True, "categories": cats, "branches": branches,
+                "totals": totals, "grand_total": sum(totals.values())}
+
+    # 66 whole-blob loads per call (6 branches x 11 categories) purely to count rows; memoised
+    # per worker so a screen of admin tabs polling together costs one scan a minute, not one
+    # per request. Counts may lag a save by up to 60 s, which is fine for an overview.
+    return jsonify(_ttl_cached("branches_overview", 60, _build))
 
 
 # All id=2 stores used by the workstation sandbox. Used by the reset endpoint below.
@@ -2934,15 +3014,24 @@ def _absher_apply(diff, store, remove_non_emp=False):
                 for f, v in u["changes"].items():
                     sets.append("%s = ?" % f)
                     params.append(v)
-                if not sets:
+                iq = str(u.get("iqama") or "").strip()
+                if not sets or not iq:
+                    # u["id"] is an erp_drivers id; the legacy `drivers` table has its own id
+                    # sequence, so matching on it updated an unrelated person. Match on the
+                    # business key instead, or do nothing.
                     continue
-                params.append(u["id"])
-                c.execute("UPDATE drivers SET %s WHERE id = ?" % ", ".join(sets), params)
+                params.append(iq)
+                c.execute("UPDATE drivers SET %s WHERE iqama = ?" % ", ".join(sets), params)
             for n in diff["new"]:
                 c.execute("INSERT INTO drivers (name, empid, plate, car, iqama, phone, drivercard) VALUES (?,?,?,?,?,?,?)",
                           (n["name"], "", n["plate"], n["car"], n["iqama"], "", ""))
-            for nid in non_emp_ids:                                  # حذف من ليسوا في بيانات الموظفين
-                c.execute("DELETE FROM drivers WHERE id = ?", (nid,))
+            if non_emp_ids:
+                # Deliberately NOT executed. These ids come from erp_drivers, but this branch
+                # writes the legacy `drivers` table whose ids are an independent sequence — so
+                # each DELETE removed an unrelated person, and this table is not in
+                # SNAPSHOT_TABLES, so there was no way back. Until the two stores share a key
+                # the "remove non-employees" option is a no-op on the SQL store.
+                logger.warning("absher: skipped %d non-employee deletions on the legacy drivers table (id spaces differ)", len(non_emp_ids))
             conn.commit()
     else:
         tbl = _driver_blob_table(store)
@@ -4086,8 +4175,15 @@ This message was sent from BIN ZOMAH INTL. Fleet Management System.
 # branch. Only GET is mirrored now: the sandbox stays browsable, but nothing outside can
 # mutate real data through it. Sandbox tabs that used to save through a mirrored POST simply
 # stop persisting, which is the correct behaviour for a sandbox.
+#
+# Endpoints that must NOT be mirrored even read-only: anything that reads a store with no
+# branch column. /api/employees reads the global hr_employees table, so its sandbox twin
+# returned the real staff roster — names, iqama numbers, phones, IBANs — to anyone with the
+# URL and no login. Everything else mirrored here reads branch-2 blobs and is genuinely
+# isolated (verified endpoint by endpoint).
+_WS_NEVER_MIRROR = {"ai_chat", "ai_status", "employees_data"}
 for _rule in list(app.url_map.iter_rules()):
-    if _rule.rule.startswith("/api/") and _rule.endpoint not in ("ai_chat", "ai_status"):
+    if _rule.rule.startswith("/api/") and _rule.endpoint not in _WS_NEVER_MIRROR:
         _ws_methods = sorted(_rule.methods & {"GET"})
         if not _ws_methods:
             continue
@@ -4142,10 +4238,17 @@ def api_registry_import():
             "drivercard": ["بطاقة السائق"]
         }
         
+        def _hnorm(s):
+            return " ".join(str(s or "").strip().lower().split())
+
         h_idx = {}
         for db_col, aliases in col_map.items():
+            wanted = {_hnorm(a) for a in aliases}
             for i, h in enumerate(headers):
-                if any(a in h for a in aliases):
+                # Exact match only. Substring matching bound "إقامة" to a header such as
+                # "تاريخ انتهاء الإقامة", so iqama numbers were read from a DATE column and the
+                # identity key used to match existing drivers was overwritten with dates.
+                if _hnorm(h) in wanted:
                     h_idx[db_col] = i
                     break
         
@@ -4470,7 +4573,8 @@ def api_vehicle_report(plate):
         # Calculate Fuel Cost
         fuel_cost = 0
         fuel = blob_get("fuel_data") or []
-        frows = fuel.get("rows") if isinstance(fuel, dict) else (fuel if isinstance(fuel, list) else [])
+        frows = ((fuel.get("rows") or fuel.get("entries") or []) if isinstance(fuel, dict)
+                 else (fuel if isinstance(fuel, list) else []))
         for r in frows:
             if isinstance(r, dict) and str(r.get("plate", "")).strip() == plate:
                 try: fuel_cost += float(r.get("cost") or 0)
@@ -4479,14 +4583,17 @@ def api_vehicle_report(plate):
         # Calculate Workshop & Oils Cost
         workshop_cost = 0
         workshop = blob_get("workshop_data") or []
-        wrows = workshop.get("rows") if isinstance(workshop, dict) else (workshop if isinstance(workshop, list) else [])
+        wrows = (workshop.get("rows") or []) if isinstance(workshop, dict) else (workshop if isinstance(workshop, list) else [])
         for r in wrows:
             if isinstance(r, list) and len(r) > 10 and str(r[0] or "").strip() == plate:
                 try: workshop_cost += float(r[8] or 0) # usually index 8 is cost in workshop
                 except ValueError: pass
                 
         oils = blob_get("oils_data") or []
-        orows = oils.get("rows") if isinstance(oils, dict) else (oils if isinstance(oils, list) else [])
+        # Same shape issue as _collect_expiry_alerts: the oils tab stores {title, oils, filters},
+        # never "rows", so this must fall back to "oils" (and never iterate None).
+        orows = ((oils.get("rows") or oils.get("oils") or []) if isinstance(oils, dict)
+                 else (oils if isinstance(oils, list) else []))
         for r in orows:
             if isinstance(r, list) and len(r) > 10 and str(r[0] or "").strip() == plate:
                 try: workshop_cost += float(r[9] or 0) + float(r[10] or 0) # usually 9 and 10 are cost
@@ -4495,7 +4602,7 @@ def api_vehicle_report(plate):
         # Calculate Washing Cost
         washing_cost = 0
         washing = blob_get("washing_schedule") or []
-        wrows = washing.get("rows") if isinstance(washing, dict) else (washing if isinstance(washing, list) else [])
+        wrows = (washing.get("rows") or []) if isinstance(washing, dict) else (washing if isinstance(washing, list) else [])
         for r in wrows:
             if isinstance(r, dict) and str(r.get("plate", "")).strip() == plate:
                 try: washing_cost += float(r.get("cost") or 0)
@@ -4797,10 +4904,10 @@ import routes.dammam          # noqa: F401
 import routes.ops_cycle       # noqa: F401
 import routes.schedule_transport  # noqa: F401
 import routes.schedule_vehicles   # noqa: F401
-import routes.washing_scope   # noqa: F401
-import routes.invoices        # noqa: F401
-from routes.invoices import invoices_bp
-app.register_blueprint(invoices_bp)
+# routes/invoices.py used to be registered here. It defined no routes at all (its view
+# functions carried no decorators), imported from app at module level (a circular import
+# hazard at every worker boot), and referenced an undefined name (tafqeet) that would have
+# raised the moment anyone wired it up. Removed rather than left as a landmine.
 
 from routes.auth import auth_bp
 from routes.api_fleet import api_fleet_bp
