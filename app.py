@@ -611,6 +611,7 @@ def inject_branch():
     return {"active_branch": current_branch_name(),
             "active_branch_id": current_branch_id(),
             "branches": BRANCHES,
+            "is_admin": session.get("role") == "admin" or bool(session.get("is_admin")),
             "snap_tab": SNAP_TAB_BY_ROUTE.get(path, "")}
 
 
@@ -1014,6 +1015,7 @@ def employee_report():
 
 @app.route("/employees")
 @login_required
+@role_required("admin")
 def employees():
     google_user = session.get("google_user")
     b64_en = load_logo()
@@ -1323,6 +1325,7 @@ def generate_invoice():
 
 @app.route("/api/employees", methods=["GET", "POST"])
 @login_required
+@role_required("admin")
 def employees_data():
     """Persist the branch employees grid using the hybrid SQL hr_employees table."""
     if request.method == "POST":

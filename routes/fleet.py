@@ -7,7 +7,7 @@ import logging
 import qrcode
 from datetime import datetime, date
 from flask import Blueprint, render_template, session, request, jsonify, send_file, current_app
-from helpers import login_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id
+from helpers import login_required, role_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id
 from models.schema import db, Driver, Vehicle, VehicleCustody
 from models.database import db_connection
 from sqlalchemy.exc import IntegrityError
@@ -776,11 +776,13 @@ def api_sync_live_numbers_data():
 
 @fleet_bp.route("/master_editor")
 @login_required
+@role_required("admin")
 def master_editor():
     return render_template("master_editor.html", title="التعديل الشامل للبيانات")
 
 @fleet_bp.route("/api/master_data")
 @login_required
+@role_required("admin")
 def api_master_data():
     try:
         from models.schema import Driver, Vehicle, VehicleCustody

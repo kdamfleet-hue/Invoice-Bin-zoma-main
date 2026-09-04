@@ -222,10 +222,9 @@
         document.addEventListener('DOMContentLoaded', async () => {
             buildHeaderRow();
             await loadEmployees();
-            if (document.getElementById('employeesBody').children.length === 0) {
-                for (let i = 0; i < 50; i++) addEmployeeRow(false);
-                persistLocal();
-            }
+            // Do not create placeholder rows: blank rows make the table look like it has
+            // missing records and can be mistaken for real employee entries.
+            if (document.getElementById('employeesBody').children.length === 0) showEmptyState();
             if (window.FleetData) {
                 FleetData.fillDatalist('empNames');
             }
@@ -348,6 +347,8 @@
         // single call at the end, instead of rescanning the whole table after every row.
         function addEmployeeRow(save = true, skipCount = false) {
             const tbody = document.getElementById('employeesBody');
+            const empty = tbody.querySelector('.empty-state-row');
+            if (empty) empty.remove();
             const tr = document.createElement('tr');
             const idx = tbody.children.length + 1;
             tr.innerHTML = buildRowHtml(idx, []);
@@ -389,15 +390,27 @@
             } catch (e) { /* quota / private mode */ }
         }
 
+        function showEmptyState() {
+            const tbody = document.getElementById('employeesBody');
+            tbody.innerHTML = `<tr class="empty-state-row"><td colspan="48" class="text-center py-4 text-muted">لا توجد بيانات موظفين معروضة حاليًا.</td></tr>`;
+            updateCount(0);
+        }
+
+        function rowHasData(row) {
+            return Array.isArray(row) && row.some(value => String(value ?? '').trim() !== '');
+        }
+
         function renderRows(rows) {
             const tbody = document.getElementById('employeesBody');
             tbody.innerHTML = '';
-            rows.forEach((r, idx) => {
+            const nonEmptyRows = (Array.isArray(rows) ? rows : []).filter(rowHasData);
+            nonEmptyRows.forEach((r, idx) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = buildRowHtml(idx + 1, r);
                 tbody.appendChild(tr);
             });
-            updateCount();
+            if (!nonEmptyRows.length) showEmptyState();
+            updateCount(nonEmptyRows.length);
         }
 
         // Load order: server (POST contract) -> static default -> localStorage cache.
@@ -459,6 +472,8 @@
             if (rows && rows.length) {
                 renderRows(rows);
                 persistLocal();
+            } else {
+                showEmptyState();
             }
         }
 
