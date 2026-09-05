@@ -82,9 +82,16 @@
         #employeesTable.compact [data-col="36"], #employeesTable.compact [data-col="37"], #employeesTable.compact [data-col="38"] { width: 92px; }
         #employeesTable.compact input { width: 100%; padding: 4px 2px; }
         #employeesTable.compact .actions-column { width: 58px; }
-        #employeesTable thead tr:first-child th {
-            position: static;
-        }
+        /* Keep the group labels above the real column labels. The old global sticky rule
+           made the first header row overlap the second one while scrolling. */
+        #employeesTable thead .group-row th { position: static; }
+        #employeesTable thead #empColHeaderRow th { top: 0; }
+        #employeesTable thead .column-search-row th { position: static; background: #0d2039; padding: 5px 4px; }
+        #employeesTable .column-search-input { width: 100%; min-width: 0; padding: 5px 4px; border: 1px solid rgba(148,163,184,.35); border-radius: 6px; background: rgba(255,255,255,.08); color: #f8fafc; font-size: .7rem; text-align: center; }
+        #employeesTable .column-search-input::placeholder { color: rgba(226,232,240,.7); }
+        #employeesTable .column-search-input:focus { outline: 2px solid rgba(96,165,250,.7); background: rgba(255,255,255,.14); }
+        #employeesTable.compact .column-search-row .nk { display: none; }
+        #employeesTable.compact .column-search-row .only-compact { display: table-cell; }
         #employeesTable .group-header {
             background-color: #16315a;
             font-size: 0.95rem;
@@ -205,6 +212,7 @@
 <tr id="empColHeaderRow">
 <!-- 46 column headers injected by JS from COLS to stay in sync with export -->
 </tr>
+<tr id="empColumnSearchRow" class="column-search-row" aria-label="البحث داخل الأعمدة"></tr>
 </thead>
 <tbody id="employeesBody">
 <!-- Rows will be populated by JS -->
@@ -242,6 +250,7 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             buildHeaderRow();
+            buildColumnSearchRow();
             await loadEmployees();
             // Do not create placeholder rows: blank rows make the table look like it has
             // missing records and can be mistaken for real employee entries.
@@ -258,6 +267,16 @@
             const row = document.getElementById('empColHeaderRow');
             const heads = COLS.map((c, i) => `<th data-col="${i}" class="sortable ${KEY_COLS.has(i) ? '' : 'nk'}" onclick="sortEmployees(${i})">${esc(c)}</th>`).join('');
             row.innerHTML = `<th class="idx-head only-compact">م</th>${heads}<th class="only-compact">إجراءات</th>`;
+        }
+
+        function buildColumnSearchRow() {
+            const row = document.getElementById('empColumnSearchRow');
+            if (!row) return;
+            const cells = COLS.map((c, i) => {
+                const hidden = KEY_COLS.has(i) ? '' : ' nk';
+                return `<th data-col="${i}" class="${hidden.trim()}"><input class="column-search-input" data-column-search="${i}" type="search" autocomplete="off" placeholder="بحث" aria-label="البحث في ${esc(c)}" oninput="filterEmployees()"></th>`;
+            }).join('');
+            row.innerHTML = `<th class="only-compact"></th>${cells}<th class="only-compact"></th>`;
         }
 
         let sortCol = -1;
@@ -322,10 +341,22 @@
             const q = (document.getElementById('empSearch').value || '').trim().toLowerCase();
             const jobSel = document.getElementById('empJobFilter');
             const job = jobSel ? jobSel.value : '';
+            const columnQueries = {};
+            document.querySelectorAll('[data-column-search]').forEach(input => {
+                const value = (input.value || '').trim().toLowerCase();
+                if (value) columnQueries[input.dataset.columnSearch] = value;
+            });
             let shown = 0;
             document.querySelectorAll('#employeesBody tr').forEach(tr => {
+                if (tr.classList.contains('empty-state-row')) return;
                 let match = !q;
                 if (q) match = Array.from(tr.querySelectorAll('input')).some(inp => (inp.value || '').toLowerCase().indexOf(q) !== -1);
+                if (match) {
+                    match = Object.entries(columnQueries).every(([col, value]) => {
+                        const inp = tr.querySelector(`input[data-col="${col}"]`);
+                        return !!inp && (inp.value || '').toLowerCase().indexOf(value) !== -1;
+                    });
+                }
                 if (match && job) {
                     const jinp = tr.querySelector('input[data-col="6"]'); // 6 = المسمى الوظيفي
                     match = !!jinp && (jinp.value || '').trim() === job;
