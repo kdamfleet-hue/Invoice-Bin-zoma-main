@@ -554,6 +554,7 @@ def api_drivers_info_save():
         plate = data.get('plate', '').strip()
         car = data.get('car', '').strip()
         model = data.get('model', '').strip()
+        reason = data.get('reason', '').strip()
         branch_id = current_branch_id()
         
         if not name:
@@ -579,7 +580,19 @@ def api_drivers_info_save():
         driver.status = status
         
         db.session.flush()
-        
+
+        from datetime import date
+        today = date.today()
+
+        def close_active(query):
+            """Close historical custody rows without deleting their relationship."""
+            active_rows = query.filter_by(status='active').all()
+            for custody in active_rows:
+                custody.status = 'returned'
+                custody.returned_date = today
+                custody.notes = ((custody.notes or '') +
+                                 (f"\nسبب تغيير الربط: {reason}" if reason else '')).strip()
+
         if plate:
             vehicle = Vehicle.query.filter_by(plate_number=plate, branch_id=branch_id).first()
             if not vehicle:
@@ -593,17 +606,21 @@ def api_drivers_info_save():
             # Update custody
             existing_custody = VehicleCustody.query.filter_by(driver_id=driver.id, vehicle_id=vehicle.id, status='active').first()
             if not existing_custody:
-                # return any active custody for this driver
-                VehicleCustody.query.filter_by(driver_id=driver.id, status='active').update({'status': 'returned'})
-                # return any active custody for this vehicle
-                VehicleCustody.query.filter_by(vehicle_id=vehicle.id, status='active').update({'status': 'returned'})
-                
-                from datetime import date
-                new_custody = VehicleCustody(driver_id=driver.id, vehicle_id=vehicle.id, received_date=date.today())
+                current_driver_custody = VehicleCustody.query.filter_by(driver_id=driver.id, status='active').first()
+                current_vehicle_custody = VehicleCustody.query.filter_by(vehicle_id=vehicle.id, status='active').first()
+                if current_driver_custody or current_vehicle_custody:
+                    if len(reason) < 5:
+                        return jsonify({"success": False, "error": "سبب التغيير مطلوب (5 أحرف على الأقل)"}), 400
+                close_active(VehicleCustody.query.filter_by(driver_id=driver.id))
+                close_active(VehicleCustody.query.filter_by(vehicle_id=vehicle.id))
+                new_custody = VehicleCustody(driver_id=driver.id, vehicle_id=vehicle.id, received_date=today,
+                                             notes=f"سبب إنشاء/تغيير الربط: {reason}" if reason else None)
                 db.session.add(new_custody)
         else:
             # Remove custody if plate is cleared
-            VehicleCustody.query.filter_by(driver_id=driver.id, status='active').update({'status': 'returned'})
+            if VehicleCustody.query.filter_by(driver_id=driver.id, status='active').first() and len(reason) < 5:
+                return jsonify({"success": False, "error": "سبب إنهاء الربط مطلوب (5 أحرف على الأقل)"}), 400
+            close_active(VehicleCustody.query.filter_by(driver_id=driver.id))
             
         db.session.commit()
         return jsonify({"success": True})
