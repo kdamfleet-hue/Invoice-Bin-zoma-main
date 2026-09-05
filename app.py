@@ -1442,11 +1442,59 @@ def employees_data():
             db_rows = db.execute("SELECT details FROM hr_employees").fetchall()
             import json
             data = [json.loads(r["details"]) for r in db_rows if r["details"]]
-            
+
         if not data:
             fallback = blob_get("employees")
             data = fallback if fallback is not None else []
-            
+
+        # The driver registry is the authoritative roster for the admin account.
+        # Add only driver records that are absent from the employee grid so the
+        # employee count cannot lag behind the driver count. Existing rows and
+        # their full 46-column payloads are never changed here.
+        if isinstance(data, list):
+            def _key(value):
+                return str(value or "").strip().casefold()
+
+            existing_keys = set()
+            for row in data:
+                if isinstance(row, list):
+                    existing_keys.update(_key(row[i]) for i in (0, 1, 2) if len(row) > i and _key(row[i]))
+                elif isinstance(row, dict):
+                    existing_keys.update(_key(row.get(k)) for k in ("empid", "employee_id", "iqama", "iqama_number", "name") if _key(row.get(k)))
+
+            latest_by_driver = {}
+            active_by_driver = {}
+            try:
+                for custody in VehicleCustody.query.order_by(VehicleCustody.id.desc()).all():
+                    latest_by_driver.setdefault(custody.driver_id, custody)
+                    if str(custody.status or "").casefold() == "active":
+                        active_by_driver.setdefault(custody.driver_id, custody)
+            except Exception:
+                latest_by_driver = {}
+                active_by_driver = {}
+
+            for driver in Driver.query.order_by(Driver.id.asc()).all():
+                driver_keys = {_key(driver.employee_id), _key(driver.iqama_number), _key(driver.name)} - {""}
+                if driver_keys & existing_keys:
+                    continue
+                row = [""] * 46
+                row[0] = driver.employee_id or ""
+                row[1] = driver.iqama_number or ""
+                row[2] = driver.name or ""
+                row[6] = driver.job_title or ""
+                row[7] = driver.phone or ""
+                row[10] = driver.iqama_expiry.isoformat() if driver.iqama_expiry else ""
+                row[17] = driver.contract_exp.isoformat() if driver.contract_exp else ""
+                row[30] = driver.drivercard or ""
+                custody = active_by_driver.get(driver.id) or latest_by_driver.get(driver.id)
+                vehicle = custody.vehicle if custody and custody.vehicle else None
+                if vehicle:
+                    row[33] = vehicle.plate_number or ""
+                    row[36] = vehicle.v_type or ""
+                    row[38] = vehicle.model or ""
+                data.append(row)
+                existing_keys.update(driver_keys)
+
         return jsonify({"success": True, "rows": data})
     except Exception:
         logger.exception("employees_data GET error")
