@@ -7,7 +7,7 @@ import logging
 import qrcode
 from datetime import datetime, date
 from flask import Blueprint, render_template, session, request, jsonify, send_file, current_app
-from helpers import login_required, role_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id
+from helpers import login_required, role_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id, _audit_add
 from models.schema import db, Driver, Vehicle, VehicleCustody
 from models.database import db_connection
 from sqlalchemy.exc import IntegrityError
@@ -114,6 +114,56 @@ def driver_vehicle_assignments():
 def api_driver_vehicle_assignments():
     return jsonify({"success": True, "read_only": True,
                     "items": _driver_vehicle_assignment_rows(current_branch_id())})
+
+
+def _data_quality_report(branch_id):
+    """Read-only checks; returns findings without changing operational records."""
+    from models.schema import Driver, Vehicle, VehicleCustody
+    drivers = Driver.query.filter_by(branch_id=branch_id).all()
+    vehicles = Vehicle.query.filter_by(branch_id=branch_id).all()
+    active = (VehicleCustody.query.join(Driver, VehicleCustody.driver_id == Driver.id)
+              .join(Vehicle, VehicleCustody.vehicle_id == Vehicle.id)
+              .filter(VehicleCustody.status == "active", Driver.branch_id == branch_id,
+                      Vehicle.branch_id == branch_id).all())
+    driver_ids = {c.driver_id for c in active}
+    vehicle_ids = {c.vehicle_id for c in active}
+    findings = []
+    for d in drivers:
+        if not d.phone:
+            findings.append({"type": "missing_phone", "severity": "warning", "entity": "سائق", "name": d.name, "detail": "رقم الجوال غير مسجل"})
+        if not d.iqama_expiry or not d.license_expiry:
+            findings.append({"type": "missing_driver_document", "severity": "warning", "entity": "سائق", "name": d.name, "detail": "تاريخ إقامة أو رخصة غير مكتمل"})
+        if d.id not in driver_ids:
+            findings.append({"type": "unassigned_driver", "severity": "info", "entity": "سائق", "name": d.name, "detail": "لا توجد مركبة مرتبطة حاليًا"})
+    for v in vehicles:
+        missing = []
+        if not v.insurance_expiry: missing.append("التأمين")
+        if not v.istimara_expiry: missing.append("الاستمارة")
+        if not v.inspection_expiry: missing.append("الفحص")
+        if missing:
+            findings.append({"type": "missing_vehicle_document", "severity": "warning", "entity": "مركبة", "name": v.plate_number, "detail": "حقول ناقصة: " + "، ".join(missing)})
+        if v.id not in vehicle_ids:
+            findings.append({"type": "unassigned_vehicle", "severity": "info", "entity": "مركبة", "name": v.plate_number, "detail": "لا يوجد سائق مرتبط حاليًا"})
+    return {"drivers": len(drivers), "vehicles": len(vehicles), "active_assignments": len(active), "findings": findings}
+
+
+@fleet_bp.route("/data-quality")
+@login_required
+def data_quality():
+    return render_template("data_quality.html", report=_data_quality_report(current_branch_id()),
+                           google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@fleet_bp.route("/api/data-quality")
+@login_required
+def api_data_quality():
+    return jsonify({"success": True, "read_only": True, "report": _data_quality_report(current_branch_id())})
+
+
+@fleet_bp.route("/audit-log")
+@login_required
+def audit_log_page():
+    return render_template("audit_log.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 @fleet_bp.route("/api/legacy/drivers", methods=["GET"])
 @login_required
@@ -540,6 +590,7 @@ def api_vehicle_search():
 
 @fleet_bp.route("/api/drivers_info_save", methods=["POST"])
 @login_required
+@role_required("admin", "operations")
 def api_drivers_info_save():
     from models.schema import Driver, Vehicle, VehicleCustody
     import uuid
@@ -623,6 +674,8 @@ def api_drivers_info_save():
             close_active(VehicleCustody.query.filter_by(driver_id=driver.id))
             
         db.session.commit()
+        _audit_add("تحديث ربط السائق بالمركبة", f"السائق {driver.name}", None,
+                   f"المركبة: {plate or 'بدون مركبة'} — السبب: {reason or 'تعديل بيانات'}")
         return jsonify({"success": True})
     except Exception as e:
         db.session.rollback()
