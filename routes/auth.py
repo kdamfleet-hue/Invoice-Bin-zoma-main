@@ -8,6 +8,7 @@ import hmac
 import logging
 import re
 from functools import wraps
+from sqlalchemy.exc import IntegrityError
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
@@ -389,42 +390,51 @@ def api_users():
         if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
             return jsonify({"error": "bad_email", "reason": "صيغة البريد الإلكتروني غير صحيحة"}), 400
             
-        user = User.query.filter_by(username=username).first()
-        
-        if user:
-            # Update existing
-            if password:
-                if len(password) < 12:
-                    return jsonify({"error": "weak", "reason": "كلمة المرور يجب أن تكون 12 حرفًا على الأقل"}), 400
-                user.password_hash = generate_password_hash(password)
-                user.must_change_password = True
+        try:
+            user = User.query.filter_by(username=username).first()
 
-            user.email = email or user.email
-            user.role = role
-            user.branch_id = int(branch_id) if branch_id else None
-            if 'is_active' in body:
-                user.is_active = bool(body.get('is_active'))
+            if user:
+                # Update existing
+                if password:
+                    if len(password) < 12:
+                        return jsonify({"error": "weak", "reason": "كلمة المرور يجب أن تكون 12 حرفًا على الأقل"}), 400
+                    user.password_hash = generate_password_hash(password)
+                    user.must_change_password = True
+
+                user.email = email or user.email
+                user.role = role
+                user.branch_id = int(branch_id) if branch_id else None
+                if 'is_active' in body:
+                    user.is_active = bool(body.get('is_active'))
+                db.session.commit()
+                notification = _send_account_notification(user, "reset") if password else "not_applicable"
+                return jsonify({"success": True, "message": "تم التحديث بنجاح", "notification": notification})
+
+            # Create new
+            if not password or len(password) < 12:
+                return jsonify({"error": "weak", "reason": "كلمة المرور مطلوبة (12 حرفًا على الأقل)"}), 400
+
+            new_user = User(
+                username=username,
+                email=email or None,
+                password_hash=generate_password_hash(password),
+                role=role,
+                branch_id=int(branch_id) if branch_id else None,
+                is_active=True,
+                must_change_password=True
+            )
+            db.session.add(new_user)
             db.session.commit()
-            notification = _send_account_notification(user, "reset") if password else "not_applicable"
-            return jsonify({"success": True, "message": "تم التحديث بنجاح", "notification": notification})
-            
-        # Create new
-        if not password or len(password) < 12:
-            return jsonify({"error": "weak", "reason": "كلمة المرور مطلوبة (12 حرفًا على الأقل)"}), 400
-            
-        new_user = User(
-            username=username,
-            email=email or None,
-            password_hash=generate_password_hash(password),
-            role=role,
-            branch_id=int(branch_id) if branch_id else None,
-            is_active=True,
-            must_change_password=True
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        notification = _send_account_notification(new_user, "created")
-        return jsonify({"success": True, "notification": notification})
+            notification = _send_account_notification(new_user, "created")
+            return jsonify({"success": True, "notification": notification})
+        except IntegrityError:
+            db.session.rollback()
+            logger.exception("User create/update integrity error for %s", username)
+            return jsonify({"error": "conflict", "reason": "اسم المستخدم موجود أو توجد بيانات متعارضة"}), 409
+        except Exception:
+            db.session.rollback()
+            logger.exception("User create/update failed for %s", username)
+            return jsonify({"error": "internal", "reason": "تعذر حفظ المستخدم. راجع سجل الخادم."}), 500
 
     if request.method == "DELETE":
         user_id = body.get("id")
