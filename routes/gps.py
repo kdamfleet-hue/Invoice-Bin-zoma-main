@@ -436,6 +436,25 @@ def get_gps_locations():
     return result
 
 
+@gps_bp.route("/api/notifications", methods=["GET"])
+@login_required
+def notifications_data():
+    from services.notification_center import get_notifications
+    try:
+        limit = int(request.args.get("limit", 40))
+    except (TypeError, ValueError):
+        limit = 40
+    return jsonify({"success": True, **get_notifications(limit)})
+
+
+@gps_bp.route("/api/notifications", methods=["POST"])
+@login_required
+def notifications_mark_read():
+    from services.notification_center import mark_read
+    payload = request.get_json(silent=True) or {}
+    return jsonify({"success": True, **mark_read(payload.get("ids"), bool(payload.get("all")))})
+
+
 @gps_bp.route("/api/gps/history")
 @login_required
 def gps_history_data():

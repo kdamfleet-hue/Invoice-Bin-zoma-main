@@ -21,6 +21,18 @@
          but a new upstream release (or a compromised one) can no longer execute here unreviewed. -->
     <script src="https://unpkg.com/lucide@1.40.0/dist/umd/lucide.min.js"></script>
     {% block head %}{% endblock %}
+    <style>
+      .bz-notification-center{margin:0 12px 14px;border:1px solid rgba(148,163,184,.25);border-radius:12px;background:rgba(15,23,42,.34);overflow:hidden}
+      .bz-notification-trigger{width:100%;display:flex;align-items:center;gap:9px;padding:10px 12px;border:0;background:transparent;color:inherit;text-align:right;cursor:pointer;font:inherit}
+      .bz-notification-trigger:hover{background:rgba(59,130,246,.14)}
+      .bz-notification-badge{margin-right:auto;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#ef4444;color:white;font-size:12px;display:inline-flex;align-items:center;justify-content:center;font-weight:800}
+      .bz-notification-panel{display:none;border-top:1px solid rgba(148,163,184,.2);max-height:330px;overflow:auto;padding:8px}
+      .bz-notification-panel.is-open{display:block}
+      .bz-notification-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 3px 8px;font-size:11px;color:#94a3b8}
+      .bz-notification-toolbar button{border:0;background:transparent;color:#93c5fd;cursor:pointer;font:inherit}
+      .bz-notification-item{padding:9px 7px;border-bottom:1px solid rgba(148,163,184,.12);font-size:12px;line-height:1.5}.bz-notification-item:last-child{border-bottom:0}.bz-notification-item.unread{background:rgba(59,130,246,.1)}
+      .bz-notification-item strong{display:block;color:#f8fafc}.bz-notification-item small{color:#94a3b8}.bz-notification-empty{padding:16px 8px;text-align:center;color:#94a3b8;font-size:12px}.bz-sound-toggle{color:#fbbf24!important}
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bz-enterprise-app {% if is_dedicated %}dedicated-mode{% endif %} {% block body_class %}{% endblock %}">
@@ -44,6 +56,13 @@
                     <label class="visually-hidden" for="bzSidebarSearch">البحث في الأقسام</label>
                     <input id="bzSidebarSearch" type="search" placeholder="ابحث في الأقسام…" autocomplete="off">
                     <span aria-hidden="true">⌕</span>
+                </div>
+                <div class="bz-notification-center" id="bzNotificationCenter">
+                    <button type="button" class="bz-notification-trigger" id="bzNotificationTrigger" aria-expanded="false" aria-controls="bzNotificationPanel"><span aria-hidden="true">🔔</span><span class="slab">مركز التنبيهات</span><span class="bz-notification-badge" id="bzNotificationBadge" hidden>0</span></button>
+                    <div class="bz-notification-panel" id="bzNotificationPanel" role="region" aria-label="مركز التنبيهات">
+                        <div class="bz-notification-toolbar"><span id="bzSoundStatus">الصوت متوقف</span><span><button type="button" id="bzSoundToggle" class="bz-sound-toggle">تفعيل الصوت</button> · <button type="button" id="bzMarkAllRead">تعليم الكل كمقروء</button></span></div>
+                        <div id="bzNotificationList"><div class="bz-notification-empty">جارٍ تحميل التنبيهات…</div></div>
+                    </div>
                 </div>
                 <div class="nav-section-label">نظرة عامة</div>
                 <a href="/" class="{% if request.path == '/' %}active{% endif %}"><span class="si">🏠</span><span class="slab">الرئيسية</span></a>
@@ -129,6 +148,7 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script defer src="{{ url_for('static', filename='app_ux.js', v=43) }}"></script>
+    <script defer src="{{ url_for('static', filename='js/notification_center.js', v=1) }}"></script>
     <script defer src="{{ url_for('static', filename='js/sidebar_guard.js', v=1) }}"></script>
     {% block scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}
