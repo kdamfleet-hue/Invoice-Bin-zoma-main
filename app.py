@@ -236,6 +236,17 @@ def ensure_db_columns():
                     logger.info("Auto-migration: Added reason to erp_audit_logs")
             if 'erp_users' in tables:
                 cols = [c['name'] for c in inspector.get_columns('erp_users')]
+                # Keep legacy production databases compatible with the current User model.
+                # Without these columns, any User.query (including /api/users) fails before
+                # the route can return a useful validation response.
+                legacy_user_cols = [
+                    ('email', 'VARCHAR(255)'),
+                    ('must_change_password', 'BOOLEAN DEFAULT FALSE'),
+                ]
+                for col_name, col_def in legacy_user_cols:
+                    if col_name not in cols:
+                        conn.execute(text(f"ALTER TABLE erp_users ADD COLUMN {col_name} {col_def}"))
+                        logger.info(f"Auto-migration: Added {col_name} to erp_users")
                 if 'password_reset_token_hash' not in cols:
                     conn.execute(text("ALTER TABLE erp_users ADD COLUMN password_reset_token_hash VARCHAR(64)"))
                     logger.info("Auto-migration: Added password_reset_token_hash to erp_users")
