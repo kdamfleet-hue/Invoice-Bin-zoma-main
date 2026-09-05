@@ -65,6 +65,56 @@ def fleet_dashboard():
         logger.exception("modern fleet dashboard insights failed")
     return render_template("fleet_dashboard_new.html", google_user=session.get("google_user"), b64_en=load_logo(), branches=branches, is_admin=is_admin, insights=insights)
 
+
+def _driver_vehicle_assignment_rows(branch_id):
+    """Read-only relationship view; never mutates drivers, vehicles, or custody rows."""
+    from models.schema import Driver, Vehicle, VehicleCustody
+    rows = []
+    custodies = (VehicleCustody.query
+                 .join(Driver, VehicleCustody.driver_id == Driver.id)
+                 .join(Vehicle, VehicleCustody.vehicle_id == Vehicle.id)
+                 .filter(Driver.branch_id == branch_id, Vehicle.branch_id == branch_id)
+                 .order_by(VehicleCustody.status.asc(), VehicleCustody.received_date.desc())
+                 .all())
+    for c in custodies:
+        d, v = c.driver, c.vehicle
+        rows.append({
+            "id": c.id,
+            "driver_id": d.id,
+            "driver_name": d.name or "غير محدد",
+            "employee_id": d.employee_id or "",
+            "driver_phone": d.phone or "",
+            "driver_status": d.status or "",
+            "vehicle_id": v.id,
+            "plate": v.plate_number or "",
+            "vehicle_type": v.v_type or "",
+            "model": v.model or "",
+            "serial_number": v.serial_number or "",
+            "inspection_expiry": v.inspection_expiry.isoformat() if v.inspection_expiry else "",
+            "istimara_expiry": v.istimara_expiry.isoformat() if v.istimara_expiry else "",
+            "insurance_expiry": v.insurance_expiry.isoformat() if v.insurance_expiry else "",
+            "received_date": c.received_date.isoformat() if c.received_date else "",
+            "returned_date": c.returned_date.isoformat() if c.returned_date else "",
+            "status": c.status or "active",
+            "notes": c.notes or "",
+        })
+    return rows
+
+
+@fleet_bp.route("/driver-vehicle-assignments")
+@login_required
+def driver_vehicle_assignments():
+    rows = _driver_vehicle_assignment_rows(current_branch_id())
+    return render_template("driver_vehicle_assignments.html", rows=rows,
+                           google_user=session.get("google_user"), b64_en=load_logo())
+
+
+@fleet_bp.route("/api/driver-vehicle-assignments", methods=["GET"])
+@login_required
+def api_driver_vehicle_assignments():
+    return jsonify({"success": True, "read_only": True,
+                    "items": _driver_vehicle_assignment_rows(current_branch_id())})
+
 @fleet_bp.route("/api/legacy/drivers", methods=["GET"])
 @login_required
 def get_drivers():
@@ -882,4 +932,3 @@ def api_master_data_update():
         import traceback
         logger.error(f"Error updating master data: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
-
