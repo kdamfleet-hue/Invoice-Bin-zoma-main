@@ -92,6 +92,9 @@
         .map-state h3 { margin: 0; color: var(--text-primary); }
         .map-state p { margin: 0; color: var(--text-secondary); max-width: 420px; }
         .map-state.hidden { display: none; }
+        .track-tools { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:0 0 .75rem; }
+        .track-tools select, .track-tools input { min-width:150px; padding:.45rem .65rem; border:1px solid var(--border); border-radius:.45rem; background:var(--surface); color:var(--text-primary); }
+        .track-tools .tool-note { color:var(--text-secondary); font-size:.78rem; }
 
         .spinner {
             width: 42px; height: 42px;
@@ -151,8 +154,17 @@
 <div class="bz-stat"><div class="num" id="statMoving">0</div><div class="label">متحركة</div></div>
 <div class="bz-stat"><div class="num" id="statOffline">0</div><div class="label">غير متصلة</div></div>
 </div>
-<div id="liveStatus" style="margin:0 0 .75rem;font-size:.85rem;font-weight:700;color:var(--text-secondary)">⏳ جاري الاتصال بخدمة التتبع…</div>
-<div class="track-layout">
+<div id="liveStatus" style="margin:0 0 .5rem;font-size:.85rem;font-weight:700;color:var(--text-secondary)">⏳ جاري الاتصال بخدمة التتبع…</div>
+	<div class="track-tools pdf-exclude" aria-label="أدوات التتبع">
+	  <select id="statusFilter" onchange="renderList()" aria-label="فلترة حالة المركبة">
+	    <option value="all">كل الحالات</option><option value="moving">متحركة</option><option value="idling">تعمل بلا حركة</option><option value="engine_on">المحرك يعمل</option><option value="stopped">متوقفة</option><option value="offline">غير متصلة</option>
+	  </select>
+	  <input id="speedLimit" type="number" min="1" max="250" value="100" onchange="checkSpeedAlerts()" aria-label="حد تنبيه السرعة" title="حد تنبيه السرعة كم/س" />
+	  <button class="btn-outline" type="button" onclick="toggleTrails()" id="trailBtn">🧭 إظهار المسارات</button>
+	  <button class="btn-outline" type="button" onclick="exportGpsCsv()">⬇️ تصدير CSV</button>
+	  <span class="tool-note">المسارات محفوظة داخل جلسة الصفحة فقط.</span>
+	</div>
+	<div class="track-layout">
 <div class="card track-sidebar" id="assetPanel">
 <div class="side-head">
 <h3>📦 مركبات فرع الدمام <span id="assetCount" style="color:var(--text-secondary);font-weight:600;">(0)</span></h3>
@@ -189,6 +201,10 @@
         let followId = null;                // vehicle the map keeps centred on
         let timer = null;
         let inFlight = false;
+        let showTrails = false;
+        const trailPoints = {};
+        const trailLayers = {};
+        const TRAIL_MAX_POINTS = 20;
 
         const STATUS = {
             moving:    { label: 'متحركة',      color: '#10b981' },
@@ -287,6 +303,7 @@
 
                 renderAssets(items || []);
                 lastGood = items || [];
+                checkSpeedAlerts();
                 lastUpdatedAt = Date.now();
                 if (!items || items.length === 0) {
                     setState('empty');
@@ -365,6 +382,17 @@
         function renderAssets(items) {
             currentAssets = (items || []).map(normalize);
             const seen = {};
+            const now = Date.now();
+            currentAssets.forEach(a => {
+                if (a.lat == null || a.lng == null) return;
+                const key = String(a.id);
+                trailPoints[key] = trailPoints[key] || [];
+                const last = trailPoints[key][trailPoints[key].length - 1];
+                if (!last || Math.abs(last[0] - Number(a.lat)) > 0.000001 || Math.abs(last[1] - Number(a.lng)) > 0.000001) {
+                    trailPoints[key].push([Number(a.lat), Number(a.lng), now]);
+                    if (trailPoints[key].length > TRAIL_MAX_POINTS) trailPoints[key].shift();
+                }
+            });
             currentAssets.forEach(a => {
                 if (a.lat == null || a.lng == null || !map) return;
                 seen[a.id] = true;
@@ -380,6 +408,17 @@
             Object.keys(markers).forEach(id => {
                 if (!seen[id]) { try { map.removeLayer(markers[id]); } catch (_) {} delete markers[id]; }
             });
+            Object.keys(trailLayers).forEach(id => {
+                if (!seen[id]) { try { map.removeLayer(trailLayers[id]); } catch (_) {} delete trailLayers[id]; }
+            });
+            if (showTrails && map) {
+                currentAssets.forEach(a => {
+                    const pts = (trailPoints[String(a.id)] || []).map(p => [p[0], p[1]]);
+                    if (pts.length < 2) return;
+                    if (trailLayers[String(a.id)]) trailLayers[String(a.id)].setLatLngs(pts);
+                    else trailLayers[String(a.id)] = L.polyline(pts, {color:(STATUS[a.status] || STATUS.offline).color, weight:3, opacity:.75, dashArray:'6 5'}).addTo(map);
+                });
+            }
 
             const online = currentAssets.filter(a => a.online).length;
             const moving = currentAssets.filter(a => a.status === 'moving').length;
@@ -411,9 +450,11 @@
             const list = document.getElementById('assetList');
             list.innerHTML = '';
 
+            const filter = document.getElementById('statusFilter')?.value || 'all';
             const shown = currentAssets.filter(a =>
-                !term || a.name.toLowerCase().includes(term) || String(a.id).toLowerCase().includes(term)
-                || (a.plate && a.plate.toLowerCase().includes(term)) || (a.driver && a.driver.toLowerCase().includes(term)));
+                (filter === 'all' || a.status === filter) &&
+                (!term || a.name.toLowerCase().includes(term) || String(a.id).toLowerCase().includes(term)
+                || (a.plate && a.plate.toLowerCase().includes(term)) || (a.driver && a.driver.toLowerCase().includes(term))));
 
             if (shown.length === 0) {
                 const empty = document.createElement('div');
@@ -447,6 +488,33 @@
         }
 
         function filterAssets() { renderList(); }
+
+        function toggleTrails() {
+            showTrails = !showTrails;
+            const btn = document.getElementById('trailBtn');
+            if (btn) btn.textContent = showTrails ? '🧭 إخفاء المسارات' : '🧭 إظهار المسارات';
+            renderAssets(currentAssets.map(a => a.raw));
+        }
+
+        function checkSpeedAlerts() {
+            const limit = Math.max(1, Number(document.getElementById('speedLimit')?.value || 100));
+            const fast = currentAssets.filter(a => a.speed != null && Number(a.speed) > limit);
+            const note = document.getElementById('liveStatus');
+            if (fast.length && note) {
+                note.textContent = '⚠️ تنبيه سرعة: ' + fast.length + ' مركبة تتجاوز ' + limit + ' كم/س — آخر تحديث ' + new Date().toLocaleTimeString('ar-SA');
+                note.style.color = '#f59e0b';
+            }
+        }
+
+        function exportGpsCsv() {
+            if (!currentAssets.length) { if (typeof showToast === 'function') showToast('لا توجد بيانات لتصديرها', 'info'); return; }
+            const rows = [['المركبة','اللوحة','السائق','الحالة','السرعة كم/س','خط العرض','خط الطول','آخر تحديث']];
+            currentAssets.forEach(a => rows.push([a.name, a.plate, a.driver, (STATUS[a.status] || STATUS.offline).label, a.speed ?? '', a.lat ?? '', a.lng ?? '', timeAgo(a.lastUpdate, a.age)]));
+            const csv = '\\ufeff' + rows.map(r => r.map(v => '"' + String(v ?? '').replaceAll('"','""') + '"').join(',')).join('\\n');
+            const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+            const url = URL.createObjectURL(blob); const a = document.createElement('a');
+            a.href = url; a.download = 'gps_tracking_' + new Date().toISOString().slice(0,10) + '.csv'; a.click(); URL.revokeObjectURL(url);
+        }
 
         function shareAssets() {
             if (typeof bzShare !== 'function') {
