@@ -17,52 +17,71 @@
         .excel-table-container {
             width: 100%;
             overflow-x: auto;
-            background: var(--surface);
-            padding: 1rem;
-            border-radius: var(--radius, 12px);
-            box-shadow: var(--shadow-sm);
-            border: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(20,35,58,.72), rgba(8,18,31,.88));
+            padding: .65rem;
+            border-radius: 14px;
+            box-shadow: 0 14px 34px rgba(0,0,0,.18);
+            border: 1px solid rgba(148,163,184,.24);
         }
         #employeesTable {
-            border-collapse: collapse;
-            /* table-layout:auto + wrapping inherited from .bz-fit so every header
-               (e.g. الموديل / الحمولة) is fully readable — no clipping, no mid-word cut */
+            width: 100%;
+            min-width: 1480px;
+            border-collapse: separate;
+            border-spacing: 0;
             white-space: normal;
-            min-width: 100%;
+            table-layout: auto;
         }
-        /* Compact view (default): fit all key columns to page width, no side scroll.
-           Keep table-layout:auto so each column sizes to its own header/content
-           (fixed layout forced narrow columns that cut single-word headers). */
-        #employeesTable.compact { width: 100%; min-width: 0; white-space: normal; }
+        /* The compact view is designed for the available page width: only the key
+           employee fields remain visible, while the full dataset stays in the DOM. */
+        #employeesTable.compact {
+            min-width: 0;
+            table-layout: fixed;
+        }
         #employeesTable.compact input { min-width: 0; }
         #employeesTable th,
         #employeesTable td {
-            border: 1px solid var(--border);
-            padding: 6px 8px;
+            border: 0;
+            border-bottom: 1px solid rgba(148,163,184,.16);
+            border-left: 1px solid rgba(148,163,184,.10);
+            padding: 9px 7px;
             text-align: center;
-            font-size: 0.78rem;
-            /* never clip; wrap multi-word headers at spaces, keep single words whole */
+            font-size: .78rem;
             white-space: normal;
             word-break: normal;
             overflow: visible;
-            overflow-wrap: break-word;
+            overflow-wrap: anywhere;
+            vertical-align: middle;
         }
+        #employeesTable.compact th,
+        #employeesTable.compact td { padding: 8px 5px; }
         #employeesTable thead th {
-            background-color: var(--brand-navy, #0C2340);
-            color: #fff;
-            font-weight: 700;
+            background: #142d50;
+            color: #f8fafc;
+            font-weight: 800;
             position: sticky;
             top: 0;
             z-index: 2;
-            /* single-word titles (الموديل / الطراز / الماركة / الحمولة) never break mid-word —
-               the column grows to fit them; long phrases wrap cleanly at spaces to keep the table compact */
-            font-size: 0.76rem;
+            font-size: .76rem;
             line-height: 1.35;
             white-space: normal;
             word-break: keep-all;
-            overflow: visible;
-            overflow-wrap: normal;
+            overflow-wrap: anywhere;
         }
+        #employeesTable.compact thead th { font-size: .72rem; min-height: 48px; }
+        #employeesTable tbody tr:nth-child(even) { background: rgba(255,255,255,.035); }
+        #employeesTable tbody tr:hover { background: rgba(96,165,250,.12); }
+        #employeesTable tbody tr:last-child td { border-bottom: 0; }
+        #employeesTable.compact .idx-head, #employeesTable.compact .idx-cell { width: 42px; }
+        #employeesTable.compact [data-col="0"] { width: 92px; }
+        #employeesTable.compact [data-col="1"] { width: 110px; }
+        #employeesTable.compact [data-col="2"] { width: 150px; }
+        #employeesTable.compact [data-col="6"] { width: 115px; }
+        #employeesTable.compact [data-col="7"] { width: 105px; }
+        #employeesTable.compact [data-col="10"] { width: 105px; }
+        #employeesTable.compact [data-col="33"] { width: 105px; }
+        #employeesTable.compact [data-col="36"], #employeesTable.compact [data-col="37"], #employeesTable.compact [data-col="38"] { width: 92px; }
+        #employeesTable.compact input { width: 100%; padding: 4px 2px; }
+        #employeesTable.compact .actions-column { width: 58px; }
         #employeesTable thead tr:first-child th {
             position: static;
         }
@@ -107,6 +126,8 @@
         #employeesTable .idx-cell, #employeesTable .idx-head {
             position: sticky; right: 0; z-index: 3;
         }
+        #employeesTable .idx-cell { background: rgba(20,45,80,.92); color: #f8fafc; }
+        #employeesTable .btn-delete { min-width: 30px; min-height: 30px; border-radius: 8px; }
         #employeesTable thead .idx-head { z-index: 6; background-color: var(--brand-navy, #0C2340); color:#fff; }
         /* override the static-positioning of the group header row for the م cell so it freezes sideways */
         #employeesTable thead tr:first-child th.idx-head { position: sticky; right: 0; }
@@ -168,7 +189,7 @@
 </div>
 <p class="emp-hint">العرض المختصر يُظهر الأعمدة الأساسية فقط (بدون تمرير جانبي). اضغط «عرض كامل» لكل الأعمدة الـ46، واستخدم البحث للوصول لأي موظف بسرعة. عمود «م» والترويسة يبقيان ثابتين أثناء التمرير.</p>
 <div class="excel-table-container">
-<table class="bz-fit" id="employeesTable" class="bz-table">
+<table class="bz-fit bz-table" id="employeesTable">
 <thead>
 <tr class="group-row">
 <th class="idx-head" rowspan="2">م</th>
@@ -235,7 +256,7 @@
 
         function buildHeaderRow() {
             const row = document.getElementById('empColHeaderRow');
-            const heads = COLS.map((c, i) => `<th class="sortable ${KEY_COLS.has(i) ? '' : 'nk'}" onclick="sortEmployees(${i})">${esc(c)}</th>`).join('');
+            const heads = COLS.map((c, i) => `<th data-col="${i}" class="sortable ${KEY_COLS.has(i) ? '' : 'nk'}" onclick="sortEmployees(${i})">${esc(c)}</th>`).join('');
             row.innerHTML = `<th class="idx-head only-compact">م</th>${heads}<th class="only-compact">إجراءات</th>`;
         }
 
@@ -285,7 +306,7 @@
                 const isName = (i === COL_NAME);
                 const listAttr = isName ? ' list="empNames"' : '';
                 const nk = KEY_COLS.has(i) ? '' : ' class="nk"';
-                html += `<td${nk}><input type="text"${listAttr} data-col="${i}" value="${esc(v[i] || '')}"></td>`;
+                html += `<td data-col="${i}"${nk}><input type="text"${listAttr} data-col="${i}" value="${esc(v[i] || '')}"></td>`;
             }
             html += `<td class="actions-column"><button class="btn-delete" onclick="deleteRow(this)">✕</button></td>`;
             return html;
@@ -350,6 +371,7 @@
             const empty = tbody.querySelector('.empty-state-row');
             if (empty) empty.remove();
             const tr = document.createElement('tr');
+            tr.dataset.editableEmpty = 'true';
             const idx = tbody.children.length + 1;
             tr.innerHTML = buildRowHtml(idx, []);
             tbody.appendChild(tr);
