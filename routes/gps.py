@@ -416,6 +416,15 @@ def get_gps_locations():
         logger.exception("GPS API error request_id=%s", request_id)
         return _fail("حدث خطأ غير متوقع أثناء جلب بيانات التتبع.", 500)
 
+    # Persist a bounded local history and evaluate geofences without allowing storage
+    # failures to break the live tracking response.
+    try:
+        from services.gps_history import record_snapshot, evaluate_geofences
+        record_snapshot(vehicles)
+        evaluate_geofences(vehicles)
+    except Exception:
+        logger.exception("GPS history/geofence persistence failed request_id=%s", request_id)
+
     _fleet_cache["data"] = vehicles
     _fleet_cache["at"] = time.time()
     _diag["last_success_at"] = _fleet_cache["at"]
@@ -425,6 +434,48 @@ def get_gps_locations():
     result.headers["X-GPS-Request-ID"] = request_id
     result.headers["X-GPS-Cache"] = "miss"
     return result
+
+
+@gps_bp.route("/api/gps/history")
+@login_required
+def gps_history_data():
+    """Bounded local history built from successful GPS polls."""
+    from services.gps_history import get_history
+    vehicle_id = request.args.get("vehicle_id") or request.args.get("device_id")
+    try:
+        limit = int(request.args.get("limit", 500))
+    except (TypeError, ValueError):
+        limit = 500
+    return jsonify({"success": True, "rows": get_history(vehicle_id=vehicle_id, limit=limit)})
+
+
+@gps_bp.route("/api/gps/geofences", methods=["GET", "POST", "DELETE"])
+@login_required
+def gps_geofences_data():
+    from services.gps_history import delete_geofence, list_geofences, save_geofence
+    if request.method == "GET":
+        return jsonify({"success": True, "rows": list_geofences()})
+    if not session.get("is_admin") and session.get("role") != "admin":
+        return jsonify({"success": False, "error": "غير مصرح"}), 403
+    try:
+        if request.method == "POST":
+            return jsonify({"success": True, "row": save_geofence(request.get_json(silent=True) or {})}), 201
+        geofence_id = (request.get_json(silent=True) or {}).get("id") or request.args.get("id")
+        if not geofence_id:
+            return jsonify({"success": False, "error": "معرف المنطقة مطلوب"}), 400
+        return jsonify({"success": delete_geofence(geofence_id)})
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except Exception:
+        logger.exception("GPS geofence write failed")
+        return jsonify({"success": False, "error": "تعذر حفظ المنطقة الجغرافية"}), 500
+
+
+@gps_bp.route("/api/gps/geofence-alerts")
+@login_required
+def gps_geofence_alerts():
+    from services.gps_history import evaluate_geofences
+    return jsonify({"success": True, "history": evaluate_geofences([]).get("history", [])})
 
 
 @gps_bp.route("/api/gps/status")

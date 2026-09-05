@@ -95,6 +95,14 @@
         .track-tools { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:0 0 .75rem; }
         .track-tools select, .track-tools input { min-width:150px; padding:.45rem .65rem; border:1px solid var(--border); border-radius:.45rem; background:var(--surface); color:var(--text-primary); }
         .track-tools .tool-note { color:var(--text-secondary); font-size:.78rem; }
+        .gps-advanced { margin-top:1rem; padding:1rem; }
+        .gps-advanced summary { cursor:pointer; color:var(--accent); font-weight:800; }
+        .gps-advanced-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin-top:1rem; }
+        .gps-advanced section { border:1px solid var(--border); padding:.8rem; border-radius:.55rem; }
+        .gps-advanced table { width:100%; border-collapse:collapse; font-size:.8rem; }
+        .gps-advanced th,.gps-advanced td { padding:.45rem; border-bottom:1px solid var(--border); text-align:right; }
+        .gps-advanced input { max-width:125px; padding:.4rem; }
+        @media (max-width:860px) { .gps-advanced-grid { grid-template-columns:1fr; } }
 
         .spinner {
             width: 42px; height: 42px;
@@ -186,9 +194,34 @@
 <p>يتم الآن جلب مواقع مركبات الأسطول المباشرة.</p>
 </div>
 </div>
-</div>
-</div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+	</div>
+	<details class="card gps-advanced" id="gpsAdvanced">
+	  <summary>📚 السجل الدائم والمناطق الجغرافية والتنبيهات</summary>
+	  <div class="gps-advanced-grid">
+	    <section>
+	      <h3>سجل الرحلات والإشارات</h3>
+	      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.6rem;">
+	        <select id="historyVehicle" aria-label="اختيار مركبة للسجل"><option value="">كل المركبات</option></select>
+	        <button class="btn-outline" type="button" onclick="loadGpsHistory()">تحديث السجل</button>
+	      </div>
+	      <div style="max-height:280px;overflow:auto;"><table><thead><tr><th>المركبة</th><th>الحالة</th><th>السرعة</th><th>الوقت</th></tr></thead><tbody id="historyRows"><tr><td colspan="4">اضغط تحديث السجل</td></tr></tbody></table></div>
+	    </section>
+	    <section>
+	      <h3>المناطق الجغرافية</h3>
+	      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem;">
+	        <input id="geoName" placeholder="اسم المنطقة" maxlength="100">
+	        <input id="geoLat" type="number" step="any" placeholder="خط العرض">
+	        <input id="geoLng" type="number" step="any" placeholder="خط الطول">
+	        <input id="geoRadius" type="number" min="25" value="250" placeholder="نصف القطر م">
+	        <button class="btn-primary" type="button" onclick="saveGeofenceFromForm()">إضافة</button>
+	      </div>
+	      <div id="geofenceRows">جاري تحميل المناطق…</div>
+	    </section>
+	  </div>
+	  <section style="margin-top:1rem;"><h3>تنبيهات الدخول والخروج</h3><div style="max-height:220px;overflow:auto;"><table><thead><tr><th>المركبة</th><th>المنطقة</th><th>الحدث</th><th>الوقت</th></tr></thead><tbody id="geofenceAlertRows"><tr><td colspan="4">لا توجد تنبيهات بعد</td></tr></tbody></table></div></section>
+	</details>
+	</div>
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
         // ── Live tracking: /api/gps → Leaflet markers, refreshed every REFRESH_MS without reload ──
         const REFRESH_MS = 12000;           // 10–15 s per requirement
@@ -202,6 +235,8 @@
         let timer = null;
         let inFlight = false;
         let showTrails = false;
+        let geofences = [];
+        const geofenceLayers = {};
         const trailPoints = {};
         const trailLayers = {};
         const TRAIL_MAX_POINTS = 20;
@@ -437,6 +472,15 @@
                 try { map.panTo(markers[followId].getLatLng(), { animate: true }); } catch (_) {}
             }
             renderList();
+            renderHistoryVehicleOptions();
+            if (geofences.length) drawGeofences();
+        }
+
+        function renderHistoryVehicleOptions() {
+            const select = document.getElementById('historyVehicle'); if (!select) return;
+            const value = select.value; const options = ['<option value="">كل المركبات</option>'];
+            currentAssets.forEach(a => options.push('<option value="' + escapeHtml(String(a.id)) + '">' + escapeHtml(a.name) + '</option>'));
+            select.innerHTML = options.join(''); if ([...select.options].some(o => o.value === value)) select.value = value;
         }
 
         function followVehicle(id) {
@@ -516,6 +560,35 @@
             a.href = url; a.download = 'gps_tracking_' + new Date().toISOString().slice(0,10) + '.csv'; a.click(); URL.revokeObjectURL(url);
         }
 
+        async function loadGpsHistory() {
+            const id = document.getElementById('historyVehicle')?.value || '';
+            const tbody = document.getElementById('historyRows'); if (!tbody) return;
+            try {
+                const r = await fetch('/api/gps/history?limit=200' + (id ? '&vehicle_id=' + encodeURIComponent(id) : ''), {headers:{Accept:'application/json'}});
+                const data = await r.json(); if (!r.ok) throw new Error(data.error || 'تعذر تحميل السجل');
+                tbody.innerHTML = (data.rows || []).map(x => '<tr><td>' + escapeHtml(x.name || x.vehicle_id) + '</td><td>' + escapeHtml((STATUS[x.status] || STATUS.offline).label) + '</td><td>' + escapeHtml(String(x.speed_kmh ?? '—')) + ' كم/س</td><td>' + escapeHtml(x.recorded_at || '') + '</td>').join('') || '<tr><td colspan="4">لا توجد نقاط محفوظة بعد</td></tr>';
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="4">' + escapeHtml(e.message) + '</td></tr>'; }
+        }
+
+        function drawGeofences() {
+            if (!map) return;
+            const seen = {};
+            geofences.forEach(g => { const id = String(g.id); seen[id] = true; const circle = geofenceLayers[id] || L.circle([g.lat,g.lng], {radius:g.radius_m, color:'#a855f7', fillOpacity:.12}).addTo(map); circle.setLatLng([g.lat,g.lng]).setRadius(g.radius_m).bindTooltip(escapeHtml(g.name)); geofenceLayers[id] = circle; });
+            Object.keys(geofenceLayers).forEach(id => { if (!seen[id]) { map.removeLayer(geofenceLayers[id]); delete geofenceLayers[id]; } });
+        }
+
+        async function loadGeofences() {
+            const box = document.getElementById('geofenceRows');
+            try { const r = await fetch('/api/gps/geofences',{headers:{Accept:'application/json'}}); const d = await r.json(); if(!r.ok) throw new Error(d.error || 'تعذر تحميل المناطق'); geofences=d.rows||[]; if(box) box.innerHTML=geofences.map(g => '<div style="display:flex;justify-content:space-between;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border)"><span>' + escapeHtml(g.name) + ' — ' + Math.round(g.radius_m) + ' م</span><button class="btn-outline" type="button" onclick="removeGeofence(\'' + escapeHtml(String(g.id)) + '\')">حذف</button></div>').join('') || 'لا توجد مناطق'; drawGeofences(); } catch(e) { if(box) box.textContent=e.message; }
+            try { const r=await fetch('/api/gps/geofence-alerts',{headers:{Accept:'application/json'}}); const d=await r.json(); const rows=document.getElementById('geofenceAlertRows'); if(rows) rows.innerHTML=(d.history||[]).slice().reverse().map(x=>'<tr><td>'+escapeHtml(x.vehicle||x.vehicle_id)+'</td><td>'+escapeHtml(x.geofence||'')+'</td><td>'+escapeHtml(x.event==='entry'?'دخول':'خروج')+'</td><td>'+escapeHtml(x.created_at||'')+'</td></tr>').join('')||'<tr><td colspan="4">لا توجد تنبيهات بعد</td></tr>'; } catch(_) {}
+        }
+
+        async function saveGeofenceFromForm() {
+            const payload={name:document.getElementById('geoName')?.value,lat:document.getElementById('geoLat')?.value,lng:document.getElementById('geoLng')?.value,radius_m:document.getElementById('geoRadius')?.value};
+            try { const r=await fetch('/api/gps/geofences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const d=await r.json(); if(!r.ok) throw new Error(d.error||'تعذر الحفظ'); document.getElementById('geoName').value=''; await loadGeofences(); if(typeof showToast==='function') showToast('تمت إضافة المنطقة الجغرافية','success'); } catch(e) { if(typeof showToast==='function') showToast(e.message,'error'); }
+        }
+        async function removeGeofence(id) { if(!confirm('حذف المنطقة؟')) return; const r=await fetch('/api/gps/geofences',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}); if(r.ok) loadGeofences(); }
+
         function shareAssets() {
             if (typeof bzShare !== 'function') {
                 if (typeof showToast === 'function') showToast('خدمة المشاركة غير متاحة', 'error');
@@ -549,6 +622,8 @@
             try { initMap(); } catch (_) {}
             fetchData(true);
             startLoop();
+            loadGeofences();
+            setTimeout(loadGpsHistory, 1200);
         });
     </script>
 {% endblock %}
