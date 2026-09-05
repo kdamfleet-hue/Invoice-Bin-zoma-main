@@ -1629,6 +1629,9 @@ def whoami():
 # or the ALERT_RECIPIENTS env var (scheduled cron). Sending uses the existing Flask-Mail
 # config; if SMTP isn't configured the endpoint reports the reason instead of failing.
 ALERT_RECIPIENTS = [e.strip() for e in os.environ.get("ALERT_RECIPIENTS", "").split(",") if e.strip()]
+WHATSAPP_RECIPIENTS = [e.strip() for e in os.environ.get("ALERT_WHATSAPP_RECIPIENTS", "").split(",") if e.strip()]
+WHATSAPP_ENABLED = os.environ.get("DOCUMENT_ALERT_WHATSAPP_ENABLED", "0").lower() in {"1", "true", "yes"}
+WHATSAPP_API_VERSION = os.environ.get("WHATSAPP_API_VERSION", "v20.0")
 
 
 def _parse_iso_date(s):
@@ -1877,6 +1880,47 @@ def _send_expiry_alert_email(recipients, rows=None, filter_label=""):
         return {"sent": False, "reason": "send_error", "error": str(e), "count": len(alerts)}
 
 
+def _send_expiry_alert_whatsapp(recipients=None, rows=None, filter_label="", dry_run=False):
+    """Send a text alert through Meta Cloud API without logging secrets or phone numbers."""
+    if rows is not None:
+        alerts = [{"name": r.get("name") or "—", "plate": r.get("plate") or "",
+                   "doc": r.get("doc") or "", "date": r.get("date") or ""}
+                  for r in rows if isinstance(r, dict)]
+    else:
+        alerts = [{"name": a.get("name") or "—", "plate": a.get("plate") or "",
+                   "doc": a.get("label") or a.get("doc") or "", "date": a.get("date") or ""}
+                  for a in _collect_expiry_alerts() if a.get("key") in ("expired", "d30")]
+    if not alerts:
+        return {"sent": False, "reason": "no_alerts", "count": 0}
+    recipients = [str(r).strip() for r in (recipients or WHATSAPP_RECIPIENTS) if str(r).strip()]
+    token = os.environ.get("WHATSAPP_ACCESS_TOKEN", "").strip()
+    phone_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "").strip()
+    if not WHATSAPP_ENABLED or not token or not phone_id:
+        return {"sent": False, "reason": "whatsapp_not_configured", "count": len(alerts)}
+    if not recipients:
+        return {"sent": False, "reason": "no_whatsapp_recipients", "count": len(alerts)}
+    lines = ["تنبيه صلاحية وثائق BIN ZOMAH", "الوثائق المنتهية أو التي ستنتهي خلال 30 يومًا:"]
+    lines.extend(f"- {a['name']} | {a['plate'] or 'بدون لوحة'} | {a['doc']} | {a['date']}" for a in alerts[:50])
+    body = "\n".join(lines)
+    if dry_run:
+        return {"sent": False, "dry_run": True, "count": len(alerts), "recipients_count": len(recipients), "message_length": len(body)}
+    url = f"https://graph.facebook.com/{WHATSAPP_API_VERSION}/{phone_id}/messages"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    sent = 0
+    errors = []
+    for recipient in recipients:
+        payload = {"messaging_product": "whatsapp", "to": recipient, "type": "text", "text": {"preview_url": False, "body": body}}
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=20)
+            if 200 <= response.status_code < 300:
+                sent += 1
+            else:
+                errors.append(f"http_{response.status_code}")
+        except requests.RequestException:
+            errors.append("connection_error")
+    return {"sent": sent > 0, "count": len(alerts), "sent_recipients": sent, "errors": errors[:3]}
+
+
 @app.route("/api/expiry_alerts_preview", methods=["GET"])
 @login_required
 def expiry_alerts_preview():
@@ -1890,6 +1934,7 @@ def expiry_alerts_preview():
                     c[a["key"]] += 1
             return c
         mail_cfg = bool(app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD"))
+        whatsapp_cfg = bool(WHATSAPP_ENABLED and os.environ.get("WHATSAPP_ACCESS_TOKEN") and os.environ.get("WHATSAPP_PHONE_NUMBER_ID"))
         if session.get("is_admin"):
             counts = {"expired": 0, "d30": 0, "d90": 0}
             per_branch = []
@@ -1900,11 +1945,13 @@ def expiry_alerts_preview():
                 per_branch.append({"id": b["id"], "name": b["name"], "counts": bc, "total": sum(bc.values())})
             return jsonify({"success": True, "counts": counts, "total": sum(counts.values()),
                             "aggregated": True, "per_branch": per_branch,
-                            "mail_configured": mail_cfg, "default_recipients": ALERT_RECIPIENTS})
+                            "mail_configured": mail_cfg, "whatsapp_configured": whatsapp_cfg,
+                            "default_recipients": ALERT_RECIPIENTS})
         counts = _counts(_collect_expiry_alerts())
         return jsonify({"success": True, "counts": counts, "total": sum(counts.values()),
                         "aggregated": False,
-                        "mail_configured": mail_cfg, "default_recipients": ALERT_RECIPIENTS})
+                        "mail_configured": mail_cfg, "whatsapp_configured": whatsapp_cfg,
+                        "default_recipients": ALERT_RECIPIENTS})
     except Exception:
         logger.exception("expiry preview error")
         return jsonify({"success": False, "counts": {}, "total": 0})
@@ -5162,4 +5209,3 @@ with app.app_context():
         print("✅ Database tables checked/created successfully.")
     except Exception as e:
         print(f"⚠️ Failed to verify or create database tables: {e}")
-

@@ -33,4 +33,15 @@ python3 tools/backup_database.py
 
 ## الإرسال الخارجي
 
-ما زال إرسال البريد وواتساب منفصلًا عن فحص جودة البيانات. يجب إبقاء وضع المحاكاة حتى اعتماد المستلمين والقنوات، ثم اختبار قناة واحدة قبل التفعيل الكامل.
+يدعم النظام الآن Meta WhatsApp Cloud API بالإضافة إلى البريد. تُضبط القيم التالية في Environment Variables الخاصة بالاستضافة، ولا تُحفظ داخل المستودع:
+
+```text
+DOCUMENT_ALERTS_ENABLED=1
+DOCUMENT_ALERT_WHATSAPP_ENABLED=1
+WHATSAPP_ACCESS_TOKEN=<Meta access token>
+WHATSAPP_PHONE_NUMBER_ID=<Meta phone number id>
+WHATSAPP_API_VERSION=v20.0
+ALERT_WHATSAPP_RECIPIENTS=+9665xxxxxxx,+9665xxxxxxx
+```
+
+ويُضبط البريد عبر `MAIL_USERNAME` و`MAIL_PASSWORD` و`ALERT_RECIPIENTS`. يجب إبقاء القيم معطلة حتى التحقق من المستلمين. يبدأ الاختبار عبر وضع المحاكاة، ثم تُرسل أول رسالة فعلية يدويًا بعد اعتماد الإدارة. الرسائل النصية الحرة في Meta قد تتطلب نافذة محادثة مفتوحة؛ للتنبيهات الاستباقية خارج نافذة 24 ساعة يجب اعتماد Message Template من Meta وربطه لاحقًا.

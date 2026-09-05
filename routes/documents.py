@@ -307,7 +307,7 @@ def alerts_center_update():
 @login_required
 def send_expiry_alerts():
     """Manual 'send now' from the dashboard. Recipients from the request or ALERT_RECIPIENTS."""
-    from app import _send_expiry_alert_email, WORKSTATION_PASSWORD
+    from app import _send_expiry_alert_email, _send_expiry_alert_whatsapp, WORKSTATION_PASSWORD
     body = request.json or {}
     # Lock: require the access code before sending (matches the workstation password).
     if not hmac.compare_digest(str(body.get("lock", "")), WORKSTATION_PASSWORD):
@@ -319,29 +319,30 @@ def send_expiry_alerts():
     filt = (body.get("filter") or "").strip()
     if isinstance(rows, list) and rows:
         res = _send_expiry_alert_email(recips, rows=rows[:1000], filter_label=filt)
+        wa_res = _send_expiry_alert_whatsapp(rows=rows[:1000], filter_label=filt)
     else:
         res = _send_expiry_alert_email(recips, filter_label=filt)
+        wa_res = _send_expiry_alert_whatsapp()
     if res.get("sent"):
         _audit_add("إرسال", "تنبيهات الوثائق بالبريد", res.get("count"),
                    (("الفرز: " + filt + " — ") if filt else "") + "إلى: " + ", ".join(res.get("recipients", [])))
-    return jsonify({"success": res.get("sent", False), **res})
+    if wa_res.get("sent"):
+        _audit_add("إرسال", "تنبيهات الوثائق عبر WhatsApp", wa_res.get("count"), "Meta Cloud API")
+    return jsonify({"success": res.get("sent", False) or wa_res.get("sent", False), **res, "email": res, "whatsapp": wa_res})
 
 @documents_bp.route("/api/cron/expiry_alerts", methods=["GET", "POST"])
 def cron_expiry_alerts():
     """Token-protected trigger for an external daily scheduler (ArabCord cron / cron-job.org).
     Not login-protected; guarded by ALERT_CRON_KEY. Uses ALERT_RECIPIENTS for the recipient list."""
-    from app import _send_expiry_alert_email
+    from app import _send_expiry_alert_email, _send_expiry_alert_whatsapp
     key = request.args.get("key", "")
     if not key and request.is_json:
         key = (request.json or {}).get("key", "")
     if not ALERT_CRON_KEY or not hmac.compare_digest(str(key), ALERT_CRON_KEY):
         return jsonify({"success": False, "error": "unauthorized"}), 401
     res = _send_expiry_alert_email(ALERT_RECIPIENTS)
+    wa_res = _send_expiry_alert_whatsapp()
     if res.get("sent"):
         _audit_add("إرسال تلقائي", "تنبيهات الوثائق بالبريد", res.get("count"),
                    "مجدول — إلى: " + ", ".join(res.get("recipients", [])))
-    return jsonify({"success": res.get("sent", False), **res})
-
-
-
-
+    return jsonify({"success": res.get("sent", False) or wa_res.get("sent", False), **res, "email": res, "whatsapp": wa_res})
