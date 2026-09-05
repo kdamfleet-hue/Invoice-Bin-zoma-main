@@ -101,7 +101,7 @@
 <div class="fld"><label for="u-username">اسم المستخدم</label><input id="u-username" placeholder="مثال: m.alotaibi" required="" type="text"/></div>
 <div class="fld"><label for="u-email">البريد الإلكتروني (اختياري)</label><input id="u-email" placeholder="name@example.com" type="email"/></div>
 <div class="fld"><label for="u-pass">كلمة المرور</label>
-<div class="pw-wrap"><input id="u-pass" placeholder="12 حرفًا على الأقل" required="" type="password"/>
+<div class="pw-wrap"><input id="u-pass" placeholder="12 حرفًا على الأقل" minlength="12" required="" type="password"/>
 <button class="eye" onclick="hoTogglePw()" title="إظهار/إخفاء" type="button">👁️</button></div>
 </div>
 <button class="btn-submit-gold set-add" type="submit">➕ إضافة مستخدم</button>
@@ -309,8 +309,13 @@
     e.preventDefault();
     var name = $('u-name').value.trim(), username = $('u-username').value.trim(), email = $('u-email').value.trim(), password = $('u-pass').value;
     var msg = $('addMsg');
+    if (password.length < 12) {
+      msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ كلمة المرور يجب أن تكون 12 حرفًا على الأقل.</span>';
+      $('u-pass').focus();
+      return;
+    }
     fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, username: username, email: email, password: password }) })
-      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (res.ok && res.j.success) {
           msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تمت إضافة المستخدم «' + esc(username) + '»</span>';
@@ -318,7 +323,7 @@
           if (window.showToast) showToast('تمت إضافة المستخدم ✓', 'success');
           loadUsers();
         } else {
-          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + esc((res.j && res.j.reason) || 'تعذّرت الإضافة') + '</span>';
+          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + esc((res.j && (res.j.reason || res.j.error)) || 'تعذّرت الإضافة') + '</span>';
         }
       })
       .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
