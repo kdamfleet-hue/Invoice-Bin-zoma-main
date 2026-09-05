@@ -212,6 +212,8 @@
         display: none;
         align-items: center;
         justify-content: center;
+        padding: 12px;
+        box-sizing: border-box;
         backdrop-filter: blur(4px);
     }
     .modal-overlay.active { display: flex; }
@@ -219,9 +221,12 @@
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 16px;
-        width: 100%;
+        width: min(100%, 540px);
         max-width: 500px;
         padding: 2rem;
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
+        box-sizing: border-box;
         box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
     .modal-header {
@@ -232,10 +237,23 @@
     .close-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; }
     .form-group { margin-bottom: 1rem; }
     .form-group label { display: block; margin-bottom: 0.4rem; color: var(--text-secondary); font-size: 0.9rem; }
-    .form-group input, .form-group select {
+    .form-group input, .form-group select, .form-group textarea {
         width: 100%; padding: 0.75rem; border: 2px solid var(--border);
         border-radius: 8px; background: var(--bg); color: var(--text-primary);
-        font-family: inherit; font-size: 0.95rem;
+        font-family: inherit; font-size: 0.95rem; box-sizing: border-box;
+    }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+    .modal-content .form-group[style*="display:flex"] { flex-wrap: wrap; }
+    .modal-content .form-group[style*="display:flex"] > div { min-width: 0; }
+    @media (max-width: 600px) {
+        .modal-overlay { align-items: flex-start; padding: 8px; overflow-y: auto; }
+        .modal-content { width: 100%; max-width: none; max-height: calc(100vh - 16px); padding: 1rem; border-radius: 12px; }
+        .modal-header { margin-bottom: 1rem; }
+        .modal-header h2 { font-size: 1.05rem; }
+        .form-group[style*="display:flex"] > div { flex: 1 1 100% !important; width: 100%; }
+        .modal-footer { flex-direction: column-reverse; gap: .6rem; }
+        .modal-footer .btn-action { width: 100%; justify-content: center; min-height: 44px; }
+        .close-btn { min-width: 44px; min-height: 44px; }
     }
     .form-group input:focus, .form-group select:focus {
         border-color: var(--brand-gold); outline: none;
