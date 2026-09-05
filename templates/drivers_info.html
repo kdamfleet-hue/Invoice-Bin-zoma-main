@@ -241,6 +241,11 @@
         border-color: var(--brand-gold); outline: none;
     }
     .modal-footer { margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem; }
+    .autocomplete-wrap { position: relative; }
+    .autocomplete-list { position: absolute; z-index: 1100; right: 0; left: 0; top: calc(100% + 3px); max-height: 220px; overflow-y: auto; background: var(--surface); border: 1px solid var(--brand-gold); border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,.3); display: none; }
+    .autocomplete-list button { display: block; width: 100%; padding: .7rem .85rem; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--text-primary); text-align: right; cursor: pointer; font-family: inherit; }
+    .autocomplete-list button:hover, .autocomplete-list button:focus { background: rgba(197,160,89,.12); outline: none; }
+    .autocomplete-list small { display: block; color: var(--text-secondary); margin-top: 3px; }
     
 </style>
 {% endblock %}
@@ -401,12 +406,12 @@
             
             <div class="form-group">
                 <label>الاسم الكامل <span style="color:red">*</span></label>
-                <input type="text" id="edit_name" required onblur="autoFillDriver('name')">
+                <div class="autocomplete-wrap"><input type="text" id="edit_name" required autocomplete="off" oninput="queueDriverSuggest('name')" onblur="autoFillDriver('name')"><div id="nameSuggestions" class="autocomplete-list"></div></div>
             </div>
             <div class="form-group" style="display:flex; gap:1rem;">
                 <div style="flex:1;">
                     <label>رقم الإقامة</label>
-                    <input type="text" id="edit_iqama" onblur="autoFillDriver('iqama')">
+                    <div class="autocomplete-wrap"><input type="text" id="edit_iqama" autocomplete="off" oninput="queueDriverSuggest('iqama')" onblur="autoFillDriver('iqama')"><div id="iqamaSuggestions" class="autocomplete-list"></div></div>
                 </div>
                 <div style="flex:1;">
                     <label>الجوال</label>
@@ -437,7 +442,7 @@
             
             <div class="form-group">
                 <label>رقم اللوحة</label>
-                <input type="text" id="edit_plate" placeholder="أ ب ج 1234" onblur="autoFillVehicle()">
+                <div class="autocomplete-wrap"><input type="text" id="edit_plate" placeholder="أ ب ج 1234" autocomplete="off" oninput="queueVehicleSuggest()" onblur="autoFillVehicle()"><div id="plateSuggestions" class="autocomplete-list"></div></div>
                 <small style="color:var(--text-secondary);font-size:0.8rem;">اكتب رقم اللوحة ليتم جلب بيانات المركبة تلقائياً إذا كانت مسجلة.</small>
             </div>
             <div class="form-group" style="display:flex; gap:1rem;">
@@ -638,8 +643,75 @@ function openEdit(data) {
 
 function closeModal() {
     document.getElementById('driverModal').classList.remove('active');
+    ['nameSuggestions','iqamaSuggestions','plateSuggestions'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
 }
-
+let _suggestTimer = null;
+function hideSuggestions(id) { const el = document.getElementById(id); if (el) { el.innerHTML = ''; el.style.display = 'none'; } }
+function queueDriverSuggest(field) {
+    clearTimeout(_suggestTimer);
+    const query = document.getElementById('edit_' + field).value.trim();
+    if (query.length < 1) { hideSuggestions(field === 'name' ? 'nameSuggestions' : 'iqamaSuggestions'); return; }
+    _suggestTimer = setTimeout(() => suggestDrivers(field, query), 180);
+}
+async function suggestDrivers(field, query) {
+    const list = document.getElementById(field === 'name' ? 'nameSuggestions' : 'iqamaSuggestions');
+    try {
+        const res = await fetch('/api/driver_search?q=' + encodeURIComponent(query));
+        const data = await res.json();
+        list.innerHTML = '';
+        if (!Array.isArray(data) || !data.length) { hideSuggestions(list.id); return; }
+        data.forEach(d => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.innerHTML = '';
+            const title = document.createElement('strong'); title.textContent = d.name || 'بدون اسم';
+            const meta = document.createElement('small'); meta.textContent = [d.iqama, d.phone, d.job].filter(Boolean).join(' · ');
+            button.append(title, meta);
+            button.addEventListener('mousedown', e => { e.preventDefault(); selectDriverSuggestion(d); });
+            list.appendChild(button);
+        });
+        list.style.display = 'block';
+    } catch (e) { hideSuggestions(list.id); }
+}
+function selectDriverSuggestion(d) {
+    document.getElementById('edit_id').value = d.id || '';
+    document.getElementById('edit_name').value = d.name || '';
+    document.getElementById('edit_iqama').value = d.iqama || '';
+    document.getElementById('edit_phone').value = d.phone || '';
+    if (d.job) document.getElementById('edit_job').value = d.job;
+    if (d.status) document.getElementById('edit_status').value = d.status;
+    hideSuggestions('nameSuggestions'); hideSuggestions('iqamaSuggestions');
+}
+function queueVehicleSuggest() {
+    clearTimeout(_suggestTimer);
+    const query = document.getElementById('edit_plate').value.trim();
+    if (!query) { hideSuggestions('plateSuggestions'); return; }
+    _suggestTimer = setTimeout(() => suggestVehicles(query), 180);
+}
+async function suggestVehicles(query) {
+    const list = document.getElementById('plateSuggestions');
+    try {
+        const res = await fetch('/api/vehicle_search?q=' + encodeURIComponent(query));
+        const data = await res.json();
+        list.innerHTML = '';
+        if (!Array.isArray(data) || !data.length) { hideSuggestions('plateSuggestions'); return; }
+        data.forEach(v => {
+            const button = document.createElement('button'); button.type = 'button';
+            const title = document.createElement('strong'); title.textContent = v.plate || 'بدون لوحة';
+            const meta = document.createElement('small'); meta.textContent = [v.car, v.model, v.vserial].filter(Boolean).join(' · ');
+            button.append(title, meta);
+            button.addEventListener('mousedown', e => { e.preventDefault(); selectVehicleSuggestion(v); });
+            list.appendChild(button);
+        });
+        list.style.display = 'block';
+    } catch (e) { hideSuggestions('plateSuggestions'); }
+}
+function selectVehicleSuggestion(v) {
+    document.getElementById('edit_plate').value = v.plate || '';
+    document.getElementById('edit_car').value = v.car || '';
+    document.getElementById('edit_model').value = v.model || '';
+    hideSuggestions('plateSuggestions');
+}
 async function autoFillDriver(field) {
     // Only auto-fill if we are creating a new record (edit_id is empty)
     if (document.getElementById('edit_id').value) return;
