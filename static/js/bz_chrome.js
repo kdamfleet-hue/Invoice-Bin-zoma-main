@@ -103,16 +103,22 @@
     children.forEach(el => {
       if (el.classList.contains('nav-section-label')) {
         group = document.createElement('section');
-        const key = (el.textContent || 'section').trim().replace(/[^\u0600-\u06FF\w]+/g, '-').toLowerCase();
+        const label = (el.textContent || 'section').trim();
+        const key = label.replace(/[^\u0600-\u06FF\w]+/g, '-').toLowerCase();
         group.className = 'bz-nav-group';
         group.dataset.groupKey = key;
         const toggle = document.createElement('button');
         toggle.type = 'button';
         toggle.className = 'bz-nav-group-toggle';
-        toggle.innerHTML = '<span>' + el.textContent.trim() + '</span><b aria-hidden="true">⌄</b>';
+        const icons = {'نظرة عامة':'◈','التشغيل اليومي':'◆','الأفراد والمركبات':'●','الصيانة والمخزون':'⚒','المالية والسجلات':'▣','النظام':'⚙'};
+        toggle.innerHTML = '<span class="bz-nav-group-title"><i aria-hidden="true">' + (icons[label] || '•') + '</i><span>' + label + '</span></span><b aria-hidden="true">⌄</b>';
         toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-controls', key + '-items');
         const items = document.createElement('div');
         items.className = 'bz-nav-group-items';
+        items.id = key + '-items';
+        items.setAttribute('role', 'region');
+        items.setAttribute('aria-label', label);
         group.append(toggle, items);
         nav.appendChild(group);
         groups.push({group, toggle, items, key});
@@ -136,6 +142,7 @@
       entry.items.querySelectorAll('a[href]').forEach(a => {
         if (a.classList.contains('active')) a.setAttribute('aria-current', 'page');
       });
+      if (active) window.setTimeout(() => active.scrollIntoView({block: 'nearest'}), 80);
     });
 
     const applyFilter = (value) => {
@@ -151,6 +158,11 @@
         if (q && matches) setOpen(entry, true, false);
       });
     };
-    if (search) search.addEventListener('input', e => applyFilter(e.target.value));
+    if (search) {
+      search.addEventListener('input', e => applyFilter(e.target.value));
+      search.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { e.target.value = ''; applyFilter(''); e.target.blur(); }
+      });
+    }
   }
 })();
