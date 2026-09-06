@@ -1608,7 +1608,13 @@ def incidents_data():
 def audit_log_data():
     """Read-only audit trail. Append-only by design — there is no edit/delete endpoint."""
     try:
-        return jsonify({"success": True, "rows": _audit_get()})
+        # Keep dashboard reads lightweight while preserving the full read-only log page.
+        try:
+            limit = min(max(int(request.args.get("limit", 100)), 1), 500)
+        except (TypeError, ValueError):
+            limit = 100
+        rows = _audit_get()
+        return jsonify({"success": True, "rows": rows[-limit:]})
     except Exception:
         logger.exception("audit_log GET error")
         return jsonify({"success": True, "rows": []})
