@@ -13,6 +13,13 @@ from sqlalchemy.exc import IntegrityError
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
 
+# Roles accepted by the application. Rejecting unknown values prevents a malformed
+# request from creating a role that is never covered by route authorization.
+ALLOWED_USER_ROLES = {
+    "admin", "branch_manager", "data_entry", "operations",
+    "maintenance", "finance", "viewer", "kiosk",
+}
+
 
 def _send_account_notification(user, event):
     """Best-effort account email; never includes a password or blocks the account change."""
@@ -382,6 +389,18 @@ def api_users():
         email = (body.get("email") or "").strip().lower()
         role = body.get("role") or "viewer"
         branch_id = body.get("branch_id")
+
+        if role not in ALLOWED_USER_ROLES:
+            return jsonify({"error": "bad_role", "reason": "الصلاحية المطلوبة غير معتمدة"}), 400
+
+        branch_id_value = None
+        if branch_id not in (None, ""):
+            try:
+                branch_id_value = int(branch_id)
+            except (TypeError, ValueError):
+                return jsonify({"error": "bad_branch", "reason": "الفرع المحدد غير صحيح"}), 400
+            if not Branch.query.get(branch_id_value):
+                return jsonify({"error": "bad_branch", "reason": "الفرع المحدد غير موجود"}), 400
         
         if not username:
             return jsonify({"error": "missing", "reason": "اسم المستخدم مطلوب"}), 400
@@ -401,9 +420,14 @@ def api_users():
                     user.password_hash = generate_password_hash(password)
                     user.must_change_password = True
 
+                if user.username == "admin" and role != "admin":
+                    return jsonify({"error": "protected", "reason": "لا يمكن تغيير صلاحية المدير العام"}), 400
+                if user.username == (session.get("username") or session.get("user")) and body.get("is_active") is False:
+                    return jsonify({"error": "protected", "reason": "لا يمكن إيقاف الحساب المستخدم حالياً"}), 400
+
                 user.email = email or user.email
                 user.role = role
-                user.branch_id = int(branch_id) if branch_id else None
+                user.branch_id = branch_id_value
                 if 'is_active' in body:
                     user.is_active = bool(body.get('is_active'))
                 db.session.commit()
@@ -419,7 +443,7 @@ def api_users():
                 email=email or None,
                 password_hash=generate_password_hash(password),
                 role=role,
-                branch_id=int(branch_id) if branch_id else None,
+                branch_id=branch_id_value,
                 is_active=True,
                 must_change_password=True
             )
@@ -440,11 +464,20 @@ def api_users():
         user_id = body.get("id")
         user = User.query.get(user_id) if user_id else User.query.filter_by(username=(body.get("username") or "").strip()).first()
         if user:
-            if user.username == "admin":
-                return jsonify({"error": "لا يمكن حذف حساب المدير العام"}), 400
-            db.session.delete(user)
-            db.session.commit()
-            return jsonify({"success": True})
+            if user.username == "admin" or user.username == (session.get("username") or session.get("user")):
+                return jsonify({"error": "لا يمكن إيقاف حساب المدير العام أو الحساب المستخدم حالياً"}), 400
+            # Preserve audit history and foreign-key relationships: user removal is
+            # represented as a soft disable instead of destructive deletion.
+            try:
+                user.is_active = False
+                db.session.commit()
+                from app import _audit_add
+                _audit_add("إيقاف مستخدم", user.username, detail="إيقاف آمن دون حذف السجلات")
+                return jsonify({"success": True, "message": "تم إيقاف المستخدم مع الحفاظ على سجلاته"})
+            except Exception:
+                db.session.rollback()
+                logger.exception("User disable failed for %s", user.username)
+                return jsonify({"success": False, "error": "تعذر إيقاف المستخدم"}), 500
         return jsonify({"success": False, "error": "المستخدم غير موجود"}), 404
 
 

@@ -162,34 +162,56 @@ function loadUsers() {
     .then(r => r.json())
     .then(data => {
         const tbody = document.getElementById('usersList');
-        tbody.innerHTML = '';
-        data.users.forEach(u => {
-            const roleMap = {
-                'admin': 'مدير الأسطول',
-                'operations': 'قسم الحركة',
-                'maintenance': 'قسم الصيانة',
-                'finance': 'قسم الحسابات',
-                'viewer': 'مُطلع',
-                'kiosk': 'محطة عمل / ورشة'
-            };
-            const activeBadge = u.is_active ? '<span class="badge ok">مفعل</span>' : '<span class="badge bad">موقوف</span>';
-            tbody.innerHTML += `
-                <tr>
-                    <td>${u.id}</td>
-                    <td style="font-weight:700;color:var(--gold-primary,#c5a059);">${u.username}</td>
-                    <td>${u.email || '—'}</td>
-                    <td>${roleMap[u.role] || u.role}</td>
-                    <td>${u.branch}</td>
-                    <td>${activeBadge}</td>
-                    <td style="color:var(--text-muted);">${u.last_login}</td>
-                    <td>
-                        <button class="btn-neon" style="padding:4px 12px;font-size:.8rem;" onclick="editUser(${u.id}, '${u.username}', '${u.role}', '${u.branch_id}', ${u.is_active}, '${u.email || ''}')">✏️ تعديل</button>
-                        ${u.username !== 'admin' ? `<button class="btn-neon danger" style="padding:4px 12px;font-size:.8rem;" onclick="deleteUser(${u.id})">🗑 حذف</button>` : ''}
-                    </td>
-                </tr>
-            `;
+        tbody.replaceChildren();
+        const roleMap = {
+            'admin': 'مدير الأسطول',
+            'branch_manager': 'مدير فرع',
+            'data_entry': 'إدخال بيانات',
+            'operations': 'قسم الحركة',
+            'maintenance': 'قسم الصيانة',
+            'finance': 'قسم الحسابات',
+            'viewer': 'مُطلع',
+            'kiosk': 'محطة عمل / ورشة'
+        };
+        (data.users || []).forEach(u => {
+            const tr = document.createElement('tr');
+            const cells = [u.id, u.username, u.email || '—', roleMap[u.role] || u.role, u.branch || 'الكل'];
+            cells.forEach((value, index) => {
+                const td = document.createElement('td');
+                td.textContent = value;
+                if (index === 1) td.style.cssText = 'font-weight:700;color:var(--gold-primary,#c5a059);';
+                tr.appendChild(td);
+            });
+            const status = document.createElement('td');
+            const badge = document.createElement('span');
+            badge.className = u.is_active ? 'badge ok' : 'badge bad';
+            badge.textContent = u.is_active ? 'مفعل' : 'موقوف';
+            status.appendChild(badge);
+            tr.appendChild(status);
+            const lastLogin = document.createElement('td');
+            lastLogin.style.color = 'var(--text-muted)';
+            lastLogin.textContent = u.last_login || '-';
+            tr.appendChild(lastLogin);
+            const actions = document.createElement('td');
+            const edit = document.createElement('button');
+            edit.className = 'btn-neon';
+            edit.style.cssText = 'padding:4px 12px;font-size:.8rem;';
+            edit.textContent = '✏️ تعديل';
+            edit.addEventListener('click', () => editUser(u.id, u.username, u.role, u.branch_id, u.is_active, u.email || ''));
+            actions.appendChild(edit);
+            if (u.username !== 'admin') {
+                const disable = document.createElement('button');
+                disable.className = 'btn-neon danger';
+                disable.style.cssText = 'padding:4px 12px;font-size:.8rem;';
+                disable.textContent = '⏸ إيقاف';
+                disable.addEventListener('click', () => deleteUser(u.id));
+                actions.appendChild(disable);
+            }
+            tr.appendChild(actions);
+            tbody.appendChild(tr);
         });
-    });
+    })
+    .catch(() => alert('تعذر تحميل قائمة المستخدمين حالياً'));
 }
 
 function loadBranches() {
@@ -221,7 +243,7 @@ function deleteUser(id) {
         body: JSON.stringify({id: id})
     }).then(r => r.json()).then(data => {
         if(data.success) loadUsers();
-        else alert(data.error);
+        else alert(data.error || data.reason || 'تعذر إيقاف المستخدم');
     });
 }
 
