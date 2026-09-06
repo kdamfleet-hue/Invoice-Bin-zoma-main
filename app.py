@@ -1609,12 +1609,15 @@ def audit_log_data():
     """Read-only audit trail. Append-only by design — there is no edit/delete endpoint."""
     try:
         # Keep dashboard reads lightweight while preserving the full read-only log page.
-        try:
-            limit = min(max(int(request.args.get("limit", 100)), 1), 500)
-        except (TypeError, ValueError):
-            limit = 100
         rows = _audit_get()
-        return jsonify({"success": True, "rows": rows[-limit:]})
+        raw_limit = request.args.get("limit")
+        if raw_limit is not None:
+            try:
+                limit = min(max(int(raw_limit), 1), 500)
+            except (TypeError, ValueError):
+                limit = 100
+            rows = rows[-limit:]
+        return jsonify({"success": True, "rows": rows})
     except Exception:
         logger.exception("audit_log GET error")
         return jsonify({"success": True, "rows": []})
