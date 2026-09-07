@@ -143,6 +143,24 @@ def current_branch_name():
     return BRANCH_NAME.get(current_branch_id(), "الدمام")
 
 
+def branch_scope(column, branch_id=None, include_legacy_dammam=True):
+    """Return a SQLAlchemy predicate for the caller's branch boundary.
+
+    Existing production rows with a NULL branch are legacy records. They are treated
+    as Dammam (branch 1) only when the active scope is Dammam; they are never exposed
+    while another branch is active. This is deliberately logical-only: it does not
+    mutate or backfill production rows.
+    """
+    bid = current_branch_id() if branch_id is None else branch_id
+    try:
+        bid = int(bid)
+    except (TypeError, ValueError):
+        bid = 1
+    if include_legacy_dammam and bid == 1:
+        return (column == 1) | (column.is_(None))
+    return column == bid
+
+
 def _row_id():
     return 2 if is_workstation() else current_branch_id()
 

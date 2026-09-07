@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify
 from utils.birth_mapping import load_birth_mapping
 from app import login_required, role_required
 from models.schema import db, Driver, Vehicle, VehicleCustody, Branch, Document
+from helpers import branch_scope
 
 api_fleet_bp = Blueprint('api_fleet', __name__)
 
@@ -170,11 +171,13 @@ def add_driver():
         new_driver.contract_exp = safe_date(data.get("contract_exp"))
         
         db.session.add(new_driver)
-        
         # Vehicle logic
         plate = data.get("plate", "").strip()
         if plate:
-            vehicle = Vehicle.query.filter_by(plate_number=plate).first()
+            vehicle_query = Vehicle.query.filter_by(plate_number=plate)
+            if not is_admin:
+                vehicle_query = vehicle_query.filter(branch_scope(Vehicle.branch_id, branch_id))
+            vehicle = vehicle_query.first()
             if not vehicle:
                 vehicle = Vehicle()
                 vehicle.branch_id = branch_id
@@ -241,11 +244,13 @@ def update_driver(driver_id):
         if session.get("role") == "admin" and "branch_id" in data:
             val = data.get("branch_id")
             driver.branch_id = int(val) if val else None
-            
         # Vehicle logic
         plate = data.get("plate", "").strip()
         if plate:
-            vehicle = Vehicle.query.filter_by(plate_number=plate).first()
+            vehicle_query = Vehicle.query.filter_by(plate_number=plate)
+            if session.get("role") != "admin":
+                vehicle_query = vehicle_query.filter(branch_scope(Vehicle.branch_id, driver.branch_id))
+            vehicle = vehicle_query.first()
             if not vehicle:
                 vehicle = Vehicle()
                 vehicle.branch_id = driver.branch_id

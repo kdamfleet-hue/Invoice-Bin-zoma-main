@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session, current_app, redirect, url_for
 from models.schema import TireRecord, BatteryRecord, Vehicle, db
-from helpers import role_required, current_branch_id
+from helpers import role_required, current_branch_id, branch_scope
 from datetime import datetime
 
 inventory_bp = Blueprint("inventory_bp", __name__)
@@ -11,8 +11,8 @@ def tires_index():
     branch_id = current_branch_id()
     # No cross-branch fallback: a branch with no tyres yet used to be shown EVERY other
     # branch's inventory instead of an honest empty list.
-    tires = TireRecord.query.filter((TireRecord.branch_id == branch_id) | (TireRecord.branch_id.is_(None))).all()
-    vehicles = Vehicle.query.all()
+    tires = TireRecord.query.filter(branch_scope(TireRecord.branch_id, branch_id)).all()
+    vehicles = Vehicle.query.filter(branch_scope(Vehicle.branch_id, branch_id)).all()
     return render_template("inventory_tires.html", tires=tires, vehicles=vehicles)
 
 @inventory_bp.route("/api/inventory/tires", methods=["POST"])
@@ -23,7 +23,7 @@ def add_tire():
         v_id = data.get("vehicle_id")
         plate = data.get("vehicle_plate")
         if not v_id and plate:
-            v = Vehicle.query.filter(Vehicle.plate_number.like(f"%{plate.strip()}%")).first()
+            v = Vehicle.query.filter(branch_scope(Vehicle.branch_id), Vehicle.plate_number.like(f"%{plate.strip()}%")).first()
             if v: v_id = v.id
 
         t = TireRecord(
@@ -45,7 +45,7 @@ def add_tire():
 @inventory_bp.route("/api/inventory/tires/<int:tire_id>", methods=["PUT", "DELETE"])
 @role_required("admin", "operations", "maintenance")
 def manage_tire(tire_id):
-    t = TireRecord.query.filter(TireRecord.id == tire_id, (TireRecord.branch_id == current_branch_id()) | (TireRecord.branch_id.is_(None))).first()
+    t = TireRecord.query.filter(TireRecord.id == tire_id, branch_scope(TireRecord.branch_id)).first()
     if not t:
         return jsonify({"success": False, "error": "غير موجود"}), 404
     if request.method == "DELETE":
@@ -62,7 +62,7 @@ def manage_tire(tire_id):
             v_id = data.get("vehicle_id")
             plate = data.get("vehicle_plate")
             if not v_id and plate:
-                v = Vehicle.query.filter(Vehicle.plate_number.like(f"%{plate.strip()}%")).first()
+                v = Vehicle.query.filter(branch_scope(Vehicle.branch_id), Vehicle.plate_number.like(f"%{plate.strip()}%")).first()
                 if v: v_id = v.id
             t.vehicle_id = int(v_id) if v_id else None
         if "serial_number" in data:
@@ -90,8 +90,8 @@ def manage_tire(tire_id):
 def batteries_index():
     branch_id = current_branch_id()
     # No cross-branch fallback (see tires_index above).
-    batteries = BatteryRecord.query.filter((BatteryRecord.branch_id == branch_id) | (BatteryRecord.branch_id.is_(None))).all()
-    vehicles = Vehicle.query.all()
+    batteries = BatteryRecord.query.filter(branch_scope(BatteryRecord.branch_id, branch_id)).all()
+    vehicles = Vehicle.query.filter(branch_scope(Vehicle.branch_id, branch_id)).all()
     return render_template("inventory_batteries.html", batteries=batteries, vehicles=vehicles)
 
 @inventory_bp.route("/api/inventory/batteries", methods=["POST"])
@@ -102,7 +102,7 @@ def add_battery():
         v_id = data.get("vehicle_id")
         plate = data.get("vehicle_plate")
         if not v_id and plate:
-            v = Vehicle.query.filter(Vehicle.plate_number.like(f"%{plate.strip()}%")).first()
+            v = Vehicle.query.filter(branch_scope(Vehicle.branch_id), Vehicle.plate_number.like(f"%{plate.strip()}%")).first()
             if v: v_id = v.id
 
         b = BatteryRecord(

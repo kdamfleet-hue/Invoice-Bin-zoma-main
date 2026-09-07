@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, render_template, session, request, jsonify
-from helpers import login_required, load_logo, blob_get, blob_set, audit_and_verify, _audit_add, current_branch_id
+from helpers import login_required, load_logo, blob_get, blob_set, audit_and_verify, _audit_add, current_branch_id, branch_scope
 
 logger = logging.getLogger("InvoiceApp")
 operations_bp = Blueprint('operations', __name__)
@@ -102,7 +102,7 @@ def _sync_purchase_inventory(body):
 
         v = None
         if po_plate:
-            v = Vehicle.query.filter(Vehicle.plate_number.like(f"%{po_plate}%")).first()
+            v = Vehicle.query.filter(branch_scope(Vehicle.branch_id), Vehicle.plate_number.like(f"%{po_plate}%")).first()
 
         b_id = current_branch_id()
 
@@ -161,7 +161,7 @@ def workshop_data():
             if plate:
                 from models.schema import Vehicle, WorkshopRecord, db
                 from datetime import datetime
-                v = Vehicle.query.filter_by(plate_number=plate).first()
+                v = Vehicle.query.filter(branch_scope(Vehicle.branch_id), Vehicle.plate_number == plate).first()
                 if v:
                     record = WorkshopRecord.query.filter_by(vehicle_id=v.id, status="مفتوح").first()
                     if not record:
@@ -240,7 +240,7 @@ def update_km():
         # 3. Update SQL Vehicle model if present
         try:
             from models.schema import db, Vehicle
-            v = Vehicle.query.filter_by(plate_number=plate).first()
+            v = Vehicle.query.filter(branch_scope(Vehicle.branch_id), Vehicle.plate_number == plate).first()
             if v and (v.current_km is None or km_int > v.current_km):
                 v.current_km = km_int
                 v.odometer = km_int
@@ -280,7 +280,7 @@ def api_spare_parts():
         db.session.commit()
         return jsonify({"success": True, "part": {"id": part.id, "name": part.name, "part_number": part.part_number, "quantity": part.quantity, "unit_price": float(part.price or 0), "category": part.category, "supplier": part.supplier}})
         
-    parts = SparePart.query.all()
+    parts = SparePart.query.filter(branch_scope(SparePart.branch_id)).all()
     res = []
     for p in parts:
         res.append({
@@ -299,7 +299,9 @@ def api_spare_parts():
 @login_required
 def api_spare_parts_manage(part_id):
     from models.schema import SparePart, db
-    p = SparePart.query.get_or_404(part_id)
+    p = SparePart.query.filter(SparePart.id == part_id, branch_scope(SparePart.branch_id)).first()
+    if not p:
+        return jsonify({"success": False, "error": "Part not found"}), 404
     if request.method == "DELETE":
         db.session.delete(p)
         db.session.commit()
@@ -328,11 +330,11 @@ def dispense_part():
     if not plate or not part_id:
         return jsonify({"success": False, "error": "Missing plate or part_id"})
         
-    part = SparePart.query.get(part_id)
+    part = SparePart.query.filter(SparePart.id == part_id, branch_scope(SparePart.branch_id)).first()
     if not part or part.quantity < qty:
         return jsonify({"success": False, "error": "Not enough inventory"})
         
-    v = Vehicle.query.filter_by(plate_number=plate).first()
+    v = Vehicle.query.filter(branch_scope(Vehicle.branch_id), Vehicle.plate_number == plate).first()
     if not v:
         return jsonify({"success": False, "error": "Vehicle not found"})
         
@@ -364,7 +366,7 @@ def refund_part():
     if not usage:
         return jsonify({"success": False, "error": "Usage record not found"})
         
-    part = SparePart.query.get(usage.spare_part_id)
+    part = SparePart.query.filter(SparePart.id == usage.spare_part_id, branch_scope(SparePart.branch_id)).first()
     if part:
         part.quantity += usage.quantity_used
         

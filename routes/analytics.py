@@ -3,7 +3,7 @@ analytics.py - Blueprint for Advanced Analytics, Smart Alerts, and Workshop Link
 """
 
 from flask import Blueprint, jsonify, request, session
-from helpers import login_required, blob_get, blob_set, current_branch_id, role_required
+from helpers import login_required, blob_get, blob_set, current_branch_id, role_required, branch_scope
 from services.analytics_service import get_operating_costs_summary, get_fuel_efficiency_report, get_operational_kpis
 from services.alert_service import check_document_expirations, check_maintenance_schedules
 from models.schema import db, Vehicle, WorkshopRecord, SparePart, WorkshopPartUsage
@@ -80,13 +80,16 @@ def api_workshop_sync_status():
         spare_parts = data.get('spare_parts', []) # list of {part_id, qty}
 
         if not vehicle_id and plate_number:
-            v = Vehicle.query.filter_by(plate_number=plate_number).first()
+            vq = Vehicle.query.filter_by(plate_number=plate_number)
+            if session.get('role') != 'admin':
+                vq = vq.filter(branch_scope(Vehicle.branch_id))
+            v = vq.first()
             if v: vehicle_id = v.id
 
         if vehicle_id:
             vq = Vehicle.query.filter_by(id=vehicle_id)
             if session.get('role') != 'admin':
-                vq = vq.filter_by(branch_id=current_branch_id())
+                vq = vq.filter(branch_scope(Vehicle.branch_id))
             v = vq.first()
             if v:
                 if order_status in ['قيد الإصلاح', 'مفتوح', 'تحت الصيانة']:
@@ -102,7 +105,7 @@ def api_workshop_sync_status():
             if part_id and qty > 0:
                 pq = SparePart.query.filter_by(id=part_id)
                 if session.get('role') != 'admin':
-                    pq = pq.filter_by(branch_id=current_branch_id())
+                    pq = pq.filter(branch_scope(SparePart.branch_id))
                 part = pq.first()
                 if part and part.quantity >= qty:
                     part.quantity -= qty
@@ -127,14 +130,21 @@ def api_linkage_health():
     try:
         from models.schema import Driver, Vehicle, WorkshopRecord, SparePart, Document, FuelRecord, TireRecord, BatteryRecord, Incident, PettyCash
         
-        db_drivers = Driver.query.count()
-        db_vehicles = Vehicle.query.count()
-        ws_records = WorkshopRecord.query.count()
-        spare_parts = SparePart.query.count()
-        tires = TireRecord.query.count()
-        batteries = BatteryRecord.query.count()
-        fuel_recs = FuelRecord.query.count()
-        docs = Document.query.count()
+        branch_filter = None if session.get('role') == 'admin' else current_branch_id()
+        def scoped_count(model):
+            query = model.query
+            if branch_filter is not None and hasattr(model, 'branch_id'):
+                query = query.filter(branch_scope(model.branch_id, branch_filter))
+            return query.count()
+
+        db_drivers = scoped_count(Driver)
+        db_vehicles = scoped_count(Vehicle)
+        ws_records = scoped_count(WorkshopRecord)
+        spare_parts = scoped_count(SparePart)
+        tires = scoped_count(TireRecord)
+        batteries = scoped_count(BatteryRecord)
+        fuel_recs = scoped_count(FuelRecord)
+        docs = scoped_count(Document)
         
         modules = [
             {'key': 'fleet_drivers', 'name': 'السائقين والأسطول', 'status': 'مكتمل ومرتبط' if (db_drivers or db_vehicles) else 'لا توجد بيانات', 'count': f"{db_drivers} سائق / {db_vehicles} مركبة", 'health': 100 if (db_drivers or db_vehicles) else 0},
