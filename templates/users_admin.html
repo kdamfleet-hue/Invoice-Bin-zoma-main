@@ -89,8 +89,42 @@
     .badge.ok { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
     .badge.bad { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
 
+    .permissions-card {
+        display: none;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+        border: 1px solid rgba(197,160,89,.35);
+    }
+    .permissions-card.is-open { display: block; }
+    .permissions-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 12px; margin-bottom: 14px;
+    }
+    .permissions-head h3 { margin: 0; color: var(--gold-primary,#c5a059); font-size: 1rem; }
+    .permissions-user { color: var(--text-muted,#94a3b8); font-size: .85rem; }
+    .permissions-note {
+        margin: 0 0 16px; color: var(--text-muted,#94a3b8); font-size: .82rem;
+        line-height: 1.7;
+    }
+    .permissions-grid {
+        display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px;
+        margin-bottom: 16px;
+    }
+    .permission-item {
+        display: flex; align-items: center; gap: 9px; padding: 10px 12px;
+        border: 1px solid var(--glass-border,rgba(197,160,89,.2));
+        border-radius: 8px; background: rgba(0,0,0,.18); color: var(--text-main,#f8fafc);
+        font-size: .82rem; cursor: pointer;
+    }
+    .permission-item input { accent-color: var(--gold-primary,#c5a059); }
+    .permission-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .permission-status { color:#10b981; font-size:.82rem; min-height:1.2em; }
+    .permission-status.error { color:#ef4444; }
+    .permissions-button { padding:4px 12px; font-size:.8rem; }
+    @media (max-width: 900px) { .permissions-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
     @media (max-width: 768px) {
         .admin-grid { grid-template-columns: 1fr; }
+        .permissions-grid { grid-template-columns: 1fr; }
     }
 </style>
 {% endblock %}
@@ -135,6 +169,22 @@
         </form>
     </div>
 
+    <!-- Per-account permissions: backed by /api/system/user_permissions. -->
+    <div id="permissionsCard" class="glass-panel permissions-card" aria-live="polite">
+        <div class="permissions-head">
+            <h3>🔐 الصلاحيات المخصصة للحساب</h3>
+            <span id="permissionsUser" class="permissions-user"></span>
+        </div>
+        <p class="permissions-note">الدور الأساسي يبقى كما هو، وهذه الاختيارات تضبط صفحات النظام المتاحة للحساب. الحساب المدير الحالي محمي ولا يمكن تقييده من جلسته نفسها.</p>
+        <div id="permissionsGrid" class="permissions-grid"></div>
+        <div class="permission-actions">
+            <button type="button" id="savePermissionsBtn" class="btn-neon success">💾 حفظ الصلاحيات</button>
+            <button type="button" id="clearPermissionsBtn" class="btn-neon">↺ السماح بكل الصفحات</button>
+            <button type="button" id="closePermissionsBtn" class="btn-neon">إغلاق</button>
+            <span id="permissionsStatus" class="permission-status" role="status"></span>
+        </div>
+    </div>
+
     <!-- Users Table -->
     <div class="glass-panel admin-table-card">
         <table class="admin-table">
@@ -157,6 +207,131 @@
 </div>
 
 <script>
+const PERMISSION_OPTIONS = [
+    {key: '/', label: 'الرئيسية'},
+    {key: '/admin', label: 'لوحة المدير'},
+    {key: '/fleet_dashboard', label: 'لوحة الأسطول'},
+    {key: '/ops', label: 'دورة التشغيل'},
+    {key: '/kpis', label: 'مؤشرات الأداء'},
+    {key: '/insights', label: 'التحليلات'},
+    {key: '/schedule', label: 'الجدول الأسبوعي'},
+    {key: '/tracking', label: 'التتبع الحي'},
+    {key: '/handover', label: 'التسليم والاستلام'},
+    {key: '/yard', label: 'إدارة الساحات'},
+    {key: '/employees', label: 'الموظفون'},
+    {key: '/dammam', label: 'مركبات الدمام'},
+    {key: '/drivers_info', label: 'السائقون'},
+    {key: '/driver-vehicle-assignments', label: 'ربط السائق بالمركبة'},
+    {key: '/data-quality', label: 'جودة البيانات'},
+    {key: '/alerts', label: 'تنبيهات الوثائق'},
+    {key: '/documents', label: 'الوثائق'},
+    {key: '/workshop', label: 'الورشة'},
+    {key: '/fuel', label: 'المحروقات'},
+    {key: '/oils', label: 'الزيوت والفلاتر'},
+    {key: '/washing', label: 'الغسيل'},
+    {key: '/purchase', label: 'المشتريات'},
+    {key: '/spare_parts', label: 'قطع الغيار'},
+    {key: '/inventory/tires', label: 'الإطارات'},
+    {key: '/inventory/batteries', label: 'البطاريات'},
+    {key: '/finance/petty-cash', label: 'العهد والمصاريف'},
+    {key: '/invoice', label: 'الفواتير'},
+    {key: '/incidents', label: 'الحوادث'},
+    {key: '/records', label: 'السجلات'},
+    {key: '/audit-log', label: 'سجل التدقيق'},
+    {key: '/settings', label: 'الإعدادات'},
+    {key: '/search', label: 'البحث'},
+    {key: '/gps_sync', label: 'مزامنة GPS'},
+    {key: '/cameras', label: 'الكاميرات'}
+];
+let permissionStore = {};
+let selectedPermissionUser = '';
+
+function setPermissionStatus(message, isError = false) {
+    const node = document.getElementById('permissionsStatus');
+    node.textContent = message || '';
+    node.classList.toggle('error', Boolean(isError));
+}
+
+function renderPermissionEditor(username) {
+    selectedPermissionUser = username;
+    document.getElementById('permissionsUser').textContent = `الحساب: ${username}`;
+    const current = permissionStore[username] || {};
+    const allowed = Array.isArray(current.allowed_tabs) ? new Set(current.allowed_tabs) : null;
+    const grid = document.getElementById('permissionsGrid');
+    grid.replaceChildren();
+    PERMISSION_OPTIONS.forEach(({key, label}) => {
+        const item = document.createElement('label');
+        item.className = 'permission-item';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = key;
+        checkbox.checked = allowed ? allowed.has(key) : true;
+        checkbox.dataset.permission = 'tab';
+        const text = document.createElement('span');
+        text.textContent = label;
+        item.append(checkbox, text);
+        grid.appendChild(item);
+    });
+    setPermissionStatus('');
+    document.getElementById('permissionsCard').classList.add('is-open');
+    document.getElementById('permissionsCard').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function openPermissions(username) {
+    if (username === 'admin') {
+        setPermissionStatus('لا يمكن تقييد حساب المدير من جلسة المدير الحالية.', true);
+        document.getElementById('permissionsCard').classList.add('is-open');
+        document.getElementById('permissionsUser').textContent = `الحساب: ${username}`;
+        return;
+    }
+    renderPermissionEditor(username);
+}
+
+function closePermissions() {
+    document.getElementById('permissionsCard').classList.remove('is-open');
+    selectedPermissionUser = '';
+}
+
+function loadPermissions() {
+    return fetch('/api/system/user_permissions')
+        .then(r => r.json())
+        .then(data => { permissionStore = data.user_permissions || {}; return permissionStore; });
+}
+
+function savePermissions() {
+    if (!selectedPermissionUser) return;
+    const allowed = Array.from(document.querySelectorAll('[data-permission="tab"]:checked')).map(el => el.value);
+    if (!allowed.length) {
+        setPermissionStatus('اختر صفحة واحدة على الأقل أو استخدم السماح بكل الصفحات.', true);
+        return;
+    }
+    setPermissionStatus('جارٍ الحفظ...');
+    fetch('/api/system/user_permissions', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: selectedPermissionUser, allowed_tabs: allowed, dedicated_mode: 'all'})
+    }).then(r => r.json()).then(data => {
+        if (!data.success) throw new Error(data.error || 'تعذر الحفظ');
+        permissionStore = data.user_permissions || permissionStore;
+        setPermissionStatus('تم حفظ الصلاحيات المخصصة.');
+    }).catch(err => setPermissionStatus(err.message, true));
+}
+
+function clearPermissions() {
+    if (!selectedPermissionUser) return;
+    setPermissionStatus('جارٍ الإلغاء...');
+    fetch('/api/system/user_permissions', {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: selectedPermissionUser})
+    }).then(r => r.json()).then(data => {
+        if (!data.success) throw new Error(data.error || 'تعذر الإلغاء');
+        permissionStore = data.user_permissions || {};
+        renderPermissionEditor(selectedPermissionUser);
+        setPermissionStatus('أصبح الحساب مسموحاً له بكل الصفحات.');
+    }).catch(err => setPermissionStatus(err.message, true));
+}
+
 function loadUsers() {
     fetch('/api/users')
     .then(r => r.json())
@@ -193,6 +368,11 @@ function loadUsers() {
             lastLogin.textContent = u.last_login || '-';
             tr.appendChild(lastLogin);
             const actions = document.createElement('td');
+            const permissions = document.createElement('button');
+            permissions.className = 'btn-neon permissions-button';
+            permissions.textContent = '🔐 صلاحيات';
+            permissions.addEventListener('click', () => openPermissions(u.username));
+            actions.appendChild(permissions);
             const edit = document.createElement('button');
             edit.className = 'btn-neon';
             edit.style.cssText = 'padding:4px 12px;font-size:.8rem;';
@@ -275,7 +455,12 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
     });
 });
 
+document.getElementById('savePermissionsBtn').addEventListener('click', savePermissions);
+document.getElementById('clearPermissionsBtn').addEventListener('click', clearPermissions);
+document.getElementById('closePermissionsBtn').addEventListener('click', closePermissions);
+
 window.onload = () => {
+    loadPermissions().catch(() => setPermissionStatus('تعذر تحميل الصلاحيات المخصصة حالياً.', true));
     loadUsers();
     loadBranches();
 };
