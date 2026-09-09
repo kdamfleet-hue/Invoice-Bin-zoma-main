@@ -144,10 +144,26 @@
     .sched-premium table.sched td.col-idx {
       background:rgba(0,0,0,.22); font-weight:800; font-size:.74rem; color:var(--p-gold2);
     }
-    .sched-premium table.sched tbody tr { transition:all 0.3s ease; }
-    .sched-premium table.sched tbody tr:hover td:not(.exp-bad):not(.exp-warn) { background: rgba(197, 160, 89, 0.12) !important; transform: scale(1.001); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .sched-premium table.sched tbody tr { transition:background .18s ease, box-shadow .18s ease; }
+    .sched-premium table.sched tbody tr:hover { position:relative; z-index:20; box-shadow:0 6px 18px rgba(0,0,0,.32); }
+    .sched-premium table.sched tbody tr:hover td:not(.exp-bad):not(.exp-warn) { background: rgba(197, 160, 89, 0.12) !important; }
     .sched-premium table.sched tbody tr:nth-child(even) td:not(.col-idx):not(.exp-bad):not(.exp-warn) { background:var(--p-row-alt); }
     .sched-premium table.sched tbody tr:hover td:not(.exp-bad):not(.exp-warn) { background:rgba(197,160,89,.12); }
+    /* Hover focus: lift the row and reveal the full value without changing data. */
+    .sched-premium table.sched tbody tr:hover td { height:42px; }
+    .sched-premium table.sched tbody tr:hover td input { padding-top:10px; padding-bottom:10px; text-overflow:clip; }
+    .sched-premium table.sched tbody td[data-full-value] { position:relative; overflow:visible; }
+    .sched-premium table.sched tbody td[data-full-value]:hover { z-index:30; }
+    .sched-premium table.sched tbody td[data-full-value]:hover::before {
+      content:attr(data-full-value); position:absolute; top:calc(100% - 1px); right:0; min-width:100%; max-width:340px;
+      padding:8px 10px; border:1px solid var(--p-gold); border-radius:7px; background:#151922; color:#fff;
+      font-size:.78rem; font-weight:700; line-height:1.45; white-space:normal; overflow-wrap:anywhere;
+      text-align:center; box-shadow:0 8px 18px rgba(0,0,0,.45); pointer-events:none;
+    }
+    .sched-premium table.sched tbody tr:first-child td[data-full-value]:hover::before { top:auto; bottom:calc(100% - 1px); }
+    @media (hover:none) {
+      .sched-premium table.sched tbody td[data-full-value]:hover::before { display:none; }
+    }
 
     /* Expired / soon — aligned to reference red / orange + days hint */
     .sched-premium table.sched td.exp-bad  input { background:rgba(192,57,43,.30);  color:#FF8A80; font-weight:800; }
@@ -909,6 +925,14 @@
         });
         html += `<td class="col-act"><div class="col-act-wrap"><button class="row-custody" title="نقل عهدة المركبة لسائق آخر" onclick="openCustodyModal('${section}',${idx})">🔄</button><button class="row-notify" title="إشعار السائق عبر واتساب" onclick="notifyDriver('${section}',${idx})">📲</button><button class="row-del" title="حذف" onclick="deleteRow('${section}',${idx})">✕</button></div></td>`;
         tr.innerHTML = html;
+        tr.querySelectorAll('td').forEach((cell) => {
+          const input = cell.querySelector('input');
+          const fullValue = input ? String(input.value || '').trim() : '';
+          if (fullValue && !cell.classList.contains('col-act')) {
+            cell.setAttribute('data-full-value', fullValue);
+            input.setAttribute('title', fullValue);
+          }
+        });
         tb.appendChild(tr);
       });
     }
