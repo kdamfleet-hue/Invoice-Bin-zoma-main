@@ -45,6 +45,21 @@
         .al-msg { font-weight: 800; margin-top: 12px; min-height: 1.2rem; font-size: .88rem; }
         .al-warn { display: flex; gap: 10px; align-items: flex-start; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 12px; padding: 12px 14px; color: var(--text-secondary); font-size: .84rem; line-height: 1.8; margin-bottom: 14px; }
         .al-note { color: var(--text-muted); font-size: .78rem; margin-top: 10px; }
+        .am-card { max-width: 1180px; margin: 1.3rem auto 0; }
+        .am-toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin: 0 0 14px; }
+        .am-toolbar input, .am-toolbar select { padding:9px 11px; border:1px solid var(--border-strong,#4d4d4d); border-radius:9px; background:var(--bg-color,#1a1a1a); color:var(--text-primary); font-family:inherit; }
+        .am-table-wrap { overflow:auto; border:1px solid var(--border); border-radius:12px; }
+        .am-table { width:100%; min-width:940px; border-collapse:collapse; }
+        .am-table th, .am-table td { padding:10px 8px; border-bottom:1px solid var(--border); text-align:center; vertical-align:middle; }
+        .am-table th { background:var(--surface-hover); color:var(--text-primary); font-size:.8rem; white-space:nowrap; }
+        .am-table td { color:var(--text-secondary); font-size:.82rem; }
+        .am-table tr.done { opacity:.62; }
+        .am-date { padding:7px; border:1px solid var(--border-strong,#4d4d4d); border-radius:7px; background:var(--bg-color,#1a1a1a); color:var(--text-primary); }
+        .am-btn { border:0; border-radius:7px; padding:7px 10px; cursor:pointer; font-family:inherit; font-weight:800; margin:2px; }
+        .am-btn.save { background:#2563eb; color:#fff; } .am-btn.done { background:#059669; color:#fff; } .am-btn.reopen { background:#b45309; color:#fff; }
+        .am-badge { display:inline-block; padding:4px 8px; border-radius:999px; font-size:.72rem; font-weight:800; }
+        .am-badge.open { background:rgba(239,68,68,.14); color:#ef4444; } .am-badge.completed { background:rgba(16,185,129,.14); color:#10b981; }
+        .am-empty { padding:28px; text-align:center; color:var(--text-muted); }
     </style>
 {% endblock %}
 
@@ -101,6 +116,18 @@ fleet@bz.sa"></textarea>
 </div>
 <div class="sub">هذا العدد ضمن النطاق المختار أعلاه. اضبط النطاق ثم احفظ لتحديثه.</div>
 </div>
+<div class="al-card am-card">
+<h3>③ مركز إدارة التنبيهات والإجراءات</h3>
+<div class="sub">يمكن للمسؤول تعديل تاريخ الاستحقاق في السجل الأصلي، ثم إنهاء الإجراء بعد المعالجة. كل تعديل يُحفظ ويُسجل في سجل التدقيق.</div>
+<div class="am-toolbar">
+  <input id="amSearch" type="search" placeholder="بحث باسم السائق أو المركبة أو الوثيقة..." autocomplete="off">
+  <select id="amStatus"><option value="all">كل الحالات</option><option value="open">مفتوحة</option><option value="completed">منتهية الإجراء</option></select>
+  <button class="am-btn save" id="amRefresh" type="button">↻ تحديث</button>
+  <span class="emp-count" id="amCount"></span>
+</div>
+<div class="am-table-wrap"><table class="am-table"><thead><tr><th>التنبيه</th><th>النوع</th><th>تاريخ الاستحقاق</th><th>الحالة</th><th>المسؤول</th><th>الإجراء</th></tr></thead><tbody id="amBody"><tr><td colspan="6" class="am-empty">جارٍ تحميل التنبيهات…</td></tr></tbody></table></div>
+<div class="al-msg" id="amMsg"></div>
+</div>
 </div>
 </div>
 <script>
@@ -109,6 +136,32 @@ fleet@bz.sa"></textarea>
   function $(id) { return document.getElementById(id); }
   var hourSel = $('alHour');
   for (var h = 0; h < 24; h++) { var o = document.createElement('option'); o.value = h; o.textContent = (h < 10 ? '0' + h : h) + ':00'; hourSel.appendChild(o); }
+
+  var managedAlerts = [];
+
+  function loadManaged() {
+    fetch('/api/alerts/manage', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { managedAlerts = (j && j.success && Array.isArray(j.alerts)) ? j.alerts : []; renderManaged(); })
+      .catch(function () { $('amBody').innerHTML = '<tr><td colspan="6" class="am-empty">تعذّر تحميل التنبيهات.</td></tr>'; });
+  }
+
+  function renderManaged() {
+    var q = (($('amSearch') && $('amSearch').value) || '').trim().toLowerCase();
+    var status = $('amStatus') ? $('amStatus').value : 'all';
+    var rows = managedAlerts.filter(function (a) {
+      var text = [a.title, a.entity_type, a.entity_name, a.expiry_date].join(' ').toLowerCase();
+      return (!q || text.indexOf(q) !== -1) && (status === 'all' || (a.action_status || 'open') === status);
+    });
+    $('amCount').textContent = 'المعروض: ' + rows.length + ' / ' + managedAlerts.length;
+    if (!rows.length) { $('amBody').innerHTML = '<tr><td colspan="6" class="am-empty">لا توجد تنبيهات مطابقة.</td></tr>'; return; }
+    $('amBody').innerHTML = rows.map(function (a) {
+      var done = a.action_status === 'completed';
+      var statusHtml = '<span class="am-badge ' + (done ? 'completed' : 'open') + '">' + (done ? 'تم إنهاء الإجراء' : 'مفتوح') + '</span>';
+      var action = done ? '<button class="am-btn reopen" data-am-action="reopen" data-key="' + esc(a.alert_key) + '">إعادة فتح</button>' : '<button class="am-btn done" data-am-action="complete" data-key="' + esc(a.alert_key) + '">إنهاء الإجراء</button>';
+      return '<tr class="' + (done ? 'done' : '') + '"><td>' + esc(a.title) + '<small style="display:block;color:var(--text-muted)">' + esc(a.status_label) + '</small></td><td>' + esc(a.entity_type) + '</td><td><input class="am-date" type="date" value="' + esc(a.expiry_date) + '" data-am-date="' + esc(a.alert_key) + '"><button class="am-btn save" data-am-action="date" data-key="' + esc(a.alert_key) + '">حفظ التاريخ</button></td><td>' + statusHtml + '</td><td>' + esc(a.completed_by || '—') + '</td><td>' + action + '</td></tr>';
+    }).join('');
+  }
 
   function load() {
     fetch('/api/alert_settings', { headers: { 'Accept': 'application/json' } })
@@ -165,7 +218,18 @@ fleet@bz.sa"></textarea>
       .catch(function () { busy(false); msg('تعذّر الاتصال بالخادم', false); });
   });
 
-  document.addEventListener('DOMContentLoaded', load);
+  ['amSearch', 'amStatus'].forEach(function (id) { var el = $(id); if (el) el.addEventListener('input', renderManaged); });
+  $('amRefresh').addEventListener('click', loadManaged);
+  $('amBody').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-am-action]'); if (!btn) return;
+    var key = btn.getAttribute('data-key'), action = btn.getAttribute('data-am-action');
+    var alert = managedAlerts.find(function (x) { return x.alert_key === key; }); if (!alert) return;
+    var payload = { alert_key:key, action: action === 'date' ? 'update_date' : action, source:alert.source, field:alert.field, entity_id:alert.entity_id };
+    if (action === 'date') { var input = document.querySelector('[data-am-date="' + CSS.escape(key) + '"]'); payload.date = input && input.value; if (!payload.date) { $('amMsg').textContent = 'اختر تاريخًا صالحًا أولاً.'; return; } }
+    btn.disabled = true;
+    fetch('/api/alerts/manage', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }).then(function(r){return r.json();}).then(function(j){ if(!j.success) throw new Error(j.error || 'تعذّر الحفظ'); $('amMsg').textContent = 'تم حفظ الإجراء ✓'; loadManaged(); }).catch(function(e){ $('amMsg').textContent = e.message; btn.disabled=false; });
+  });
+  document.addEventListener('DOMContentLoaded', function () { load(); loadManaged(); });
 })();
 </script>
 {% endblock %}

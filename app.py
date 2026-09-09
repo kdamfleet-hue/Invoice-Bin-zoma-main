@@ -1996,6 +1996,7 @@ def _alert_cfg():
         "hour": max(0, min(23, _int(d.get("hour", 7), 7))),
         "window_days": max(1, min(180, _int(d.get("window_days", 30), 30))),
         "last_sent": d.get("last_sent", ""),
+        "managed_actions": d.get("managed_actions", {}) if isinstance(d.get("managed_actions", {}), dict) else {},
     }
 
 

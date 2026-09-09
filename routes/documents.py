@@ -178,7 +178,8 @@ def api_alert_settings():
     except (TypeError, ValueError):
         wd = 30
     cfg = {"enabled": bool(body.get("enabled")), "recipients": _recips(body.get("recipients")),
-           "hour": hour, "window_days": wd, "last_sent": _alert_cfg().get("last_sent", "")}
+           "hour": hour, "window_days": wd, "last_sent": _alert_cfg().get("last_sent", ""),
+           "managed_actions": _alert_cfg().get("managed_actions", {})}
     _alert_cfg_set(cfg)
     _audit_add("إعداد", "تنبيهات الوثائق التلقائية", len(cfg["recipients"]),
                ("مُفعّلة" if cfg["enabled"] else "مُعطّلة") + " · الساعة %d · خلال %d يوم" % (hour, wd))

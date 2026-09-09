@@ -7,7 +7,8 @@ from helpers import login_required, blob_get, blob_set, current_branch_id, role_
 from services.analytics_service import get_operating_costs_summary, get_fuel_efficiency_report, get_operational_kpis
 from services.alert_service import check_document_expirations, check_maintenance_schedules
 from models.schema import db, Vehicle, WorkshopRecord, SparePart, WorkshopPartUsage
-from datetime import datetime
+from datetime import datetime, date
+
 
 analytics_bp = Blueprint('analytics', __name__)
 
@@ -52,6 +53,86 @@ def api_smart_notifications():
         branch_id = current_branch_id()
     res = check_document_expirations(branch_id=branch_id)
     return jsonify(res)
+
+@analytics_bp.route("/api/alerts/manage", methods=["GET", "POST"])
+@login_required
+@role_required("admin")
+def api_manage_alerts():
+    """Admin alert inbox: update the source expiry date or close an action."""
+    from app import _global_blob_get, _global_blob_set, _audit_add
+    from models.schema import Driver, Document
+
+    def _settings():
+        raw = _global_blob_get("alert_settings")
+        return raw if isinstance(raw, dict) else {}
+
+    def _actions():
+        raw = _settings().get("managed_actions", {})
+        return raw if isinstance(raw, dict) else {}
+
+    def _save_actions(actions):
+        cfg = _settings()
+        cfg["managed_actions"] = actions
+        _global_blob_set("alert_settings", cfg)
+
+    if request.method == "GET":
+        branch_id = None if session.get("is_admin") else current_branch_id()
+        result = check_document_expirations(branch_id=branch_id)
+        actions = _actions()
+        alerts = []
+        for alert in result.get("alerts", []):
+            item = dict(alert)
+            action = actions.get(item["alert_key"], {})
+            item["action_status"] = action.get("status", "open")
+            item["completed_at"] = action.get("completed_at", "")
+            item["completed_by"] = action.get("completed_by", "")
+            item["action_note"] = action.get("note", "")
+            alerts.append(item)
+        return jsonify({"success": True, "alerts": alerts, "counts": result.get("counts", {})})
+
+    body = request.get_json(silent=True) or {}
+    alert_key = str(body.get("alert_key") or "").strip()
+    action_type = body.get("action")
+    if not alert_key or action_type not in ("complete", "reopen", "update_date"):
+        return jsonify({"success": False, "error": "طلب غير صالح."}), 400
+
+    actions = _actions()
+    current = actions.get(alert_key, {}) if isinstance(actions.get(alert_key), dict) else {}
+    if action_type == "update_date":
+        raw_date = str(body.get("date") or "").strip()
+        try:
+            new_date = date.fromisoformat(raw_date)
+        except ValueError:
+            return jsonify({"success": False, "error": "التاريخ غير صالح."}), 400
+        source = body.get("source")
+        field = body.get("field")
+        try:
+            entity_id = int(body.get("entity_id"))
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "error": "معرّف التنبيه غير صالح."}), 400
+        model = {"vehicle": Vehicle, "driver": Driver, "document": Document}.get(source)
+        if not model or field not in {"istimara_expiry", "insurance_expiry", "inspection_expiry", "iqama_expiry", "license_expiry", "expiry"}:
+            return jsonify({"success": False, "error": "مصدر التنبيه غير صالح."}), 400
+        record = model.query.get(entity_id)
+        if not record:
+            return jsonify({"success": False, "error": "السجل غير موجود."}), 404
+        if session.get("is_branch_user") and getattr(record, "branch_id", None) != current_branch_id():
+            return jsonify({"success": False, "error": "غير مصرح بهذا السجل."}), 403
+        setattr(record, field, new_date)
+        db.session.commit()
+        current.update({"status": "open", "updated_date": raw_date, "note": str(body.get("note") or "").strip()[:500]})
+        actions[alert_key] = current
+        _save_actions(actions)
+        _audit_add("تعديل تاريخ", "إدارة التنبيهات", str(entity_id), f"{source}.{field} = {raw_date}")
+        return jsonify({"success": True, "date": raw_date})
+
+    now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    current.update({"status": "completed" if action_type == "complete" else "open", "completed_at": now if action_type == "complete" else "", "completed_by": session.get("user") or session.get("username") or "admin", "note": str(body.get("note") or "").strip()[:500]})
+    actions[alert_key] = current
+    _save_actions(actions)
+    _audit_add("إنهاء تنبيه" if action_type == "complete" else "إعادة فتح تنبيه", "إدارة التنبيهات", alert_key, current.get("note") or "")
+    return jsonify({"success": True, "status": current["status"]})
+
 
 @analytics_bp.route("/api/alerts/maintenance_schedules", methods=["GET"])
 @login_required

@@ -27,20 +27,20 @@ def check_document_expirations(branch_id=None):
 
         # 1. Vehicle Documents
         for v in v_query.all():
-            _check_expiry(alerts, v.istimara_expiry, today, f"استمارة المركبة ({v.plate_number})", "مركبة", v.id, v.plate_number)
-            _check_expiry(alerts, v.insurance_expiry, today, f"تأمين المركبة ({v.plate_number})", "مركبة", v.id, v.plate_number)
-            _check_expiry(alerts, v.inspection_expiry, today, f"الفحص الدوري للمركبة ({v.plate_number})", "مركبة", v.id, v.plate_number)
+            _check_expiry(alerts, v.istimara_expiry, today, f"استمارة المركبة ({v.plate_number})", "مركبة", v.id, v.plate_number, "vehicle", "istimara_expiry")
+            _check_expiry(alerts, v.insurance_expiry, today, f"تأمين المركبة ({v.plate_number})", "مركبة", v.id, v.plate_number, "vehicle", "insurance_expiry")
+            _check_expiry(alerts, v.inspection_expiry, today, f"الفحص الدوري للمركبة ({v.plate_number})", "مركبة", v.id, v.plate_number, "vehicle", "inspection_expiry")
 
         # 2. Driver Documents
         for d in d_query.all():
-            _check_expiry(alerts, d.iqama_expiry, today, f"إقامة السائق ({d.name})", "سائق", d.id, d.name)
-            _check_expiry(alerts, d.license_expiry, today, f"رخصة قيادة السائق ({d.name})", "سائق", d.id, d.name)
+            _check_expiry(alerts, d.iqama_expiry, today, f"إقامة السائق ({d.name})", "سائق", d.id, d.name, "driver", "iqama_expiry")
+            _check_expiry(alerts, d.license_expiry, today, f"رخصة قيادة السائق ({d.name})", "سائق", d.id, d.name, "driver", "license_expiry")
 
         # 3. Document table records
         for doc in doc_query.all():
             if doc.expiry:
                 entity = doc.entity_ref or f"وثيقة #{doc.id}"
-                _check_expiry(alerts, doc.expiry, today, f"{doc.doc_type} ({entity})", "وثيقة", doc.id, entity)
+                _check_expiry(alerts, doc.expiry, today, f"{doc.doc_type} ({entity})", "وثيقة", doc.id, entity, "document", "expiry")
 
         # Sort by urgency level & days remaining
         priority_map = {'expired': 0, 'critical': 1, 'warning': 2, 'upcoming': 3}
@@ -64,7 +64,7 @@ def check_document_expirations(branch_id=None):
         db.session.rollback()
         return {'success': False, 'error': str(e), 'alerts': []}
 
-def _check_expiry(alerts_list, exp_date, today, title, entity_type, entity_id, entity_name):
+def _check_expiry(alerts_list, exp_date, today, title, entity_type, entity_id, entity_name, source=None, field=None):
     if not exp_date:
         return
 
@@ -98,7 +98,10 @@ def _check_expiry(alerts_list, exp_date, today, title, entity_type, entity_id, e
         'days_remaining': days,
         'urgency': urgency,
         'status_label': status_label,
-        'badge_class': badge_class
+        'badge_class': badge_class,
+        'source': source,
+        'field': field,
+        'alert_key': f"{source}:{entity_id}:{field}" if source and entity_id and field else f"{entity_type}:{entity_id}:{title}"
     })
 
 def check_maintenance_schedules(branch_id=None, odo_threshold_km=5000):
