@@ -1478,7 +1478,14 @@ def employees_data():
                 latest_by_driver = {}
                 active_by_driver = {}
 
-            for driver in Driver.query.order_by(Driver.id.asc()).all():
+            # Reconcile only within the active branch. The previous global query
+            # appended drivers from other branches to the branch employee grid,
+            # producing 121 on /employees while Truth Center correctly reported 119.
+            active_branch_id = _row_id()
+            driver_query = Driver.query
+            if active_branch_id is not None:
+                driver_query = driver_query.filter_by(branch_id=active_branch_id)
+            for driver in driver_query.order_by(Driver.id.asc()).all():
                 driver_keys = {_key(driver.employee_id), _key(driver.iqama_number), _key(driver.name)} - {""}
                 if driver_keys & existing_keys:
                     continue
