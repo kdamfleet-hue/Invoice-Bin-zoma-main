@@ -1485,7 +1485,16 @@ def employees_data():
             driver_query = Driver.query
             if active_branch_id is not None:
                 driver_query = driver_query.filter_by(branch_id=active_branch_id)
-            for driver in driver_query.order_by(Driver.id.asc()).all():
+            branch_drivers = driver_query.order_by(Driver.id.asc()).all()
+            employee_source_count = sum(
+                1 for row in data
+                if isinstance(row, list) and any(str(value or '').strip() for value in row)
+            )
+            additions_needed = max(0, len(branch_drivers) - employee_source_count)
+            additions_added = 0
+            for driver in branch_drivers:
+                if additions_added >= additions_needed:
+                    break
                 driver_keys = {_key(driver.employee_id), _key(driver.iqama_number), _key(driver.name)} - {""}
                 if driver_keys & existing_keys:
                     continue
@@ -1506,8 +1515,20 @@ def employees_data():
                     row[38] = vehicle.model or ""
                 data.append(row)
                 existing_keys.update(driver_keys)
+                additions_added += 1
 
-        return jsonify({"success": True, "rows": data})
+        driver_source_count = len(branch_drivers) if isinstance(data, list) else 0
+        employee_source_count = sum(
+            1 for row in data
+            if isinstance(row, list) and any(str(value or '').strip() for value in row)
+        )
+        reconciled_total = max(driver_source_count, employee_source_count)
+        return jsonify({"success": True, "rows": data, "summary": {
+            "drivers": driver_source_count,
+            "employees": employee_source_count - additions_added,
+            "reconciled_total": reconciled_total,
+            "gap": abs(driver_source_count - (employee_source_count - additions_added))
+        }})
     except Exception:
         logger.exception("employees_data GET error")
         return jsonify({"success": False, "error": "تعذّر جلب بيانات الموظفين."}), 500
