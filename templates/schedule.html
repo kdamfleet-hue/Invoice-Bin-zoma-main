@@ -153,14 +153,15 @@
     .sched-premium table.sched td.exp-bad  input { background:rgba(192,57,43,.30);  color:#FF8A80; font-weight:800; }
     .sched-premium table.sched td.exp-warn input { background:rgba(211,84,0,.26);   color:#FFC078; font-weight:800; }
     .sched-premium table.sched td.exp-soon input { color:#FDE68A; font-weight:700; }
-    .sched-premium td.exp-bad, .sched-premium td.exp-warn, .sched-premium td.exp-soon { position:relative; }
-    .sched-premium td.exp-bad::after, .sched-premium td.exp-warn::after, .sched-premium td.exp-soon::after {
+    .sched-premium td.exp-bad, .sched-premium td.exp-warn, .sched-premium td.exp-soon, .sched-premium td.exp-normal { position:relative; }
+    .sched-premium td.exp-bad::after, .sched-premium td.exp-warn::after, .sched-premium td.exp-soon::after, .sched-premium td.exp-normal::after {
       content:attr(data-days); position:absolute; bottom:1px; left:3px;
       font-size:8.5px; font-weight:800; pointer-events:none; opacity:.9;
     }
     .sched-premium td.exp-bad::after  { color:#FF8A80; }
     .sched-premium td.exp-warn::after { color:#FFC078; }
     .sched-premium td.exp-soon::after { color:#FDE68A; }
+    .sched-premium td.exp-normal::after { color:rgba(226,232,240,.72); }
 
     /* job badge styling on the editable <input> (موصل=blue / موزع=green) */
     .sched-premium table.sched td.job-mosil input { background:rgba(197,160,89,.22); color:#e0c489; font-weight:700; border-radius:14px; }
@@ -897,7 +898,7 @@
           if (c.date) {
             cls = dateStatusVal(row[c.key]);
             const dh = daysHint(row[c.key]);
-            if (cls && dh) dataAttr = ` data-days="${dh}"`;
+            if (dh) dataAttr = ` data-days="${dh}"`;
           } else if (c.key === 'job') {
             const j = (row.job || '').trim();
             cls = j === 'موصل' ? 'job-mosil' : j === 'موزع' ? 'job-mozaa' : '';
@@ -1117,30 +1118,34 @@
 
     // ---- date expiry diff in days (Gregorian only; null when not a valid date) ----
     function dateDiffDays(val) {
-      const m = String(val || '').trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      const normalized = String(val || '').trim().replace(/[٠-٩]/g, ch => String('٠١٢٣٤٥٦٧٨٩'.indexOf(ch)));
+      const m = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
       if (!m) return null;
-      const y = +m[1]; if (y < 2000 || y > 2100) return null;
-      const d = new Date(y, +m[2] - 1, +m[3]); if (isNaN(d.getTime())) return null;
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      return Math.round((d - today) / 86400000);
+      const y = +m[1], month = +m[2], day = +m[3];
+      if (y < 2000 || y > 2100 || month < 1 || month > 12 || day < 1 || day > 31) return null;
+      const expiryUtc = Date.UTC(y, month - 1, day);
+      const check = new Date(expiryUtc);
+      if (check.getUTCFullYear() !== y || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return null;
+      const now = new Date();
+      const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+      return Math.round((expiryUtc - todayUtc) / 86400000);
     }
     // ---- date expiry status (presentation classes) ----
-    // exp-bad (منتهٍ) / exp-warn (≤30) kept as before; exp-soon (≤90) added for the gold tier
+    // exp-bad (منتهٍ) / exp-warn (≤30) / exp-soon (≤90) / exp-normal (>90)
     function dateStatusVal(val) {
       const diff = dateDiffDays(val);
       if (diff === null) return '';
       if (diff < 0) return 'exp-bad';
       if (diff <= 30) return 'exp-warn';
       if (diff <= 90) return 'exp-soon';
-      return '';
+      return 'exp-normal';
     }
     // ---- small days-remaining hint shown under a date cell ----
     function daysHint(val) {
       const diff = dateDiffDays(val);
       if (diff === null) return '';
-      if (diff < 0) return 'منتهٍ';
-      if (diff <= 90) return diff + 'ي';
-      return '';
+      if (diff < 0) return 'منتهٍ منذ ' + Math.abs(diff) + 'ي';
+      return diff + 'ي';
     }
 
     // ---- custody transfer: reassign a row's vehicle to a different driver ----
@@ -2621,5 +2626,3 @@
     });
   </script>
 {% endblock %}
-
-
