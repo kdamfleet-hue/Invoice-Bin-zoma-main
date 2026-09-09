@@ -32,6 +32,7 @@
       .bz-notification-toolbar button{border:0;background:transparent;color:#93c5fd;cursor:pointer;font:inherit}
       .bz-notification-item{padding:9px 7px;border-bottom:1px solid rgba(148,163,184,.12);font-size:12px;line-height:1.5}.bz-notification-item:last-child{border-bottom:0}.bz-notification-item.unread{background:rgba(59,130,246,.1)}
       .bz-notification-item strong{display:block;color:#f8fafc}.bz-notification-item small{color:#94a3b8}.bz-notification-empty{padding:16px 8px;text-align:center;color:#94a3b8;font-size:12px}.bz-sound-toggle{color:#fbbf24!important}
+      .bz-nav-group{margin:0 8px 8px}.bz-nav-group-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:0;background:transparent;color:#c5a059;font:700 11px Cairo,sans-serif;text-align:right;cursor:pointer;border-radius:8px}.bz-nav-group-toggle:hover{background:rgba(197,160,89,.1)}.bz-nav-group-toggle .group-arrow{transition:transform .16s ease}.bz-nav-group.is-collapsed .group-arrow{transform:rotate(90deg)}.bz-nav-group.is-collapsed .bz-nav-group-links{display:none}.bz-nav-group-links{display:block}.bz-nav-group-links>a{margin:1px 0}.bz-nav-group.has-active>.bz-nav-group-toggle{color:#f5d88e}.bz-sidebar-nav .nav-section-label{display:none}
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -64,21 +65,21 @@
                         <div id="bzNotificationList"><div class="bz-notification-empty">جارٍ تحميل التنبيهات…</div></div>
                     </div>
                 </div>
-                <div class="nav-section-label">نظرة عامة</div>
+                <section class="bz-nav-group is-open" data-nav-group="overview"><button type="button" class="bz-nav-group-toggle" aria-expanded="true"><span>نظرة عامة</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
                 <a href="/" class="{% if request.path == '/' %}active{% endif %}"><span class="si">🏠</span><span class="slab">الرئيسية</span></a>
                 <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}"><span class="si">👑</span><span class="slab">لوحة المدير</span></a>
                 <a href="/fleet_dashboard" class="{% if request.path == '/fleet_dashboard' %}active{% endif %}"><span class="si">📊</span><span class="slab">لوحة الأسطول</span></a>
                 <a href="/ops" class="{% if request.path == '/ops' %}active{% endif %}"><span class="si">⚙️</span><span class="slab">دورة التشغيل</span></a>
                 <a href="/kpis" class="{% if request.path == '/kpis' %}active{% endif %}"><span class="si">📈</span><span class="slab">مؤشرات الأداء</span></a>
-                <a href="/insights" class="{% if request.path == '/insights' %}active{% endif %}"><span class="si">🧠</span><span class="slab">التحليلات</span></a>
-                <div class="nav-section-label">التشغيل اليومي</div>
+                <a href="/insights" class="{% if request.path == '/insights' %}active{% endif %}"><span class="si">🧠</span><span class="slab">التحليلات</span></a></div></section>
+                <section class="bz-nav-group is-open" data-nav-group="operations"><button type="button" class="bz-nav-group-toggle" aria-expanded="true"><span>التشغيل اليومي</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
                 <a href="/schedule" class="{% if request.path == '/schedule' %}active{% endif %}"><span class="si">📋</span><span class="slab">الجدول الأسبوعي</span></a>
                 <a href="/schedule/transport" class="{% if request.path == '/schedule/transport' %}active{% endif %}"><span class="si">🚚</span><span class="slab">نقل عام وخاص</span></a>
                 <a href="/m/transport" class="{% if request.path == '/m/transport' %}active{% endif %}"><span class="si">📱</span><span class="slab">تطبيق النقل</span></a>
                 <a href="/yard" class="{% if request.path == '/yard' %}active{% endif %}"><span class="si">🅿️</span><span class="slab">إدارة الساحات</span></a>
                 <a href="/tracking" class="{% if request.path == '/tracking' %}active{% endif %}"><span class="si">🛰️</span><span class="slab">التتبع الحي</span></a>
-                <a href="/handover" class="{% if request.path == '/handover' %}active{% endif %}"><span class="si">🔑</span><span class="slab">تسليم واستلام</span></a>
-                <div class="nav-section-label">الأفراد والمركبات</div>
+                <a href="/handover" class="{% if request.path == '/handover' %}active{% endif %}"><span class="si">🔑</span><span class="slab">تسليم واستلام</span></a></div></section>
+                <section class="bz-nav-group is-open" data-nav-group="people"><button type="button" class="bz-nav-group-toggle" aria-expanded="true"><span>الأفراد والمركبات</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
                 {% if is_admin %}
                 <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}"><span class="si">👥</span><span class="slab">الموظفون</span></a>
                 {% endif %}
@@ -87,29 +88,29 @@
                 <a href="/driver-vehicle-assignments" class="{% if request.path == '/driver-vehicle-assignments' %}active{% endif %}"><span class="si">🔗</span><span class="slab">ربط السائق بالمركبة</span></a>
                 <a href="/data-quality" class="{% if request.path == '/data-quality' %}active{% endif %}"><span class="si">✓</span><span class="slab">جودة البيانات</span></a>
                 <a href="/alerts" class="{% if request.path == '/alerts' %}active{% endif %}"><span class="si">🔔</span><span class="slab">تنبيهات الوثائق</span></a>
-                <a href="/documents" class="{% if request.path == '/documents' %}active{% endif %}"><span class="si">📂</span><span class="slab">الوثائق</span></a>
-                <div class="nav-section-label">الصيانة والمخزون</div>
+                <a href="/documents" class="{% if request.path == '/documents' %}active{% endif %}"><span class="si">📂</span><span class="slab">الوثائق</span></a></div></section>
+                <section class="bz-nav-group is-collapsed" data-nav-group="maintenance"><button type="button" class="bz-nav-group-toggle" aria-expanded="false"><span>الصيانة والمخزون</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
                 <a href="/workshop" class="{% if request.path == '/workshop' %}active{% endif %}"><span class="si">🔧</span><span class="slab">الورشة</span></a>
                 <a href="/fuel" class="{% if request.path == '/fuel' %}active{% endif %}"><span class="si">⛽</span><span class="slab">المحروقات</span></a>
                 <a href="/oils" class="{% if request.path == '/oils' %}active{% endif %}"><span class="si">📜️</span><span class="slab">الزيوت والفلاتر</span></a>
                 <a href="/inventory/tires" class="{% if request.path == '/inventory/tires' %}active{% endif %}"><span class="si">💿</span><span class="slab">الإطارات</span></a>
                 <a href="/inventory/batteries" class="{% if request.path == '/inventory/batteries' %}active{% endif %}"><span class="si">🔋</span><span class="slab">البطاريات</span></a>
                 <a href="/spare_parts" class="{% if request.path == '/spare_parts' %}active{% endif %}"><span class="si">📦</span><span class="slab">قطع الغيار</span></a>
-                <a href="/washing" class="{% if request.path == '/washing' %}active{% endif %}"><span class="si">🚿</span><span class="slab">الغسيل</span></a>
-                <div class="nav-section-label">المالية والسجلات</div>
+                <a href="/washing" class="{% if request.path == '/washing' %}active{% endif %}"><span class="si">🚿</span><span class="slab">الغسيل</span></a></div></section>
+                <section class="bz-nav-group is-collapsed" data-nav-group="finance"><button type="button" class="bz-nav-group-toggle" aria-expanded="false"><span>المالية والسجلات</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
                 <a href="/purchase" class="{% if request.path.startswith('/purchase') %}active{% endif %}"><span class="si">🛒</span><span class="slab">المشتريات</span></a>
                 <a href="/finance/petty-cash" class="{% if request.path == '/finance/petty-cash' %}active{% endif %}"><span class="si">💵</span><span class="slab">العهد</span></a>
                 <a href="/invoice" class="{% if request.path == '/invoice' %}active{% endif %}"><span class="si">🧾</span><span class="slab">الفواتير</span></a>
                 <a href="/incidents" class="{% if request.path == '/incidents' %}active{% endif %}"><span class="si">🚨</span><span class="slab">الحوادث</span></a>
                 <a href="/records" class="{% if request.path == '/records' %}active{% endif %}"><span class="si">📁</span><span class="slab">السجلات</span></a>
-                <a href="/audit-log" class="{% if request.path == '/audit-log' %}active{% endif %}"><span class="si">🛡</span><span class="slab">سجل التدقيق</span></a>
-                <div class="nav-section-label">النظام</div>
+                <a href="/audit-log" class="{% if request.path == '/audit-log' %}active{% endif %}"><span class="si">🛡</span><span class="slab">سجل التدقيق</span></a></div></section>
+                <section class="bz-nav-group is-collapsed" data-nav-group="system"><button type="button" class="bz-nav-group-toggle" aria-expanded="false"><span>النظام</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
                 {% if is_admin %}
                 <a href="/master_editor" class="{% if request.path == '/master_editor' %}active{% endif %}"><span class="si">📝</span><span class="slab">التعديل الشامل</span></a>
                 {% endif %}
                 <a href="/system_commands" class="{% if request.path == '/system_commands' %}active{% endif %}"><span class="si">⚡</span><span class="slab">أوامر النظام</span></a>
                 <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}"><span class="si">⚙️</span><span class="slab">الإعدادات</span></a>
-                <a href="/logout" aria-label="تسجيل الخروج"><span class="si">↪</span><span class="slab">تسجيل الخروج</span></a>
+                <a href="/logout" aria-label="تسجيل الخروج"><span class="si">↪</span><span class="slab">تسجيل الخروج</span></a></div></section>
             </nav>
         </aside>
         {% endif %}
@@ -153,6 +154,7 @@
     <script defer src="{{ url_for('static', filename='app_ux.js', v=43) }}"></script>
     <script defer src="{{ url_for('static', filename='js/notification_center.js', v=1) }}"></script>
     <script defer src="{{ url_for('static', filename='js/sidebar_guard.js', v=1) }}"></script>
+    <script defer src="{{ url_for('static', filename='js/sidebar_sections.js', v=1) }}"></script>
     {% block scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}
     <script src="{{ url_for('static', filename='js/purchase_link.js', v=2) }}"></script>
