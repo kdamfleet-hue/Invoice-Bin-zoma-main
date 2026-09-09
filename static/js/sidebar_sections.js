@@ -15,6 +15,57 @@
     try { return new URL(link.getAttribute('href') || '/', location.origin).pathname; } catch (e) { return link.getAttribute('href') || ''; }
   }
 
+  var FALLBACK_GROUPS = [
+    { key: 'overview', label: 'نظرة عامة', links: [['📊','لوحة الأسطول','/fleet_dashboard'], ['⚙️','دورة التشغيل','/ops'], ['📈','مؤشرات الأداء','/kpis'], ['🧠','التحليلات','/insights']] },
+    { key: 'operations', label: 'التشغيل اليومي', links: [['📋','الجدول الأسبوعي','/schedule'], ['🚚','نقل عام وخاص','/schedule/transport'], ['📱','تطبيق النقل','/m/transport'], ['🅿️','إدارة الساحات','/yard'], ['🛰️','التتبع الحي','/tracking'], ['🔑','تسليم واستلام','/handover']] },
+    { key: 'people', label: 'الأفراد والمركبات', links: [['🚗','مركبات الدمام','/dammam'], ['🚛','سائقو النقل','/drivers_info'], ['🔗','ربط السائق بالمركبة','/driver-vehicle-assignments'], ['✓','جودة البيانات','/data-quality'], ['🔔','تنبيهات الوثائق','/alerts'], ['📂','الوثائق','/documents']] },
+    { key: 'maintenance', label: 'الصيانة والمخزون', links: [['🔧','الورشة','/workshop'], ['⛽','المحروقات','/fuel'], ['📜','الزيوت والفلاتر','/oils'], ['💿','الإطارات','/inventory/tires'], ['🔋','البطاريات','/inventory/batteries'], ['📦','قطع الغيار','/spare_parts'], ['🚿','الغسيل','/washing']] },
+    { key: 'finance', label: 'المالية والسجلات', links: [['🛒','المشتريات','/purchase'], ['💵','العهد','/finance/petty-cash'], ['🧾','الفواتير','/invoice'], ['🚨','الحوادث','/incidents'], ['📁','السجلات','/records'], ['🛡','سجل التدقيق','/audit-log']] },
+    { key: 'system', label: 'النظام', links: [['⚙️','الإعدادات','/settings'], ['↪','تسجيل الخروج','/logout']] }
+  ];
+
+  function makeFallbackLink(icon, label, href) {
+    var link = document.createElement('a');
+    link.href = href;
+    link.innerHTML = '<span class="si" aria-hidden="true">' + icon + '</span><span class="slab">' + label + '</span>';
+    if (location.pathname === href || (href === '/purchase' && location.pathname.indexOf('/purchase') === 0)) {
+      link.className = 'active';
+    }
+    return link;
+  }
+
+  function ensureFallbackGroups(nav) {
+    var existing = {};
+    Array.prototype.slice.call(nav.querySelectorAll('a[href]')).forEach(function (link) { existing[pathOf(link)] = true; });
+    var hasFullMenu = nav.querySelectorAll('.bz-nav-group').length >= 4;
+    if (hasFullMenu) return;
+    FALLBACK_GROUPS.forEach(function (meta) {
+      var section = nav.querySelector('[data-nav-group="' + meta.key + '"]');
+      if (!section) {
+        section = document.createElement('section');
+        section.className = 'bz-nav-group is-open';
+        section.setAttribute('data-nav-group', meta.key);
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'bz-nav-group-toggle';
+        button.setAttribute('aria-expanded', 'true');
+        button.innerHTML = '<span>' + meta.label + '</span><span class="group-arrow" aria-hidden="true">⌄</span>';
+        var items = document.createElement('div');
+        items.className = 'bz-nav-group-links';
+        section.appendChild(button);
+        section.appendChild(items);
+        nav.appendChild(section);
+      }
+      var container = section.querySelector('.bz-nav-group-links') || section;
+      meta.links.forEach(function (item) {
+        if (!existing[item[2]]) {
+          container.appendChild(makeFallbackLink(item[0], item[1], item[2]));
+          existing[item[2]] = true;
+        }
+      });
+    });
+  }
+
   function buildGeneratedGroups(nav) {
     if (nav.querySelector('.bz-nav-group')) return;
     var directLinks = Array.prototype.slice.call(nav.children).filter(function (el) { return el.tagName === 'A'; });
@@ -44,6 +95,7 @@
   function initSidebarSections() {
     var nav = document.querySelector('.bz-sidebar-nav');
     if (!nav) return;
+    ensureFallbackGroups(nav);
     buildGeneratedGroups(nav);
     var groups = Array.prototype.slice.call(nav.querySelectorAll('.bz-nav-group'));
     var search = document.getElementById('bzSidebarSearch');
