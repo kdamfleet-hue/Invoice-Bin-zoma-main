@@ -134,6 +134,11 @@ fleet@bz.sa"></textarea>
 (function () {
   'use strict';
   function $(id) { return document.getElementById(id); }
+  function esc(value) {
+    return String(value == null ? '' : value).replace(/[&<>'"]/g, function (ch) {
+      return {'&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;'}[ch];
+    });
+  }
   var hourSel = $('alHour');
   for (var h = 0; h < 24; h++) { var o = document.createElement('option'); o.value = h; o.textContent = (h < 10 ? '0' + h : h) + ':00'; hourSel.appendChild(o); }
 
