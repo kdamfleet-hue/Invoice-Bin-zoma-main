@@ -18,7 +18,7 @@
   const pin = document.getElementById('bzPinBtn');
   const themeBtn = document.getElementById('bzThemeBtn');
   const isMobile = function(){ return window.matchMedia('(max-width: 900px)').matches; };
-  const isPinned = function(){ try { return localStorage.getItem('bzSidebarPinned') === '1'; } catch(e){ return false; } };
+  const isPinned = function(){ try { return localStorage.getItem('bzSidebarPinned') !== '0'; } catch(e){ return true; } };
   function applyPin(){
     document.body.classList.toggle('sidebar-pinned', isPinned() && !isMobile());
     if (pin) pin.classList.toggle('on', isPinned());
