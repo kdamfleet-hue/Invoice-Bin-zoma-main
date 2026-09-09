@@ -84,14 +84,22 @@ def _driver_vehicle_assignment_rows(branch_id):
             "driver_name": d.name or "غير محدد",
             "employee_id": d.employee_id or "",
             "driver_phone": d.phone or "",
+            "driver_iqama": d.iqama_number or "",
+            "driver_job": d.job_title or "",
+            "driver_card": d.drivercard or "",
+            "driver_iqama_expiry": d.iqama_expiry.isoformat() if d.iqama_expiry else "",
+            "driver_license_expiry": d.license_expiry.isoformat() if d.license_expiry else "",
             "driver_status": d.status or "",
             "vehicle_id": v.id,
             "plate": v.plate_number or "",
             "vehicle_type": v.v_type or "",
             "model": v.model or "",
+            "pallets": v.pallets or "",
+            "load_capacity": v.load_capacity or "",
             "serial_number": v.serial_number or "",
             "inspection_expiry": v.inspection_expiry.isoformat() if v.inspection_expiry else "",
             "istimara_expiry": v.istimara_expiry.isoformat() if v.istimara_expiry else "",
+            "operation_card": v.opcard.isoformat() if v.opcard else "",
             "insurance_expiry": v.insurance_expiry.isoformat() if v.insurance_expiry else "",
             "received_date": c.received_date.isoformat() if c.received_date else "",
             "returned_date": c.returned_date.isoformat() if c.returned_date else "",
@@ -112,8 +120,75 @@ def driver_vehicle_assignments():
 @fleet_bp.route("/api/driver-vehicle-assignments", methods=["GET"])
 @login_required
 def api_driver_vehicle_assignments():
-    return jsonify({"success": True, "read_only": True,
+    return jsonify({"success": True, "read_only": False,
                     "items": _driver_vehicle_assignment_rows(current_branch_id())})
+
+
+@fleet_bp.route("/api/driver-vehicle-options", methods=["GET"])
+@login_required
+def api_driver_vehicle_options():
+    """Return branch-scoped drivers and vehicles for the transfer form."""
+    branch_id = current_branch_id()
+    drivers = Driver.query.filter_by(branch_id=branch_id).order_by(Driver.name.asc()).all()
+    vehicles = Vehicle.query.filter_by(branch_id=branch_id).order_by(Vehicle.plate_number.asc()).all()
+    active_by_driver = {c.driver_id: c.vehicle_id for c in VehicleCustody.query.filter_by(status="active").all()}
+    active_by_vehicle = {c.vehicle_id: c.driver_id for c in VehicleCustody.query.filter_by(status="active").all()}
+    return jsonify({"success": True, "drivers": [{
+        "id": d.id, "employee_id": d.employee_id or "", "name": d.name or "",
+        "iqama": d.iqama_number or "", "phone": d.phone or "", "job": d.job_title or "",
+        "driver_card": d.drivercard or "", "iqama_expiry": d.iqama_expiry.isoformat() if d.iqama_expiry else "",
+        "license_expiry": d.license_expiry.isoformat() if d.license_expiry else "",
+        "status": d.status or "", "active_vehicle_id": active_by_driver.get(d.id)
+    } for d in drivers], "vehicles": [{
+        "id": v.id, "plate": v.plate_number or "", "model": v.model or "", "type": v.v_type or "",
+        "pallets": v.pallets or "", "load_capacity": v.load_capacity or "", "serial_number": v.serial_number or "",
+        "inspection_expiry": v.inspection_expiry.isoformat() if v.inspection_expiry else "",
+        "istimara_expiry": v.istimara_expiry.isoformat() if v.istimara_expiry else "",
+        "operation_card": v.opcard.isoformat() if v.opcard else "", "active_driver_id": active_by_vehicle.get(v.id)
+    } for v in vehicles]})
+
+
+@fleet_bp.route("/api/driver-vehicle-transfer", methods=["POST"])
+@login_required
+@role_required("admin", "operations")
+def api_driver_vehicle_transfer():
+    """Move a driver to a vehicle without copying or deleting either master record."""
+    data = request.get_json(silent=True) or {}
+    try:
+        driver_id = int(data.get("driver_id"))
+        vehicle_id = int(data.get("vehicle_id"))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "اختر السائق والمركبة."}), 400
+    reason = str(data.get("reason") or "").strip()
+    if len(reason) < 5:
+        return jsonify({"success": False, "error": "سبب النقل مطلوب (5 أحرف على الأقل)."}), 400
+    branch_id = current_branch_id()
+    driver = Driver.query.filter_by(id=driver_id, branch_id=branch_id).first()
+    vehicle = Vehicle.query.filter_by(id=vehicle_id, branch_id=branch_id).first()
+    if not driver or not vehicle:
+        return jsonify({"success": False, "error": "السائق أو المركبة غير موجود ضمن الفرع الحالي."}), 404
+    active_driver = VehicleCustody.query.filter_by(driver_id=driver.id, status="active").first()
+    if active_driver and active_driver.vehicle_id == vehicle.id:
+        return jsonify({"success": False, "error": "السائق مرتبط بهذه المركبة بالفعل."}), 400
+    today = date.today()
+    history_note = f"نقل/تغيير العهدة: {reason}"
+    for custody in VehicleCustody.query.filter_by(driver_id=driver.id, status="active").all():
+        custody.status = "returned"
+        custody.returned_date = today
+        custody.notes = ((custody.notes or "") + "\n" + history_note).strip()
+    for custody in VehicleCustody.query.filter_by(vehicle_id=vehicle.id, status="active").all():
+        custody.status = "returned"
+        custody.returned_date = today
+        custody.notes = ((custody.notes or "") + "\n" + history_note).strip()
+    db.session.add(VehicleCustody(driver_id=driver.id, vehicle_id=vehicle.id, received_date=today, status="active", notes=history_note))
+    try:
+        db.session.commit()
+        _audit_add("نقل السائق وتغيير المركبة", f"السائق {driver.name} ← المركبة {vehicle.plate_number}", None, history_note)
+        return jsonify({"success": True, "message": "تم نقل السائق إلى المركبة وحفظ العهدة السابقة في السجل."})
+    except Exception:
+        db.session.rollback()
+        logger.exception("driver vehicle transfer failed")
+        return jsonify({"success": False, "error": "تعذر حفظ عملية النقل."}), 500
 
 
 def _data_quality_report(branch_id):
