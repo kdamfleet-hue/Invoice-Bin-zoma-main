@@ -17,7 +17,7 @@
         .set-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.4rem 1.5rem; margin-bottom: 1.4rem; }
         .set-card h3 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
         .set-card .sub { color: var(--text-secondary); font-size: .9rem; line-height: 1.8; margin-bottom: 1.1rem; }
-        .set-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .8rem; align-items: end; }
+        .set-form { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: .8rem; align-items: end; }
         .set-form .fld label { display: block; font-size: .8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
         .set-form .pw-wrap { position: relative; }
         .set-form .pw-wrap .eye { position: absolute; inset-inline-start: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1rem; opacity: .7; background: none; border: none; }
@@ -100,6 +100,7 @@
 <div class="fld"><label for="u-name">الاسم</label><input id="u-name" placeholder="مثال: محمد العتيبي" type="text"/></div>
 <div class="fld"><label for="u-username">اسم المستخدم</label><input id="u-username" placeholder="مثال: m.alotaibi" required="" type="text"/></div>
 <div class="fld"><label for="u-email">البريد الإلكتروني (اختياري)</label><input id="u-email" placeholder="name@example.com" type="email"/></div>
+<div class="fld"><label for="u-role">الدور والصلاحية الأساسية</label><select id="u-role"><option value="viewer">مُطلع — قراءة فقط</option><option value="data_entry">إدخال بيانات</option><option value="operations">قسم الحركة</option><option value="maintenance">قسم الصيانة</option><option value="finance">قسم الحسابات</option><option value="branch_manager">مدير فرع</option></select></div>
 <div class="fld"><label for="u-pass">كلمة المرور</label>
 <div class="pw-wrap"><input id="u-pass" placeholder="12 حرفًا على الأقل" minlength="12" required="" type="password"/>
 <button class="eye" onclick="hoTogglePw()" title="إظهار/إخفاء" type="button">👁️</button></div>
@@ -112,8 +113,8 @@
 <h3>👥 المستخدمون المشاركون <span class="sub" id="uCount" style="margin:0;font-weight:700;"></span></h3>
 <div class="dtable-wrap" style="overflow-x:auto;">
 <table class="users-tbl">
-<thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>تاريخ الإنشاء</th><th>إجراء</th></tr></thead>
-<tbody id="usersBody"><tr><td class="users-empty" colspan="4">جارٍ التحميل…</td></tr></tbody>
+<thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور الأساسي</th><th>تاريخ الإنشاء</th><th>إجراء</th></tr></thead>
+<tbody id="usersBody"><tr><td class="users-empty" colspan="5">جارٍ التحميل…</td></tr></tbody>
 </table>
 </div>
 </div>
@@ -286,9 +287,10 @@
       .then(function (j) {
         var users = (j && j.users) || [];
         $('uCount').textContent = '(' + users.length + ')';
-        if (!users.length) { $('usersBody').innerHTML = '<tr><td colspan="4" class="users-empty">لا يوجد مستخدمون مشاركون بعد. أضِف أول مستخدم من الأعلى.</td></tr>'; return; }
+        if (!users.length) { $('usersBody').innerHTML = '<tr><td colspan="5" class="users-empty">لا يوجد مستخدمون مشاركون بعد. أضِف أول مستخدم من الأعلى.</td></tr>'; return; }
+        var roleMap = { admin: 'مدير النظام', branch_manager: 'مدير فرع', operations: 'قسم الحركة', maintenance: 'قسم الصيانة', finance: 'قسم الحسابات', data_entry: 'إدخال بيانات', viewer: 'مُطلع', kiosk: 'محطة عمل' };
         $('usersBody').innerHTML = users.map(function (u) {
-          return '<tr><td>' + esc(u.name || '—') + '</td><td><span class="uname">' + esc(u.username) + '</span></td><td>' + esc(u.created || '—') +
+          return '<tr><td>' + esc(u.name || '—') + '</td><td><span class="uname">' + esc(u.username) + '</span></td><td><span class="role-badge">' + esc(roleMap[u.role] || u.role || 'مُطلع') + '</span></td><td>' + esc(u.created || u.last_login || '—') +
             '</td><td><button class="u-del" data-u="' + esc(u.username) + '">🗑️ حذف</button></td></tr>';
         }).join('');
         Array.prototype.forEach.call(document.querySelectorAll('.u-del'), function (b) {
@@ -314,12 +316,12 @@
       $('u-pass').focus();
       return;
     }
-    fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, username: username, email: email, password: password }) })
+    fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, username: username, email: email, password: password, role: $('u-role').value }) })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (res.ok && res.j.success) {
           msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تمت إضافة المستخدم «' + esc(username) + '»</span>';
-          $('u-name').value = ''; $('u-username').value = ''; $('u-email').value = ''; $('u-pass').value = '';
+          $('u-name').value = ''; $('u-username').value = ''; $('u-email').value = ''; $('u-pass').value = ''; $('u-role').value = 'viewer';
           if (window.showToast) showToast('تمت إضافة المستخدم ✓', 'success');
           loadUsers();
         } else {
@@ -516,14 +518,14 @@
         if (u.username && !sel.querySelector('option[value="' + u.username + '"]')) {
           var opt = document.createElement('option');
           opt.value = u.username;
-          opt.textContent = '👤 ' + (u.name || u.username) + ' (' + u.username + ')';
+          opt.textContent = '👤 ' + u.username + ' — ' + ({admin:'مدير النظام',branch_manager:'مدير فرع',operations:'قسم الحركة',maintenance:'قسم الصيانة',finance:'قسم الحسابات',data_entry:'إدخال بيانات',viewer:'مُطلع',kiosk:'محطة عمل'}[u.role] || 'مُطلع');
           sel.appendChild(opt);
         }
       });
     }).catch(function() {});
 
     fetch('/api/branch_accounts').then(function(r) { return r.json(); }).then(function(j) {
-      var bas = (j && j.accounts) || [];
+      var bas = (j && (j.rows || j.accounts)) || [];
       bas.forEach(function(a) {
         if (a.username && !sel.querySelector('option[value="' + a.username + '"]')) {
           var opt = document.createElement('option');
@@ -685,3 +687,9 @@
 })();
 </script>
 {% endblock %}
+
+<style>
+  .set-form select { width: 100%; padding: 12px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text-primary); font-family: inherit; font-size: .9rem; }
+  .role-badge { display: inline-block; padding: 4px 9px; border-radius: 999px; color: var(--brand-gold); background: rgba(197,160,89,.12); border: 1px solid rgba(197,160,89,.28); font-size: .76rem; font-weight: 800; white-space: nowrap; }
+  @media (max-width: 720px) { .set-form { grid-template-columns: 1fr; } }
+</style>
