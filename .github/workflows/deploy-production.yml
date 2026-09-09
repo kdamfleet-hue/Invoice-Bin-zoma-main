@@ -1,0 +1,88 @@
+name: Deploy production to 509.rip
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  PRODUCTION_URL: https://invoice-bin-zoma.509.rip
+
+jobs:
+  deploy:
+    name: Trigger 509.rip deployment
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Validate deployment configuration
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.509_DEPLOY_HOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "Missing required production secret: 509_DEPLOY_HOOK_URL"
+            echo "Create it in GitHub Settings > Environments > production > Secrets."
+            exit 1
+          fi
+
+      - name: Trigger deployment
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.509_DEPLOY_HOOK_URL }}
+          COMMIT_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 5 \
+            -X POST "$DEPLOY_HOOK_URL" \
+            -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data "{\"ref\":\"refs/heads/$REF_NAME\",\"sha\":\"$COMMIT_SHA\"}"
+
+      - name: Wait for production health
+        env:
+          HEALTH_URL: ${{ secrets.PRODUCTION_HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$HEALTH_URL" ]; then
+            HEALTH_URL="$PRODUCTION_URL/system_health"
+          fi
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --max-time 15 "$HEALTH_URL" >/dev/null; then
+              echo "Production health check passed on attempt $attempt"
+              exit 0
+            fi
+            echo "Waiting for production health (attempt $attempt/30)"
+            sleep 10
+          done
+          echo "Production health check failed"
+          exit 1
+
+      - name: Purge CDN cache when configured
+        if: ${{ success() && secrets.509_CACHE_PURGE_URL != '' }}
+        env:
+          CACHE_PURGE_URL: ${{ secrets.509_CACHE_PURGE_URL }}
+          CACHE_PURGE_TOKEN: ${{ secrets.509_CACHE_PURGE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CACHE_PURGE_TOKEN" ]; then
+            echo "509_CACHE_PURGE_URL is set but 509_CACHE_PURGE_TOKEN is missing"
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 5 \
+            -X POST "$CACHE_PURGE_URL" \
+            -H "Authorization: Bearer $CACHE_PURGE_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data '{"paths":["/","/static/*"]}'
