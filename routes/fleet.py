@@ -43,6 +43,8 @@ def fleet_dashboard():
     except Exception as e:
         logger.error(f"Failed to fetch branches: {e}")
     insights = {"fleet": {"drivers": 0, "with_vehicle": 0, "without_vehicle": 0, "vehicles": 0},
+                "people": {"drivers": 0, "employees": 0, "reconciled_total": 0, "gap": 0, "status": "غير متاح"},
+                "gps_health": {"state": "unknown", "label": "غير متاح", "last_vehicle_count": None},
                 "volume": {"employees": 0, "workshop": 0, "oils": 0, "purchase": 0, "gps_devices": 0},
                 "score": {"value": 0, "label": "غير متاح"},
                 "documents": {"expired": 0, "d30": 0}, "documents_top": [],

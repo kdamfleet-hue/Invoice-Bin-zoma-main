@@ -8,6 +8,11 @@
       if(m) { window.BZ_BRANCH_ID = parseInt(m.getAttribute("data-branch-id") || "0", 10); window.BZ_BRANCH = m.getAttribute("data-branch") || ""; window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || ""; }
     </script>
 {% endblock %}
+{% block extra_css %}
+<style>
+.home-truth-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 18px}.home-truth-card{background:rgba(16,31,43,.78);border:1px solid rgba(197,160,89,.2);border-radius:14px;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;gap:12px}.home-truth-card b{display:block;color:#f3e6c3;font-size:.82rem}.home-truth-card small{display:block;color:#91a2ad;font-size:.68rem;margin-top:3px}.home-truth-value{font-family:Cairo,sans-serif;font-size:1.2rem;font-weight:700;color:#72d9bd;white-space:nowrap}.home-truth-value.warn{color:#f2bd70}.home-truth-value.bad{color:#ef837c}@media(max-width:780px){.home-truth-strip{grid-template-columns:1fr}}
+</style>
+{% endblock %}
 {% block content %}
 <div class="home-dashboard">
   <section class="home-hero">
@@ -20,10 +25,17 @@
   </section>
 
   <section class="home-kpi-grid" aria-label="المؤشرات الرئيسية">
-    <button class="home-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_drivers')"><span class="home-kpi-icon gold"><i data-lucide="users"></i></span><span class="home-kpi-label">إجمالي الموظفين والسائقين</span><strong class="count-up" data-count="{{ total_drivers|default(0) }}">{{ total_drivers|default(0) }}</strong><small>السجل التشغيلي الحالي <b>↗</b></small></button>
-    <button class="home-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_vehicles')"><span class="home-kpi-icon teal"><i data-lucide="truck"></i></span><span class="home-kpi-label">المركبات النشطة</span><strong class="count-up" data-count="{{ active_vehicles|default(0) }}">{{ active_vehicles|default(0) }}</strong><small>من الأسطول المسجل <b>↗</b></small></button>
+    <button class="home-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_drivers')"><span class="home-kpi-icon gold"><i data-lucide="users"></i></span><span class="home-kpi-label">إجمالي الموظفين والسائقين</span><strong class="count-up" data-count="{{ total_drivers|default(0) }}">{{ total_drivers|default(0) }}</strong><small>العدد التشغيلي الموحد <b>↗</b></small></button>
+    <button class="home-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_vehicles')"><span class="home-kpi-icon teal"><i data-lucide="truck"></i></span><span class="home-kpi-label">المركبات النشطة</span><strong class="count-up" data-count="{{ active_vehicles|default(0) }}">{{ active_vehicles|default(0) }}</strong><small>من مصدر المركبات الموحد <b>↗</b></small></button>
     <button class="home-kpi alert-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('expired_documents')"><span class="home-kpi-icon red"><i data-lucide="alert-triangle"></i></span><span class="home-kpi-label">تنبيهات تحتاج إجراء</span><strong class="count-up" data-count="{{ urgent_alerts|default(0) }}">{{ urgent_alerts|default(0) }}</strong><small>وثائق أو حالات عاجلة <b>↗</b></small></button>
   </section>
+  {% if truth_center %}
+  <section class="home-truth-strip" aria-label="مركز الحقيقة التشغيلية">
+    <article class="home-truth-card"><div><b>توحيد الأفراد</b><small>السائقون {{ truth_center.people.drivers }} · الموظفون {{ truth_center.people.employees }} · المصدران للقراءة فقط</small></div><span class="home-truth-value{% if truth_center.people.gap %} warn{% endif %}">{{ truth_center.people.status }}</span></article>
+    <article class="home-truth-card"><div><b>صحة GPS</b><small>{% if truth_center.gps_health.last_vehicle_count is not none %}آخر قراءة: {{ truth_center.gps_health.last_vehicle_count }} مركبة{% else %}لا توجد قراءة GPS حديثة{% endif %}</small></div><span class="home-truth-value{% if truth_center.gps_health.state in ['stale','error'] %} bad{% elif truth_center.gps_health.state != 'healthy' %} warn{% endif %}">{{ truth_center.gps_health.label }}</span></article>
+    <article class="home-truth-card"><div><b>الإجراءات المفتوحة</b><small>وثائق {{ truth_center.operational_alerts.documents }} · جودة بيانات {{ truth_center.operational_alerts.quality }}</small></div><span class="home-truth-value{% if truth_center.operational_alerts.open %} warn{% endif %}">{{ truth_center.operational_alerts.open }}</span></article>
+  </section>
+  {% endif %}
 
   <section class="home-content-grid">
     <article class="glass-panel home-chart-card"><div class="home-panel-heading"><div><span class="home-kicker">ملخص الحالة</span><h2>صورة تشغيلية سريعة</h2></div><span class="home-panel-note">بيانات حية من الفرع</span></div><div class="home-chart-wrap"><canvas id="fleetChart"></canvas></div><div class="home-chart-footer"><span><i data-lucide="clock-3"></i> يتم تحديث المؤشرات تلقائيًا</span><a href="/fleet_dashboard">عرض التفاصيل <i data-lucide="arrow-left"></i></a></div></article>

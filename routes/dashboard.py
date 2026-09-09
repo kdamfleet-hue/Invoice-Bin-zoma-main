@@ -3,6 +3,7 @@
 
 from datetime import datetime
 from typing import Any, Dict
+import logging
 
 from flask import Blueprint, render_template, session
 
@@ -10,6 +11,7 @@ from helpers import login_required, load_logo, blob_get, current_branch_id
 from models.schema import Driver, Vehicle
 
 dashboard_bp = Blueprint("dashboard", __name__)
+logger = logging.getLogger("InvoiceApp")
 
 
 @dashboard_bp.route("/")
@@ -23,6 +25,29 @@ def index() -> Any:
         # tiles were never scoped, so a branch manager's homepage showed everyone's counts.
         bid = current_branch_id() if session.get("is_branch_user") else None
 
+        # Use the shared read-only insights aggregation so homepage and fleet dashboard
+        # expose the same source-aware numbers.
+        try:
+            from app import _compute_insights
+            insight_view = _compute_insights(rid=bid)
+            total_drivers = insight_view.get("people", {}).get("reconciled_total", 0)
+            active_vehicles = insight_view.get("fleet", {}).get("vehicles", 0)
+            urgent_alerts = (insight_view.get("documents", {}).get("expired", 0)
+                             + insight_view.get("documents", {}).get("d30", 0))
+            return render_template(
+                "index.html",
+                google_user=google_user,
+                b64_en=b64_en,
+                show_invoice_title=False,
+                total_drivers=total_drivers,
+                active_vehicles=active_vehicles,
+                urgent_alerts=urgent_alerts,
+                truth_center=insight_view,
+            )
+        except Exception as shared_exc:
+            logger.warning("Shared truth-center aggregation unavailable: %s", shared_exc)
+
+        # Legacy fallback below remains read-only for partial deployments.
         # 1. Total Drivers (DB -> blob fallback)
         try:
             total_drivers = Driver.query.filter_by(branch_id=bid).count() if bid else Driver.query.count()
@@ -70,6 +95,7 @@ def index() -> Any:
             total_drivers=total_drivers,
             active_vehicles=active_vehicles,
             urgent_alerts=urgent_alerts,
+            truth_center=None,
         )
     except Exception:
         import traceback

@@ -497,6 +497,35 @@ def gps_geofence_alerts():
     return jsonify({"success": True, "history": evaluate_geofences([]).get("history", [])})
 
 
+def get_gps_health_snapshot():
+    """Return non-secret GPS health signals for internal dashboards."""
+    configured = bool(GPS_PERMANENT_TOKEN or (GPS_USER and GPS_PASS))
+    last_success = _diag.get("last_success_at")
+    last_count = _diag.get("last_count")
+    last_error = _diag.get("last_error") or _diag.get("last_auth_error")
+    age_s = int(time.time() - last_success) if last_success else None
+    if not configured:
+        state, label = "not_configured", "غير مهيأ"
+    elif last_error and not last_success:
+        state, label = "error", "خطأ في الاتصال"
+    elif last_success is None:
+        state, label = "waiting", "بانتظار أول تحديث"
+    elif age_s is not None and age_s > max(FLEET_CACHE_SECONDS * 3, 180):
+        state, label = "stale", "تحديث متأخر"
+    else:
+        state, label = "healthy", "متصل"
+    return {
+        "state": state,
+        "label": label,
+        "configured": configured,
+        "last_success_at": datetime.fromtimestamp(last_success, tz=timezone.utc).isoformat() if last_success else None,
+        "last_vehicle_count": last_count,
+        "last_update_age_s": age_s,
+        "last_error": last_error,
+        "cache_seconds": FLEET_CACHE_SECONDS,
+    }
+
+
 @gps_bp.route("/api/gps/status")
 @login_required
 def gps_status():

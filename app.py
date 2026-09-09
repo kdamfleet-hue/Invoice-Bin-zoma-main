@@ -2991,6 +2991,42 @@ def _compute_insights(rid=None):
         emp_count = list(row.values())[0] if hasattr(row, 'values') else row[0]
         volume["employees"] = emp_count
 
+    # 4b) operational truth center: reconcile sources without mutating either source.
+    driver_count = len(drivers)
+    people_gap = abs(driver_count - emp_count)
+    people = {
+        "drivers": driver_count,
+        "employees": emp_count,
+        "reconciled_total": max(driver_count, emp_count),
+        "gap": people_gap,
+        "status": "متطابق" if people_gap == 0 else "يحتاج مراجعة",
+        "sources": {"drivers": "erp_drivers", "employees": "hr_employees"},
+    }
+    try:
+        from routes.gps import get_gps_health_snapshot
+        gps_health = get_gps_health_snapshot()
+    except Exception as gps_exc:
+        logger.warning("Unable to read GPS health snapshot: %s", gps_exc)
+        gps_health = {"state": "unknown", "label": "غير متاح", "configured": False,
+                      "last_success_at": None, "last_vehicle_count": None,
+                      "last_update_age_s": None, "last_error": None}
+
+    quality_issues = []
+    if people_gap:
+        quality_issues.append({"key": "people_gap", "label": "فرق بين عدد السائقين والموظفين", "value": people_gap})
+    if gps_health.get("state") not in ("healthy",):
+        quality_issues.append({"key": "gps_health", "label": "حالة اتصال GPS تحتاج متابعة", "value": gps_health.get("label")})
+    data_quality = {
+        "status": "سليم" if not quality_issues else "يحتاج مراجعة",
+        "issues": quality_issues,
+        "count": len(quality_issues),
+    }
+    operational_alerts = {
+        "open": doc["expired"] + doc["d30"] + len(quality_issues),
+        "documents": doc["expired"] + doc["d30"],
+        "quality": len(quality_issues),
+    }
+
     # 5) activity (from the audit trail)
     entries = _audit_get_at(bid)
     today = datetime.now().strftime("%Y-%m-%d")
@@ -3009,6 +3045,8 @@ def _compute_insights(rid=None):
     return {"branch_id": bid, "branch": branch_label,
             "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "documents": doc, "documents_top": doc_top, "fleet": fleet,
+            "people": people, "gps_health": gps_health,
+            "data_quality": data_quality, "operational_alerts": operational_alerts,
             "incidents": incidents, "volume": volume, "activity": activity,
             "score": {"value": score, "grade": grade, "label": label, "penalty": round(penalty, 1)}}
 
