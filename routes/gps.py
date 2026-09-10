@@ -10,7 +10,7 @@ import threading
 import hmac
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
-from flask import Blueprint, render_template, session, request, jsonify
+from flask import Blueprint, render_template, session, request, jsonify, send_file
 
 from helpers import login_required, load_logo, blob_set, normalize_plate, _global_blob_get, _global_blob_set
 
@@ -269,6 +269,8 @@ def _build_vehicles(assets, states, now):
             "driver": (driver.get("name") or " ".join(x for x in (driver.get("firstName"), driver.get("lastName")) if x) or "").strip(),
             "address": ", ".join(x for x in (addr.get("address"), addr.get("city")) if x),
             "last_communication": asset.get("lastCommunication"),
+            "color": asset.get("color") or asset.get("vehicleColor") or asset.get("carColor") or "",
+            "disabled": asset.get("disabled") is True or asset.get("isDisabled") is True or asset.get("active") is False or asset.get("isActive") is False,
         }
 
     vehicles = []
@@ -326,6 +328,8 @@ def _build_vehicles(assets, states, now):
             "odometer_km": round(odometer_m / 1000.0, 1) if isinstance(odometer_m, (int, float)) else None,
             "last_update": last_update,
             "last_update_age_s": int(now - last_ts) if last_ts else None,
+            "color": meta.get("color", ""),
+            "disabled": bool(meta.get("disabled", False)),
         })
     vehicles.sort(key=lambda v: (not v["online"], v["name"]))
     return vehicles
@@ -434,6 +438,48 @@ def get_gps_locations():
     result.headers["X-GPS-Request-ID"] = request_id
     result.headers["X-GPS-Cache"] = "miss"
     return result
+
+
+@gps_bp.route("/api/gps/color-status.xlsx")
+@login_required
+def gps_color_status_excel():
+    """Download a workbook built from the same live provider snapshot as /api/gps."""
+    request_id = secrets.token_hex(6)
+    rows = _fleet_cache.get("data") if _fleet_cache.get("data") and time.time() - _fleet_cache.get("at", 0) < FLEET_CACHE_SECONDS else _fetch_fleet(request_id)
+    def color_key(value):
+        text = str(value or "").lower().strip()
+        if any(x in text for x in ("black", "اسود", "أسود", "#000")): return "أسود"
+        if any(x in text for x in ("blue", "ازرق", "أزرق", "#00f", "#0000ff")): return "أزرق"
+        return ""
+    def disabled(row):
+        status = str(row.get("status") or "").lower().strip()
+        return bool(row.get("disabled") or row.get("is_disabled") or row.get("active") is False or status in {"disabled", "inactive", "deactivated", "معطل", "معطلة"})
+    enriched = [(row, color_key(row.get("color")), disabled(row)) for row in (rows or [])]
+    groups = {"الأسود": [x for x in enriched if x[1] == "أسود"], "الأزرق": [x for x in enriched if x[1] == "أزرق"], "المعطلة": [x for x in enriched if x[2]]}
+    wb = openpyxl.Workbook()
+    summary = wb.active; summary.title = "ملخص الكشف"
+    summary.append(["كشف بيانات خدمة التتبع", ""])
+    summary.append(["وقت الاستخراج", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+    summary.append(["المصدر", "خدمة GPS الحية نفسها"])
+    summary.append([]); summary.append(["التصنيف", "العدد"])
+    for label, group in groups.items(): summary.append([label, len(group)])
+    summary.append(["إجمالي سجلات الخدمة", len(enriched)])
+    summary.append([]); summary.append(["ملاحظة", "لا يتم إدراج المركبة في الأسود أو الأزرق أو المعطلة إلا إذا أرسلت الخدمة قيمة اللون أو التعطيل."])
+    headers = ["المركبة", "اللوحة", "اللون الوارد من الخدمة", "التصنيف", "حالة التعطيل", "السائق", "الحالة", "السرعة كم/س", "آخر تحديث", "معرف الجهاز"]
+    for label, group in groups.items():
+        ws = wb.create_sheet(label); ws.append(headers)
+        for row, color, off in group:
+            ws.append([row.get("name", ""), row.get("plate", ""), row.get("color", ""), label, "معطلة" if off else "غير معطلة", row.get("driver", ""), row.get("status", ""), row.get("speed_kmh", ""), row.get("last_update", ""), row.get("device_id", "")])
+    raw = wb.create_sheet("بيانات الخدمة")
+    raw.append(headers)
+    for row, color, off in enriched:
+        raw.append([row.get("name", ""), row.get("plate", ""), row.get("color", ""), color or "غير مصنف", "معطلة" if off else "غير معطلة", row.get("driver", ""), row.get("status", ""), row.get("speed_kmh", ""), row.get("last_update", ""), row.get("device_id", "")])
+    for ws in wb.worksheets:
+        ws.sheet_view.rightToLeft = True; ws.freeze_panes = "A2"; ws.auto_filter.ref = ws.dimensions
+        for cell in ws[1]: cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF"); cell.fill = openpyxl.styles.PatternFill("solid", fgColor="17324D")
+        for col in range(1, ws.max_column + 1): ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 20
+    output = io.BytesIO(); wb.save(output); output.seek(0)
+    return send_file(output, as_attachment=True, download_name="كشف_التتبع_الالوان_والمعطلة.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @gps_bp.route("/api/notifications", methods=["GET"])
