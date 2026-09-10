@@ -5403,8 +5403,9 @@ def run_weekly_import_route():
                         "drivers_updated": d1 + d2,
                         "message": f"✅ تم استيراد {d1+d2} سائقاً و{v1+v2+v3} مركبة بنجاح."})
     except Exception as ex:
+        import traceback
         logger.exception("weekly import route error")
-        return jsonify({"success": False, "error": str(ex)}), 500
+        return jsonify({"success": False, "error": str(ex), "traceback": traceback.format_exc()}), 200
 
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 if os.environ.get("ENABLE_BACKGROUND_SCHEDULER") == "true":
