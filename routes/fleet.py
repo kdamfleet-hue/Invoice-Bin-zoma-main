@@ -1079,12 +1079,11 @@ def api_master_data_update():
         import traceback
         logger.error(f"Error updating master data: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
-@ f l e e t _ b p . r o u t e ( ' / a p i / t r i g g e r - e x c e l - i m p o r t ' ,   m e t h o d s = [ ' G E T ' ] )  
- d e f   t r i g g e r _ e x c e l _ i m p o r t ( ) :  
-         t r y :  
-                 f r o m   i m p o r t _ w e e k l y _ u p d a t e   i m p o r t   m a i n  
-                 m a i n ( )  
-                 r e t u r n   ' D o n e ! '  
-         e x c e p t   E x c e p t i o n   a s   e :  
-                 r e t u r n   s t r ( e )  
- 
+@fleet_bp.route('/api/trigger-excel-import', methods=['GET'])
+def trigger_excel_import():
+    try:
+        from import_weekly_update import main
+        main()
+        return 'Done!'
+    except Exception as e:
+        return str(e)
