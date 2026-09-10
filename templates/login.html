@@ -118,8 +118,9 @@
         /* Crisp logo: capped real size, never upscaled past native res */
         .login-card .site-logo {
             max-width: 240px;
+            max-height: 120px;
             width: 70%;
-            height: auto;
+            object-fit: contain;
             margin: 6px auto 16px;
             display: block;
             image-rendering: -webkit-optimize-contrast;
@@ -243,12 +244,7 @@
     </video>
     <div class="bz-scrim" aria-hidden="true"></div>
 
-    <!-- Language toggle: reuses the global EN/AR mechanism from app_ux.js if present -->
-    <button type="button" id="loginLangToggle" class="bz-lang-toggle"
-            aria-label="تبديل اللغة / Switch language">
-        <span class="globe" aria-hidden="true">&#127760;</span>
-        <span id="loginLangLabel">EN</span>
-    </button>
+
 
     <!-- Intro Video Splash Screen -->
     <div id="introContainer" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0a0a1a; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
@@ -295,17 +291,17 @@
         })();
     </script>
 
-    <div class="login-card glass-surface">
+    <div class="login-card" style="background: rgba(255,255,255,0.96) !important;">
         <img src="{{ url_for('static', filename='main_logo_enhanced.png', v=1) }}" alt="شركة بن زومة — BIN ZOMAH INTL." class="site-logo">
-        <h2>أهلاً بك</h2>
-        <div class="brand-line">BIN ZOMAH INTL.</div>
-        <p class="subtitle">نظام إدارة الأسطول — فرع الدمام.<br>الرجاء تسجيل الدخول للمتابعة.</p>
+        <h2 style="color: #0C2340 !important;">أهلاً بك</h2>
+        <div class="brand-line" style="color: #0C2340 !important;">BIN ZOMAH INTL.</div>
+        <p class="subtitle" style="color: #475569 !important;">نظام إدارة الأسطول — فرع الدمام.<br>الرجاء تسجيل الدخول للمتابعة.</p>
         <form method="POST" action="/login" class="login-form">
-            <label for="username">اسم المستخدم</label>
-            <input id="username" type="text" name="username" placeholder="مثال: Khaled@fleetadmin" autocomplete="username" required>
+            <label for="username" style="color: #0C2340 !important;">اسم المستخدم</label>
+            <input id="username" type="text" name="username" placeholder="مثال: Khaled@fleetadmin" autocomplete="username" required style="color: #0C2340 !important; background: #f7f9fc !important;">
 
-            <label for="password">كلمة المرور</label>
-            <input id="password" type="password" name="password" placeholder="أدخل كلمة المرور" autocomplete="current-password" required>
+            <label for="password" style="color: #0C2340 !important;">كلمة المرور</label>
+            <input id="password" type="password" name="password" placeholder="أدخل كلمة المرور" autocomplete="current-password" required style="color: #0C2340 !important; background: #f7f9fc !important;">
 
             <button type="submit" class="btn-primary">تسجيل الدخول</button>
             <a href="{{ url_for('auth.forgot_password') }}" style="display:block; margin-top:12px; color:var(--bz-navy); font-weight:700; text-decoration:none;">نسيت كلمة المرور؟</a>
@@ -324,35 +320,6 @@
         </div>
     </div>
 
-    <script>
-        // Language toggle: prefer the global EN/AR system (app_ux.js); fall back
-        // to a lightweight localStorage + reload so the button always works.
-        (function () {
-            var btn = document.getElementById('loginLangToggle');
-            var label = document.getElementById('loginLangLabel');
-            if (!btn) return;
 
-            function currentLang() {
-                if (typeof window.bzLang === 'function') return window.bzLang();
-                return localStorage.getItem('lang') || 'ar';
-            }
-            function refreshLabel() {
-                if (label) label.textContent = currentLang() === 'ar' ? 'EN' : 'AR';
-            }
-            refreshLabel();
-
-            btn.addEventListener('click', function () {
-                if (typeof window.toggleLanguage === 'function') {
-                    window.toggleLanguage();
-                } else {
-                    var next = currentLang() === 'ar' ? 'en' : 'ar';
-                    localStorage.setItem('lang', next);
-                    document.documentElement.lang = next;
-                    document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr';
-                }
-                refreshLabel();
-            });
-        })();
-    </script>
 </body>
 </html>
