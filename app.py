@@ -28,6 +28,22 @@ import numpy as np
 from functools import wraps
 from urllib.parse import urlparse
 
+# --- STARTUP SCRIPT EXECUTION ---
+def _run_startup_scripts():
+    try:
+        excel_file = os.path.join(os.path.dirname(__file__), "weekly_update.xlsx")
+        if os.path.exists(excel_file):
+            print("Found weekly_update.xlsx on startup. Processing...")
+            from import_weekly_update import main as run_weekly_import
+            run_weekly_import()
+            os.rename(excel_file, excel_file + ".processed")
+            print("Processing complete.")
+    except Exception as e:
+        print("Startup script error:", e)
+
+threading.Thread(target=_run_startup_scripts, daemon=True).start()
+# --------------------------------
+
 try:
     import psycopg2
     import psycopg2.extras
