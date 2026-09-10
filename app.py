@@ -5355,7 +5355,10 @@ def run_weekly_import_route():
                 if name: drv.name = name
                 if phone: drv.phone = phone
                 if job:   drv.job_title = job
-                if iqama: drv.iqama_number = iqama
+                if iqama and drv.iqama_number != iqama:
+                    existing = Driver.query.filter_by(iqama_number=iqama).first()
+                    if not existing:
+                        drv.iqama_number = iqama
                 if dc_exp: drv.drivercard = str(dc_exp)
                 drv.status = 'نشط'
                 ud += 1
@@ -5403,9 +5406,8 @@ def run_weekly_import_route():
                         "drivers_updated": d1 + d2,
                         "message": f"✅ تم استيراد {d1+d2} سائقاً و{v1+v2+v3} مركبة بنجاح."})
     except Exception as ex:
-        import traceback
         logger.exception("weekly import route error")
-        return jsonify({"success": False, "error": str(ex), "traceback": traceback.format_exc()}), 200
+        return jsonify({"success": False, "error": str(ex)}), 500
 
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 if os.environ.get("ENABLE_BACKGROUND_SCHEDULER") == "true":
