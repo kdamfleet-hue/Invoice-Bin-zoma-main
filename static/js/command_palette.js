@@ -196,8 +196,7 @@
 
         // Get display name from the page or session
         const nameEl = document.querySelector('[data-welcome-name]');
-        const displayName = nameEl ? nameEl.getAttribute('data-welcome-name') : null;
-        if (!displayName) return;
+        const displayName = (nameEl ? nameEl.getAttribute('data-welcome-name') : '') || 'بك';
 
         sessionStorage.setItem('bz_welcomed', '1');
 

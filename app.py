@@ -250,6 +250,7 @@ def ensure_db_columns():
                 # the route can return a useful validation response.
                 legacy_user_cols = [
                     ('email', 'VARCHAR(255)'),
+                    ('display_name', 'VARCHAR(150)'),
                     ('must_change_password', 'BOOLEAN DEFAULT FALSE'),
                 ]
                 for col_name, col_def in legacy_user_cols:
@@ -5417,4 +5418,3 @@ if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     logger.info("Starting server on port %d (debug=%s)", port, debug)
     app.run(host="0.0.0.0", port=port, debug=debug)
-

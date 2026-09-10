@@ -99,6 +99,15 @@
     });
   }
 
+  let scrollTimer = null;
+  window.addEventListener('scroll', function(){
+    document.body.classList.add('is-scrolling');
+    const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    document.documentElement.style.setProperty('--bz-scroll-progress', (window.scrollY / max).toFixed(3));
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(function(){ document.body.classList.remove('is-scrolling'); }, 180);
+  }, { passive: true });
+
   // Organize the long navigation into searchable, collapsible groups. This runs only
   // on the dashboard shell, where the server-rendered sidebar already carries role-aware links.
   const nav = document.querySelector('#bzSidebar .bz-sidebar-nav');

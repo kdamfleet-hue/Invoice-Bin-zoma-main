@@ -138,7 +138,8 @@ def login():
             session.permanent = True
             session["user"] = user.username
             session["username"] = user.username
-            session["google_user"] = {"name": user.username, "email": user.username + "@binzomah.local"}
+            session["display_name"] = (getattr(user, "display_name", None) or "").strip()
+            session["google_user"] = {"name": session["display_name"], "email": user.username + "@binzomah.local"}
             session["is_admin"] = (user.role == 'admin')
             session["role"] = user.role
             session["must_change_password"] = bool(getattr(user, "must_change_password", False))
@@ -369,6 +370,7 @@ def api_users():
         return jsonify({"users": [
             {
                 "id": u.id,
+                "name": getattr(u, "display_name", None) or "",
                 "username": u.username,
                 "email": u.email or "",
                 "role": u.role,
@@ -385,6 +387,7 @@ def api_users():
     
     if request.method == "POST":
         username = (body.get("username") or "").strip()
+        display_name = (body.get("name") or "").strip()[:150]
         password = body.get("password") or ""
         email = (body.get("email") or "").strip().lower()
         role = body.get("role") or "viewer"
@@ -426,6 +429,7 @@ def api_users():
                     return jsonify({"error": "protected", "reason": "لا يمكن إيقاف الحساب المستخدم حالياً"}), 400
 
                 user.email = email or user.email
+                user.display_name = display_name or user.display_name
                 user.role = role
                 user.branch_id = branch_id_value
                 if 'is_active' in body:
@@ -439,6 +443,7 @@ def api_users():
                 return jsonify({"error": "weak", "reason": "كلمة المرور مطلوبة (12 حرفًا على الأقل)"}), 400
 
             new_user = User(
+                display_name=display_name or None,
                 username=username,
                 email=email or None,
                 password_hash=generate_password_hash(password),
@@ -479,5 +484,4 @@ def api_users():
                 logger.exception("User disable failed for %s", user.username)
                 return jsonify({"success": False, "error": "تعذر إيقاف المستخدم"}), 500
         return jsonify({"success": False, "error": "المستخدم غير موجود"}), 404
-
 

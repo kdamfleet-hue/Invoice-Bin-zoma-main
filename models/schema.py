@@ -19,6 +19,7 @@ class User(db.Model):
     __tablename__ = 'erp_users'
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    display_name = db.Column(db.String(150), nullable=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     email = db.Column(db.String(255), nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
@@ -278,5 +279,4 @@ class Snapshot(db.Model):
     branch_id = db.Column(db.Integer, nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     data = db.Column(db.Text, nullable=False)
-
 

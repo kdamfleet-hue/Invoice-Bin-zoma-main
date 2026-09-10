@@ -159,3 +159,58 @@ button:active, .btn:active, a.btn:active { transform: scale(.98); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+/* Motion layer: restrained gold light for scroll, hover, and press feedback. */
+body.bz-enterprise-app::before {
+  content: '';
+  position: fixed;
+  inset: -30%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle at 18% 12%, rgba(216,184,106,.14), transparent 24%), radial-gradient(circle at 82% 88%, rgba(184,138,43,.10), transparent 26%);
+  animation: bz-gold-drift 18s ease-in-out infinite alternate;
+}
+@keyframes bz-gold-drift { from { transform: translate3d(-2%, -1%, 0) rotate(0deg); } to { transform: translate3d(2%, 1%, 0) rotate(2deg); } }
+@keyframes bz-gold-shimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes bz-gold-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(216,184,106,0); } 50% { box-shadow: 0 0 0 5px rgba(216,184,106,.10), 0 10px 28px rgba(184,138,43,.14); } }
+
+.bz-topcmd::after {
+  content: '';
+  position: absolute;
+  inset-inline: 12%;
+  bottom: -1px;
+  height: 1px;
+  opacity: .55;
+  background: linear-gradient(90deg, transparent, var(--bz-gold-300), transparent);
+  background-size: 200% 100%;
+  animation: bz-gold-shimmer 7s ease-in-out infinite;
+}
+.bz-topcmd { position: relative; overflow: hidden; }
+.bz-nav-group-links > a::before, .bz-topcmd .bz-chip::before, .bz-menu-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-120%);
+  background: linear-gradient(105deg, transparent 35%, rgba(255,248,231,.24), transparent 65%);
+  transition: transform .5s cubic-bezier(.23,1,.32,1);
+  pointer-events: none;
+}
+.bz-nav-group-links > a, .bz-topcmd .bz-chip, .bz-menu-btn { position: relative; overflow: hidden; }
+.bz-nav-group-links > a:hover::before, .bz-topcmd .bz-chip:hover::before, .bz-menu-btn:hover::before { transform: translateX(120%); }
+.bz-nav-group-links > a:active, .bz-topcmd .bz-chip:active, .bz-menu-btn:active, button:active, .btn:active { animation: bz-gold-pulse .38s ease-out; }
+body.is-scrolling .bz-topcmd { border-color: rgba(216,184,106,.34) !important; box-shadow: 0 14px 38px rgba(0,0,0,.24), 0 0 0 1px rgba(216,184,106,.05) !important; }
+body.is-scrolling .bz-sidebar { border-color: rgba(216,184,106,.30) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  body.bz-enterprise-app::before, .bz-topcmd::after { animation: none !important; }
+  .bz-nav-group-links > a::before, .bz-topcmd .bz-chip::before, .bz-menu-btn::before { display: none !important; }
+}
+
+/* Login welcome: premium gold reveal aligned with the application shell. */
+.bz-welcome-overlay { background: radial-gradient(circle at 50% 42%, rgba(184,138,43,.12), transparent 30%), linear-gradient(135deg,#050b13 0%,#0c1a29 48%,#071018 100%) !important; }
+.bz-welcome-overlay::before { content:''; position:absolute; width:42vw; height:42vw; border:1px solid rgba(216,184,106,.16); border-radius:50%; animation:bz-welcome-orbit 8s linear infinite; pointer-events:none; }
+.bz-welcome-name { background-size:200% auto !important; animation:bzWelcomeSlide .6s ease .8s forwards, bz-gold-shimmer 3.4s ease-in-out 1.4s infinite !important; }
+.bz-welcome-logo { filter: drop-shadow(0 0 24px rgba(216,184,106,.32)); }
+@keyframes bz-welcome-orbit { from { transform:rotate(0deg) scale(.72); opacity:.25; } to { transform:rotate(360deg) scale(1.04); opacity:.75; } }
+@media (prefers-reduced-motion: reduce) { .bz-welcome-overlay::before { animation:none !important; } }
