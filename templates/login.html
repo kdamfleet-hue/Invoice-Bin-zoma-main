@@ -6,6 +6,7 @@
     <title>تسجيل الدخول — BIN ZOMAH INTL.</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='base_styles.css', v=31) }}">
     <script defer src="{{ url_for('static', filename='app_ux.js', v=31) }}"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700&display=swap" rel="stylesheet">
     <meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
 <script>
   const m = document.getElementById("bz-meta");
@@ -235,6 +236,25 @@
         .login-footer .dept { color: var(--bz-navy); font-weight: 800; }
         .login-footer a { color: var(--bz-navy); text-decoration: none; font-weight: 700; }
         .login-footer a:hover { color: var(--bz-gold); }
+    
+        /* Luxurious animated welcome */
+        .welcome-anim {
+            opacity: 0;
+            transform: translateY(-20px);
+            animation: fadeInSlide 1.2s ease-out forwards;
+        }
+        .user-name {
+            display: inline-block;
+            color: var(--bz-gold);
+            animation: pulseGold 2s ease-in-out infinite;
+        }
+        @keyframes fadeInSlide {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulseGold {
+            0%, 100% { text-shadow: 0 0 8px var(--bz-gold-soft); }
+            50% { text-shadow: 0 0 12px var(--bz-gold); }
+        }
     </style>
 </head>
 <body>
@@ -293,8 +313,12 @@
 
     <div class="login-card" style="background: rgba(255,255,255,0.96) !important;">
         <img src="{{ url_for('static', filename='main_logo_enhanced.png', v=1) }}" alt="شركة بن زومة — BIN ZOMAH INTL." class="site-logo">
-        <h2 style="color: #0C2340 !important;">أهلاً بك</h2>
-        <div class="brand-line" style="color: #0C2340 !important;">BIN ZOMAH INTL.</div>
+        <h2 class="welcome-anim" style="color: #0C2340 !important; font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 2rem;">
+            أهلاً بك، <span class="user-name">{{ current_user.name }}</span>
+        </h2>
+        <div class="brand-line" style="color: #0C2340 !important;">
+            BIN ZOMAH INTL.
+        </div>
         <p class="subtitle" style="color: #475569 !important;">نظام إدارة الأسطول — فرع الدمام.<br>الرجاء تسجيل الدخول للمتابعة.</p>
         <form method="POST" action="/login" class="login-form">
             <label for="username" style="color: #0C2340 !important;">اسم المستخدم</label>
