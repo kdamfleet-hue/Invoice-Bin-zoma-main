@@ -346,7 +346,6 @@ def force_password_change():
 @auth_bp.route("/logout")
 def logout():
     session.clear()
-    flash("جارٍ تحديث استجابة السيرفر وتطبيق التحديثات الأخيرة على الصفحة. يمكنك العودة إلى الصفحة الرئيسية أو إعادة التنشيط.", "info")
     resp = redirect(url_for("auth.login"))
     resp.delete_cookie("ws_unlocked", path="/")
     return resp
