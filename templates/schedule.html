@@ -240,6 +240,41 @@
     .wa-all-info { display:flex; flex-direction:column; gap:2px; text-align:start; }
     .wa-all-info strong { font-size:.92rem; }
 
+    .schedule-view-tools { display:flex; align-items:end; gap:10px; flex-wrap:wrap; margin:12px 0 14px; padding:12px; border:1px solid rgba(197,160,89,.22); border-radius:12px; background:rgba(197,160,89,.06); }
+    .schedule-search { position:relative; flex:1 1 260px; min-width:220px; }
+    .schedule-search span { position:absolute; right:12px; top:10px; color:var(--p-gold2,#e0c489); font-size:1.05rem; }
+    .schedule-search input, .schedule-filter select { width:100%; min-height:38px; box-sizing:border-box; border:1px solid var(--p-border,#3a3527); border-radius:9px; background:var(--p-card,#111a25); color:var(--p-text,#f4f4f4); font:inherit; font-size:.78rem; padding:7px 34px 7px 10px; }
+    .schedule-filter { min-width:135px; color:var(--p-muted,#9aa7b5); font-size:.7rem; font-weight:700; }
+    .schedule-filter span { display:block; margin-bottom:4px; }
+    .schedule-filter select { padding:7px 9px; }
+    .schedule-reset { min-height:38px; border:1px solid rgba(197,160,89,.35); border-radius:9px; background:transparent; color:var(--p-gold2,#e0c489); padding:0 12px; font:700 .75rem inherit; cursor:pointer; }
+    .schedule-reset:hover { background:rgba(197,160,89,.13); }
+    .schedule-result-count { color:var(--p-muted,#9aa7b5); font-size:.72rem; margin-inline-start:auto; white-space:nowrap; padding-bottom:9px; }
+    .schedule-mobile-cards { display:none; }
+    .schedule-empty { padding:24px 14px; text-align:center; color:var(--p-muted,#9aa7b5); border:1px dashed var(--p-border,#3a3527); border-radius:12px; }
+    @media (max-width:768px) {
+      .schedule-view-tools { align-items:stretch; gap:8px; }
+      .schedule-search { flex-basis:100%; min-width:0; }
+      .schedule-filter { flex:1 1 130px; min-width:0; }
+      .schedule-reset { flex:0 0 auto; }
+      .schedule-result-count { flex-basis:100%; margin-inline-start:0; padding-bottom:0; }
+      .sched-table-wrap { display:none !important; }
+      .schedule-mobile-cards { display:flex; flex-direction:column; gap:10px; }
+      .schedule-card { border:1px solid rgba(197,160,89,.24); border-radius:14px; padding:13px; background:linear-gradient(145deg, rgba(20,32,46,.96), rgba(11,20,31,.98)); box-shadow:0 9px 24px rgba(0,0,0,.16); }
+      .schedule-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:11px; }
+      .schedule-card h3 { margin:0; color:#fff5d7; font-size:.95rem; line-height:1.5; }
+      .schedule-card small { color:var(--p-gold2,#e0c489); direction:ltr; display:inline-block; margin-top:2px; }
+      .schedule-card-index { min-width:27px; height:27px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(197,160,89,.16); color:var(--p-gold2,#e0c489); font-weight:800; font-size:.75rem; }
+      .schedule-card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+      .schedule-card-field { padding:8px; border-radius:9px; background:rgba(255,255,255,.045); min-width:0; }
+      .schedule-card-field span { display:block; color:var(--p-muted,#9aa7b5); font-size:.65rem; margin-bottom:3px; }
+      .schedule-card-field strong { display:block; color:#eef2f6; font-size:.76rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .schedule-card-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:11px; padding-top:10px; border-top:1px solid rgba(197,160,89,.13); }
+      .schedule-card-actions button { border:1px solid rgba(197,160,89,.28); border-radius:8px; background:rgba(197,160,89,.08); color:var(--p-gold2,#e0c489); padding:7px 9px; font:700 .68rem inherit; cursor:pointer; }
+      .schedule-card-actions .is-whatsapp { color:#7DEFC9; border-color:rgba(33,168,94,.35); background:rgba(33,168,94,.1); }
+      .schedule-card-actions .is-danger { color:#ff9b91; border-color:rgba(192,57,43,.35); background:rgba(192,57,43,.1); }
+    }
+
     @media print {
       /* ── Company header appears only on print ── */
       .print-only-header { display: block !important; }
@@ -493,6 +528,13 @@
 <!-- TAB: MAIN -->
 <div class="sp-panel" id="spPanel-main">
 <div class="sec-title"><h2>📋 الجدول الرئيسي</h2></div>
+<div class="schedule-view-tools" data-section="main">
+  <label class="schedule-search"><span aria-hidden="true">⌕</span><input id="scheduleSearchMain" type="search" placeholder="ابحث بالاسم أو اللوحة أو الوظيفة" autocomplete="off"></label>
+  <label class="schedule-filter"><span>الحالة</span><select id="scheduleStatusMain"><option value="all">كل الحالات</option><option value="موصل">موصل</option><option value="موزع">موزع</option><option value="غير محدد">غير محدد</option></select></label>
+  <label class="schedule-filter"><span>الترتيب</span><select id="scheduleSortMain"><option value="default">الترتيب الأصلي</option><option value="name">الاسم</option><option value="plate">رقم اللوحة</option><option value="job">الوظيفة</option></select></label>
+  <button type="button" class="schedule-reset" onclick="resetScheduleView('main')">إعادة ضبط</button>
+  <span class="schedule-result-count" id="scheduleCountMain">0 سجل</span>
+</div>
 <div class="exp-legend">
 <span><i style="background:rgba(192,57,43,.5);border:1px solid #FF8A80;"></i> تاريخ منتهٍ</span>
 <span><i style="background:rgba(211,84,0,.5);border:1px solid #FFC078;"></i> ينتهي خلال 30 يوماً</span>
@@ -502,23 +544,39 @@
 <div class="sched-table-wrap glass-panel" id="mainPrintArea">
 <table class="sched bz-fit"><thead id="headMain"></thead><tbody id="bodyMain"></tbody></table>
 </div>
+<div class="schedule-mobile-cards" id="cardsMain" aria-label="بطاقات الجدول الرئيسي"></div>
 </div>
 <!-- TAB: SPARE / broken -->
 <div class="sp-panel" id="spPanel-spare">
 <div class="sec-title spare"><h2>بيان المركبات الأسبير والمعطلة</h2>
 <button class="btn-neon" onclick="addRow('spare')" style="padding:6px 14px;font-size:.85rem;">➕ إضافة</button></div>
+<div class="schedule-view-tools" data-section="spare">
+  <label class="schedule-search"><span aria-hidden="true">⌕</span><input id="scheduleSearchSpare" type="search" placeholder="ابحث باللوحة أو النوع أو الحالة" autocomplete="off"></label>
+  <label class="schedule-filter"><span>الحالة</span><select id="scheduleStatusSpare"><option value="all">كل الحالات</option><option value="أسبير">أسبير</option><option value="معطلة">معطلة</option><option value="غير محدد">غير محدد</option></select></label>
+  <label class="schedule-filter"><span>الترتيب</span><select id="scheduleSortSpare"><option value="default">الترتيب الأصلي</option><option value="plate">رقم اللوحة</option><option value="status">الحالة</option><option value="vtype">نوع المركبة</option></select></label>
+  <button type="button" class="schedule-reset" onclick="resetScheduleView('spare')">إعادة ضبط</button>
+  <span class="schedule-result-count" id="scheduleCountSpare">0 سجل</span>
+</div>
 <div class="sched-table-wrap glass-panel">
 <table class="sched bz-fit"><thead id="headSpare"></thead><tbody id="bodySpare"></tbody></table>
 </div>
+<div class="schedule-mobile-cards" id="cardsSpare" aria-label="بطاقات الأسبير والمعطلة"></div>
 </div>
 <!-- TAB: VACATION -->
 <div class="sp-panel" id="spPanel-vacation">
 <div class="sec-title vac"><h2>السائقون في إجازة (هذا الأسبوع)</h2>
 <button class="btn-neon" onclick="addRow('vacation')" style="padding:6px 14px;font-size:.85rem;">➕ إضافة سائق في إجازة</button></div>
 <p class="hint" style="margin:-4px 0 8px;">أضف سائقاً وعدّل بياناته — يزداد العدد تلقائياً في الملخص.</p>
+<div class="schedule-view-tools" data-section="vacation">
+  <label class="schedule-search"><span aria-hidden="true">⌕</span><input id="scheduleSearchVacation" type="search" placeholder="ابحث باسم السائق أو الرقم الوظيفي" autocomplete="off"></label>
+  <label class="schedule-filter"><span>الترتيب</span><select id="scheduleSortVacation"><option value="default">الترتيب الأصلي</option><option value="name">الاسم</option><option value="empid">الرقم الوظيفي</option></select></label>
+  <button type="button" class="schedule-reset" onclick="resetScheduleView('vacation')">إعادة ضبط</button>
+  <span class="schedule-result-count" id="scheduleCountVacation">0 سجل</span>
+</div>
 <div class="sched-table-wrap glass-panel">
 <table class="sched bz-fit"><thead id="headVac"></thead><tbody id="bodyVac"></tbody></table>
 </div>
+<div class="schedule-mobile-cards" id="cardsVacation" aria-label="بطاقات السائقين في الإجازة"></div>
 </div>
 <!-- TAB: EXPIRED (computed view derived from existing main+spare data) -->
 <div class="sp-panel" id="spPanel-expired">
@@ -790,6 +848,11 @@
     }
 
     let state = { title: '', date: '', main: [], spare: [], vacation: [], summary: {}, incidentReports: [] };
+    const scheduleViews = {
+      main: { query: '', status: 'all', sort: 'default' },
+      spare: { query: '', status: 'all', sort: 'default' },
+      vacation: { query: '', status: 'all', sort: 'default' }
+    };
     let DRIVER_REG = {};   // learned per-driver memory: iqama(digits) → {empid,phone,job,drivercard,empNotes}
     let VEH_REG = {};      // learned per-vehicle memory: normalizePlate(plate) → {model,vtype,pallets,load,vserial,inspect,license,opcard,notes}
     let saveTimer = null;
@@ -809,6 +872,7 @@
       try { await FleetData.load(); FleetData.fillDatalist('driverNames'); } catch (e) {}
       await loadDriverRegistry();   // learned card-expiry/job memory, keyed by iqama
       await loadVehicleRegistry();  // learned vehicle-spec memory, keyed by plate
+      initScheduleViewControls();
       renderAll();
       loadVehicles();        // «جميع مركبات الفرع»
       loadDeauthorized();    // «تم إلغاء تفويضهم»
@@ -878,12 +942,82 @@
     function renderAll() {
       document.getElementById('schedTitle').textContent = state.title;
       document.getElementById('schedDate').value = state.date || '';
-      renderBody('bodyMain', state.main, 'main');
-      renderBody('bodySpare', state.spare, 'spare');
-      renderBody('bodyVac', state.vacation, 'vacation');
+      renderScheduleSection('main');
+      renderScheduleSection('spare');
+      renderScheduleSection('vacation');
       updateSummary();
       renderUnscheduled();
       renderIncidents();
+    }
+
+    function normalizeScheduleText(value) {
+      return String(value || '').toLocaleLowerCase('ar').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').trim();
+    }
+
+    function scheduleRowsFor(section) {
+      const view = scheduleViews[section];
+      const rows = (state[section] || []).map((row, originalIndex) => ({ row, originalIndex }));
+      const query = normalizeScheduleText(view.query);
+      const filtered = rows.filter(item => {
+        const row = item.row;
+        if (query && !normalizeScheduleText(Object.values(row).join(' ')).includes(query)) return false;
+        if (view.status && view.status !== 'all') {
+          const status = normalizeScheduleText(section === 'main' ? row.job : row.status);
+          if (view.status === 'غير محدد' ? status : status !== normalizeScheduleText(view.status)) return false;
+        }
+        return true;
+      });
+      if (view.sort !== 'default') filtered.sort((a, b) => normalizeScheduleText(a.row[view.sort]).localeCompare(normalizeScheduleText(b.row[view.sort]), 'ar', { numeric: true }));
+      return filtered;
+    }
+
+    function scheduleSuffix(section) { return section === 'vacation' ? 'Vacation' : section.charAt(0).toUpperCase() + section.slice(1); }
+
+    function renderScheduleSection(section) {
+      const items = scheduleRowsFor(section);
+      const bodyId = section === 'main' ? 'bodyMain' : section === 'spare' ? 'bodySpare' : 'bodyVac';
+      renderBody(bodyId, items.map(item => Object.assign({}, item.row, { _sourceIndex: item.originalIndex })), section);
+      renderScheduleCards(section, items);
+      const count = document.getElementById('scheduleCount' + scheduleSuffix(section));
+      if (count) count.textContent = `${items.length} من ${(state[section] || []).length} سجل`;
+    }
+
+    function renderScheduleCards(section, items) {
+      const target = document.getElementById('cards' + scheduleSuffix(section));
+      if (!target) return;
+      if (!items.length) { target.innerHTML = '<div class="schedule-empty">لا توجد سجلات مطابقة للبحث أو التصفية.</div>'; return; }
+      const fields = section === 'main' ? [['name','اسم السائق'],['plate','رقم اللوحة'],['job','الوظيفة'],['vtype','نوع المركبة'],['phone','الجوال']] : section === 'spare' ? [['plate','رقم اللوحة'],['status','الحالة'],['vtype','نوع المركبة'],['model','الموديل']] : [['name','اسم السائق'],['empid','الرقم الوظيفي'],['job','الوظيفة'],['phone','الجوال']];
+      target.innerHTML = items.map((item, i) => {
+        const row = item.row;
+        const title = escapeHtml(row.name || row.plate || `سجل ${i + 1}`);
+        const subtitle = escapeHtml(row.plate || row.empid || row.status || '—');
+        const values = fields.map(([key, label]) => `<div class="schedule-card-field"><span>${label}</span><strong>${escapeHtml(row[key] || '—')}</strong></div>`).join('');
+        return `<article class="schedule-card"><div class="schedule-card-head"><div><h3>${title}</h3><small>${subtitle}</small></div><span class="schedule-card-index">${i + 1}</span></div><div class="schedule-card-grid">${values}</div><div class="schedule-card-actions"><button type="button" onclick="focusScheduleRow('${section}',${item.originalIndex})">✎ تحرير في الجدول</button>${section === 'main' ? `<button type="button" class="is-whatsapp" onclick="notifyDriver('${section}',${item.originalIndex})">◉ إشعار السائق</button>` : ''}<button type="button" class="is-danger" onclick="deleteRow('${section}',${item.originalIndex})">حذف</button></div></article>`;
+      }).join('');
+    }
+
+    function focusScheduleRow(section, index) {
+      switchSchedTab(section, document.getElementById('tabBtn' + (section === 'main' ? 'Main' : section === 'spare' ? 'Spare' : 'Vac')));
+      const bodyId = section === 'main' ? 'bodyMain' : section === 'spare' ? 'bodySpare' : 'bodyVac';
+      const input = document.getElementById(bodyId)?.querySelector(`input[data-i="${index}"]`);
+      if (input) { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); input.focus(); }
+    }
+
+    function resetScheduleView(section) {
+      scheduleViews[section] = { query: '', status: 'all', sort: 'default' };
+      const suffix = scheduleSuffix(section);
+      ['scheduleSearch' + suffix, 'scheduleStatus' + suffix, 'scheduleSort' + suffix].forEach(id => { const el = document.getElementById(id); if (el) el.value = id.includes('Search') ? '' : id.includes('Status') ? 'all' : 'default'; });
+      renderScheduleSection(section);
+    }
+
+    function initScheduleViewControls() {
+      Object.keys(scheduleViews).forEach(section => {
+        const suffix = scheduleSuffix(section);
+        const search = document.getElementById('scheduleSearch' + suffix), status = document.getElementById('scheduleStatus' + suffix), sort = document.getElementById('scheduleSort' + suffix);
+        if (search) search.addEventListener('input', () => { scheduleViews[section].query = search.value; renderScheduleSection(section); });
+        if (status) status.addEventListener('change', () => { scheduleViews[section].status = status.value; renderScheduleSection(section); });
+        if (sort) sort.addEventListener('change', () => { scheduleViews[section].sort = sort.value; renderScheduleSection(section); });
+      });
     }
 
     function renderBody(bodyId, rows, section) {
@@ -891,6 +1025,7 @@
       const cols = colsFor(section);
       tb.innerHTML = '';
       rows.forEach((row, idx) => {
+        const sourceIndex = Number.isInteger(row._sourceIndex) ? row._sourceIndex : idx;
         const tr = document.createElement('tr');
         let html = `<td class="col-idx">${idx + 1}</td>`;
         cols.forEach((c, cIdx) => {
@@ -921,9 +1056,9 @@
           } else if (c.key === 'plate') {
             cls = (row.plate || '').trim() ? 'plate-cell' : '';
           }
-          html += `<td class="${cls}"${dataAttr}><input type="text" value="${v}" data-sec="${section}" data-i="${idx}" data-k="${c.key}"${listAttr}${readonlyAttr}></td>`;
+          html += `<td class="${cls}"${dataAttr}><input type="text" value="${v}" data-sec="${section}" data-i="${sourceIndex}" data-k="${c.key}"${listAttr}${readonlyAttr}></td>`;
         });
-        html += `<td class="col-act"><div class="col-act-wrap"><button class="row-custody" title="نقل عهدة المركبة لسائق آخر" onclick="openCustodyModal('${section}',${idx})">🔄</button><button class="row-notify" title="إشعار السائق عبر واتساب" onclick="notifyDriver('${section}',${idx})">📲</button><button class="row-del" title="حذف" onclick="deleteRow('${section}',${idx})">✕</button></div></td>`;
+        html += `<td class="col-act"><div class="col-act-wrap"><button class="row-custody" title="نقل عهدة المركبة لسائق آخر" onclick="openCustodyModal('${section}',${sourceIndex})">🔄</button><button class="row-notify" title="إشعار السائق عبر واتساب" onclick="notifyDriver('${section}',${sourceIndex})">📲</button><button class="row-del" title="حذف" onclick="deleteRow('${section}',${sourceIndex})">✕</button></div></td>`;
         tr.innerHTML = html;
         tr.querySelectorAll('td').forEach((cell) => {
           const input = cell.querySelector('input');

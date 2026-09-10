@@ -1,0 +1,35 @@
+/* Responsive sidebar polish — interaction and layout only. */
+.bz-overlay { transition: opacity .18s ease, visibility .18s ease; }
+.bz-sidebar-toggle { touch-action: manipulation; }
+@media (max-width: 900px) {
+  body.bz-enterprise-app { overflow-x: hidden; }
+  body.bz-enterprise-app .bz-sidebar {
+    width: min(86vw, 320px) !important;
+    max-width: 320px;
+    z-index: 1200 !important;
+    transform: translateX(110%);
+    transition: transform .22s cubic-bezier(.23,1,.32,1), box-shadow .22s ease !important;
+    box-shadow: -20px 0 50px rgba(0,0,0,.42) !important;
+  }
+  body.bz-enterprise-app .bz-sidebar:not(.collapsed),
+  body.bz-enterprise-app.sidebar-is-open .bz-sidebar { transform: translateX(0); }
+  body.bz-enterprise-app.sidebar-is-open .bz-overlay {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+  body.bz-enterprise-app .bz-topcmd {
+    position: sticky;
+    top: max(8px, env(safe-area-inset-top));
+    z-index: 900;
+  }
+  body.bz-enterprise-app .bz-sidebar-nav { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  body.bz-enterprise-app .bz-sidebar-nav a { min-height: 44px !important; }
+}
+@media (max-width: 380px) {
+  body.bz-enterprise-app .bz-sidebar { width: 90vw !important; }
+  body.bz-enterprise-app #main-content { padding-inline: 10px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bz-sidebar, .bz-overlay { transition: none !important; }
+}
