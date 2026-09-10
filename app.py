@@ -28,21 +28,9 @@ import numpy as np
 from functools import wraps
 from urllib.parse import urlparse
 
-# --- STARTUP SCRIPT EXECUTION ---
-def _run_startup_scripts():
-    try:
-        excel_file = os.path.join(os.path.dirname(__file__), "weekly_update.xlsx")
-        if os.path.exists(excel_file):
-            print("Found weekly_update.xlsx on startup. Processing...")
-            from import_weekly_update import main as run_weekly_import
-            run_weekly_import()
-            os.rename(excel_file, excel_file + ".processed")
-            print("Processing complete.")
-    except Exception as e:
-        print("Startup script error:", e)
-
-threading.Thread(target=_run_startup_scripts, daemon=True).start()
-# --------------------------------
+# --- WEEKLY IMPORT FLAG (processed via admin route after app is ready) ---
+_PENDING_WEEKLY_IMPORT = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "weekly_update.xlsx"))
+# -----------------------------------------------------------------------
 
 try:
     import psycopg2
@@ -5300,6 +5288,124 @@ with app.app_context():
     except Exception as e:
         print(f"⚠️ Failed to verify or create database tables: {e}")
 
+# ====================================================================
+# Weekly Excel Import — Admin Trigger Route
+# ====================================================================
+@app.route("/admin/run-weekly-import", methods=["POST"])
+def run_weekly_import_route():
+    """Secure admin-only route to trigger the weekly Excel import.
+    Runs in-process using app_context to avoid circular import issues at startup.
+    """
+    # Simple token-based protection so it can't be triggered by anyone
+    expected_token = os.environ.get("IMPORT_TOKEN", "zoma-import-2026")
+    provided_token = request.headers.get("X-Import-Token", "")
+    if provided_token != expected_token:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    excel_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weekly_update.xlsx")
+    if not os.path.exists(excel_file):
+        return jsonify({"success": False, "error": "weekly_update.xlsx not found on server"}), 404
+    try:
+        import pandas as pd
+        import math
+        from datetime import date
+        from utils.update_from_excel import safe_date
+        from models.schema import db as _db, Driver, Vehicle, VehicleCustody, Branch
+
+        def _clean(v):
+            if v is None: return ''
+            try:
+                if isinstance(v, float) and math.isnan(v): return ''
+            except Exception: pass
+            s = str(v).strip()
+            return '' if s.lower() in ('nan','none','-','','لا يوجد','لايوجد') else s
+
+        def _proc_active(df, branch_id, job_default='سائق'):
+            uv = ud = 0
+            for _, r in df.iterrows():
+                plate = _clean(r.get('رقم اللوحة'))
+                if not plate: continue
+                veh = Vehicle.query.filter_by(plate_number=plate).first()
+                if not veh:
+                    veh = Vehicle(plate_number=plate, branch_id=branch_id)
+                    _db.session.add(veh)
+                for attr, col in [('model','الموديل'),('v_type','نوع المركبة'),('load_capacity','الحمولة'),
+                                   ('serial_number','الرقم التسلسلي'),('pallets','عدد الطبالي'),('notes','الملاحظات')]:
+                    val = _clean(r.get(col))
+                    if val: setattr(veh, attr, val)
+                veh.yard_status = ''
+                for attr, col in [('inspection_expiry','تاريخ انتهاء الفحص الدوري'),
+                                   ('istimara_expiry','تاريخ انتهاء رخصة السير'),
+                                   ('insurance_expiry','تاريخ انتهاء بطاقة التشغيل')]:
+                    val = safe_date(r.get(col))
+                    if val: setattr(veh, attr, val)
+                uv += 1
+                empid = _clean(r.get('الرقم الوظيفي'))
+                name  = _clean(r.get('اسم السائق'))
+                iqama = _clean(r.get('رقم الإقامة'))
+                phone = _clean(r.get('رقم الجوال'))
+                job   = _clean(r.get('الوظيفة')) or job_default
+                dc_exp = safe_date(r.get('تاريخ انتهاء بطاقة السائق'))
+                if not empid and not name: continue
+                drv = None
+                if empid: drv = Driver.query.filter_by(employee_id=empid).first()
+                if not drv and iqama: drv = Driver.query.filter_by(iqama_number=iqama).first()
+                if not drv:
+                    drv = Driver(employee_id=empid or iqama or f"EXT-{plate}", branch_id=branch_id)
+                    _db.session.add(drv)
+                if name: drv.name = name
+                if phone: drv.phone = phone
+                if job:   drv.job_title = job
+                if iqama: drv.iqama_number = iqama
+                if dc_exp: drv.drivercard = str(dc_exp)
+                drv.status = 'نشط'
+                ud += 1
+                _db.session.flush()
+                VehicleCustody.query.filter_by(vehicle_id=veh.id, status='active').update({'status': 'returned'})
+                _db.session.add(VehicleCustody(driver_id=drv.id, vehicle_id=veh.id, received_date=date.today()))
+            return uv, ud
+
+        def _proc_spare(df, branch_id):
+            uv = 0
+            for _, r in df.iterrows():
+                plate = _clean(r.get('رقم اللوحة'))
+                if not plate: continue
+                veh = Vehicle.query.filter_by(plate_number=plate).first()
+                if not veh:
+                    veh = Vehicle(plate_number=plate, branch_id=branch_id)
+                    _db.session.add(veh)
+                status = _clean(r.get('الحالة'))
+                veh.yard_status = status or 'اسبير'
+                for attr, col in [('model','الموديل'),('v_type','نوع المركبة'),('load_capacity','الحمولة'),
+                                   ('serial_number','الرقم التسلسلي'),('pallets','عدد الطبالي'),('notes','الملاحظات')]:
+                    val = _clean(r.get(col))
+                    if val: setattr(veh, attr, val)
+                for attr, col in [('inspection_expiry','تاريخ انتهاء الفحص الدوري'),
+                                   ('istimara_expiry','تاريخ انتهاء رخصة السير'),
+                                   ('insurance_expiry','تاريخ انتهاء بطاقة التشغيل')]:
+                    val = safe_date(r.get(col))
+                    if val: setattr(veh, attr, val)
+                VehicleCustody.query.filter_by(vehicle_id=veh.id, status='active').update({'status': 'returned'})
+                uv += 1
+            return uv
+
+        branch = Branch.query.filter(Branch.name.like('%الدمام%')).first()
+        branch_id = branch.id if branch else 1
+        df_pub  = pd.read_excel(excel_file, sheet_name='سجل النقل',          header=3)
+        df_pri  = pd.read_excel(excel_file, sheet_name='سجل الخاص',          header=3)
+        df_spr  = pd.read_excel(excel_file, sheet_name='الأسبير والمعطلة',   header=2)
+        v1, d1 = _proc_active(df_pub, branch_id, 'سائق نقل عام')
+        v2, d2 = _proc_active(df_pri, branch_id, 'سائق نقل خاص')
+        v3     = _proc_spare(df_spr, branch_id)
+        _db.session.commit()
+        os.rename(excel_file, excel_file + ".processed")
+        return jsonify({"success": True,
+                        "vehicles_updated": v1 + v2 + v3,
+                        "drivers_updated": d1 + d2,
+                        "message": f"✅ تم استيراد {d1+d2} سائقاً و{v1+v2+v3} مركبة بنجاح."})
+    except Exception as ex:
+        logger.exception("weekly import route error")
+        return jsonify({"success": False, "error": str(ex)}), 500
+
 # Safe under gunicorn --workers 1 (no --preload): runs in the worker, once.
 if os.environ.get("ENABLE_BACKGROUND_SCHEDULER") == "true":
     _start_alert_scheduler()
@@ -5308,3 +5414,4 @@ if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     logger.info("Starting server on port %d (debug=%s)", port, debug)
     app.run(host="0.0.0.0", port=port, debug=debug)
+
