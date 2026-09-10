@@ -95,6 +95,23 @@
         .track-tools { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:0 0 .75rem; }
         .track-tools select, .track-tools input { min-width:150px; padding:.45rem .65rem; border:1px solid var(--border); border-radius:.45rem; background:var(--surface); color:var(--text-primary); }
         .track-tools .tool-note { color:var(--text-secondary); font-size:.78rem; }
+        .tracking-report { margin:0 0 1rem; padding:1rem; }
+        .tracking-report-head { display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap; margin-bottom:.8rem; }
+        .tracking-report-head h3 { margin:0; color:var(--text-primary); font-size:1rem; }
+        .tracking-report-actions { display:flex; gap:.45rem; flex-wrap:wrap; }
+        .tracking-report-tabs { display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:.75rem; }
+        .tracking-report-tab { border:1px solid var(--border); border-radius:999px; padding:.45rem .75rem; background:var(--surface); color:var(--text-secondary); font:700 .78rem inherit; cursor:pointer; }
+        .tracking-report-tab.active { color:#1a160d; border-color:#d8b86a; background:linear-gradient(135deg,#c5a059,#f5d88e); }
+        .tracking-report-tab .report-count { display:inline-flex; min-width:1.35rem; height:1.35rem; align-items:center; justify-content:center; margin-inline-start:.25rem; border-radius:50%; background:rgba(0,0,0,.14); font-size:.7rem; }
+        .tracking-report-table-wrap { overflow:auto; border:1px solid var(--border); border-radius:.65rem; }
+        .tracking-report-table { width:100%; min-width:720px; border-collapse:collapse; font-size:.8rem; }
+        .tracking-report-table th,.tracking-report-table td { padding:.6rem .7rem; text-align:right; border-bottom:1px solid var(--border); color:var(--text-primary); white-space:nowrap; }
+        .tracking-report-table th { background:var(--surface-hover); color:var(--text-secondary); font-weight:800; }
+        .tracking-report-table tr:last-child td { border-bottom:0; }
+        .report-color-dot { display:inline-block; width:11px; height:11px; border-radius:50%; vertical-align:-1px; margin-inline-end:5px; border:1px solid rgba(255,255,255,.45); }
+        .report-state { padding:1rem; text-align:center; color:var(--text-secondary); }
+        .report-note { margin-top:.55rem; color:var(--text-secondary); font-size:.72rem; }
+        @media (max-width:650px) { .tracking-report { padding:.75rem; } .tracking-report-head { align-items:flex-start; } }
         .gps-advanced { margin-top:1rem; padding:1rem; }
         .gps-advanced summary { cursor:pointer; color:var(--accent); font-weight:800; }
         .gps-advanced-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin-top:1rem; }
@@ -163,7 +180,7 @@
 <div class="bz-stat"><div class="num" id="statOffline">0</div><div class="label">غير متصلة</div></div>
 </div>
 <div id="liveStatus" style="margin:0 0 .5rem;font-size:.85rem;font-weight:700;color:var(--text-secondary)">⏳ جاري الاتصال بخدمة التتبع…</div>
-	<div class="track-tools pdf-exclude" aria-label="أدوات التتبع">
+		<div class="track-tools pdf-exclude" aria-label="أدوات التتبع">
 	  <select id="statusFilter" onchange="renderList()" aria-label="فلترة حالة المركبة">
 	    <option value="all">كل الحالات</option><option value="moving">متحركة</option><option value="idling">تعمل بلا حركة</option><option value="engine_on">المحرك يعمل</option><option value="stopped">متوقفة</option><option value="offline">غير متصلة</option>
 	  </select>
@@ -171,8 +188,25 @@
 	  <button class="btn-outline" type="button" onclick="toggleTrails()" id="trailBtn">🧭 إظهار المسارات</button>
 	  <button class="btn-outline" type="button" onclick="exportGpsCsv()">⬇️ تصدير CSV</button>
 	  <span class="tool-note">المسارات محفوظة داخل جلسة الصفحة فقط.</span>
-	</div>
-	<div class="track-layout">
+		</div>
+		<section class="card tracking-report" id="trackingColorReport" aria-labelledby="trackingColorReportTitle">
+		  <div class="tracking-report-head">
+		    <h3 id="trackingColorReportTitle">📋 كشف مركبات التتبع حسب اللون والحالة</h3>
+		    <div class="tracking-report-actions pdf-exclude">
+		      <button class="btn-outline" type="button" onclick="exportColorStatusReport()">⬇️ تصدير الكشف</button>
+		      <button class="btn-outline" type="button" onclick="window.print()">🖨️ طباعة</button>
+		    </div>
+		  </div>
+		  <div class="tracking-report-tabs pdf-exclude" role="tablist" aria-label="تصنيف كشف التتبع">
+		    <button class="tracking-report-tab active" type="button" data-report-filter="black" onclick="selectColorReport('black')">⚫ الأسود <span class="report-count" id="reportCountBlack">0</span></button>
+		    <button class="tracking-report-tab" type="button" data-report-filter="blue" onclick="selectColorReport('blue')">🔵 الأزرق <span class="report-count" id="reportCountBlue">0</span></button>
+		    <button class="tracking-report-tab" type="button" data-report-filter="disabled" onclick="selectColorReport('disabled')">⛔ المعطلة <span class="report-count" id="reportCountDisabled">0</span></button>
+		    <button class="tracking-report-tab" type="button" data-report-filter="all" onclick="selectColorReport('all')">كل الكشف <span class="report-count" id="reportCountAll">0</span></button>
+		  </div>
+		  <div class="tracking-report-table-wrap"><table class="tracking-report-table"><thead><tr><th>المركبة</th><th>اللوحة</th><th>اللون</th><th>الحالة</th><th>السائق</th><th>آخر إشارة</th></tr></thead><tbody id="trackingColorReportRows"><tr><td class="report-state" colspan="6">بانتظار بيانات التتبع…</td></tr></tbody></table></div>
+		  <div class="report-note">يتم تصنيف المركبة بالاعتماد على حقل اللون وحالة التعطيل القادمة من خدمة التتبع، دون تغيير بيانات المركبة.</div>
+		</section>
+		<div class="track-layout">
 <div class="card track-sidebar" id="assetPanel">
 <div class="side-head">
 <h3>📦 مركبات فرع الدمام <span id="assetCount" style="color:var(--text-secondary);font-weight:600;">(0)</span></h3>
@@ -248,6 +282,19 @@
             stopped:   { label: 'متوقفة',      color: '#64748b' },
             offline:   { label: 'غير متصلة',   color: '#ef4444' }
         };
+        let colorReportFilter = 'black';
+
+        function normalizeVehicleColor(value) {
+            const text = String(value || '').toLocaleLowerCase('ar').trim();
+            if (text.includes('اسود') || text.includes('أسود') || text.includes('black') || text.includes('#000')) return 'black';
+            if (text.includes('ازرق') || text.includes('أزرق') || text.includes('blue') || text.includes('#00f') || text.includes('#0000ff')) return 'blue';
+            return '';
+        }
+
+        function isDisabledVehicle(item) {
+            const status = String(item.status || item.vehicle_status || '').toLocaleLowerCase('ar').trim();
+            return item.disabled === true || item.is_disabled === true || item.active === false || ['disabled','inactive','deactivated','معطل','معطلة','متوقف نهائيا','متوقفة نهائيا'].includes(status);
+        }
 
         function initMap() {
             if (map) return;
@@ -365,12 +412,15 @@
             const lat = item.lat != null ? item.lat : item.latitude;
             const lng = item.lng != null ? item.lng : item.longitude;
             const online = !!(item.online || item.is_online || item.status === 'moving' || item.status === 'idling');
+            const disabled = isDisabledVehicle(item);
             const status = STATUS[item.status] ? item.status : (online ? 'stopped' : 'offline');
             const name = item.name || item.plate_number || item.plate || 'مركبة';
             const id = item.id != null ? item.id : (item.asset_id != null ? item.asset_id : (item.device_id != null ? item.device_id : name));
             return {
-                id, name, lat, lng, status, online,
+                id, name, lat, lng, status, online, disabled,
                 plate: item.plate || item.plate_number || '',
+                colorKey: normalizeVehicleColor(item.color || item.vehicle_color || item.vehicleColor || item.car_color || item.raw_color),
+                colorLabel: item.color || item.vehicle_color || item.vehicleColor || item.car_color || '',
                 driver: item.driver || '',
                 speed: (item.speed_kmh != null ? item.speed_kmh : (item.speed != null ? item.speed : null)),
                 heading: item.heading,
@@ -463,6 +513,7 @@
             set('statMoving', moving);
             set('statOffline', currentAssets.length - online);
             set('assetCount', '(' + currentAssets.length + ')');
+            renderColorStatusReport();
 
             if (!firstFit && map) {
                 const pts = currentAssets.filter(a => a.lat != null && a.lng != null).map(a => [a.lat, a.lng]);
@@ -481,6 +532,43 @@
             const value = select.value; const options = ['<option value="">كل المركبات</option>'];
             currentAssets.forEach(a => options.push('<option value="' + escapeHtml(String(a.id)) + '">' + escapeHtml(a.name) + '</option>'));
             select.innerHTML = options.join(''); if ([...select.options].some(o => o.value === value)) select.value = value;
+        }
+
+        function reportRows(filter) {
+            return currentAssets.filter(a => filter === 'disabled' ? a.disabled : filter === 'all' ? (a.colorKey === 'black' || a.colorKey === 'blue' || a.disabled) : a.colorKey === filter);
+        }
+
+        function selectColorReport(filter) {
+            colorReportFilter = filter;
+            document.querySelectorAll('[data-report-filter]').forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-report-filter') === filter));
+            renderColorStatusReport();
+        }
+
+        function renderColorStatusReport() {
+            const black = currentAssets.filter(a => a.colorKey === 'black');
+            const blue = currentAssets.filter(a => a.colorKey === 'blue');
+            const disabled = currentAssets.filter(a => a.disabled);
+            const all = reportRows('all');
+            const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+            set('reportCountBlack', black.length); set('reportCountBlue', blue.length); set('reportCountDisabled', disabled.length); set('reportCountAll', all.length);
+            const rows = reportRows(colorReportFilter);
+            const body = document.getElementById('trackingColorReportRows'); if (!body) return;
+            if (!rows.length) { body.innerHTML = '<tr><td class="report-state" colspan="6">لا توجد مركبات مطابقة لهذا التصنيف في بيانات التتبع الحالية.</td></tr>'; return; }
+            body.innerHTML = rows.map(a => {
+                const colorLabel = a.colorLabel || (a.colorKey === 'black' ? 'أسود' : a.colorKey === 'blue' ? 'أزرق' : 'غير محدد');
+                const dot = a.colorKey === 'black' ? '#111827' : a.colorKey === 'blue' ? '#2563eb' : '#94a3b8';
+                const statusLabel = a.disabled ? 'معطلة' : ((STATUS[a.status] || STATUS.offline).label);
+                return '<tr><td>' + escapeHtml(a.name) + '</td><td dir="ltr">' + escapeHtml(a.plate || '—') + '</td><td><span class="report-color-dot" style="background:' + dot + '"></span>' + escapeHtml(colorLabel) + '</td><td>' + escapeHtml(statusLabel) + '</td><td>' + escapeHtml(a.driver || '—') + '</td><td>' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</td></tr>';
+            }).join('');
+        }
+
+        function exportColorStatusReport() {
+            const rows = reportRows(colorReportFilter);
+            if (!rows.length) { if (typeof showToast === 'function') showToast('لا توجد مركبات في التصنيف الحالي', 'info'); return; }
+            const data = [['المركبة','اللوحة','اللون','الحالة','السائق','آخر إشارة']];
+            rows.forEach(a => data.push([a.name, a.plate, a.colorLabel || (a.colorKey === 'black' ? 'أسود' : a.colorKey === 'blue' ? 'أزرق' : 'غير محدد'), a.disabled ? 'معطلة' : ((STATUS[a.status] || STATUS.offline).label), a.driver, timeAgo(a.lastUpdate, a.age)]));
+            const csv = '\ufeff' + data.map(row => row.map(v => '"' + String(v ?? '').replaceAll('"','""') + '"').join(',')).join('\n');
+            const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'})); link.download = 'كشف_التتبع_الالوان_والمعطلة_' + new Date().toISOString().slice(0,10) + '.csv'; link.click(); URL.revokeObjectURL(link.href);
         }
 
         function followVehicle(id) {
