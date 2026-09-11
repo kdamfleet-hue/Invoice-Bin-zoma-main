@@ -8,7 +8,7 @@ import qrcode
 from datetime import datetime, date
 from flask import Blueprint, render_template, session, request, jsonify, send_file, current_app
 from helpers import login_required, role_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id, _audit_add
-from models.schema import db, Driver, Vehicle, VehicleCustody
+from models.schema import db, Driver, Vehicle, VehicleCustody, Document
 from models.database import db_connection
 from sqlalchemy.exc import IntegrityError
 
@@ -133,8 +133,10 @@ def api_driver_vehicle_options():
     branch_id = current_branch_id()
     drivers = Driver.query.filter_by(branch_id=branch_id).order_by(Driver.name.asc()).all()
     vehicles = Vehicle.query.filter_by(branch_id=branch_id).order_by(Vehicle.plate_number.asc()).all()
-    active_by_driver = {c.driver_id: c.vehicle_id for c in VehicleCustody.query.filter_by(status="active").all()}
-    active_by_vehicle = {c.vehicle_id: c.driver_id for c in VehicleCustody.query.filter_by(status="active").all()}
+    active_custodies = VehicleCustody.query.filter_by(status="active").all()
+    active_by_driver = {c.driver_id: c.vehicle_id for c in active_custodies}
+    active_by_vehicle = {c.vehicle_id: c.driver_id for c in active_custodies}
+    driver_names = {d.id: d.name for d in drivers}
     return jsonify({"success": True, "drivers": [{
         "id": d.id, "employee_id": d.employee_id or "", "name": d.name or "",
         "iqama": d.iqama_number or "", "phone": d.phone or "", "job": d.job_title or "",
@@ -146,7 +148,8 @@ def api_driver_vehicle_options():
         "pallets": v.pallets or "", "load_capacity": v.load_capacity or "", "serial_number": v.serial_number or "",
         "inspection_expiry": v.inspection_expiry.isoformat() if v.inspection_expiry else "",
         "istimara_expiry": v.istimara_expiry.isoformat() if v.istimara_expiry else "",
-        "operation_card": v.opcard.isoformat() if v.opcard else "", "active_driver_id": active_by_vehicle.get(v.id)
+        "operation_card": v.opcard.isoformat() if v.opcard else "", "active_driver_id": active_by_vehicle.get(v.id),
+        "active_driver_name": driver_names.get(active_by_vehicle.get(v.id), "")
     } for v in vehicles]})
 
 
@@ -164,21 +167,30 @@ def api_driver_vehicle_transfer():
     reason = str(data.get("reason") or "").strip()
     if len(reason) < 5:
         return jsonify({"success": False, "error": "سبب النقل مطلوب (5 أحرف على الأقل)."}), 400
+    confirm_conflict = bool(data.get("confirm_conflict"))
     branch_id = current_branch_id()
-    driver = Driver.query.filter_by(id=driver_id, branch_id=branch_id).first()
-    vehicle = Vehicle.query.filter_by(id=vehicle_id, branch_id=branch_id).first()
+    # Lock the master rows and active custody rows in one transaction. This serializes
+    # two simultaneous transfers touching the same driver or vehicle.
+    driver = Driver.query.filter_by(id=driver_id, branch_id=branch_id).with_for_update().first()
+    vehicle = Vehicle.query.filter_by(id=vehicle_id, branch_id=branch_id).with_for_update().first()
     if not driver or not vehicle:
         return jsonify({"success": False, "error": "السائق أو المركبة غير موجود ضمن الفرع الحالي."}), 404
-    active_driver = VehicleCustody.query.filter_by(driver_id=driver.id, status="active").first()
+    active_driver = VehicleCustody.query.filter_by(driver_id=driver.id, status="active").with_for_update().first()
+    active_vehicle = VehicleCustody.query.filter_by(vehicle_id=vehicle.id, status="active").with_for_update().first()
     if active_driver and active_driver.vehicle_id == vehicle.id:
         return jsonify({"success": False, "error": "السائق مرتبط بهذه المركبة بالفعل."}), 400
+    if active_vehicle and active_vehicle.driver_id != driver.id and not confirm_conflict:
+        current_driver = Driver.query.get(active_vehicle.driver_id)
+        return jsonify({"success": False, "conflict": True, "error": "المركبة مرتبطة بسائق آخر. يلزم تأكيد إنهاء العهدة الحالية.", "current_driver": current_driver.name if current_driver else "غير معروف"}), 409
     today = date.today()
     history_note = f"نقل/تغيير العهدة: {reason}"
-    for custody in VehicleCustody.query.filter_by(driver_id=driver.id, status="active").all():
+    driver_custodies = VehicleCustody.query.filter_by(driver_id=driver.id, status="active").with_for_update().all()
+    vehicle_custodies = VehicleCustody.query.filter_by(vehicle_id=vehicle.id, status="active").with_for_update().all()
+    for custody in driver_custodies:
         custody.status = "returned"
         custody.returned_date = today
         custody.notes = ((custody.notes or "") + "\n" + history_note).strip()
-    for custody in VehicleCustody.query.filter_by(vehicle_id=vehicle.id, status="active").all():
+    for custody in vehicle_custodies:
         custody.status = "returned"
         custody.returned_date = today
         custody.notes = ((custody.notes or "") + "\n" + history_note).strip()
@@ -191,6 +203,71 @@ def api_driver_vehicle_transfer():
         db.session.rollback()
         logger.exception("driver vehicle transfer failed")
         return jsonify({"success": False, "error": "تعذر حفظ عملية النقل."}), 500
+
+
+_CUSTODY_DOC_ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
+_CUSTODY_DOC_TYPES = {
+    "driver_card": ("employee", "بطاقة السائق"),
+    "iqama": ("employee", "الإقامة"),
+    "inspection": ("vehicle", "الفحص الدوري"),
+    "istimara": ("vehicle", "رخصة السير"),
+    "operation_card": ("vehicle", "بطاقة التشغيل"),
+}
+
+
+@fleet_bp.route("/api/driver-vehicle-documents", methods=["GET", "POST"])
+@login_required
+@role_required("admin", "operations")
+def api_driver_vehicle_documents():
+    branch_id = current_branch_id()
+    if request.method == "GET":
+        driver_id = str(request.args.get("driver_id") or "")
+        vehicle_id = str(request.args.get("vehicle_id") or "")
+        docs = Document.query.filter_by(branch_id=branch_id).filter(
+            ((Document.entity_type == "employee") & (Document.entity_ref == driver_id)) |
+            ((Document.entity_type == "vehicle") & (Document.entity_ref == vehicle_id))
+        ).order_by(Document.id.desc()).all()
+        return jsonify({"success": True, "documents": [{
+            "id": d.id, "entity_type": d.entity_type, "entity_ref": d.entity_ref,
+            "doc_type": d.doc_type, "mime": d.mime_type, "size": d.file_size,
+            "url": f"/api/documents/{d.id}/file"
+        } for d in docs]})
+
+    data = request.get_json(silent=True) or {}
+    kind = str(data.get("kind") or "")
+    entity_type, doc_type = _CUSTODY_DOC_TYPES.get(kind, (None, None))
+    if not entity_type:
+        return jsonify({"success": False, "error": "نوع الوثيقة غير مدعوم."}), 400
+    try:
+        entity_id = int(data.get("entity_id"))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "مرجع الوثيقة غير صحيح."}), 400
+    entity = (Driver.query.filter_by(id=entity_id, branch_id=branch_id).first() if entity_type == "employee"
+              else Vehicle.query.filter_by(id=entity_id, branch_id=branch_id).first())
+    if not entity:
+        return jsonify({"success": False, "error": "السجل غير موجود ضمن الفرع الحالي."}), 404
+    file_data = str(data.get("data") or "")
+    mime = str(data.get("mime") or "").lower().strip()
+    if not file_data.startswith("data:") or mime not in _CUSTODY_DOC_ALLOWED_MIME:
+        return jsonify({"success": False, "error": "يسمح فقط بصور JPG/PNG/WebP أو PDF."}), 400
+    if len(file_data) * 3 // 4 > 2.5 * 1024 * 1024:
+        return jsonify({"success": False, "error": "حجم الوثيقة يتجاوز 2.5 ميجابايت."}), 400
+    try:
+        from app import _sniff_ok
+        if not _sniff_ok(file_data, mime):
+            return jsonify({"success": False, "error": "محتوى الملف لا يطابق نوعه."}), 400
+        new_doc = Document(branch_id=branch_id, doc_type=doc_type, entity_type=entity_type,
+                           entity_ref=str(entity_id), file_data=file_data, mime_type=mime,
+                           file_size=len(file_data) * 3 // 4, file_path="base64",
+                           upload_date=date.today())
+        db.session.add(new_doc)
+        db.session.commit()
+        _audit_add("رفع وثيقة عهدة", f"{doc_type} للكيان {entity_id}", None, "رفع وثيقة من شاشة العهدة")
+        return jsonify({"success": True, "id": new_doc.id, "url": f"/api/documents/{new_doc.id}/file"})
+    except Exception:
+        db.session.rollback()
+        logger.exception("custody document upload failed")
+        return jsonify({"success": False, "error": "تعذر حفظ الوثيقة."}), 500
 
 
 def _data_quality_report(branch_id):
@@ -820,7 +897,7 @@ def api_force_db_fix():
 @login_required
 def api_sync_live_numbers_data():
     try:
-        from models.schema import db, Driver, Vehicle, VehicleCustody
+        from models.schema import db, Driver, Vehicle, VehicleCustody, Document
         import json
         import os
         from datetime import date
@@ -1028,7 +1105,7 @@ def api_master_data():
 @login_required
 def api_master_data_update():
     try:
-        from models.schema import db, Driver, Vehicle, VehicleCustody
+        from models.schema import db, Driver, Vehicle, VehicleCustody, Document
         data = request.json
         driver_id = data.get("id")
         field = data.get("field")

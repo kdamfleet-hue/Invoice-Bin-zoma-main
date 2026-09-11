@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, send_file
-from helpers import login_required, DOC_TYPES
+from helpers import login_required, DOC_TYPES, current_branch_id
 from models.schema import db, Document
 import io
 import datetime
@@ -27,7 +27,7 @@ def _b64_size(b64_str):
 @login_required
 def api_documents_delete(doc_id):
     try:
-        doc = Document.query.get(doc_id)
+        doc = Document.query.filter_by(id=doc_id, branch_id=current_branch_id()).first()
         if not doc:
             return jsonify({"success": False, "error": "غير موجود."}), 404
         
@@ -42,7 +42,7 @@ def api_documents_delete(doc_id):
 @api_docs_bp.route("/api/documents/<int:doc_id>/file")
 @login_required
 def api_documents_file(doc_id):
-    doc = Document.query.get(doc_id)
+    doc = Document.query.filter_by(id=doc_id, branch_id=current_branch_id()).first()
     if not doc or not doc.file_data:
         return "Not found", 404
     
