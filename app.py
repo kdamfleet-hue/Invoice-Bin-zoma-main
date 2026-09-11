@@ -1403,10 +1403,11 @@ def generate_invoice():
 
 @app.route("/api/employees", methods=["GET", "POST"])
 @login_required
-@role_required("admin")
 def employees_data():
     """Persist the branch employees grid using the hybrid SQL hr_employees table."""
     if request.method == "POST":
+        if session.get("role", "viewer") != "admin":
+            return jsonify({"success": False, "error": "غير مصرح لك (Forbidden)"}), 403
         try:
             req_data = request.json or {}
             reason = req_data.get("reason")

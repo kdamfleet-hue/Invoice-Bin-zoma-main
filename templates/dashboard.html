@@ -530,14 +530,14 @@
     return getJSON('/api/employees').then(function (j) {
       var rows = (j && j.rows) ? j.rows : [];
       if (rows.length || WS) return rows;
-      return getJSON('/static/employees_default.json').then(function (f) { return Array.isArray(f) ? f : []; });
+      return Promise.resolve([]);
     });
   }
   function loadSchedule() {
     return getJSON('/api/schedule_data').then(function (j) {
       var d = (j && j.data) ? j.data : null;
       if ((d && ((d.main && d.main.length) || (d.spare && d.spare.length))) || WS) return d || { main: [], spare: [], vacation: [], summary: {} };
-      return getJSON('/static/schedule_data.json').then(function (f) { return f || { main: [], spare: [], vacation: [], summary: {} }; });
+      return Promise.resolve({ main: [], spare: [], vacation: [], summary: {} });
     });
   }
   function loadWashing() {

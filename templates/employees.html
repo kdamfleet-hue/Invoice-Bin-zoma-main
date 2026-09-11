@@ -500,18 +500,7 @@
                 if (window.showToast) showToast('تعذّر تحميل بيانات الموظفين من الخادم — لا تحفظ قبل إعادة تحميل الصفحة.', 'error');
             }
 
-            // 2) Static seed file — skipped in WS, and skipped whenever the server answered
-            if (!serverLoadOk && (!rows || rows.length === 0) && !WS) {
-                try {
-                    const res = await fetch('/static/employees_default.json');
-                    if (res.ok) {
-                        const json = await res.json();
-                        if (Array.isArray(json) && json.length) rows = json;
-                    }
-                } catch (e) { /* ignore */ }
-            }
-
-            // 3) Local cache fallback — skipped in WS, and skipped whenever the server answered
+            // 2) Local cache fallback — skipped in WS, and skipped whenever the server answered
             if (!serverLoadOk && (!rows || rows.length === 0) && !WS) {
                 try {
                     const saved = localStorage.getItem(LS_EMPLOYEES_KEY);

@@ -428,8 +428,7 @@
                 inputEl.focus();
             }
 
-            // Load employees: server first, then static seed file.
-            // In the workstation the static seed is SKIPPED so the tab starts EMPTY.
+            // Load employees from the authenticated server API only.
             function loadData() {
                 fetch('/api/employees', { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.ok ? r.json() : null; })
@@ -439,18 +438,11 @@
                             return;
                         }
                         if (WS) { activate([]); return; } // workstation: empty start, no static seed
-                        // Fallback to the static seed file (main site only).
-                        fetch('/static/employees_default.json')
-                            .then(function (r) { return r.ok ? r.json() : []; })
-                            .then(function (rows) { activate(rows); })
-                            .catch(loadFailed);
+                        loadFailed();
                     })
                     .catch(function () {
                         if (WS) { activate([]); return; } // workstation: empty start even on error
-                        fetch('/static/employees_default.json')
-                            .then(function (r) { return r.ok ? r.json() : []; })
-                            .then(function (rows) { activate(rows); })
-                            .catch(loadFailed);
+                        loadFailed();
                     });
             }
 
