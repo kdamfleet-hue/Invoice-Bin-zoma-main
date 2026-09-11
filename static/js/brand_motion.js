@@ -28,7 +28,8 @@
       return;
     }
     if (skip) skip.addEventListener('click', dismiss);
-    window.setTimeout(dismiss, 6200);
+    // The transparent WebP is encoded at 48 × 146 ms ≈ 7 seconds.
+    window.setTimeout(dismiss, 7000);
   }
 
   function initPageMotion() {
