@@ -195,11 +195,12 @@
         if (flag) return;
 
         // Get display name from the page or session. Empty means no real name is on file yet
-        // (master admin / kiosk / branch logins, or a DB account nobody has named) — show a
-        // generic greeting rather than the raw login username, and offer to set a real one.
+        // (master admin / kiosk / branch logins, or a DB account nobody has named). Never show
+        // a bare "write your name" instruction as if it WERE the name — fall back to a
+        // respectful role-based title so the greeting always reads as a real greeting, and
+        // offer a small, optional way to personalize it instead.
         const nameEl = document.querySelector('[data-welcome-name]');
         const realName = (nameEl ? nameEl.getAttribute('data-welcome-name') : '') || '';
-        const displayName = realName || 'بك';
         const esc = window._bzEscHtml || (s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
 
         sessionStorage.setItem('bz_welcomed', '1');
@@ -214,8 +215,16 @@
             'viewer': 'مشاهد',
             'kiosk': 'كشك'
         };
+        const roleNameFallback = {
+            'admin': 'الإدارة',
+            'branch_manager': 'مدير الفرع',
+            'data_entry': 'فريق إدخال البيانات',
+            'viewer': 'زائر',
+            'kiosk': 'كشك التشغيل'
+        };
 
         const roleText = roleLabels[displayRole] || displayRole || '';
+        const displayName = realName || roleNameFallback[displayRole] || 'بك';
 
         // Time-based greeting: مساء الخير only genuinely applies from noon onward.
         const hour = new Date().getHours();
@@ -228,9 +237,8 @@
             <div class="bz-welcome-particles" id="bzWelcomeParticles"></div>
             <img src="/static/nav_logo.png" alt="" class="bz-welcome-logo" />
             <span class="bz-welcome-greeting">${greeting} 👋</span>
-            <span class="bz-welcome-name">${esc(displayName)}</span>
+            <span class="bz-welcome-name">${esc(displayName)}${!realName ? `<button type="button" class="bz-welcome-editname" title="تعديل الاسم الظاهر" aria-label="تعديل الاسم الظاهر">✏️</button>` : ''}</span>
             ${roleText ? `<span class="bz-welcome-role">${esc(roleText)} — شركة بن زومة الدولية</span>` : ''}
-            ${!realName ? `<button type="button" class="bz-welcome-editname">✏️ أضف اسمك هنا</button>` : ''}
             <div class="bz-welcome-bar"><div class="bz-welcome-bar-fill"></div></div>
         `;
         document.body.appendChild(overlay);
@@ -240,7 +248,7 @@
             if (editBtn) {
                 editBtn.addEventListener('click', (ev) => {
                     ev.stopPropagation();
-                    const name = window.prompt('اكتب اسمك ليظهر في الترحيب بدل اسم المستخدم:', '');
+                    const name = window.prompt('اكتب اسمك ليظهر في ترحيبك القادم:', '');
                     if (!name || !name.trim()) return;
                     fetch('/api/my_display_name', {
                         method: 'POST',
