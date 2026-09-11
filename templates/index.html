@@ -1,85 +1,127 @@
 {% extends 'base.html' %}
-{% block title %}لوحة القيادة المركزية | شركة بن زومة{% endblock %}
-{% block page_heading %}مركز التشغيل الموحد{% endblock %}
+{% block title %}{{ home_profile.title }} | شركة بن زومة{% endblock %}
+{% block page_heading %}{{ home_profile.title }}{% endblock %}
 {% block head %}
-    <meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
-    <script>
-      const m = document.getElementById("bz-meta");
-      if(m) { window.BZ_BRANCH_ID = parseInt(m.getAttribute("data-branch-id") || "0", 10); window.BZ_BRANCH = m.getAttribute("data-branch") || ""; window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || ""; }
-    </script>
+  <meta id="bz-meta" data-branch-id="{{ active_branch_id }}" data-branch="{{ active_branch }}" data-snap-tab="{{ snap_tab }}">
+  <script>
+    const m = document.getElementById('bz-meta');
+    if (m) {
+      window.BZ_BRANCH_ID = parseInt(m.getAttribute('data-branch-id') || '0', 10);
+      window.BZ_BRANCH = m.getAttribute('data-branch') || '';
+      window.BZ_SNAP_TAB = m.getAttribute('data-snap-tab') || '';
+    }
+  </script>
 {% endblock %}
 {% block extra_css %}
 <style>
- .home-truth-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 18px}.home-truth-card{background:rgba(16,31,43,.78);border:1px solid rgba(197,160,89,.2);border-radius:14px;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;gap:12px}.home-truth-card b{display:block;color:#f3e6c3;font-size:.82rem}.home-truth-card small{display:block;color:#91a2ad;font-size:.68rem;margin-top:3px}.home-truth-value{font-family:Cairo,sans-serif;font-size:1.2rem;font-weight:700;color:#72d9bd;white-space:nowrap}.home-truth-value.warn{color:#f2bd70}.home-truth-value.bad{color:#ef837c}
- .home-analytics-strip{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:12px;margin:0 0 18px}.home-analytics-card{background:linear-gradient(145deg,rgba(18,39,63,.88),rgba(9,24,42,.82));border:1px solid rgba(200,164,93,.18);border-radius:16px;padding:16px;min-height:128px;box-shadow:0 16px 38px rgba(2,9,18,.16)}.home-analytics-card h3{margin:0;color:#f7f5ef;font:800 1rem Cairo,sans-serif}.home-analytics-card p{margin:5px 0 12px;color:#9eabc0;font-size:.72rem}.home-analytics-value{display:flex;align-items:end;gap:5px;color:#f0d28a;font:800 2rem Cairo,sans-serif}.home-analytics-value small{font-size:.72rem;color:#9eabc0;margin-bottom:6px}.home-progress{height:8px;background:rgba(255,255,255,.08);border-radius:20px;overflow:hidden}.home-progress i{display:block;height:100%;width:var(--progress,0%);border-radius:inherit;background:linear-gradient(90deg,#b78c3d,#f0d28a);transition:width .45s ease}.home-insight-switch{display:flex;align-items:center;gap:8px;margin:0 0 12px}.home-insight-switch label{color:#9eabc0;font-size:.74rem}.home-insight-switch select{min-width:190px;padding:8px 11px;border-radius:10px;border:1px solid rgba(200,164,93,.25);background:rgba(6,18,32,.72);color:#f7f5ef;font:700 .76rem Cairo,sans-serif}.home-command-card{display:flex;flex-direction:column;gap:13px}.home-command-form{display:grid;grid-template-columns:1fr auto;gap:8px}.home-command-form select{min-width:0;padding:11px 12px;border:1px solid rgba(200,164,93,.25);border-radius:11px;background:#0b1b2e;color:#f7f5ef;font:700 .8rem Cairo,sans-serif}.home-command-form button{padding:10px 16px;border:1px solid #e7cb86;border-radius:11px;background:linear-gradient(135deg,#b78c3d,#e6c878);color:#101b29;font:800 .78rem Cairo,sans-serif;cursor:pointer}.home-command-hint{color:#9eabc0;font-size:.72rem;line-height:1.7}.home-command-signal{display:flex;gap:9px;align-items:center;padding:11px 12px;border:1px solid rgba(114,215,168,.18);border-radius:11px;background:rgba(114,215,168,.06);color:#b9e9d1;font-size:.73rem}.home-command-signal i{width:8px;height:8px;border-radius:50%;background:#72d9bd;box-shadow:0 0 0 5px rgba(114,215,189,.10)}
- @media(max-width:900px){.home-analytics-strip{grid-template-columns:1fr 1fr}.home-analytics-card:first-child{grid-column:1/-1}}@media(max-width:600px){.home-truth-strip,.home-analytics-strip{grid-template-columns:1fr}.home-analytics-card:first-child{grid-column:auto}.home-command-form{grid-template-columns:1fr}.home-command-form button{width:100%}}
+  .role-home{--rh-navy:#09172a;--rh-panel:rgba(13,31,53,.88);--rh-line:rgba(171,190,210,.18);--rh-text:#eef4fb;--rh-muted:#a8b7c9;--rh-gold:#e1c36a;--rh-mint:#65d6bb;--rh-danger:#f0948e;max-width:1280px;margin:0 auto;color:var(--rh-text)}
+  .role-hero{display:grid;grid-template-columns:1.35fr .65fr;gap:22px;align-items:center;min-height:230px;padding:30px 34px;border:1px solid rgba(225,195,106,.26);border-radius:22px;background:radial-gradient(circle at 14% 10%,rgba(101,214,187,.14),transparent 29%),linear-gradient(124deg,rgba(12,31,55,.96),rgba(5,17,32,.97));overflow:hidden}
+  .role-eyebrow{display:flex;align-items:center;gap:8px;color:var(--rh-mint);font:800 .78rem Cairo,sans-serif;letter-spacing:.04em}.role-eyebrow i{width:8px;height:8px;border-radius:50%;background:var(--rh-mint);box-shadow:0 0 0 6px rgba(101,214,187,.11)}
+  .role-hero h1{margin:10px 0 8px;color:#fff;font:800 clamp(1.7rem,3.5vw,2.55rem) Cairo,sans-serif}.role-hero p{max-width:690px;margin:0;color:#c6d4e4;line-height:1.9;font-size:.93rem}.role-context{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.role-context span{padding:6px 10px;border:1px solid var(--rh-line);border-radius:999px;color:#cbd7e5;background:rgba(255,255,255,.035);font-size:.72rem}
+  .role-primary{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:14px;min-height:150px;padding:22px;border-right:1px solid var(--rh-line)}.role-primary small{color:var(--rh-muted);font-size:.73rem}.role-primary a{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border-radius:13px;background:linear-gradient(135deg,#c6a046,#f0d884);color:#122033;text-decoration:none;font:800 .88rem Cairo,sans-serif;box-shadow:0 11px 26px rgba(0,0,0,.2);transition:transform .16s ease,filter .16s ease}.role-primary a:hover{transform:translateY(-2px);filter:brightness(1.04)}.role-primary a svg{width:20px;height:20px}
+  .role-status{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:16px 0;padding:13px 17px;border:1px solid rgba(101,214,187,.2);border-radius:14px;background:rgba(101,214,187,.06)}.role-status.is-alert{border-color:rgba(240,148,142,.3);background:rgba(240,148,142,.07)}.role-status-copy{display:flex;align-items:center;gap:11px}.role-status-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:rgba(101,214,187,.13);color:var(--rh-mint)}.is-alert .role-status-icon{color:var(--rh-danger);background:rgba(240,148,142,.12)}.role-status b{display:block;font:800 .82rem Cairo,sans-serif}.role-status small{display:block;margin-top:2px;color:var(--rh-muted);font-size:.72rem}.role-status a{color:var(--rh-gold);font:800 .76rem Cairo,sans-serif;text-decoration:none;white-space:nowrap}
+  .role-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:18px}.role-metric{position:relative;min-height:145px;padding:18px;text-decoration:none;color:var(--rh-text);border:1px solid var(--rh-line);border-radius:16px;background:linear-gradient(145deg,rgba(18,39,63,.9),rgba(8,23,42,.9));overflow:hidden;transition:transform .16s ease,border-color .16s ease}.role-metric:hover{transform:translateY(-2px);border-color:rgba(225,195,106,.5)}.role-metric-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.role-metric-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:rgba(225,195,106,.12);color:var(--rh-gold)}.role-metric-icon svg{width:19px;height:19px}.role-metric.tone-mint .role-metric-icon{background:rgba(101,214,187,.12);color:var(--rh-mint)}.role-metric.tone-danger .role-metric-icon{background:rgba(240,148,142,.12);color:var(--rh-danger)}.role-metric-label{color:#d9e4ef;font:700 .78rem Cairo,sans-serif}.role-metric strong{display:block;margin-top:18px;color:#fff;font:800 2rem Cairo,sans-serif}.role-metric small{display:block;margin-top:3px;color:var(--rh-muted);font-size:.7rem}.role-metric .role-arrow{position:absolute;left:17px;bottom:17px;color:var(--rh-muted);font-size:1rem}
+  .role-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:16px}.role-panel{padding:21px;border:1px solid var(--rh-line);border-radius:17px;background:rgba(10,25,45,.78)}.role-panel-heading{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:13px}.role-panel-heading span{display:block;color:var(--rh-gold);font:800 .68rem Cairo,sans-serif;letter-spacing:.05em}.role-panel-heading h2{margin:3px 0 0;color:#fff;font:800 1.12rem Cairo,sans-serif}.role-panel-heading a{color:var(--rh-mint);font:700 .72rem Cairo,sans-serif;text-decoration:none;white-space:nowrap}
+  .role-task-list{display:grid;gap:8px}.role-task{display:flex;align-items:center;gap:11px;padding:12px 0;text-decoration:none;color:inherit;border-bottom:1px solid rgba(171,190,210,.12)}.role-task:last-child{border-bottom:0}.role-task-index{display:grid;place-items:center;flex:0 0 auto;width:27px;height:27px;border-radius:9px;background:rgba(225,195,106,.12);color:var(--rh-gold);font:800 .72rem Cairo,sans-serif}.role-task-copy{flex:1;min-width:0}.role-task b{display:block;color:#e9f0f8;font:700 .82rem Cairo,sans-serif}.role-task small{display:block;overflow:hidden;margin-top:2px;color:var(--rh-muted);font-size:.7rem;text-overflow:ellipsis;white-space:nowrap}.role-task svg{width:17px;height:17px;color:var(--rh-mint)}
+  .role-workspaces{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.role-workspace{display:flex;align-items:center;gap:11px;min-height:76px;padding:13px;text-decoration:none;color:inherit;border:1px solid rgba(171,190,210,.13);border-radius:12px;background:rgba(255,255,255,.025);transition:background .16s ease,border-color .16s ease}.role-workspace:hover{background:rgba(225,195,106,.07);border-color:rgba(225,195,106,.38)}.role-workspace-icon{display:grid;place-items:center;flex:0 0 auto;width:34px;height:34px;border-radius:10px;background:rgba(101,214,187,.1);color:var(--rh-mint)}.role-workspace-icon svg{width:18px;height:18px}.role-workspace b{display:block;color:#ecf2f8;font:700 .77rem Cairo,sans-serif}.role-workspace small{display:block;margin-top:3px;color:var(--rh-muted);font-size:.66rem}
+  .role-truth{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}.role-truth-item{padding:13px;border-top:1px solid rgba(225,195,106,.35);background:rgba(9,23,42,.56)}.role-truth-item b{display:block;color:#e6d39e;font:700 .74rem Cairo,sans-serif}.role-truth-item small{display:block;margin-top:5px;color:var(--rh-muted);font-size:.68rem;line-height:1.6}.role-truth-item strong{display:block;margin-top:5px;color:var(--rh-mint);font:800 .82rem Cairo,sans-serif}.role-truth-item strong.warn{color:#f2bd70}.role-truth-item strong.bad{color:var(--rh-danger)}
+  .role-footnote{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 2px 2px;color:var(--rh-muted);font-size:.72rem}.role-footnote a{color:var(--rh-gold);font:800 .72rem Cairo,sans-serif;text-decoration:none}.role-push{border:0;background:transparent;color:var(--rh-muted);cursor:pointer;font:inherit}.role-push:hover{color:var(--rh-mint)}
+  @media(max-width:900px){.role-hero{grid-template-columns:1fr}.role-primary{border-right:0;border-top:1px solid var(--rh-line);padding:16px 0 0;min-height:auto}.role-grid{grid-template-columns:1fr}.role-truth{grid-template-columns:1fr 1fr}}
+  @media(max-width:620px){.role-home{margin-inline:-4px}.role-hero{padding:22px 18px;border-radius:16px}.role-metrics{grid-template-columns:1fr}.role-metric{min-height:112px}.role-metric strong{margin-top:10px}.role-status{align-items:start}.role-status a{padding-top:4px}.role-workspaces{grid-template-columns:1fr}.role-truth{grid-template-columns:1fr}.role-panel{padding:17px}.role-footnote{align-items:start;flex-direction:column}.role-context span{font-size:.67rem}}
+  @media(prefers-reduced-motion:reduce){.role-primary a,.role-metric,.role-workspace{transition:none}}
 </style>
 {% endblock %}
 {% block content %}
-<div class="home-dashboard">
-  <section class="home-hero">
-    <div class="home-hero-copy">
-      <div class="home-eyebrow"><span class="home-live-dot"></span> LIVE OPERATIONS <span>•</span> {{ active_branch|default('فرع الدمام') }}</div>
-      <h1>نظام إدارة الأسطول</h1>
-      <p>نظرة تشغيلية موحدة تساعدك على متابعة المركبات والموظفين والتنبيهات من مكان واحد.</p>
+<div class="role-home" data-role-home="{{ home_profile.key }}">
+  <section class="role-hero" aria-labelledby="roleHomeTitle">
+    <div>
+      <div class="role-eyebrow"><i></i> مساحة عمل موجهة بالدور · {{ active_branch|default('فرع الدمام') }}</div>
+      <h1 id="roleHomeTitle">أهلًا {{ session.get('display_name') or 'بك' }}، {{ home_profile.title }}</h1>
+      <p>{{ home_profile.description }}</p>
+      <div class="role-context"><span>دورك: {{ home_profile.role_label }}</span><span>البيانات ضمن نطاق صلاحياتك</span></div>
     </div>
-    <button id="enablePushBtn" class="btn-neon success home-push-btn" onclick="subscribePush()"><i data-lucide="bell"></i> تفعيل الإشعارات المباشرة</button>
+    <div class="role-primary">
+      <small>المهمة التالية</small>
+      <a href="{{ home_profile.primary.href }}" data-ux-primary-cta><i data-lucide="{{ home_profile.primary.icon }}"></i>{{ home_profile.primary.label }}</a>
+    </div>
   </section>
 
-  <section class="home-kpi-grid" aria-label="المؤشرات الرئيسية">
-    <button class="home-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_drivers')"><span class="home-kpi-icon gold"><i data-lucide="users"></i></span><span class="home-kpi-label">إجمالي الموظفين والسائقين</span><strong class="count-up" data-count="{{ total_drivers|default(0) }}">{{ total_drivers|default(0) }}</strong><small>العدد التشغيلي الموحد <b>↗</b></small></button>
-    <button class="home-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('total_vehicles')"><span class="home-kpi-icon teal"><i data-lucide="truck"></i></span><span class="home-kpi-label">المركبات النشطة</span><strong class="count-up" data-count="{{ active_vehicles|default(0) }}">{{ active_vehicles|default(0) }}</strong><small>من مصدر المركبات الموحد <b>↗</b></small></button>
-    <button class="home-kpi alert-kpi" onclick="if(window.DeepLinkNavigator) DeepLinkNavigator.navigate('expired_documents')"><span class="home-kpi-icon red"><i data-lucide="alert-triangle"></i></span><span class="home-kpi-label">تنبيهات تحتاج إجراء</span><strong class="count-up" data-count="{{ urgent_alerts|default(0) }}">{{ urgent_alerts|default(0) }}</strong><small>وثائق أو حالات عاجلة <b>↗</b></small></button>
+  {% if urgent_alerts|int > 0 %}
+  <section class="role-status is-alert" aria-label="حالة تتطلب إجراء">
+    <div class="role-status-copy"><span class="role-status-icon"><i data-lucide="triangle-alert"></i></span><span><b>{{ urgent_alerts }} تنبيهًا يحتاج متابعة</b><small>ركز على الاستثناءات أولًا ثم انتقل لبقية العمل.</small></span></div>
+    <a href="/alerts">عرض التنبيهات ←</a>
   </section>
-  {% if truth_center %}
-  <section class="home-truth-strip" aria-label="مركز الحقيقة التشغيلية">
-    <article class="home-truth-card"><div><b>توحيد الأفراد</b><small>السائقون {{ truth_center.people.drivers }} · الموظفون {{ truth_center.people.employees }} · المصدران للقراءة فقط</small></div><span class="home-truth-value{% if truth_center.people.gap %} warn{% endif %}">{{ truth_center.people.status }}</span></article>
-    <article class="home-truth-card"><div><b>صحة GPS</b><small>{% if truth_center.gps_health.last_vehicle_count is not none %}آخر قراءة: {{ truth_center.gps_health.last_vehicle_count }} مركبة{% else %}لا توجد قراءة GPS حديثة{% endif %}</small></div><span class="home-truth-value{% if truth_center.gps_health.state in ['stale','error'] %} bad{% elif truth_center.gps_health.state != 'healthy' %} warn{% endif %}">{{ truth_center.gps_health.label }}</span></article>
-    <article class="home-truth-card"><div><b>الإجراءات المفتوحة</b><small>وثائق {{ truth_center.operational_alerts.documents }} · جودة بيانات {{ truth_center.operational_alerts.quality }}</small></div><span class="home-truth-value{% if truth_center.operational_alerts.open %} warn{% endif %}">{{ truth_center.operational_alerts.open }}</span></article>
+  {% else %}
+  <section class="role-status" aria-label="حالة مستقرة">
+    <div class="role-status-copy"><span class="role-status-icon"><i data-lucide="circle-check"></i></span><span><b>لا توجد تنبيهات حرجة الآن</b><small>يمكنك البدء بالمهمة الرئيسية أو متابعة مساحات العمل.</small></span></div>
+    <a href="{{ home_profile.primary.href }}">فتح المهمة التالية ←</a>
   </section>
   {% endif %}
 
-  <div class="home-insight-switch" aria-label="عدسة التحليل"><label for="homeInsightLens">عرض التحليل حسب</label><select id="homeInsightLens"><option value="all">كل المؤشرات</option><option value="risk">السلامة والتنبيهات</option><option value="fleet">الأسطول والحركة</option><option value="people">الأفراد والموارد</option></select></div>
-  <section class="home-analytics-strip" id="homeAnalyticsStrip" aria-label="التحليل السريع">
-    <article class="home-analytics-card home-insight" data-lens="risk"><h3>مؤشر الضغط التشغيلي</h3><p>نسبة التنبيهات العاجلة مقارنة بحجم التشغيل</p><div class="home-analytics-value"><span id="homeRiskScore">0%</span><small id="homeRiskLabel">مستقر</small></div><div class="home-progress"><i id="homeRiskProgress" style="--progress:0%"></i></div></article>
-    <article class="home-analytics-card home-insight" data-lens="fleet"><h3>كثافة الأسطول</h3><p>المركبات النشطة لكل 10 أفراد في المركز</p><div class="home-analytics-value"><span id="homeFleetDensity">0</span><small>مركبة / 10 أفراد</small></div><div class="home-progress"><i id="homeFleetProgress" style="--progress:0%"></i></div></article>
-    <article class="home-analytics-card home-insight" data-lens="people"><h3>جاهزية البيانات</h3><p>اتساق سجلات الأفراد والمصادر التشغيلية</p><div class="home-analytics-value"><span id="homeDataReadiness">100%</span><small id="homeDataLabel">متصل</small></div><div class="home-progress"><i id="homeDataProgress" style="--progress:100%"></i></div></article>
-  </section>
-  <section class="home-content-grid">
-    <article class="glass-panel home-chart-card"><div class="home-panel-heading"><div><span class="home-kicker">ملخص الحالة</span><h2>صورة تشغيلية سريعة</h2></div><span class="home-panel-note">بيانات حية من الفرع</span></div><div class="home-chart-wrap"><canvas id="fleetChart"></canvas></div><div class="home-chart-footer"><span><i data-lucide="clock-3"></i> يتم تحديث المؤشرات تلقائيًا</span><a href="/fleet_dashboard">عرض التفاصيل <i data-lucide="arrow-left"></i></a></div></article>
-    <article class="glass-panel home-actions-card home-command-card"><div class="home-panel-heading"><div><span class="home-kicker">مشغل موحد</span><h2>انتقل بقرار واحد</h2></div><i data-lucide="command" class="home-panel-spark"></i></div><div class="home-command-form"><select id="homeCommandSelect" aria-label="اختر مساحة العمل"><option value="/fleet_dashboard">لوحة الأسطول — المركبات والتنبيهات</option><option value="/tracking">التتبع الحي — مواقع المركبات</option><option value="/schedule">الجدول الأسبوعي — توزيع الحركة</option><option value="/yard">إدارة الساحات — الدخول والخروج</option>{% if is_admin %}<option value="/employees">الموظفون — السجل الموحد</option>{% endif %}</select><button type="button" id="homeCommandOpen">فتح</button></div><div class="home-command-signal"><i></i><span>المؤشرات محدثة من مصادر النظام المتاحة — اختر مساحة العمل لمتابعة التفاصيل.</span></div><div class="home-command-hint">بدلًا من ازدحام الأزرار، يجمع المشغل الموحد أهم المسارات في قرار واحد قابل للبحث.</div></article>
-  </section>
-
-  <section class="home-events-card glass-panel" aria-labelledby="homeEventsTitle">
-    <div class="home-panel-heading home-events-heading"><div><span class="home-kicker">سجل النشاط</span><h2 id="homeEventsTitle">آخر أحداث الفواتير والعمليات</h2></div><div class="home-events-tools"><span class="home-panel-note" id="homeEventsStatus">جارٍ تحميل الأحداث…</span><a href="/audit-log" class="home-events-all">عرض السجل الكامل <i data-lucide="arrow-left"></i></a></div></div>
-    <div class="home-events-filters" role="tablist" aria-label="تصفية الأحداث"><button type="button" class="home-event-filter active" data-event-filter="all" role="tab" aria-selected="true">الكل</button><button type="button" class="home-event-filter" data-event-filter="invoice" role="tab" aria-selected="false">الفواتير</button><button type="button" class="home-event-filter" data-event-filter="operation" role="tab" aria-selected="false">العمليات</button></div>
-    <div id="homeEventsList" class="home-events-list" aria-live="polite"><div class="home-events-empty"><i data-lucide="loader-circle"></i><span>جارٍ تحميل آخر الأنشطة…</span></div></div>
+  {% set dashboard_stats = {'total_drivers': total_drivers|default(0), 'active_vehicles': active_vehicles|default(0), 'urgent_alerts': urgent_alerts|default(0)} %}
+  <section class="role-metrics" aria-label="مؤشرات {{ home_profile.role_label }}">
+    {% for metric in home_profile.metrics %}
+    <a class="role-metric tone-{{ metric.tone }}" href="{{ metric.href }}">
+      <div class="role-metric-head"><span class="role-metric-label">{{ metric.label }}</span><span class="role-metric-icon"><i data-lucide="{{ metric.icon }}"></i></span></div>
+      <strong>{{ dashboard_stats.get(metric.key, 0) }}</strong>
+      <small>{{ metric.detail }}</small><span class="role-arrow">←</span>
+    </a>
+    {% endfor %}
   </section>
 
-  <section class="home-section-heading"><div><span class="home-kicker">التشغيل اليومي</span><h2>كل ما تحتاجه في مكان واحد</h2></div><span>اختر قسمًا للانتقال مباشرة</span></section>
-  <section class="home-link-grid"><a href="/yard" class="home-link-card"><i data-lucide="warehouse"></i><span><b>إدارة الساحات</b><small>دخول وخروج المركبات</small></span><i data-lucide="arrow-left"></i></a><a href="/alerts" class="home-link-card warning-link"><i data-lucide="file-warning"></i><span><b>تنبيهات الوثائق</b><small>انتهاء الاستمارات والفحص</small></span><i data-lucide="arrow-left"></i></a><a href="/workshop" class="home-link-card"><i data-lucide="wrench"></i><span><b>الورشة</b><small>الصيانة والإصلاحات</small></span><i data-lucide="arrow-left"></i></a><a href="/fuel" class="home-link-card"><i data-lucide="fuel"></i><span><b>المحروقات</b><small>التموين والاستهلاك</small></span><i data-lucide="arrow-left"></i></a></section>
+  <section class="role-grid">
+    <article class="role-panel" aria-labelledby="roleTasksTitle">
+      <div class="role-panel-heading"><div><span>عملي الآن</span><h2 id="roleTasksTitle">ثلاث مهام تكفي للبدء</h2></div></div>
+      <div class="role-task-list">
+        {% for task in home_profile.tasks %}
+        <a class="role-task" href="{{ task.href }}"><span class="role-task-index">{{ loop.index }}</span><span class="role-task-copy"><b>{{ task.label }}</b><small>{{ task.note }}</small></span><i data-lucide="arrow-left"></i></a>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="role-panel" aria-labelledby="roleSpacesTitle">
+      <div class="role-panel-heading"><div><span>مساحات العمل</span><h2 id="roleSpacesTitle">وجهاتك الأكثر استخدامًا</h2></div><a href="#bzSidebarSearch" onclick="document.getElementById('bzSidebarSearch')?.focus(); return false;">كل الأقسام</a></div>
+      <div class="role-workspaces">
+        {% for workspace in home_profile.workspaces %}
+        <a class="role-workspace" href="{{ workspace.href }}"><span class="role-workspace-icon"><i data-lucide="{{ workspace.icon }}"></i></span><span><b>{{ workspace.label }}</b><small>{{ workspace.note }}</small></span></a>
+        {% endfor %}
+      </div>
+    </article>
+  </section>
+
+  {% if truth_center %}
+  <section class="role-truth" aria-label="حالة المصادر التشغيلية">
+    <article class="role-truth-item"><b>توحيد الأفراد</b><small>السائقون {{ truth_center.people.drivers }} · الموظفون {{ truth_center.people.employees }}</small><strong{% if truth_center.people.gap %} class="warn"{% endif %}>{{ truth_center.people.status }}</strong></article>
+    <article class="role-truth-item"><b>صحة GPS</b><small>{% if truth_center.gps_health.last_vehicle_count is not none %}آخر قراءة: {{ truth_center.gps_health.last_vehicle_count }} مركبة{% else %}لا توجد قراءة GPS حديثة{% endif %}</small><strong{% if truth_center.gps_health.state in ['stale','error'] %} class="bad"{% elif truth_center.gps_health.state != 'healthy' %} class="warn"{% endif %}>{{ truth_center.gps_health.label }}</strong></article>
+    <article class="role-truth-item"><b>الإجراءات المفتوحة</b><small>وثائق {{ truth_center.operational_alerts.documents }} · جودة بيانات {{ truth_center.operational_alerts.quality }}</small><strong{% if truth_center.operational_alerts.open %} class="warn"{% endif %}>{{ truth_center.operational_alerts.open }} إجراء</strong></article>
+  </section>
+  {% endif %}
+
+  <div class="role-footnote"><span>تُعرض الوجهات حسب الدور، وتبقى الصلاحيات الفعلية محكومة من الخادم.</span><button id="enablePushBtn" class="role-push" type="button" onclick="subscribePush()">تفعيل الإشعارات المباشرة</button></div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-lucide.createIcons();
-async function subscribePush(){const btn=document.getElementById('enablePushBtn');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)){alert('متصفحك لا يدعم الإشعارات المباشرة');return}const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();if(!subscription){const response=await fetch('/api/push/vapid_public_key');const vapidData=await response.json();subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(vapidData.public_key)})}await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(subscription)});btn.innerHTML='الإشعارات مفعلة'}catch(error){btn.innerHTML='فشل التفعيل'}}
-function urlBase64ToUint8Array(base64String){const padding='='.repeat((4-base64String.length%4)%4);const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');const rawData=window.atob(base64);const outputArray=new Uint8Array(rawData.length);for(let i=0;i<rawData.length;++i)outputArray[i]=rawData.charCodeAt(i);return outputArray}
-document.addEventListener('DOMContentLoaded',function(){const statCircles=document.querySelectorAll('.home-kpi .count-up');const vals=[...statCircles].map(el=>parseInt(el.getAttribute('data-count'))||0);const ctx=document.getElementById('fleetChart');if(ctx){if(typeof Chart==='undefined'){const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/chart.js';script.onload=()=>renderChart(ctx,...vals);document.head.appendChild(script)}else renderChart(ctx,...vals)}});
-function renderChart(ctx,d1,d2,d3){new Chart(ctx,{type:'bar',data:{labels:['موظفون وسائقون','مركبات نشطة','تنبيهات عاجلة'],datasets:[{label:'العدد',data:[d1,d2,d3],backgroundColor:['rgba(213,179,106,.8)','rgba(85,200,178,.75)','rgba(239,131,124,.75)'],borderRadius:8,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.06)'},ticks:{color:'#93a0b3',font:{family:'Cairo'}}},x:{grid:{display:false},ticks:{color:'#93a0b3',font:{family:'Cairo',size:12}}}}}})}
-let homeEventRows=[];let homeEventFilter='all';
-function homeEventKind(row){const text=[row.action,row.target,row.detail].filter(Boolean).join(' ').toLowerCase();return /فواتير|فاتورة|فاتور|مشتريات|شراء|invoice|purchase|دفع|payment|مصروف/.test(text)?'invoice':'operation'}
-function homeEventIcon(row){return homeEventKind(row)==='invoice'?'file-text':'activity'}
-function homeEventText(row){return row.detail||row.action||'نشاط تشغيلي'}
-function renderHomeEvents(){const list=document.getElementById('homeEventsList');if(!list)return;const rows=homeEventRows.filter(r=>homeEventFilter==='all'||homeEventKind(r)===homeEventFilter).slice(-6).reverse();if(!rows.length){list.innerHTML='<div class="home-events-empty"><i data-lucide="inbox"></i><span>لا توجد أحداث مطابقة حاليًا</span></div>';lucide.createIcons();return}list.innerHTML=rows.map(row=>{const kind=homeEventKind(row);const count=Number(row.hits||row.count||1);const safe=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return '<article class="home-event-row '+kind+'"><span class="home-event-icon"><i data-lucide="'+homeEventIcon(row)+'"></i></span><span class="home-event-copy"><b>'+safe(row.action||'عملية مسجلة')+'</b><small>'+safe(row.target||row.detail||'—')+(count>1?' · ×'+count:'')+'</small></span><time>'+safe(row.ts||'—')+'</time></article>'}).join('');lucide.createIcons()}
-async function loadHomeEvents(){try{const response=await fetch('/api/audit_log?limit=18',{headers:{'Accept':'application/json'},credentials:'same-origin'});const data=await response.json();homeEventRows=Array.isArray(data.rows)?data.rows:[];const status=document.getElementById('homeEventsStatus');if(status)status.textContent=homeEventRows.length?'آخر '+Math.min(homeEventRows.length,6)+' أحداث مسجلة':'لا توجد أحداث مسجلة';renderHomeEvents()}catch(error){const status=document.getElementById('homeEventsStatus');if(status)status.textContent='تعذر تحديث السجل';const list=document.getElementById('homeEventsList');if(list)list.innerHTML='<div class="home-events-empty"><i data-lucide="wifi-off"></i><span>يتعذر تحميل الأحداث الآن، ويمكن مراجعتها من سجل التدقيق</span></div>';lucide.createIcons()}}
- document.addEventListener('DOMContentLoaded',()=>{loadHomeEvents();document.querySelectorAll('.home-event-filter').forEach(btn=>btn.addEventListener('click',()=>{homeEventFilter=btn.dataset.eventFilter;document.querySelectorAll('.home-event-filter').forEach(item=>{const active=item===btn;item.classList.toggle('active',active);item.setAttribute('aria-selected',String(active))});renderHomeEvents()}));
- const drivers=Number({{ total_drivers|default(0)|tojson }}),vehicles=Number({{ active_vehicles|default(0)|tojson }}),urgent=Number({{ urgent_alerts|default(0)|tojson }});
- const riskBase=drivers+vehicles;const risk=Math.min(100,Math.round((urgent/Math.max(riskBase,1))*100));const density=drivers?((vehicles/drivers)*10):0;
- const riskEl=document.getElementById('homeRiskScore'),riskBar=document.getElementById('homeRiskProgress'),riskLabel=document.getElementById('homeRiskLabel'),densityEl=document.getElementById('homeFleetDensity'),densityBar=document.getElementById('homeFleetProgress');
- if(riskEl)riskEl.textContent=risk+'%';if(riskBar)riskBar.style.setProperty('--progress',risk+'%');if(riskLabel)riskLabel.textContent=risk>=45?'يحتاج متابعة':risk>=20?'تحت المراقبة':'مستقر';if(densityEl)densityEl.textContent=density.toFixed(1);if(densityBar)densityBar.style.setProperty('--progress',Math.min(100,Math.round(density*10))+'%');
- const lens=document.getElementById('homeInsightLens');if(lens)lens.addEventListener('change',()=>{const value=lens.value;document.querySelectorAll('.home-insight').forEach(card=>{card.style.display=value==='all'||card.dataset.lens===value?'':'none'})});
- const command=document.getElementById('homeCommandSelect'),open=document.getElementById('homeCommandOpen');if(open&&command)open.addEventListener('click',()=>{window.location.href=command.value});
- });
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const rawData = window.atob((base64String + padding).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(rawData, char => char.charCodeAt(0));
+  }
+  async function subscribePush() {
+    const btn = document.getElementById('enablePushBtn');
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('unsupported');
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        const response = await fetch('/api/push/vapid_public_key');
+        const vapidData = await response.json();
+        subscription = await registration.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(vapidData.public_key)});
+      }
+      await fetch('/api/push/subscribe', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(subscription)});
+      btn.textContent = 'الإشعارات مفعلة';
+    } catch (_) { btn.textContent = 'تعذر تفعيل الإشعارات'; }
+  }
+  document.addEventListener('DOMContentLoaded', () => { if (window.lucide) lucide.createIcons(); });
 </script>
 {% endblock %}
