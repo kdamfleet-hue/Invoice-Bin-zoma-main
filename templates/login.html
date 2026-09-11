@@ -103,14 +103,41 @@
                 0 24px 70px rgba(0,0,0,0.55),
                 inset 0 0 0 1px rgba(255,255,255,0.05);
         }
-        /* Slim gold accent bar at the top of the card */
+        /* Slim gold accent bar at the top of the card — shimmers, matching the same
+           bz-gold-shimmer motion used site-wide after login (static/css/ui_redesign.css),
+           so the login page carries the same animated identity instead of being static. */
         .login-card::before {
             content: "";
             position: absolute;
             top: 0; left: 0; right: 0;
             height: 5px;
             border-radius: 24px 24px 0 0;
-            background: linear-gradient(90deg, var(--bz-gold) 0%, var(--bz-gold-soft) 50%, var(--bz-gold) 100%);
+            background: linear-gradient(90deg, var(--bz-gold) 0%, var(--bz-gold-soft) 35%, #fff8e7 50%, var(--bz-gold-soft) 65%, var(--bz-gold) 100%);
+            background-size: 220% 100%;
+            animation: bz-gold-shimmer 5s ease-in-out infinite;
+        }
+        /* Soft ambient gold light drifting behind the card — the login-page counterpart of
+           the dashboard's ambient gold background (ui_redesign.css body.bz-enterprise-app::before). */
+        .login-card::after {
+            content: "";
+            position: fixed;
+            top: 50%; left: 50%;
+            width: min(70vw, 720px);
+            height: min(70vw, 720px);
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+            background: radial-gradient(circle, rgba(201,162,39,0.16), transparent 62%);
+            animation: bz-gold-drift 16s ease-in-out infinite alternate;
+        }
+        @keyframes bz-gold-shimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+        @keyframes bz-gold-drift { from { transform: translate(-52%, -49%) scale(1); } to { transform: translate(-48%, -51%) scale(1.06); } }
+        .login-form button[type="submit"]:active { animation: bz-gold-pulse .4s ease-out; }
+        @keyframes bz-gold-pulse { 0%, 100% { box-shadow: 0 8px 20px rgba(12,35,64,0.35); } 50% { box-shadow: 0 8px 20px rgba(12,35,64,0.35), 0 0 0 6px rgba(201,162,39,.16); } }
+        @media (prefers-reduced-motion: reduce) {
+            .login-card::before, .login-card::after, .welcome-anim, .user-name,
+            .login-form button[type="submit"]:active { animation: none !important; }
         }
         @media (max-width: 480px) {
             .login-card { padding: 2.2rem 1.5rem 1.4rem; }
