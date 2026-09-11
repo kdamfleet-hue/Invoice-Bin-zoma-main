@@ -1,0 +1,216 @@
+/* BIN ZOMAH Motion Identity — sourced from the provided bilingual logo animation.
+   Presentation-only: no data, routes or business logic are altered. */
+:root {
+  --bz-motion-navy: #080f22;
+  --bz-motion-navy-2: #111c35;
+  --bz-motion-blue: #28245f;
+  --bz-motion-silver: #a9adba;
+  --bz-motion-gold: #d8b85a;
+  --bz-motion-teal: #64d8c1;
+  --bz-motion-line: rgba(216, 184, 90, .22);
+  --bz-motion-glass: rgba(11, 23, 43, .78);
+  --bz-motion-ease: cubic-bezier(.2, .75, .25, 1);
+}
+
+/* Ambient transparent layers */
+body.bz-enterprise-app::after,
+body.bz-login-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(600px 320px at 82% 8%, rgba(216,184,90,.09), transparent 72%),
+    radial-gradient(520px 300px at 8% 86%, rgba(100,216,193,.07), transparent 72%);
+  animation: bz-ambient-breathe 12s var(--bz-motion-ease) infinite alternate;
+}
+@keyframes bz-ambient-breathe {
+  from { opacity: .68; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.035); }
+}
+
+/* Animated transparent brand asset */
+.bz-motion-brand {
+  display: block;
+  width: min(100%, 620px);
+  height: auto;
+  object-fit: contain;
+  filter: brightness(1.45) saturate(.82) drop-shadow(0 18px 32px rgba(3, 8, 20, .26));
+}
+.bz-sidebar .side-brand img {
+  animation: bz-seal-float 5.2s var(--bz-motion-ease) infinite;
+  transform-origin: center;
+}
+@keyframes bz-seal-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(2deg); }
+}
+
+/* First-visit brand reveal */
+.bz-brand-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(7, 15, 32, .88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  opacity: 1;
+  visibility: visible;
+  transition: opacity .7s var(--bz-motion-ease), visibility .7s;
+}
+.bz-brand-intro.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.bz-brand-intro-panel {
+  width: min(920px, 94vw);
+  text-align: center;
+  animation: bz-brand-arrive 1s var(--bz-motion-ease) both;
+}
+.bz-brand-intro .bz-motion-brand { margin-inline: auto; }
+.bz-brand-intro-kicker {
+  margin-top: 16px;
+  color: var(--bz-motion-gold);
+  font: 800 .78rem Cairo, sans-serif;
+  letter-spacing: .12em;
+}
+.bz-brand-skip {
+  position: absolute;
+  inset-inline-end: 24px;
+  bottom: 24px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--bz-motion-line);
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  color: #f5f7fb;
+}
+@keyframes bz-brand-arrive {
+  from { opacity: 0; transform: translateY(18px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Priority-based navigation hierarchy */
+.bz-sidebar-nav { counter-reset: bz-priority; }
+.bz-nav-group { position: relative; }
+.bz-nav-group[data-priority] > .bz-nav-group-toggle::before {
+  content: attr(data-priority);
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-inline-end: 8px;
+  border: 1px solid rgba(216,184,90,.28);
+  border-radius: 7px;
+  color: var(--bz-motion-gold);
+  background: rgba(216,184,90,.07);
+  font-size: .66rem;
+}
+.bz-nav-group-toggle { min-height: 42px; }
+.bz-sidebar-nav a { transition: transform .2s var(--bz-motion-ease), background .2s ease, border-color .2s ease !important; }
+.bz-sidebar-nav a:hover { transform: translateX(-3px); }
+
+/* Refined page entrance and card feedback */
+body.bz-motion-ready .main-content > * { animation: bz-content-enter .48s var(--bz-motion-ease) both; }
+body.bz-motion-ready .main-content > *:nth-child(2) { animation-delay: .045s; }
+body.bz-motion-ready .main-content > *:nth-child(3) { animation-delay: .09s; }
+@keyframes bz-content-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.card, .glass-surface, .panel, .bz-card, .stat-card, .kpi, .dashboard-card {
+  transition: transform .24s var(--bz-motion-ease), border-color .24s ease, background .24s ease !important;
+}
+
+/* Login: transparent bilingual motion identity */
+body.bz-login-page {
+  display: block !important;
+  overflow-y: auto !important;
+  background:
+    linear-gradient(135deg, rgba(7,15,32,.95), rgba(17,28,53,.92)),
+    radial-gradient(800px 500px at 75% 0%, rgba(216,184,90,.12), transparent 65%) !important;
+}
+body.bz-login-page .bz-bg-video { opacity: .12; filter: saturate(.65) contrast(1.1); }
+body.bz-login-page .login-card {
+  max-width: 470px;
+  padding: 2rem 2.5rem 1.35rem;
+  background: rgba(12, 26, 48, .76) !important;
+  border: 1px solid rgba(216,184,90,.26);
+  color: #f4f6fa;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  margin: 24px auto;
+}
+body.bz-login-page .login-card .site-logo {
+  width: 100%;
+  max-width: 360px;
+  max-height: 148px;
+  margin: 0 auto 10px;
+  filter: brightness(1.45) saturate(.82) drop-shadow(0 12px 24px rgba(0,0,0,.18));
+  animation: bz-login-logo-float 4.8s var(--bz-motion-ease) infinite;
+}
+@keyframes bz-login-logo-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-5px) scale(1.012); }
+}
+body.bz-login-page .login-card h2,
+body.bz-login-page .login-card .brand-line,
+body.bz-login-page .login-form label { color: #f3f5f9 !important; }
+body.bz-login-page .login-card p.subtitle,
+body.bz-login-page .login-footer { color: #a9b3c4 !important; }
+body.bz-login-page .login-form input {
+  min-height: 48px;
+  color: #f4f6fa !important;
+  background: rgba(5,14,29,.66) !important;
+  border-color: rgba(169,173,186,.28);
+}
+body.bz-login-page .login-form button[type="submit"] {
+  min-height: 50px;
+  color: #111829 !important;
+  background: linear-gradient(135deg, #b8943f, #ebd085) !important;
+  box-shadow: 0 14px 30px rgba(216,184,90,.18) !important;
+}
+
+/* Informational pages */
+.bz-info-hero { max-width: 900px; margin-bottom: 24px; }
+.bz-info-hero .eyebrow { margin-bottom: 10px; color: var(--bz-motion-teal); font: 800 .78rem Cairo, sans-serif; letter-spacing: .08em; }
+.bz-info-hero h1 { color: #f4f6fa; font: 800 clamp(2rem, 4vw, 3.4rem) Cairo, sans-serif; }
+.bz-info-hero p { color: #9eabc0; max-width: 760px; font-size: 1rem; }
+.bz-info-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+.bz-info-card { padding: 22px; border: 1px solid var(--bz-motion-line); border-radius: 17px; background: var(--bz-motion-glass); }
+.bz-info-card strong { display: block; margin-bottom: 8px; color: var(--bz-motion-gold); font: 800 1.05rem Cairo, sans-serif; }
+.bz-info-card p { margin: 0; color: #a8b4c6; line-height: 1.8; }
+
+@media (max-width: 760px) {
+  .bz-brand-intro { padding: 14px; }
+  .bz-brand-intro-panel { width: 100%; }
+  .bz-brand-intro .bz-motion-brand { width: min(100%, 520px); }
+  .bz-brand-intro-kicker { font-size: .68rem; }
+  body.bz-login-page { overflow-y: auto !important; align-items: flex-start !important; padding: 72px 14px 22px !important; }
+  body.bz-login-page .login-card { padding: 1.55rem 1.25rem 1.2rem; border-radius: 20px; }
+  body.bz-login-page .login-card .site-logo { max-width: 300px; }
+  body.bz-login-page .login-card h2 { font-size: 1.65rem !important; }
+  body.bz-login-page .login-card p.subtitle { margin-bottom: 1.15rem; }
+  .bz-info-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-height: 700px) and (min-width: 761px) {
+  body.bz-login-page .login-card { margin: 14px auto; padding: 1rem 2rem; }
+  body.bz-login-page .login-card .site-logo { max-height: 86px; margin-bottom: 2px; }
+  body.bz-login-page .login-card h2 { font-size: 1.45rem !important; }
+  body.bz-login-page .login-card .brand-line { margin-bottom: 5px; padding-bottom: 5px; }
+  body.bz-login-page .login-card p.subtitle { margin: 7px 0 .55rem; font-size: .9rem; }
+  body.bz-login-page .login-form label { margin-top: 5px; }
+  body.bz-login-page .login-form input { min-height: 42px; padding: 9px 12px; }
+  body.bz-login-page .login-form button[type="submit"] { min-height: 44px; margin-top: 12px; padding: 10px; }
+  body.bz-login-page .login-footer { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.bz-enterprise-app::after, body.bz-login-page::after,
+  .bz-sidebar .side-brand img, .bz-brand-intro-panel,
+  body.bz-login-page .login-card .site-logo,
+  body.bz-motion-ready .main-content > * { animation: none !important; }
+  .bz-brand-intro { transition-duration: .01ms !important; }
+}

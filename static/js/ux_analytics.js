@@ -45,6 +45,20 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     once('page_view', () => trackUX('page_view'));
+    const loginForm = document.querySelector('.login-form');
+    if (loginForm) {
+      loginForm.addEventListener('submit', () => {
+        try { localStorage.setItem('bz_pending_conversion', 'login'); } catch (_) {}
+        trackUX('conversion_started', { feature: 'login' });
+      });
+    } else if (window.location.pathname === '/') {
+      try {
+        if (localStorage.getItem('bz_pending_conversion') === 'login') {
+          localStorage.removeItem('bz_pending_conversion');
+          trackUX('conversion_completed', { feature: 'login' });
+        }
+      } catch (_) {}
+    }
     document.querySelectorAll('.hero-cta, [data-ux-primary-cta]').forEach((el) => {
       el.addEventListener('click', () => trackUX('hero_cta_click'));
     });

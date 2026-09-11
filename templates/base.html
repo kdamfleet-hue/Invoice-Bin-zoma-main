@@ -20,11 +20,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_responsive.css', v=1) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/command_palette.css', v=1) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/luxury_overhaul.css', v=3) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/brand_motion.css', v=5) }}">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <!-- Pinned to the exact build "@latest" resolved to on 2026-09-04, so behaviour is unchanged
          but a new upstream release (or a compromised one) can no longer execute here unreviewed. -->
     <script src="https://unpkg.com/lucide@1.40.0/dist/umd/lucide.min.js"></script>
-    <script defer src="{{ url_for('static', filename='js/ux_analytics.js', v=1) }}"></script>
+    <script defer src="{{ url_for('static', filename='js/ux_analytics.js', v=2) }}"></script>
     {% block head %}{% endblock %}
     <style>
       .bz-notification-center{margin:0 12px 14px;border:1px solid rgba(148,163,184,.25);border-radius:12px;background:rgba(15,23,42,.34);overflow:hidden}
@@ -72,14 +73,18 @@
                         <div id="bzNotificationList"><div class="bz-notification-empty">جارٍ تحميل التنبيهات…</div></div>
                     </div>
                 </div>
-                <section class="bz-nav-group is-open" data-nav-group="overview"><button type="button" class="bz-nav-group-toggle" aria-expanded="true"><span>نظرة عامة</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
+                <section class="bz-nav-group is-open" data-nav-group="overview" data-priority="01"><button type="button" class="bz-nav-group-toggle" aria-expanded="true"><span>التحكم الرئيسي</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
                 <a href="/" class="{% if request.path == '/' %}active{% endif %}"><span class="si">🏠</span><span class="slab">الرئيسية</span></a>
                 <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}"><span class="si">👑</span><span class="slab">لوحة المدير</span></a>
                 <a href="/fleet_dashboard" class="{% if request.path == '/fleet_dashboard' %}active{% endif %}"><span class="si">📊</span><span class="slab">لوحة الأسطول</span></a>
                 <a href="/ops" class="{% if request.path == '/ops' %}active{% endif %}"><span class="si">⚙️</span><span class="slab">دورة التشغيل</span></a>
                 <a href="/kpis" class="{% if request.path == '/kpis' %}active{% endif %}"><span class="si">📈</span><span class="slab">مؤشرات الأداء</span></a>
                 <a href="/insights" class="{% if request.path == '/insights' %}active{% endif %}"><span class="si">🧠</span><span class="slab">التحليلات</span></a></div></section>
-                <section class="bz-nav-group is-open" data-nav-group="operations"><button type="button" class="bz-nav-group-toggle" aria-expanded="true"><span>التشغيل اليومي</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
+                <section class="bz-nav-group is-collapsed" data-nav-group="guide" data-priority="02"><button type="button" class="bz-nav-group-toggle" aria-expanded="false"><span>فهم النظام</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
+                <a href="/about" class="{% if request.path == '/about' %}active{% endif %}"><span class="si">◆</span><span class="slab">من نحن</span></a>
+                <a href="/how-it-works" class="{% if request.path == '/how-it-works' %}active{% endif %}"><span class="si">↗</span><span class="slab">كيف يعمل النظام</span></a>
+                <a href="/faq" class="{% if request.path == '/faq' %}active{% endif %}"><span class="si">؟</span><span class="slab">الأسئلة الشائعة</span></a></div></section>
+                <section class="bz-nav-group is-open" data-nav-group="operations" data-priority="03"><button type="button" class="bz-nav-group-toggle" aria-expanded="true"><span>التشغيل اليومي</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
                 <a href="/schedule" class="{% if request.path == '/schedule' %}active{% endif %}"><span class="si">📋</span><span class="slab">الجدول الأسبوعي</span></a>
                 <a href="/schedule/transport" class="{% if request.path == '/schedule/transport' %}active{% endif %}"><span class="si">🚚</span><span class="slab">نقل عام وخاص</span></a>
                 <a href="/m/transport" class="{% if request.path == '/m/transport' %}active{% endif %}"><span class="si">📱</span><span class="slab">تطبيق النقل</span></a>
@@ -161,6 +166,7 @@
     <script defer src="{{ url_for('static', filename='js/notification_center.js', v=1) }}"></script>
     <script defer src="{{ url_for('static', filename='js/sidebar_guard.js', v=1) }}"></script>
     <script defer src="{{ url_for('static', filename='js/sidebar_sections.js', v=2) }}"></script>
+    <script defer src="{{ url_for('static', filename='js/brand_motion.js', v=3) }}"></script>
     {% block scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}
     <script src="{{ url_for('static', filename='js/purchase_link.js', v=2) }}"></script>
