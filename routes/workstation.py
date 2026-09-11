@@ -138,7 +138,7 @@ def workstation_page(sub=""):
             with db_connection() as conn:
                 c = conn.cursor()
                 c.execute("SELECT id, name FROM erp_branches")
-                branches = [{"id": r[0], "name": r[1]} for r in c.fetchall()]
+                branches = [{"id": r["id"], "name": r["name"]} for r in c.fetchall()]
         except Exception:
             logger.exception("workstation fleet dashboard branches failed")
         insights = {"fleet": {"drivers": 0, "with_vehicle": 0, "without_vehicle": 0, "vehicles": 0},

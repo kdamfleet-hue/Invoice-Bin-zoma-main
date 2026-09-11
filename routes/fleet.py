@@ -39,7 +39,7 @@ def fleet_dashboard():
         with db_connection() as conn:
             c = conn.cursor()
             c.execute("SELECT id, name FROM erp_branches")
-            branches = [{"id": r[0], "name": r[1]} for r in c.fetchall()]
+            branches = [{"id": r["id"], "name": r["name"]} for r in c.fetchall()]
     except Exception as e:
         logger.error(f"Failed to fetch branches: {e}")
     insights = {"fleet": {"drivers": 0, "with_vehicle": 0, "without_vehicle": 0, "vehicles": 0},

@@ -362,7 +362,10 @@ def csp_report():
     """Receive browser CSP violation reports without exposing report contents to users."""
     if request.content_length and request.content_length > 8192:
         return ("", 413)
-    report = request.get_json(silent=True) or {}
+    # Browsers send these as application/csp-report (or /csp-report+json), never
+    # application/json — force=True parses the body as JSON regardless of that
+    # header. Without it every report logs as an uninformative "{}".
+    report = request.get_json(silent=True, force=True) or {}
     # Keep logs bounded; reports are diagnostics, not application data.
     try:
         encoded = json.dumps(report, ensure_ascii=False, separators=(",", ":"))[:4096]
@@ -4794,10 +4797,10 @@ def api_system_metrics():
                 db_size_mb = round(os.path.getsize(DB_PATH) / (1024 * 1024), 2)
         else:
             with db_connection() as db:
-                cur = db.execute("SELECT pg_database_size(current_database())")
+                cur = db.execute("SELECT pg_database_size(current_database()) AS size")
                 row = cur.fetchone()
-                if row and row[0]:
-                    db_size_mb = round(row[0] / (1024 * 1024), 2)
+                if row and row["size"]:
+                    db_size_mb = round(row["size"] / (1024 * 1024), 2)
 
         # Sessions count (rough estimation from file system if sqlite/flask session, or from postgres)
         sessions_count = 0
@@ -4805,10 +4808,10 @@ def api_system_metrics():
             with db_connection() as db:
                 # Count distinct user ids if stored in db, or just use a placeholder
                 try:
-                    cur = db.execute("SELECT count(*) FROM pg_stat_activity")
+                    cur = db.execute("SELECT count(*) AS cnt FROM pg_stat_activity")
                     row = cur.fetchone()
                     if row:
-                        sessions_count = row[0]
+                        sessions_count = row["cnt"]
                 except:
                     pass
 
@@ -5191,11 +5194,11 @@ def _sync_from_employees_to_fleet():
         # Build map of plate -> name
         emp_map = {}
         for r in emp_rows:
-            name = str(r[0] or '').strip()
-            plate = str(r[1] or '').strip()
+            name = str(r["name"] or '').strip()
+            plate = str(r["plate"] or '').strip()
             if name and plate:
                 np = plate.replace(' ', '').lower()
-                emp_map[np] = {'name': name, 'plate': plate, 'type': str(r[2] or '').strip()}
+                emp_map[np] = {'name': name, 'plate': plate, 'type': str(r["job"] or '').strip()}
 
         if not emp_map:
             return
