@@ -1265,6 +1265,30 @@ def faq_page():
         ])
 
 
+@app.route("/performance-report")
+@login_required
+@role_required("admin")
+def performance_report_page():
+    """Admin-only snapshot of the measured login-brand performance release."""
+    snapshot = {
+        "measured_on": "11 سبتمبر 2026",
+        "sample_runs": 5,
+        "before_mib": 1.71,
+        "after_mib": 0.72,
+        "saved_mib": 0.99,
+        "payload_reduction": 58.1,
+        "before_transfer": 9.66,
+        "after_transfer": 6.07,
+        "transfer_reduction": 37.2,
+        "login_ttfb": 3.18,
+        "login_total": 3.66,
+        "webp_bytes": 480472,
+        "png_bytes": 262632,
+        "css_js_bytes": 9828,
+    }
+    return render_template("performance_report.html", snapshot=snapshot)
+
+
 @app.route("/records")
 @login_required
 def records_page():

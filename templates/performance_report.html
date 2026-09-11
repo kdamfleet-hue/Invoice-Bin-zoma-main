@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}تقرير الأداء | شركة بن زومة{% endblock %}
+{% block page_heading %}تقرير الأداء والتحويل{% endblock %}
+{% block extra_css %}
+<style>
+  .perf-page { --navy:#0b1426; --ink:#e8eef8; --muted:#9baac0; --gold:#d4af37; --mint:#3fd0bb; --line:rgba(148,163,184,.2); max-width:1180px; margin-inline:auto; color:var(--ink); }
+  .perf-hero { display:grid; grid-template-columns:1.35fr .65fr; gap:18px; padding:28px; border:1px solid rgba(212,175,55,.28); background:linear-gradient(115deg,rgba(16,29,54,.95),rgba(9,20,38,.84)); border-radius:20px; }
+  .perf-eyebrow { color:var(--mint); font:800 .78rem Cairo,sans-serif; letter-spacing:.08em; }
+  .perf-hero h1 { margin:8px 0; font:800 clamp(1.8rem,4vw,3rem) Cairo,sans-serif; color:#fff; }
+  .perf-hero p { max-width:700px; color:#bcc8da; line-height:1.85; margin:0; }
+  .perf-stamp { display:flex; align-items:center; justify-content:center; border-right:1px solid var(--line); color:var(--gold); font:800 1.05rem Cairo,sans-serif; text-align:center; line-height:1.9; }
+  .perf-stamp span { display:block; color:var(--muted); font:600 .8rem Tajawal,sans-serif; }
+  .perf-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:18px 0; }
+  .perf-kpi { min-height:130px; padding:18px; border:1px solid var(--line); border-radius:16px; background:rgba(15,27,49,.72); }
+  .perf-kpi b { display:block; color:#fff; font:800 2rem Cairo,sans-serif; }
+  .perf-kpi strong { display:block; color:var(--gold); font:800 .88rem Cairo,sans-serif; margin-top:5px; }
+  .perf-kpi small { display:block; color:var(--muted); line-height:1.5; margin-top:6px; }
+  .perf-grid { display:grid; grid-template-columns:1.08fr .92fr; gap:18px; margin:18px 0; }
+  .perf-panel { padding:24px; border:1px solid var(--line); border-radius:18px; background:rgba(12,24,45,.68); }
+  .perf-panel h2 { margin:0 0 16px; color:#fff; font:800 1.35rem Cairo,sans-serif; }
+  .perf-panel p { color:#bac6d7; line-height:1.8; }
+  .bar-row { display:grid; grid-template-columns:150px 1fr 82px; gap:10px; align-items:center; margin:17px 0; color:#dbe4f2; font-weight:700; }
+  .bar-track { height:18px; overflow:hidden; background:rgba(148,163,184,.13); border-radius:999px; }
+  .bar { height:100%; border-radius:999px; }
+  .bar.before { width:100%; background:#71809c; }
+  .bar.after { width:42%; background:linear-gradient(90deg,#bf9731,#e4c967); }
+  .bar.mint { width:63%; background:linear-gradient(90deg,#258e83,#4ad8c4); }
+  .perf-table { width:100%; border-collapse:collapse; font-size:.92rem; }
+  .perf-table th,.perf-table td { padding:12px 10px; text-align:right; border-bottom:1px solid var(--line); }
+  .perf-table th { color:var(--gold); font-family:Cairo,sans-serif; }
+  .perf-table td { color:#dce5f1; }
+  .status { color:var(--mint); font-weight:800; }
+  .scenario { margin-top:18px; padding:24px; border-right:4px solid var(--mint); background:rgba(63,208,187,.06); }
+  .scenario h2 { margin:0 0 10px; color:#fff; font:800 1.3rem Cairo,sans-serif; }
+  .scenario p { margin:0; color:#c4d0df; line-height:1.85; }
+  .metric-definitions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:14px; }
+  .metric-definitions div { padding:14px; border-top:1px solid var(--line); color:#b7c4d6; line-height:1.7; }
+  .metric-definitions b { display:block; color:var(--gold); font-family:Cairo,sans-serif; margin-bottom:4px; }
+  .perf-note { margin:18px 0; padding:16px 18px; border-radius:12px; background:rgba(212,175,55,.08); border:1px solid rgba(212,175,55,.2); color:#d4deeb; line-height:1.8; }
+  @media(max-width:800px) { .perf-hero,.perf-grid{grid-template-columns:1fr}.perf-stamp{border-right:0;border-top:1px solid var(--line);padding-top:16px}.perf-kpis,.metric-definitions{grid-template-columns:1fr 1fr}.bar-row{grid-template-columns:110px 1fr 62px;font-size:.82rem}.perf-panel{padding:18px} }
+  @media(max-width:470px) { .perf-kpis,.metric-definitions{grid-template-columns:1fr}.perf-hero{padding:20px}.perf-table{font-size:.78rem}.perf-table th,.perf-table td{padding:9px 5px} }
+</style>
+{% endblock %}
+{% block content %}
+<div class="perf-page">
+  <section class="perf-hero" aria-labelledby="performance-title">
+    <div>
+      <div class="perf-eyebrow">أداء صفحة الدخول · لقطة قياس موثقة</div>
+      <h1 id="performance-title">هوية أخف، بداية أسرع للرحلة</h1>
+      <p>تم استبدال فيديو الخلفية والشعار القديمين بأصل WebP متحرك وشعار PNG شفاف، ثم قياس الملفات الحية بخمس محاولات مستقلة لكل أصل. النتيجة المثبتة هي خفض حمولة هوية صفحة الدخول، بينما يبقى قياس التحويل الفعلي مرحلة منفصلة تُقرأ من أحداث الاستخدام.</p>
+    </div>
+    <div class="perf-stamp">{{ snapshot.measured_on }}<span>{{ snapshot.sample_runs }} محاولات HTTPS لكل أصل · من بيئة القياس</span></div>
+  </section>
+
+  <section class="perf-kpis" aria-label="المؤشرات الأساسية">
+    <article class="perf-kpi"><b>{{ snapshot.payload_reduction }}%</b><strong>خفض حمولة الهوية</strong><small>بعد احتساب WebP وPNG وCSS وJavaScript الجديدة.</small></article>
+    <article class="perf-kpi"><b>{{ snapshot.saved_mib }} MiB</b><strong>بيانات أقل في أول زيارة</strong><small>من {{ snapshot.before_mib }} MiB إلى {{ snapshot.after_mib }} MiB.</small></article>
+    <article class="perf-kpi"><b>{{ snapshot.transfer_reduction }}%</b><strong>تحسن تشخيصي بالنقل</strong><small>مجموع مرحلة نقل الأصول المقاسة تسلسليًا.</small></article>
+    <article class="perf-kpi"><b>{{ snapshot.login_ttfb }}s</b><strong>متوسط TTFB لصفحة الدخول</strong><small>فرصة الأداء التالية في الخادم أو منصة الاستضافة.</small></article>
+  </section>
+
+  <section class="perf-grid">
+    <article class="perf-panel">
+      <h2>مقارنة الحمولة قبل وبعد</h2>
+      <div class="bar-row"><span>قبل: فيديو + شعار</span><div class="bar-track"><div class="bar before"></div></div><strong>{{ snapshot.before_mib }} MiB</strong></div>
+      <div class="bar-row"><span>بعد: WebP + PNG + منطق</span><div class="bar-track"><div class="bar after"></div></div><strong>{{ snapshot.after_mib }} MiB</strong></div>
+      <div class="bar-row"><span>نقل الأصول بعد التغيير</span><div class="bar-track"><div class="bar mint"></div></div><strong>{{ snapshot.after_transfer }}s</strong></div>
+      <p>انخفضت حمولة الهوية بمقدار <span class="status">{{ snapshot.saved_mib }} MiB</span>. الإضافة البرمجية للحركة تبلغ فقط {{ '{:,}'.format(snapshot.css_js_bytes) }} بايت، ولذلك لا تلغي مكسب استبدال الوسائط الثقيلة.</p>
+    </article>
+    <article class="perf-panel">
+      <h2>ماذا تغير تقنيًا؟</h2>
+      <table class="perf-table">
+        <thead><tr><th>العنصر</th><th>قبل</th><th>بعد</th><th>الأثر</th></tr></thead>
+        <tbody>
+          <tr><td>الخلفية المرئية</td><td>فيديو MP4</td><td>شعار WebP متحرك</td><td class="status">أخف</td></tr>
+          <tr><td>حجم الوسيط الأساسي</td><td>930,922 B</td><td>{{ '{:,}'.format(snapshot.webp_bytes) }} B</td><td class="status">−48.4%</td></tr>
+          <tr><td>الشعار الثابت</td><td>863,952 B</td><td>{{ '{:,}'.format(snapshot.png_bytes) }} B</td><td class="status">−69.6%</td></tr>
+          <tr><td>التخزين المؤقت</td><td>غير مُبصم</td><td>نسخ URL ثابتة</td><td class="status">عام كامل</td></tr>
+        </tbody>
+      </table>
+    </article>
+  </section>
+
+  <section class="scenario">
+    <h2>سيناريو قياس أثر التحويل</h2>
+    <p>لا توجد حتى الآن عينة تحويل حية كافية لإعلان زيادة رقمية في معدل التحويل. النظام يسجل تلقائيًا عرض الصفحة، بدء تسجيل الدخول، واكتمال الوصول للصفحة الرئيسية، مع تقسيم ثابت للزائر بين نسختي <strong>control</strong> و<strong>focused</strong>. بعد فترة جمع متفق عليها، تقارن الإدارة <strong>conversion_completed ÷ page_view</strong> لكل نسخة، وتُعتمد النسخة الفائزة فقط إذا تحسنت النتيجة من دون تراجع في اكتمال المسار.</p>
+    <div class="metric-definitions">
+      <div><b>البدء</b>عدد أحداث <code>conversion_started</code> مقسومًا على <code>page_view</code>.</div>
+      <div><b>الإكمال</b>عدد أحداث <code>conversion_completed</code> مقسومًا على <code>page_view</code>.</div>
+      <div><b>التشخيص</b>تُراجع أحداث التمرير واختيار الفلاتر وفتح التفاصيل لفهم السلوك، لا لإعلان تحويل.</div>
+    </div>
+  </section>
+
+  <aside class="perf-note"><strong>حدود القياس:</strong> زمن النقل المعروض هو مجموع قياسات أصول منفردة ومتسلسلة من بيئة Manus، وليس زمن تحميل متصفح كامل أو مؤشر LCP. يوازي المتصفح عادةً بعض الطلبات، وتختلف النتائج لدى المستخدمين حسب الشبكة والجهاز. مع ذلك، خفض البايتات مقاس مباشر وثابت، والأصول ذات الإصدار <code>?v=</code> تُخزّن عامًا كاملًا مع <code>immutable</code> بعد أول تحميل.</aside>
+</div>
+{% endblock %}
