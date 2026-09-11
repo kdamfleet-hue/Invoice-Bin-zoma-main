@@ -9,6 +9,7 @@ import logging
 import re
 from functools import wraps
 from sqlalchemy.exc import IntegrityError
+from helpers import _global_blob_get, _global_blob_set, BRANCH_NAME
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
@@ -56,6 +57,34 @@ def _send_account_notification(user, event):
 from app import login_required, role_required, limiter
 
 
+def _resolve_display_name(username, branch_id=None):
+    """Best-known human-friendly name for a login identity — never fabricated.
+
+    Order: (1) a real name set on the account's erp_users row (by an admin via /api/users,
+    or by the account itself via /api/my_display_name); (2) a name set for a login that has
+    no erp_users row at all — the hardcoded master admin, the shared kiosk account, or a
+    branch login — via the same self-service endpoint; (3) when this identity clearly
+    represents a branch rather than one person, the branch's own (real, already-known) name.
+    Returns "" rather than the raw username when nothing is set, so callers show a generic
+    greeting instead of "Khaled@fleetadmin" — the whole point of this feature."""
+    try:
+        from models.schema import User
+        u = User.query.filter_by(username=username).first()
+        if u and (u.display_name or "").strip():
+            return u.display_name.strip()
+    except Exception:
+        logger.exception("display name lookup (erp_users) failed for %s", username)
+    try:
+        names = _global_blob_get("account_display_names")
+        if isinstance(names, dict) and str(names.get(username) or "").strip():
+            return str(names[username]).strip()[:80]
+    except Exception:
+        logger.exception("display name lookup (global map) failed for %s", username)
+    if branch_id and branch_id in BRANCH_NAME:
+        return f"فرع {BRANCH_NAME[branch_id]}"
+    return ""
+
+
 def _safe_login_errors(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -99,7 +128,8 @@ def login():
             session.clear()
             session["authenticated"] = True
             session.permanent = True
-            session["google_user"] = {"name": KIOSK_USER, "email": KIOSK_USER + "@binzomah.local"}
+            session["display_name"] = _resolve_display_name(KIOSK_USER)
+            session["google_user"] = {"name": session["display_name"] or KIOSK_USER, "email": KIOSK_USER + "@binzomah.local"}
             session["is_admin"] = False
             session["kiosk"] = True
             logger.info("Kiosk login")
@@ -114,7 +144,8 @@ def login():
             session.permanent = True
             session["user"] = username
             session["username"] = username
-            session["google_user"] = {"name": username, "email": username + "@binzomah.local"}
+            session["display_name"] = _resolve_display_name(username)
+            session["google_user"] = {"name": session["display_name"] or username, "email": username + "@binzomah.local"}
             session["is_admin"] = True
             session["role"] = "admin"
             session["kiosk"] = False
@@ -138,8 +169,8 @@ def login():
             session.permanent = True
             session["user"] = user.username
             session["username"] = user.username
-            session["display_name"] = (getattr(user, "display_name", None) or "").strip()
-            session["google_user"] = {"name": session["display_name"], "email": user.username + "@binzomah.local"}
+            session["display_name"] = _resolve_display_name(user.username, branch_id=user.branch_id)
+            session["google_user"] = {"name": session["display_name"] or user.username, "email": user.username + "@binzomah.local"}
             session["is_admin"] = (user.role == 'admin')
             session["role"] = user.role
             session["must_change_password"] = bool(getattr(user, "must_change_password", False))
@@ -180,10 +211,11 @@ def login():
             session.permanent = True
             session["user"] = username
             session["username"] = username
-            session["google_user"] = {"name": username, "email": username + "@binzomah.local"}
+            bid = acct.get("branch_id")
+            session["display_name"] = _resolve_display_name(username, branch_id=bid if bid in BRANCH_IDS else None)
+            session["google_user"] = {"name": session["display_name"] or username, "email": username + "@binzomah.local"}
             session["is_admin"] = False
             session["role"] = "branch_manager"
-            bid = acct.get("branch_id")
             if bid in BRANCH_IDS:
                 session["branch_id"] = bid
                 session["is_branch_user"] = True
@@ -195,6 +227,40 @@ def login():
             return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة أو الحساب غير مفعل")
 
     return render_template("login.html", reset_success=(request.args.get("reset") == "success"))
+
+
+@auth_bp.route("/api/my_display_name", methods=["POST"])
+@login_required
+def set_my_display_name():
+    """Let the CURRENTLY logged-in account set its own greeting name — nothing else. Scoped
+    strictly to the caller's own identity (never another account), and only ever touches this
+    one cosmetic field: no fleet, financial, or operational record is read or written."""
+    username = session.get("username") or session.get("user") or ""
+    if not username:
+        return jsonify({"success": False, "error": "الجلسة غير صالحة"}), 401
+    name = ((request.get_json(silent=True) or {}).get("name") or "").strip()[:80]
+    if not name:
+        return jsonify({"success": False, "error": "الاسم مطلوب"}), 400
+
+    try:
+        from models.schema import User, db as _db
+        user = User.query.filter_by(username=username).first()
+        if user:
+            user.display_name = name
+            _db.session.commit()
+        else:
+            # Master admin / kiosk / branch logins have no erp_users row to hold this.
+            names = _global_blob_get("account_display_names")
+            names = dict(names) if isinstance(names, dict) else {}
+            names[username] = name
+            _global_blob_set("account_display_names", names)
+    except Exception:
+        logger.exception("failed to save display name for %s", username)
+        return jsonify({"success": False, "error": "تعذر حفظ الاسم"}), 500
+
+    session["display_name"] = name
+    session["google_user"] = {"name": name, "email": (session.get("google_user") or {}).get("email", "")}
+    return jsonify({"success": True, "name": name})
 
 
 def _password_policy_error(password, confirmation=None):

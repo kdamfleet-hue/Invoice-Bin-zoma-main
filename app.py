@@ -342,8 +342,13 @@ def add_header(response):
         response.headers["Content-Security-Policy"] = CSP_REPORT_ONLY
     else:
         response.headers["Content-Security-Policy-Report-Only"] = CSP_REPORT_ONLY
-    # Do not expose exception text or tracebacks from legacy JSON endpoints.
-    if response.status_code >= 500 and response.is_json:
+    # Do not expose exception text or tracebacks from legacy JSON endpoints. A route that
+    # already hand-crafts a safe, translated 5xx message (e.g. "the tracking provider
+    # rejected the token — issue a new one") can set X-Error-Safe to keep its own wording
+    # instead of being overwritten by the generic fallback below — this blanket rule was
+    # otherwise stripping every deliberately-written GPS error message sitewide.
+    is_safe = response.headers.pop("X-Error-Safe", None)
+    if response.status_code >= 500 and response.is_json and not is_safe:
         payload = response.get_json(silent=True) or {}
         if isinstance(payload, dict) and ("traceback" in payload or "error" in payload):
             response.set_data(json.dumps({"success": False, "error": "حدث خطأ داخلي"}, ensure_ascii=False))
@@ -5293,14 +5298,22 @@ with app.app_context():
 # Weekly Excel Import — Admin Trigger Route
 # ====================================================================
 @app.route("/admin/run-weekly-import", methods=["POST"])
+@login_required
+@role_required("admin")
 def run_weekly_import_route():
-    """Secure admin-only route to trigger the weekly Excel import.
+    """Admin-only route to trigger the weekly Excel import. Writes directly to real Vehicle/
+    Driver records (creates missing ones, overwrites non-empty fields on existing ones), so it
+    was tightened rather than left as found: it previously carried NO session check at all —
+    only a header token that defaulted to a hardcoded value ("zoma-import-2026") when the
+    IMPORT_TOKEN env var was unset, i.e. a real fleet-data write reachable by anyone on the
+    internet who read this source file. Now it requires an authenticated admin session, and the
+    token (still required as defense in depth) has no insecure default and is compared in
+    constant time.
     Runs in-process using app_context to avoid circular import issues at startup.
     """
-    # Simple token-based protection so it can't be triggered by anyone
-    expected_token = os.environ.get("IMPORT_TOKEN", "zoma-import-2026")
+    expected_token = os.environ.get("IMPORT_TOKEN", "")
     provided_token = request.headers.get("X-Import-Token", "")
-    if provided_token != expected_token:
+    if not expected_token or not hmac.compare_digest(provided_token, expected_token):
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     excel_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weekly_update.xlsx")
     if not os.path.exists(excel_file):

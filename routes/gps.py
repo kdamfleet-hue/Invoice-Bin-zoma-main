@@ -375,6 +375,45 @@ def _fetch_fleet(request_id):
     return _build_vehicles(assets, states, time.time())
 
 
+def _fleet_snapshot_or_error(request_id):
+    """Shared by every endpoint that needs the live fleet snapshot (the JSON feed and the
+    Excel exports): the cache-or-fetch call plus the full GpsAuthError/timeout/connection/401
+    handling, in one place, so a provider hiccup can never surface as a raw 500 anywhere.
+    Returns (vehicles, None) on success or (None, (message, status)) on failure."""
+    if not (GPS_PERMANENT_TOKEN or (GPS_USER and GPS_PASS)):
+        return None, ("خدمة التتبع غير مهيأة — اضبط GPS_TOKEN (أو GPS_USER/GPS_PASS) في إعدادات الاستضافة.", 503)
+
+    now = time.time()
+    if _fleet_cache["data"] is not None and now - _fleet_cache["at"] < FLEET_CACHE_SECONDS:
+        return _fleet_cache["data"], None
+
+    try:
+        vehicles = _fetch_fleet(request_id)
+    except GpsAuthError as e:
+        return None, ("رفض مزوّد التتبع المصادقة — مفتاح GPS_TOKEN غير صالح أو مستهلك؛ أنشئ مفتاحاً جديداً من 360Locate. (%s)" % str(e)[:160], 502)
+    except requests.Timeout:
+        logger.warning("GPS timeout request_id=%s", request_id)
+        return None, ("تجاوز وقت الاستجابة من خدمة التتبع.", 504)
+    except requests.ConnectionError:
+        logger.warning("GPS connection failure request_id=%s", request_id)
+        return None, ("تعذّر الاتصال بخدمة التتبع.", 503)
+    except RuntimeError as e:
+        code = str(e)
+        if code.startswith("assets:401") or code.startswith("states:401"):
+            return None, ("رفض مزوّد التتبع المصادقة. تحقّق من GPS_TOKEN في إعدادات الاستضافة.", 502)
+        return None, ("تعذّر جلب مواقع الأسطول من المزوّد حالياً.", 502)
+    except Exception:
+        logger.exception("GPS API error request_id=%s", request_id)
+        return None, ("حدث خطأ غير متوقع أثناء جلب بيانات التتبع.", 500)
+
+    _fleet_cache["data"] = vehicles
+    _fleet_cache["at"] = time.time()
+    _diag["last_success_at"] = _fleet_cache["at"]
+    _diag["last_count"] = len(vehicles)
+    _diag["last_error"] = None
+    return vehicles, None
+
+
 @gps_bp.route("/api/gps")
 @login_required
 def get_gps_locations():
@@ -385,40 +424,23 @@ def get_gps_locations():
     (moving | idling | engine_on | stopped | offline). Errors return {"error", "request_id"}
     with 502/503/504 so the page can show a message without losing the last known markers."""
     request_id = secrets.token_hex(6)
-    if not (GPS_PERMANENT_TOKEN or (GPS_USER and GPS_PASS)):
-        return jsonify({"error": "خدمة التتبع غير مهيأة — اضبط GPS_TOKEN (أو GPS_USER/GPS_PASS) في إعدادات الاستضافة.", "request_id": request_id}), 503
-
     now = time.time()
-    if _fleet_cache["data"] is not None and now - _fleet_cache["at"] < FLEET_CACHE_SECONDS:
-        result = jsonify(_fleet_cache["data"])
-        result.headers["X-GPS-Request-ID"] = request_id
-        result.headers["X-GPS-Cache"] = "hit"
-        return result
+    was_cached = _fleet_cache["data"] is not None and now - _fleet_cache["at"] < FLEET_CACHE_SECONDS
 
-    def _fail(message, status):
+    vehicles, err = _fleet_snapshot_or_error(request_id)
+    if err is not None:
+        message, status = err
         _diag["last_error"] = message
         result = jsonify({"error": message, "request_id": request_id})
         result.headers["X-GPS-Request-ID"] = request_id
+        result.headers["X-Error-Safe"] = "1"   # this message is hand-written and safe to show as-is
         return result, status
 
-    try:
-        vehicles = _fetch_fleet(request_id)
-    except GpsAuthError as e:
-        return _fail("رفض مزوّد التتبع المصادقة — مفتاح GPS_TOKEN غير صالح أو مستهلك؛ أنشئ مفتاحاً جديداً من 360Locate. (%s)" % str(e)[:160], 502)
-    except requests.Timeout:
-        logger.warning("GPS timeout request_id=%s", request_id)
-        return _fail("تجاوز وقت الاستجابة من خدمة التتبع.", 504)
-    except requests.ConnectionError:
-        logger.warning("GPS connection failure request_id=%s", request_id)
-        return _fail("تعذّر الاتصال بخدمة التتبع.", 503)
-    except RuntimeError as e:
-        code = str(e)
-        if code.startswith("assets:401") or code.startswith("states:401"):
-            return _fail("رفض مزوّد التتبع المصادقة. تحقّق من GPS_TOKEN في إعدادات الاستضافة.", 502)
-        return _fail("تعذّر جلب مواقع الأسطول من المزوّد حالياً.", 502)
-    except Exception:
-        logger.exception("GPS API error request_id=%s", request_id)
-        return _fail("حدث خطأ غير متوقع أثناء جلب بيانات التتبع.", 500)
+    if was_cached:
+        result = jsonify(vehicles)
+        result.headers["X-GPS-Request-ID"] = request_id
+        result.headers["X-GPS-Cache"] = "hit"
+        return result
 
     # Persist a bounded local history and evaluate geofences without allowing storage
     # failures to break the live tracking response.
@@ -429,11 +451,6 @@ def get_gps_locations():
     except Exception:
         logger.exception("GPS history/geofence persistence failed request_id=%s", request_id)
 
-    _fleet_cache["data"] = vehicles
-    _fleet_cache["at"] = time.time()
-    _diag["last_success_at"] = _fleet_cache["at"]
-    _diag["last_count"] = len(vehicles)
-    _diag["last_error"] = None
     result = jsonify(vehicles)
     result.headers["X-GPS-Request-ID"] = request_id
     result.headers["X-GPS-Cache"] = "miss"
@@ -443,9 +460,19 @@ def get_gps_locations():
 @gps_bp.route("/api/gps/color-status.xlsx")
 @login_required
 def gps_color_status_excel():
-    """Download a workbook built from the same live provider snapshot as /api/gps."""
+    """Download a workbook built from the same live provider snapshot as /api/gps.
+
+    Previously called _fetch_fleet() directly with no error handling at all, so any provider
+    hiccup (an expired GPS_TOKEN, a timeout, the service being unreachable) crashed this route
+    with a raw 500 instead of the friendly message /api/gps already gives — reproduced and
+    confirmed live. Routed through the same shared, exception-safe helper instead."""
     request_id = secrets.token_hex(6)
-    rows = _fleet_cache.get("data") if _fleet_cache.get("data") and time.time() - _fleet_cache.get("at", 0) < FLEET_CACHE_SECONDS else _fetch_fleet(request_id)
+    rows, err = _fleet_snapshot_or_error(request_id)
+    if err is not None:
+        message, status = err
+        result = jsonify({"error": message, "request_id": request_id})
+        result.headers["X-Error-Safe"] = "1"
+        return result, status
     def color_key(value):
         text = str(value or "").lower().strip()
         if any(x in text for x in ("black", "اسود", "أسود", "#000")): return "أسود"

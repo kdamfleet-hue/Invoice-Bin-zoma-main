@@ -194,9 +194,13 @@
         const flag = sessionStorage.getItem('bz_welcomed');
         if (flag) return;
 
-        // Get display name from the page or session
+        // Get display name from the page or session. Empty means no real name is on file yet
+        // (master admin / kiosk / branch logins, or a DB account nobody has named) — show a
+        // generic greeting rather than the raw login username, and offer to set a real one.
         const nameEl = document.querySelector('[data-welcome-name]');
-        const displayName = (nameEl ? nameEl.getAttribute('data-welcome-name') : '') || 'بك';
+        const realName = (nameEl ? nameEl.getAttribute('data-welcome-name') : '') || '';
+        const displayName = realName || 'بك';
+        const esc = window._bzEscHtml || (s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
 
         sessionStorage.setItem('bz_welcomed', '1');
 
@@ -213,13 +217,9 @@
 
         const roleText = roleLabels[displayRole] || displayRole || '';
 
-        // Get time-based greeting
+        // Time-based greeting: مساء الخير only genuinely applies from noon onward.
         const hour = new Date().getHours();
-        let greeting;
-        if (hour < 6) greeting = 'مساء الخير';
-        else if (hour < 12) greeting = 'صباح الخير';
-        else if (hour < 17) greeting = 'مساء الخير';
-        else greeting = 'مساء الخير';
+        const greeting = hour < 12 ? 'صباح الخير' : 'مساء الخير';
 
         // Create overlay
         const overlay = document.createElement('div');
@@ -228,11 +228,36 @@
             <div class="bz-welcome-particles" id="bzWelcomeParticles"></div>
             <img src="/static/nav_logo.png" alt="" class="bz-welcome-logo" />
             <span class="bz-welcome-greeting">${greeting} 👋</span>
-            <span class="bz-welcome-name">${displayName}</span>
-            ${roleText ? `<span class="bz-welcome-role">${roleText} — شركة بن زومة الدولية</span>` : ''}
+            <span class="bz-welcome-name">${esc(displayName)}</span>
+            ${roleText ? `<span class="bz-welcome-role">${esc(roleText)} — شركة بن زومة الدولية</span>` : ''}
+            ${!realName ? `<button type="button" class="bz-welcome-editname">✏️ أضف اسمك هنا</button>` : ''}
             <div class="bz-welcome-bar"><div class="bz-welcome-bar-fill"></div></div>
         `;
         document.body.appendChild(overlay);
+
+        if (!realName) {
+            const editBtn = overlay.querySelector('.bz-welcome-editname');
+            if (editBtn) {
+                editBtn.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    const name = window.prompt('اكتب اسمك ليظهر في الترحيب بدل اسم المستخدم:', '');
+                    if (!name || !name.trim()) return;
+                    fetch('/api/my_display_name', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: name.trim() })
+                    }).then(r => r.json()).then(res => {
+                        if (res && res.success) {
+                            if (typeof showToast === 'function') showToast('تم حفظ اسمك ✓', 'success');
+                            sessionStorage.removeItem('bz_welcomed');
+                            location.reload();
+                        } else if (typeof showToast === 'function') {
+                            showToast((res && res.error) || 'تعذر حفظ الاسم', 'error');
+                        }
+                    }).catch(() => { if (typeof showToast === 'function') showToast('تعذر الاتصال بالخادم', 'error'); });
+                });
+            }
+        }
 
         // Floating particles
         const particleBox = document.getElementById('bzWelcomeParticles');
