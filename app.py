@@ -550,6 +550,59 @@ def role_required(*roles):
     return decorator
 
 
+@app.route("/api/analytics/ux-event", methods=["POST"])
+@limiter.limit("120 per minute")
+def ux_event_ingest():
+    """Accept privacy-safe UX events for A/B measurement; never stores IP or raw user data."""
+    payload = request.get_json(silent=True) or {}
+    allowed_events = {
+        "page_view", "hero_cta_click", "header_cta_click", "filter_selected",
+        "feature_details_open", "feature_details_close", "conversion_started",
+        "conversion_completed", "scroll_25", "scroll_50", "scroll_75", "scroll_100",
+    }
+    event_name = str(payload.get("event", ""))[:64]
+    if event_name not in allowed_events:
+        return jsonify({"success": False, "error": "حدث غير مدعوم"}), 400
+    variant = str(payload.get("variant", "focused"))[:32]
+    if variant not in {"control", "focused"}:
+        variant = "focused"
+    safe = {"event": event_name, "variant": variant,
+            "page": str(payload.get("page", "/"))[:120],
+            "category": str(payload.get("category", ""))[:40],
+            "feature": str(payload.get("feature", ""))[:80],
+            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}
+    try:
+        with UX_EVENTS_LOCK:
+            events = _global_blob_get("ux_events") or []
+            if not isinstance(events, list):
+                events = []
+            events.append(safe)
+            _global_blob_set("ux_events", events[-UX_EVENTS_MAX:])
+        return ("", 204)
+    except Exception:
+        logger.exception("ux event ingest failed")
+        return ("", 204)
+
+
+@app.route("/api/analytics/ux-summary", methods=["GET"])
+@login_required
+@role_required("admin")
+def ux_event_summary():
+    """Admin-only aggregate summary for conversion and A/B reporting."""
+    events = _global_blob_get("ux_events") or []
+    if not isinstance(events, list):
+        events = []
+    summary = {v: {"page_view": 0, "conversion_started": 0,
+                   "conversion_completed": 0, "hero_cta_click": 0}
+               for v in ("control", "focused")}
+    for event in events:
+        variant = event.get("variant", "focused")
+        name = event.get("event", "")
+        if variant in summary and name in summary[variant]:
+            summary[variant][name] += 1
+    return jsonify({"success": True, "sample_size": len(events), "variants": summary})
+
+
 
 
 # Flask-Mail Configuration
@@ -946,6 +999,8 @@ def save_branch_accounts(accounts):
 # into one row (bumping its time + count) so the trail stays meaningful, not flooded.
 AUDIT_MAX = 1000
 AUDIT_COALESCE_SEC = 600
+UX_EVENTS_MAX = 5000
+UX_EVENTS_LOCK = threading.Lock()
 
 
 def _audit_get():

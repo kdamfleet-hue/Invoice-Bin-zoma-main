@@ -520,6 +520,7 @@
 
       function openDetails(card) {
         lastFocused = document.activeElement;
+        if (window.trackUX) window.trackUX("feature_details_open", {feature: card.dataset.title || ""});
         modalTitle.textContent = card.dataset.title;
         modalDescription.textContent = card.dataset.description;
         modalPoints.innerHTML = "";
@@ -535,6 +536,7 @@
       }
 
       function closeDetails() {
+        if (window.trackUX) window.trackUX("feature_details_close");
         modal.classList.remove("is-open");
         modal.setAttribute("aria-hidden", "true");
         document.body.style.overflow = "";
@@ -558,5 +560,6 @@
       updateProgress();
     })();
   </script>
+  <script defer src="{{ url_for('static', filename='js/ux_analytics.js', v=1) }}"></script>
 </body>
 </html>
