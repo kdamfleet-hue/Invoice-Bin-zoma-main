@@ -333,9 +333,20 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.after_request
 def add_header(response):
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
+    # HTML/API responses must remain fresh, but fingerprinted static assets can be
+    # cached for a year. Templates already append ?v=... to the shared CSS/JS files,
+    # so immutable caching is safe and removes a full origin round-trip on each page.
+    if request.path.startswith("/static/"):
+        if request.args.get("v"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        response.headers.pop("Pragma", None)
+        response.headers.pop("Expires", None)
+    else:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     # Keep Report-Only during migration; operators can promote the reviewed policy
     # without a code change after inline scripts and third-party assets are migrated.
     if os.environ.get("CSP_ENFORCE", "false").lower() == "true":
@@ -354,6 +365,19 @@ def add_header(response):
             response.set_data(json.dumps({"success": False, "error": "حدث خطأ داخلي"}, ensure_ascii=False))
             response.headers["Content-Type"] = "application/json; charset=utf-8"
     return response
+
+@app.errorhandler(403)
+def handle_forbidden(e):
+    """Record enough context to diagnose permission 403s without exposing internals."""
+    logger.warning(
+        "403 forbidden path=%s method=%s user=%s role=%s branch=%s origin=%s referer=%s",
+        request.path, request.method, session.get("user") or session.get("username") or "anonymous",
+        session.get("role", "none"), session.get("branch_id", "default"),
+        request.headers.get("Origin", "-"), request.headers.get("Referer", "-"),
+    )
+    if request.path.startswith("/api/"):
+        return jsonify({"success": False, "error": "غير مصرح لك (Forbidden)"}), 403
+    return render_template("error.html", google_user=session.get("google_user"), b64_en=load_logo()), 403
 
 
 @app.route('/csp-report', methods=['POST'])
