@@ -403,6 +403,13 @@ def csp_report():
 def manifest():
     return app.send_static_file('manifest.json')
 
+@app.route('/luxury-preview')
+def luxury_preview():
+    """Authenticated preview of the compact filtered luxury UI reference page."""
+    if not session.get('authenticated'):
+        return redirect(url_for('auth.login'))
+    return render_template('luxury_filtered_ui.html')
+
 @app.before_request
 def enforce_dedicated_workstation_and_tab_permissions():
     path = request.path
