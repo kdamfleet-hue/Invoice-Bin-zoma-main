@@ -1,0 +1,341 @@
+/* Extracted from templates/purchase.html; keep this file template-independent. */
+/* ── Page-specific layout only (tokens from base_styles.css) ── */
+        .header-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 auto 1rem auto;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .site-logo {
+            max-width: 280px;
+            width: 90%;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.12));
+            transition: var(--trans);
+        }
+
+        body.dark-mode .site-logo { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)); }
+
+        .nav-buttons {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .table-container {
+            width: 100%;
+            padding: 1.5rem;
+            margin: 1.5rem auto 0 auto;
+        }
+
+        /* On-screen readability for the multi-column bz-fit tables (parts/repairs/
+           tires/batteries/summary). The .excel-table base style clips with
+           overflow:hidden (for rounded corners) which can cut header text; for the
+           bz-fit tables we make overflow visible so single-word Arabic headers
+           (الموديل / الحمولة / المسافة …) are never cut and multi-word headers wrap
+           at spaces. table-layout:auto (from bz-fit) sizes each column to content.
+           Export logic / data are untouched. */
+        .excel-table.bz-fit { overflow: visible; }
+        .excel-table.bz-fit thead th {
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+            overflow: visible;
+        }
+        /* The blue full-width section bar (e.g. "البطاريات", "ملخص الإجماليات")
+           should stay on one line — it has ample room across all columns. */
+        .excel-table.bz-fit thead th.excel-header {
+            white-space: nowrap;
+        }
+        /* Narrow screens: the base CSS widens each editable cell (min-width) so the
+           multi-column bz-fit tables (up to 9 cols) become wider than the viewport.
+           Make each such table scroll HORIZONTALLY inside its own bordered, rounded
+           box instead of overflowing/clipping. display:block is required for a
+           <table> to honour overflow-x; the inner table reverts to table layout so
+           sizing/headers are unchanged. Desktop (>920px) keeps the no-scroll
+           fit-to-width layout untouched. Export/PDF logic is not affected. */
+        @media (max-width: 920px) {
+            .excel-table.bz-fit {
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                border-radius: 8px;
+            }
+            .excel-table.bz-fit thead,
+            .excel-table.bz-fit tbody {
+                display: table;
+                width: 100%;
+                table-layout: auto;
+            }
+        }
+
+        .section-title {
+            background: var(--accent);
+            color: #fff;
+            text-align: center;
+            padding: 10px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            border-radius: 10px;
+            margin: 15px 0 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-remove {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: var(--trans);
+        }
+
+        .btn-remove:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+        }
+
+        /* Floating Action Button */
+        .fab-btn {
+            position: fixed;
+            bottom: 25px;
+            left: 25px;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            font-size: 1.7rem;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--trans);
+        }
+
+        .fab-btn:hover {
+            transform: scale(1.08) rotate(8deg);
+        }
+
+        .glass-surface {
+            background: rgba(20, 20, 20, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(212, 175, 55, 0.15);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        /* ── Corporate "Excel-look" form tables (kept; this is the page's signature layout) ── */
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 22px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            background: rgba(30, 30, 30, 0.5);
+            backdrop-filter: blur(12px);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid rgba(212, 175, 55, 0.15);
+            padding: 0;
+            margin: 0;
+        }
+        .excel-header {
+            background: rgba(15, 15, 15, 0.85) !important;
+            color: var(--accent) !important;
+            text-align: center;
+            font-weight: 800;
+            padding: 9px !important;
+            font-size: 1.05rem;
+            border-bottom: 2px solid var(--accent);
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        .excel-label {
+            background: rgba(212, 175, 55, 0.1) !important;
+            color: var(--accent) !important;
+            text-align: center;
+            font-weight: 700;
+            padding: 6px !important;
+            font-size: 0.92rem;
+            width: 12%;
+            white-space: nowrap;
+        }
+        .excel-table th {
+            background: rgba(15, 15, 15, 0.85);
+            color: var(--text-primary);
+            text-align: center;
+            font-weight: 700;
+            padding: 7px !important;
+            font-size: 0.92rem;
+        }
+        .excel-input {
+            width: 21%;
+        }
+        .excel-input input, .excel-table td input,
+        .excel-table td textarea {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: none !important;
+            padding: 8px;
+            background: transparent;
+            font-family: inherit;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: center;
+            outline: none;
+            min-height: 35px;
+            transition: all 0.3s;
+        }
+        .excel-input input:focus, .excel-table td input:focus,
+        .excel-table td textarea:focus {
+            background: rgba(212, 175, 55, 0.1);
+        }
+        .btn-add-row {
+            background: var(--gold, #c9a227);
+            color: #0C2340;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 800;
+            font-size: 0.85rem;
+            margin-right: 15px;
+        }
+        .btn-add-row:hover {
+            filter: brightness(0.95);
+        }
+        /* Force readable dark text on the printed/notes black-text rows in dark mode */
+        body.dark-mode .excel-table td[style*="color:#000"],
+        body.dark-mode .excel-table th[style*="color:#000"] { color: var(--text-primary) !important; }
+
+/* Extracted static style attributes. */
+.csp-inline-purchase-1399{position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;}
+.csp-inline-purchase-1400{width: 300px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));}
+.csp-inline-purchase-1401{position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:var(--surface);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);}
+.csp-inline-purchase-1402{width:28px;height:28px;border-radius:50%}
+.csp-inline-purchase-1403{font-weight:bold;color:var(--text-primary);font-size:0.9rem}
+.csp-inline-purchase-1404{color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);}
+.csp-inline-purchase-1405{text-align:center;}
+.csp-inline-purchase-1406{text-decoration:none;}
+.csp-inline-purchase-1407{text-decoration:none;}
+.csp-inline-purchase-1408{position:relative;margin-bottom:15px;}
+.csp-inline-purchase-1409{font-weight:bold;color:var(--accent);font-size:1rem;display:block;margin-bottom:6px;}
+.csp-inline-purchase-1410{width:100%;padding:14px 16px;border:2px solid var(--accent);border-radius:10px;font-size:1.05rem;font-family:'Cairo';font-weight:700;background:var(--surface);color:var(--text-primary);box-sizing:border-box;transition:var(--trans);}
+.csp-inline-purchase-1411{display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:0 0 10px 10px;max-height:300px;overflow-y:auto;z-index:100;box-shadow:var(--shadow-md);}
+.csp-inline-purchase-1412{background: rgba(0,0,0,0.05); color: #d35400;}
+.csp-inline-purchase-1413{width: 5%;}
+.csp-inline-purchase-1414{width: 35%;}
+.csp-inline-purchase-1415{width: 10%;}
+.csp-inline-purchase-1416{width: 15%;}
+.csp-inline-purchase-1417{width: 15%;}
+.csp-inline-purchase-1418{width: 15%;}
+.csp-inline-purchase-1419{width: 5%;}
+.csp-inline-purchase-1420{width: 5%;}
+.csp-inline-purchase-1421{width: 45%;}
+.csp-inline-purchase-1422{width: 20%;}
+.csp-inline-purchase-1423{width: 25%;}
+.csp-inline-purchase-1424{width: 5%;}
+.csp-inline-purchase-1425{width: 5%;}
+.csp-inline-purchase-1426{width: 15%;}
+.csp-inline-purchase-1427{width: 10%;}
+.csp-inline-purchase-1428{width: 10%;}
+.csp-inline-purchase-1429{width: 10%;}
+.csp-inline-purchase-1430{width: 15%;}
+.csp-inline-purchase-1431{width: 15%;}
+.csp-inline-purchase-1432{width: 15%;}
+.csp-inline-purchase-1433{width: 5%;}
+.csp-inline-purchase-1434{width: 5%;}
+.csp-inline-purchase-1435{width: 30%;}
+.csp-inline-purchase-1436{width: 10%;}
+.csp-inline-purchase-1437{width: 15%;}
+.csp-inline-purchase-1438{width: 10%;}
+.csp-inline-purchase-1439{width: 15%;}
+.csp-inline-purchase-1440{width: 10%;}
+.csp-inline-purchase-1441{width: 5%;}
+.csp-inline-purchase-1442{width: 14%;}
+.csp-inline-purchase-1443{width: 14%;}
+.csp-inline-purchase-1444{width: 14%;}
+.csp-inline-purchase-1445{width: 14%;}
+.csp-inline-purchase-1446{width: 15%;}
+.csp-inline-purchase-1447{width: 14%;}
+.csp-inline-purchase-1448{width: 15%;}
+.csp-inline-purchase-1449{font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);}
+.csp-inline-purchase-1450{font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);}
+.csp-inline-purchase-1451{font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);}
+.csp-inline-purchase-1452{font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);}
+.csp-inline-purchase-1453{background:rgba(212, 175, 55, 0.1);font-weight:bold;text-align:center;color:var(--accent);}
+.csp-inline-purchase-1454{background:rgba(212, 175, 55, 0.1);font-weight:bold;text-align:center;color:#f39c12;}
+.csp-inline-purchase-1455{background:rgba(212, 175, 55, 0.2);font-weight:bold;text-align:center;color:#2ecc71;font-size:1.1rem;border:1px solid rgba(46, 204, 113, 0.5);}
+.csp-inline-purchase-1456{margin-top: 15px;}
+.csp-inline-purchase-1457{width:15%}
+.csp-inline-purchase-1458{padding:0;}
+.csp-inline-purchase-1459{width:100%; height:100%; padding:8px; border:none; resize:none; font-family:inherit; font-weight:bold; outline:none; font-size:1rem; background:transparent; color:var(--text-primary);}
+.csp-inline-purchase-1460{border-top: 2px solid #b8860b; border-bottom: 2px solid #b8860b; padding: 40px 0 10px 0; display: flex; justify-content: space-between; font-weight: bold; margin-top: 30px; font-size: 0.95rem;}
+.csp-inline-purchase-1461{width:14%; text-align:center; color:var(--text-primary);}
+.csp-inline-purchase-1462{width:14%; text-align:center; color:var(--text-primary);}
+.csp-inline-purchase-1463{width:14%; text-align:center; color:var(--text-primary);}
+.csp-inline-purchase-1464{width:14%; text-align:center; color:var(--text-primary);}
+.csp-inline-purchase-1465{width:14%; text-align:center; color:var(--text-primary);}
+.csp-inline-purchase-1466{width:14%; text-align:center; color:var(--text-primary);}
+.csp-inline-purchase-1467{width:16%; text-align:center; color:var(--text-primary);}
+.csp-inline-purchase-1468{text-align: center; font-weight: bold; margin-top: 40px; margin-bottom: 5px; color:var(--text-primary);}
+.csp-inline-purchase-1469{margin-top: 0; margin-bottom: 30px;}
+.csp-inline-purchase-1470{background-color: var(--accent) !important; text-align: center; padding:4px !important;}
+.csp-inline-purchase-1471{padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);}
+.csp-inline-purchase-1472{padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);}
+.csp-inline-purchase-1473{padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);}
+.csp-inline-purchase-1474{padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);}
+.csp-inline-purchase-1475{text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap}
+.csp-inline-purchase-1476{text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);width:100%}
+.csp-inline-purchase-1477{padding:12px;color:var(--text-muted);text-align:center;}
+.csp-inline-purchase-1478{padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:var(--trans);}
+.csp-inline-purchase-1479{font-weight:bold;color:var(--text-primary);font-size:1rem;}
+.csp-inline-purchase-1480{font-size:0.8rem;color:var(--text-muted);margin-top:3px;}
+.csp-inline-purchase-1481{flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);}
+.csp-inline-purchase-1482{padding:4px 8px;}
+.csp-inline-purchase-1483{color:white;}
+.csp-inline-purchase-1484{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;}
+.csp-inline-purchase-1485{font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem}
+.csp-inline-purchase-1486{flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);}
+.csp-inline-purchase-1487{border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;}
+.csp-inline-purchase-1488{display:flex;align-items:center;gap:8px}
+.csp-inline-purchase-1489{font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem}
+.csp-inline-purchase-1490{flex:1;display:flex;flex-direction:column;gap:5px}
+.csp-inline-purchase-1491{display:flex;gap:5px;align-items:center}
+.csp-inline-purchase-1492{flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);}
+.csp-inline-purchase-1493{background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center}
+.csp-inline-purchase-1494{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;}
+.csp-inline-purchase-1495{font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem}
+.csp-inline-purchase-1496{flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);}
+.csp-inline-purchase-1497{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.csp-inline-purchase-1498{border-color:var(--border-strong);color:var(--text-primary);}
+.csp-inline-purchase-1499{color:white;}
+.csp-inline-purchase-1500{display:flex;flex-direction:column;gap:12px}
+.csp-inline-purchase-1501{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.csp-inline-purchase-1502{font-weight:bold;color:var(--text-primary);min-width:50px}
+.csp-inline-purchase-1503{flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);}
+.csp-inline-purchase-1504{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.csp-inline-purchase-1505{font-weight:bold;color:var(--text-primary);min-width:50px}
+.csp-inline-purchase-1506{flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);}
+.csp-inline-purchase-1507{border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:inherit;font-size:1rem;resize:vertical;outline:none}
+.csp-inline-purchase-1508{display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer}
+.csp-inline-purchase-1509{font-size:1.3rem}
+.csp-inline-purchase-1510{color:var(--text-muted);font-size:0.9rem}
+.csp-inline-purchase-1511{display:none}
+.csp-inline-purchase-1512{display:flex;gap:10px;justify-content:flex-end;margin-top:5px}
+.csp-inline-purchase-1513{border-color:var(--border-strong);color:var(--text-primary);}

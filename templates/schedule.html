@@ -16,335 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-    /* ════════════════════════════════════════════════════════════════════
-       PREMIUM DARK NAVY + GOLD RESKIN — scoped to .sched-premium.
-       Visual/presentation only: no data, IDs, handlers, or logic changed.
-       The global nav (.bz-topbar) is left untouched.
-       ════════════════════════════════════════════════════════════════════ */
-    .sched-premium {
-      --navy:#1A1A1A; --navy2:#2D2D2D; --navy3:#363636;
-      --p-blue:#C5A059; --p-gold:#C5A059; --p-gold2:#d8b87a;
-      --p-red:#C0392B; --p-orange:#D35400; --p-green:#1A7A4A; --p-green2:#21A85E;
-      --p-brown:#6B3A1F; --p-text:#F4F4F4; --p-muted:#B0B0B0;
-      --p-card:#2D2D2D; --p-border:#3a3a3a; --p-row-alt:rgba(197,160,89,0.06);
-      font-family:'Cairo',sans-serif; /* Fixed font */
-      background:var(--navy); color:var(--p-text);
-      border-radius:16px; padding:20px 22px 28px; margin-top:14px;
-      border:1px solid var(--p-border); box-shadow:0 12px 22px -6px rgba(0,0,0,.5);
-      direction:rtl;
-    }
-    .sched-premium ::-webkit-scrollbar { width:7px; height:7px; }
-    .sched-premium ::-webkit-scrollbar-track { background:var(--navy2); }
-    .sched-premium ::-webkit-scrollbar-thumb { background:var(--p-gold); border-radius:4px; }
-
-    /* page section title */
-    .sched-premium .bz-section-title,
-    .sched-premium #schedTitle {
-      color:var(--p-gold2); font-weight:800; border:none;
-    }
-
-    /* ── BRAND STRIP inside the premium card ─────────────────── */
-    .sp-brandstrip {
-      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
-      background:linear-gradient(135deg,var(--navy2),var(--navy3));
-      border:1px solid var(--p-border); border-radius:12px;
-      padding:12px 18px; margin-bottom:18px; border-bottom:2px solid var(--p-gold);
-    }
-    .sp-brandstrip .sp-bl { display:flex; align-items:center; gap:12px; }
-    .sp-logo { width:42px; height:42px; background:var(--p-gold); border-radius:9px; display:flex;
-      align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
-    .sp-bt h1 { font-size:15px; font-weight:800; color:var(--p-text); margin:0; line-height:1.25; }
-    .sp-bt span { font-size:12px; color:var(--p-gold); font-weight:600; }
-    .sp-week { background:rgba(200,155,60,.15); border:1px solid var(--p-border); border-radius:8px;
-      padding:7px 14px; font-size:13px; color:var(--p-gold2); font-weight:700; }
-
-    /* ── TOOLBAR (restyled, IDs/handlers untouched) ──────────── */
-    .sched-premium .sched-toolbar .spacer { flex:1; }
-    .sched-premium .sched-date { display:flex; align-items:center; gap:.5rem; font-weight:700; color:var(--p-gold2); }
-    .sched-premium .sched-date input {
-      width:auto; padding:7px 12px; background:rgba(255,255,255,.07);
-      border:1px solid rgba(255,255,255,.15); color:var(--p-text); border-radius:8px; box-shadow:none;
-    }
-    .sched-premium .sched-date input:focus { border-color:var(--p-gold); box-shadow:none; background:rgba(255,255,255,.10); }
-    .sched-premium .hint { font-size:.82rem; color:var(--p-muted); }
-
-    /* premium buttons (re-skin the existing classes ONLY within the card) */
-    
-    /* ── STAT CARDS (wired to real computed values in JS) ────── */
-    .sp-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:13px; margin-bottom:20px; }
-    .sp-stat { background:var(--p-card); border:1px solid var(--p-border); border-radius:12px;
-      padding:16px 15px; position:relative; overflow:hidden; transition:transform .2s, box-shadow .2s; }
-    .sp-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.3); }
-    .sp-stat::before { content:''; position:absolute; top:0; right:0; width:4px; height:100%;
-      background:var(--sp-accent,var(--p-gold)); border-radius:0 12px 12px 0; }
-    .sp-stat .ico { font-size:22px; margin-bottom:6px; }
-    .sp-stat .val { font-size:30px; font-weight:800; color:var(--p-gold2); line-height:1; }
-    .sp-stat .lbl { font-size:11.5px; color:var(--p-muted); margin-top:4px; font-weight:600; }
-    .sp-stat.blue   { --sp-accent:var(--p-gold); }   .sp-stat.blue .val   { color:#e0c489; }
-    .sp-stat.green  { --sp-accent:var(--p-green2); }  .sp-stat.green .val  { color:#55EFC4; }
-    .sp-stat.orange { --sp-accent:var(--p-orange); }  .sp-stat.orange .val { color:#FF9F43; }
-    .sp-stat.brown  { --sp-accent:var(--p-brown); }   .sp-stat.brown .val  { color:#FDCB6E; }
-    .sp-stat.red    { --sp-accent:var(--p-red); }     .sp-stat.red .val    { color:#FF6B6B; }
-
-    /* ── ALERT BAR ───────────────────────────────────────────── */
-    .sp-alert { background:rgba(192,57,43,.15); border:1px solid rgba(192,57,43,.4); border-radius:10px;
-      padding:10px 16px; margin-bottom:18px; display:flex; align-items:center; gap:10px;
-      font-size:13px; font-weight:700; color:#FF6B6B; }
-    .sp-alert.hidden { display:none; }
-
-    /* ── SECTION TITLES ──────────────────────────────────────── */
-    .sched-premium .sec-title { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin:1.6rem 0 .7rem; }
-    .sched-premium .sec-title h2 { font-size:1.06rem; margin:0; display:flex; align-items:center; gap:.5rem; color:var(--p-gold2); font-weight:700; }
-    .sched-premium .sec-title.spare h2::before { content:''; }
-    .sched-premium .sec-title.vac h2::before { content:''; }
-    .sched-premium .sec-title.spare h2 { color:#FF9F43; }
-    .sched-premium .sec-title.vac h2 { color:#55EFC4; }
-
-    /* ── TABS (every existing table stays reachable) ─────────── */
-    
-    
-    .sp-tab.active { color:var(--p-gold2); border-bottom-color:var(--p-gold); }
-    .sp-tab:hover:not(.active) { color:var(--p-text); }
-    .sp-panel { display:none; }
-    .sp-panel.active { display:block; }
-    .sp-chip { display:inline-flex; align-items:center; justify-content:center; background:rgba(200,155,60,.2);
-      color:var(--p-gold2); border-radius:20px; padding:1px 8px; font-size:11px; font-weight:700; margin-right:4px; }
-    .sp-chip.red { background:rgba(192,57,43,.25); color:#FF6B6B; }
-
-    /* ── TABLES ──────────────────────────────────────────────── */
-    .sched-premium .sched-table-wrap {
-      width:100%; border:1px solid var(--p-border); border-radius:12px;
-      box-shadow:none; background:var(--p-card); overflow-x:auto; overflow-y:visible;
-    }
-    .sched-premium table.sched { border-collapse:collapse; width:100%; table-layout: fixed !important; min-width: 1600px !important; }
-    .sched-premium table.sched th,
-    .sched-premium table.sched td {
-        border:1px solid rgba(255,255,255,.07); padding:0; text-align:center; overflow:hidden; }
-    .sched-premium table.sched thead th {
-      background:linear-gradient(180deg, rgba(11, 13, 20, 0.9), rgba(19, 23, 34, 0.95)); color:var(--p-gold2); font-weight:700; font-size:.73rem;
-      padding:8px 8px; white-space:normal; line-height:1.35; word-break:keep-all; overflow-wrap:normal;
-      border-bottom:1px solid var(--p-border);
-    }
-    .sched-premium table.sched thead th.grp { font-size:.82rem; font-weight:800; letter-spacing:.3px; padding:7px 2px; }
-    .sched-premium table.sched thead th.grp-emp { background:linear-gradient(90deg,#3a3a3a,#2D2D2D); color:#F4F4F4; }
-    .sched-premium table.sched thead th.grp-veh { background:linear-gradient(135deg,#C5A059,#d8b87a); color:#1A1A1A; }
-    .sched-premium table.sched td {
-        min-width: 50px; vertical-align:middle; }
-    .sched-premium table.sched td input {
-      width:100%; min-width:0; border:none; background:transparent; text-align:center;
-      padding:7px 2px; font-size:.72rem; color:var(--p-text); box-shadow:none; border-radius:0;
-      font-family:'Cairo',sans-serif; /* Fixed font */ text-overflow:ellipsis;
-    }
-    .sched-premium table.sched td input::placeholder { color:var(--p-muted); }
-    .sched-premium table.sched td input:focus {
-      background:rgba(200,155,60,.18); outline:2px solid var(--p-gold); outline-offset:-2px;
-      position:relative; z-index:3; color:#fff;
-    }
-    .sched-premium table.sched td.col-idx {
-      background:rgba(0,0,0,.22); font-weight:800; font-size:.74rem; color:var(--p-gold2);
-    }
-    .sched-premium table.sched tbody tr { transition:background .18s ease, box-shadow .18s ease; }
-    .sched-premium table.sched tbody tr:hover { position:relative; z-index:20; box-shadow:0 6px 18px rgba(0,0,0,.32); }
-    .sched-premium table.sched tbody tr:hover td:not(.exp-bad):not(.exp-warn) { background: rgba(197, 160, 89, 0.12) !important; }
-    .sched-premium table.sched tbody tr:nth-child(even) td:not(.col-idx):not(.exp-bad):not(.exp-warn) { background:var(--p-row-alt); }
-    .sched-premium table.sched tbody tr:hover td:not(.exp-bad):not(.exp-warn) { background:rgba(197,160,89,.12); }
-    /* Hover focus: lift the row and reveal the full value without changing data. */
-    .sched-premium table.sched tbody tr:hover td { height:42px; }
-    .sched-premium table.sched tbody tr:hover td input { padding-top:10px; padding-bottom:10px; text-overflow:clip; }
-    .sched-premium table.sched tbody td[data-full-value] { position:relative; overflow:visible; }
-    .sched-premium table.sched tbody td[data-full-value]:hover { z-index:30; }
-    .sched-premium table.sched tbody td[data-full-value]:hover::before {
-      content:attr(data-full-value); position:absolute; top:calc(100% - 1px); right:0; min-width:100%; max-width:340px;
-      padding:8px 10px; border:1px solid var(--p-gold); border-radius:7px; background:#151922; color:#fff;
-      font-size:.78rem; font-weight:700; line-height:1.45; white-space:normal; overflow-wrap:anywhere;
-      text-align:center; box-shadow:0 8px 18px rgba(0,0,0,.45); pointer-events:none;
-    }
-    .sched-premium table.sched tbody tr:first-child td[data-full-value]:hover::before { top:auto; bottom:calc(100% - 1px); }
-    @media (hover:none) {
-      .sched-premium table.sched tbody td[data-full-value]:hover::before { display:none; }
-    }
-
-    /* Expired / soon — aligned to reference red / orange + days hint */
-    .sched-premium table.sched td.exp-bad  input { background:rgba(192,57,43,.30);  color:#FF8A80; font-weight:800; }
-    .sched-premium table.sched td.exp-warn input { background:rgba(211,84,0,.26);   color:#FFC078; font-weight:800; }
-    .sched-premium table.sched td.exp-soon input { color:#FDE68A; font-weight:700; }
-    .sched-premium td.exp-bad, .sched-premium td.exp-warn, .sched-premium td.exp-soon, .sched-premium td.exp-normal { position:relative; }
-    .sched-premium td.exp-bad::after, .sched-premium td.exp-warn::after, .sched-premium td.exp-soon::after, .sched-premium td.exp-normal::after {
-      content:attr(data-days); position:absolute; bottom:1px; left:3px;
-      font-size:8.5px; font-weight:800; pointer-events:none; opacity:.9;
-    }
-    .sched-premium td.exp-bad::after  { color:#FF8A80; }
-    .sched-premium td.exp-warn::after { color:#FFC078; }
-    .sched-premium td.exp-soon::after { color:#FDE68A; }
-    .sched-premium td.exp-normal::after { color:rgba(226,232,240,.72); }
-
-    /* job badge styling on the editable <input> (موصل=blue / موزع=green) */
-    .sched-premium table.sched td.job-mosil input { background:rgba(197,160,89,.22); color:#e0c489; font-weight:700; border-radius:14px; }
-    .sched-premium table.sched td.job-mozaa input { background:rgba(26,122,74,.25); color:#7DEFC9; font-weight:700; border-radius:14px; }
-    /* plate badge styling on the editable <input> */
-    .sched-premium table.sched td.plate-cell input {
-      background:rgba(197,160,89,.16); color:#e0c489; font-weight:700; letter-spacing:.5px; border-radius:8px;
-    }
-
-    /* ── ACTION BUTTONS ──────────────────────────────────────── */
-    .sched-premium .col-act-wrap { display:flex; gap:3px; justify-content:center; align-items:center; }
-    .sched-premium .row-notify { background:rgba(33,168,94,.20); color:#7DEFC9; border:none; width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:.85rem; line-height:1; }
-    .sched-premium .row-notify:hover { background:#16a34a; color:#fff; }
-    .sched-premium .row-del { background:rgba(192,57,43,.18); color:#FF8A80; border:none; width:26px; height:26px; border-radius:6px; cursor:pointer; font-weight:800; }
-    .sched-premium .row-del:hover { background:#dc2626; color:#fff; }
-    .sched-premium .row-custody { background:rgba(197,160,89,.20); color:var(--brand-gold,#c5a059); border:none; width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:.85rem; line-height:1; }
-    .sched-premium .row-custody:hover { background:var(--brand-gold,#c5a059); color:#1a1a1a; }
-    /* Custody-transfer modal */
-    #custodyModal .modal-content-custom { max-width:440px; }
-    .custody-current { background:var(--bg,#141414); border:1px solid var(--border,#2e2e2e); border-radius:10px; padding:14px; text-align:center; margin-bottom:1rem; }
-    .custody-current .cc-plate { font-size:1.3rem; font-weight:800; color:#fff; }
-    .custody-current .cc-driver { font-size:.9rem; color:var(--text-secondary,#9ca3af); margin-top:2px; }
-    .custody-field { margin-bottom:1rem; }
-    .custody-field label { display:block; font-size:.85rem; color:var(--text-secondary,#9ca3af); margin-bottom:6px; }
-    .custody-field input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border,#3a3a3a); background:var(--surface-hover,#262626); color:var(--text-primary,#e5e7eb); font-family:inherit; font-size:.95rem; box-sizing:border-box; }
-    .custody-field input:focus { outline:none; border-color:var(--brand-gold,#c5a059); }
-
-    /* ── LEGEND ──────────────────────────────────────────────── */
-    .sched-premium .exp-legend { display:flex; gap:1rem; flex-wrap:wrap; font-size:.8rem; color:var(--p-muted); margin:.4rem 0 .2rem; }
-    .sched-premium .exp-legend span { display:inline-flex; align-items:center; gap:5px; }
-    .sched-premium .exp-legend i { width:14px; height:14px; border-radius:3px; display:inline-block; }
-
-    /* (green «ملخص الأعداد» summary card removed — counts shown in the stat cards above) */
-
-    /* ── SIGNATURE / FOOTER ──────────────────────────────────── */
-    .sched-premium .sign-block { margin-top:1.5rem; text-align:center; color:var(--p-muted);
-      border-top:1px solid var(--p-border); padding-top:16px; }
-    .sched-premium .sign-block .dept { font-weight:800; color:var(--p-gold2); margin-top:6px; }
-
-    /* "Send to all via WhatsApp" modal */
-    .sched-summary-table {
-      width: 100% !important;
-      min-width: 0 !important;
-      max-width: 100% !important;
-      table-layout: auto !important;
-      border-collapse: collapse !important;
-      margin: 0 !important;
-      box-sizing: border-box !important;
-    }
-    .sched-summary-table td {
-      background: rgba(255, 255, 255, 0.06) !important;
-      color: var(--p-text, #f4f4f4) !important;
-      border: 1px solid rgba(255, 255, 255, 0.1) !important;
-      padding: 8px 10px !important;
-      font-size: 0.85rem !important;
-    }
-    .wa-all-list { display:flex; flex-direction:column; gap:.45rem; max-height:55vh; overflow-y:auto; }
-    .wa-all-row { display:flex; align-items:center; justify-content:space-between; gap:.6rem;
-      border:1px solid var(--border); border-radius:10px; padding:8px 12px; background:var(--surface); }
-    .wa-all-info { display:flex; flex-direction:column; gap:2px; text-align:start; }
-    .wa-all-info strong { font-size:.92rem; }
-
-    .schedule-view-tools { display:flex; align-items:end; gap:10px; flex-wrap:wrap; margin:12px 0 14px; padding:12px; border:1px solid rgba(197,160,89,.22); border-radius:12px; background:rgba(197,160,89,.06); }
-    .schedule-search { position:relative; flex:1 1 260px; min-width:220px; }
-    .schedule-search span { position:absolute; right:12px; top:10px; color:var(--p-gold2,#e0c489); font-size:1.05rem; }
-    .schedule-search input, .schedule-filter select { width:100%; min-height:38px; box-sizing:border-box; border:1px solid var(--p-border,#3a3527); border-radius:9px; background:var(--p-card,#111a25); color:var(--p-text,#f4f4f4); font:inherit; font-size:.78rem; padding:7px 34px 7px 10px; }
-    .schedule-filter { min-width:135px; color:var(--p-muted,#9aa7b5); font-size:.7rem; font-weight:700; }
-    .schedule-filter span { display:block; margin-bottom:4px; }
-    .schedule-filter select { padding:7px 9px; }
-    .schedule-reset { min-height:38px; border:1px solid rgba(197,160,89,.35); border-radius:9px; background:transparent; color:var(--p-gold2,#e0c489); padding:0 12px; font:700 .75rem inherit; cursor:pointer; }
-    .schedule-reset:hover { background:rgba(197,160,89,.13); }
-    .schedule-result-count { color:var(--p-muted,#9aa7b5); font-size:.72rem; margin-inline-start:auto; white-space:nowrap; padding-bottom:9px; }
-    .schedule-mobile-cards { display:none; }
-    .schedule-empty { padding:24px 14px; text-align:center; color:var(--p-muted,#9aa7b5); border:1px dashed var(--p-border,#3a3527); border-radius:12px; }
-    @media (max-width:768px) {
-      .schedule-view-tools { align-items:stretch; gap:8px; }
-      .schedule-search { flex-basis:100%; min-width:0; }
-      .schedule-filter { flex:1 1 130px; min-width:0; }
-      .schedule-reset { flex:0 0 auto; }
-      .schedule-result-count { flex-basis:100%; margin-inline-start:0; padding-bottom:0; }
-      .sched-table-wrap { display:none !important; }
-      .schedule-mobile-cards { display:flex; flex-direction:column; gap:10px; }
-      .schedule-card { border:1px solid rgba(197,160,89,.24); border-radius:14px; padding:13px; background:linear-gradient(145deg, rgba(20,32,46,.96), rgba(11,20,31,.98)); box-shadow:0 9px 24px rgba(0,0,0,.16); }
-      .schedule-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:11px; }
-      .schedule-card h3 { margin:0; color:#fff5d7; font-size:.95rem; line-height:1.5; }
-      .schedule-card small { color:var(--p-gold2,#e0c489); direction:ltr; display:inline-block; margin-top:2px; }
-      .schedule-card-index { min-width:27px; height:27px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(197,160,89,.16); color:var(--p-gold2,#e0c489); font-weight:800; font-size:.75rem; }
-      .schedule-card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
-      .schedule-card-field { padding:8px; border-radius:9px; background:rgba(255,255,255,.045); min-width:0; }
-      .schedule-card-field span { display:block; color:var(--p-muted,#9aa7b5); font-size:.65rem; margin-bottom:3px; }
-      .schedule-card-field strong { display:block; color:#eef2f6; font-size:.76rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .schedule-card-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:11px; padding-top:10px; border-top:1px solid rgba(197,160,89,.13); }
-      .schedule-card-actions button { border:1px solid rgba(197,160,89,.28); border-radius:8px; background:rgba(197,160,89,.08); color:var(--p-gold2,#e0c489); padding:7px 9px; font:700 .68rem inherit; cursor:pointer; }
-      .schedule-card-actions .is-whatsapp { color:#7DEFC9; border-color:rgba(33,168,94,.35); background:rgba(33,168,94,.1); }
-      .schedule-card-actions .is-danger { color:#ff9b91; border-color:rgba(192,57,43,.35); background:rgba(192,57,43,.1); }
-    }
-
-    @media print {
-      /* ── Company header appears only on print ── */
-      .print-only-header { display: block !important; }
-      /* ── Reset body/page ── */
-      body { background: #fff !important; margin: 0; padding: 0; }
-      .bz-topbar, .bz-nav, .bz-actions, .bz-dock { display: none !important; }
-      .bz-shell { padding: 0 !important; margin: 0 !important; }
-      .sched-premium {
-        background: #fff !important; color: #000 !important;
-        border: none !important; box-shadow: none !important;
-        padding: 10px !important; margin: 0 !important;
-      }
-      /* ── Hide UI controls ── */
-      .sched-toolbar, .sp-tabs, .col-act,
-      #vehBulkDel, #vehSelAll, .vehChk, .row-del, .row-notify,
-      button, .sp-alert, .exp-legend { display: none !important; }
-      /* ── Show all sections (don't hide non-active tabs) ── */
-      .sp-panel { display: block !important; page-break-inside: avoid; margin-bottom: 18px; }
-      #spPanel-vehicles .sched th:first-child, #spPanel-vehicles .sched td:first-child { display: none !important; }
-      /* ── Table styling for print ── */
-      .sched-table-wrap { overflow: visible !important; max-height: none !important; }
-      table.sched { width: 100% !important;
-        min-width: 1900px !important; border-collapse: collapse !important; font-size: 8.5pt; }
-      table.sched th, table.sched td {
-        min-width: 50px;
-        border: 1px solid #888 !important; padding: 3px 5px !important;
-        background: #fff !important; color: #000 !important;
-      }
-      table.sched thead th { background: #1a1a1a !important; color: #fff !important; font-weight: bold; }
-      table.sched tbody tr:nth-child(even) td { background: #f5f5f5 !important; }
-      table.sched input, table.sched select { border: none !important; background: transparent !important; color: #000 !important; font-size: 8pt !important; width: 100%; padding: 0; }
-      /* ── Stat cards ── */
-      .sp-stats { display: none !important; }
-      /* ── Print brand strip ── */
-      .sp-brandstrip { background: #fff !important; border: 2px solid #c5a059 !important; border-radius: 4px !important; }
-      .sp-brandstrip * { color: #000 !important; }
-      /* ── Section titles ── */
-      .sec-title { border-top: 2px solid #c5a059 !important; margin-top: 10px; padding-top: 6px; }
-      .sec-title h2 { color: #000 !important; font-size: 11pt !important; }
-      /* ── Sign block ── */
-      .sign-block { border-top: 1px solid #888 !important; margin-top: 14px !important; }
-    }
-    @media (max-width:768px) {
-      .sched-premium { padding:14px; }
-      .sp-stats { grid-template-columns:repeat(2,1fr); }
-    }
-
-    /* ── Incident reports tab ── */
-    .incident-policy-card {
-      background: rgba(197,80,80,.08);
-      border: 1px solid rgba(197,80,80,.35);
-      border-radius: 12px;
-      padding: 16px 20px;
-    }
-    .incident-policy-card h3 { margin: 0 0 10px; color: #e05252; font-size: 15px; }
-    .incident-policy-card ul { margin: 0; padding-inline-start: 20px; }
-    .incident-policy-card li { margin-bottom: 6px; line-height: 1.7; }
-    .incident-deadline { color: #e05252; font-weight: 700; }
-    .inc-section-label {
-      font-weight: 700;
-      color: var(--p-gold2,#c5a059);
-      margin: 16px 0 8px;
-      padding-bottom: 4px;
-      border-bottom: 1px dashed var(--p-border,#3a3527);
-      font-size: 13.5px;
-    }
-    .inc-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 16px; }
-    @media (max-width:640px) { .inc-grid { grid-template-columns: 1fr; } }
-
-  </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/schedule.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -390,22 +62,22 @@
 <span class="spacer"></span>
 <span class="hint" id="saveHint">يُحفظ تلقائياً</span>
 <button class="btn-neon" onclick="addRow('main')">
-<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" style="vertical-align:middle" viewbox="0 0 24 24" width="16"><line x1="12" x2="12" y1="5" y2="19"></line><line x1="5" x2="19" y1="12" y2="12"></line></svg> إضافة سائق</button>
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 24 24" width="16" class="csp-inline-schedule-1587"><line x1="12" x2="12" y1="5" y2="19"></line><line x1="5" x2="19" y1="12" y2="12"></line></svg> إضافة سائق</button>
 <button class="btn-neon" onclick="exportExcel()">
-<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="vertical-align:middle" viewbox="0 0 24 24" width="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg> تصدير Excel</button>
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16" class="csp-inline-schedule-1588"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg> تصدير Excel</button>
 <button class="btn-neon" onclick="document.getElementById('excelImport').click()">
-<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="vertical-align:middle" viewbox="0 0 24 24" width="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg> استيراد Excel</button>
-<input accept=".xlsx" id="excelImport" onchange="importExcel(event)" style="display:none;" type="file"/>
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16" class="csp-inline-schedule-1589"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg> استيراد Excel</button>
+<input accept=".xlsx" id="excelImport" onchange="importExcel(event)" type="file" class="csp-inline-schedule-1590"/>
 <button class="btn-neon" onclick="shareSchedule()">
-<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="vertical-align:middle" viewbox="0 0 24 24" width="16"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"></line><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"></line></svg> مشاركة</button>
-<button class="btn-neon" onclick="sendScheduleSummaryWa()" style="background:rgba(37,211,102,.12);border-color:rgba(37,211,102,.4);color:#21c766;" title="إرسال ملخص الجدول كاملاً عبر واتساب">
-<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="vertical-align:middle" viewbox="0 0 24 24" width="16"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> ملخص واتساب</button>
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16" class="csp-inline-schedule-1591"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"></line><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"></line></svg> مشاركة</button>
+<button class="btn-neon csp-inline-schedule-1592" onclick="sendScheduleSummaryWa()" title="إرسال ملخص الجدول كاملاً عبر واتساب">
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16" class="csp-inline-schedule-1593"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> ملخص واتساب</button>
 <button class="btn-neon" onclick="openWaAll()" title="إرسال رسالة لكل سائق فردياً">
-<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="vertical-align:middle" viewbox="0 0 24 24" width="16"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> إرسال للجميع</button>
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16" class="csp-inline-schedule-1594"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> إرسال للجميع</button>
 <button class="btn-neon" onclick="openFleetModal()">
-<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="vertical-align:middle" viewbox="0 0 24 24" width="16"><rect height="13" width="15" x="1" y="3"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg> استدعاء مركبة</button>
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16" class="csp-inline-schedule-1595"><rect height="13" width="15" x="1" y="3"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg> استدعاء مركبة</button>
 <button class="btn-neon" onclick="window.print()" title="طباعة / تصدير PDF">
-<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="vertical-align:middle" viewbox="0 0 24 24" width="16"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect height="8" width="12" x="6" y="14"></rect></svg> طباعة</button>
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16" class="csp-inline-schedule-1596"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect height="8" width="12" x="6" y="14"></rect></svg> طباعة</button>
 </div>
 <!-- STAT CARDS (wired to real computed values in updateSummary / refreshStats) -->
 <!-- TABS — every existing table stays reachable and editable -->
@@ -416,9 +88,9 @@
 <button class="bz-tab" id="tabBtnVac" onclick="switchSchedTab('vacation',this)">🏖️ السائقون في إجازة <span class="sp-chip" id="chipVac">0</span></button>
 <button class="bz-tab" id="tabBtnIncidents" onclick="switchSchedTab('incidents',this)">🚨 تقارير الحوادث <span class="sp-chip red" id="chipIncidents">0</span></button>
 <!-- Hidden legacy tabs to prevent JS errors if they are referenced -->
-<button class="bz-tab" id="tabBtnUnscheduled" onclick="switchSchedTab('unscheduled',this)" style="display:none;">⚠️ غير المجدولة <span class="sp-chip red" id="chipUnscheduled">0</span></button>
-<button class="bz-tab" id="tabBtnExp" onclick="switchSchedTab('expired',this)" style="display:none;">🔴 تنبيهات الانتهاء <span class="sp-chip red" id="chipExp">0</span></button>
-<button class="bz-tab" id="tabBtnVeh" onclick="switchSchedTab('vehicles',this)" style="display:none;">🚗 جميع مركبات الفرع <span class="sp-chip" id="chipVeh">0</span></button>
+<button class="bz-tab csp-inline-schedule-1597" id="tabBtnUnscheduled" onclick="switchSchedTab('unscheduled',this)">⚠️ غير المجدولة <span class="sp-chip red" id="chipUnscheduled">0</span></button>
+<button class="bz-tab csp-inline-schedule-1598" id="tabBtnExp" onclick="switchSchedTab('expired',this)">🔴 تنبيهات الانتهاء <span class="sp-chip red" id="chipExp">0</span></button>
+<button class="bz-tab csp-inline-schedule-1599" id="tabBtnVeh" onclick="switchSchedTab('vehicles',this)">🚗 جميع مركبات الفرع <span class="sp-chip" id="chipVeh">0</span></button>
 </div>
 <!-- TAB: DASHBOARD -->
 <div class="sp-panel active" id="spPanel-dashboard">
@@ -426,54 +98,54 @@
 <div class="sec-title"><h2>📊 لوحة معلومات أسطول المركبات - فرع الدمام</h2></div>
 
 <!-- Date row -->
-<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom: 22px; font-weight:bold; font-size: 14px; color:var(--p-muted);">
+<div class="csp-inline-schedule-1600">
 <div>
 <span>تاريخ آخر تحديث:</span>
-<span id="excelLastUpdate" style="margin-right:10px; color:var(--p-gold2);"></span>
+<span id="excelLastUpdate" class="csp-inline-schedule-1601"></span>
 </div>
 <div>
 <span>تاريخ اليوم:</span>
-<span id="excelTodayDate" style="margin-right:10px; color:var(--p-gold2);"></span>
+<span id="excelTodayDate" class="csp-inline-schedule-1602"></span>
 </div>
 </div>
 <!-- KPIs row (editable) -->
-<div class="sp-stats" style="padding-bottom:24px; border-bottom:1px solid var(--p-border);">
+<div class="sp-stats csp-inline-schedule-1603">
 <div class="sp-stat blue">
 <div class="ico">👥</div>
-<input data-kpi="drivers" id="excelTotalDrivers" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; appearance:textfield; padding:0;" type="number" value="0"/>
+<input data-kpi="drivers" id="excelTotalDrivers" onchange="saveDashKpi(this)" class="val csp-inline-schedule-1604" type="number" value="0"/>
 <div class="lbl">إجمالي عدد السائقين</div>
 </div>
 <div class="sp-stat green">
 <div class="ico">📦</div>
-<input data-kpi="delivery" id="excelDelivery" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; appearance:textfield; padding:0;" type="number" value="0"/>
+<input data-kpi="delivery" id="excelDelivery" onchange="saveDashKpi(this)" class="val csp-inline-schedule-1605" type="number" value="0"/>
 <div class="lbl">عدد الموصلين</div>
 </div>
 <div class="sp-stat red">
 <div class="ico">🚚</div>
-<input data-kpi="distributors" id="excelDistributors" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; appearance:textfield; padding:0;" type="number" value="0"/>
+<input data-kpi="distributors" id="excelDistributors" onchange="saveDashKpi(this)" class="val csp-inline-schedule-1606" type="number" value="0"/>
 <div class="lbl">عدد الموزعين</div>
 </div>
 <div class="sp-stat brown">
 <div class="ico">🏖️</div>
-<input data-kpi="vacation" id="excelVacation" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; appearance:textfield; padding:0;" type="number" value="0"/>
+<input data-kpi="vacation" id="excelVacation" onchange="saveDashKpi(this)" class="val csp-inline-schedule-1607" type="number" value="0"/>
 <div class="lbl">سائقون في إجازة</div>
 </div>
 <div class="sp-stat orange">
 <div class="ico">🔧</div>
-<input data-kpi="spare" id="excelSpare" onchange="saveDashKpi(this)" class="val" style="width:100%; border:none; background:transparent; text-align:center; outline:none; -moz-appearance:textfield; appearance:textfield; padding:0;" type="number" value="0"/>
+<input data-kpi="spare" id="excelSpare" onchange="saveDashKpi(this)" class="val csp-inline-schedule-1608" type="number" value="0"/>
 <div class="lbl">مركبات أسبير/معطلة</div>
 </div>
 </div>
 <!-- Main Layout: 2 Columns -->
-<div style="display:flex; flex-wrap:wrap; gap: 24px; align-items:flex-start;">
+<div class="csp-inline-schedule-1609">
 <!-- Right Column in RTL (Expiring Documents Table) -->
-<div style="flex:1 1 420px; min-width:0; background:var(--p-card); border-radius:12px; border:1px solid var(--p-border); overflow:hidden;">
-<div style="background:rgba(192,57,43,.15); color:#FF6B6B; padding:12px; font-weight:bold; text-align:center; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; border-bottom:1px solid rgba(192,57,43,.4);">
+<div class="csp-inline-schedule-1610">
+<div class="csp-inline-schedule-1611">
 <span>⚠️ المستندات التي تنتهي خلال 30 يومًا أو منتهية</span>
-<button onclick="recalcExpiring()" class="btn-neon" style="padding:2px 8px; font-size:11px;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
+<button onclick="recalcExpiring()" class="btn-neon csp-inline-schedule-1612" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
 </div>
 <div class="sched-table-wrap glass-panel">
-<table class="sched" style="width:100%; margin:0; box-shadow:none;">
+<table class="sched csp-inline-schedule-1613">
 <thead>
 <tr>
 <th>م</th>
@@ -490,37 +162,37 @@
 </div>
 </div>
 <!-- Left Column in RTL (summary tables, exactly like the Excel sheet) -->
-<div style="flex:1 1 380px; min-width:0; display:flex; flex-direction:column; gap:20px;">
+<div class="csp-inline-schedule-1614">
 <!-- موصل / موزع -->
-<div style="background:var(--p-card); border-radius:12px; border:1px solid var(--p-border); padding:16px;">
-<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-<div style="font-weight:bold; font-size:16px; color:var(--p-gold2);">توزيع السائقين: موصل / موزع</div>
-<button onclick="recalcJobSplit()" class="btn-neon" style="padding:2px 8px; font-size:11px;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
+<div class="csp-inline-schedule-1615">
+<div class="csp-inline-schedule-1616">
+<div class="csp-inline-schedule-1617">توزيع السائقين: موصل / موزع</div>
+<button onclick="recalcJobSplit()" class="btn-neon csp-inline-schedule-1618" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
 </div>
-<div style="position:relative; height:180px; width:100%; display:flex; justify-content:center; margin-bottom:14px; overflow:hidden; max-width:100%;">
-<canvas id="pieChartDrivers" style="max-height:180px; max-width:100%;"></canvas>
+<div class="csp-inline-schedule-1619">
+<canvas id="pieChartDrivers" class="csp-inline-schedule-1620"></canvas>
 </div>
-<div class="sched-table-wrap glass-panel" style="max-height:none; margin:0; overflow:hidden; width:100%; max-width:100%; box-sizing:border-box; border-radius:10px;">
-<table class="sched-summary-table" style="width:100% !important; min-width:0 !important; max-width:100% !important; margin:0; box-shadow:none;">
+<div class="sched-table-wrap glass-panel csp-inline-schedule-1621">
+<table class="sched-summary-table csp-inline-schedule-1622">
 <tbody id="excelJobSplitTable"></tbody>
 </table>
 </div>
 </div>
 <!-- عدد المركبات حسب النوع -->
-<div style="background:var(--p-card); border-radius:12px; border:1px solid var(--p-border); padding:16px;">
-<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-<div style="font-weight:bold; font-size:16px; color:var(--p-gold2);">عدد المركبات حسب النوع</div>
-<button onclick="recalcVehicleTypes()" class="btn-neon" style="padding:2px 8px; font-size:11px;" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
+<div class="csp-inline-schedule-1623">
+<div class="csp-inline-schedule-1624">
+<div class="csp-inline-schedule-1625">عدد المركبات حسب النوع</div>
+<button onclick="recalcVehicleTypes()" class="btn-neon csp-inline-schedule-1626" title="إعادة الحساب من تبويب المركبات النشطة" type="button">🔄</button>
 </div>
-<div style="position:relative; height:200px; width:100%; margin-bottom:14px; overflow:hidden; max-width:100%;">
-<canvas id="barChartVehicles" style="max-width:100%;"></canvas>
+<div class="csp-inline-schedule-1627">
+<canvas id="barChartVehicles" class="csp-inline-schedule-1628"></canvas>
 </div>
-<div class="sched-table-wrap glass-panel" style="max-height:none; margin:0; overflow:hidden; width:100%; max-width:100%; box-sizing:border-box; border-radius:10px;">
-<table class="sched-summary-table" style="width:100% !important; min-width:0 !important; max-width:100% !important; margin:0; box-shadow:none;">
+<div class="sched-table-wrap glass-panel csp-inline-schedule-1629">
+<table class="sched-summary-table csp-inline-schedule-1630">
 <tbody id="excelVehicleTable"></tbody>
 </table>
 </div>
-<div style="font-size:10px; color:var(--p-muted); text-align:left; margin-top:8px; font-style:italic;">إعداد / إدارة قسم الحركة</div>
+<div class="csp-inline-schedule-1631">إعداد / إدارة قسم الحركة</div>
 </div>
 </div>
 </div>
@@ -536,9 +208,9 @@
   <span class="schedule-result-count" id="scheduleCountMain">0 سجل</span>
 </div>
 <div class="exp-legend">
-<span><i style="background:rgba(192,57,43,.5);border:1px solid #FF8A80;"></i> تاريخ منتهٍ</span>
-<span><i style="background:rgba(211,84,0,.5);border:1px solid #FFC078;"></i> ينتهي خلال 30 يوماً</span>
-<span><i style="background:rgba(253,230,138,.4);border:1px solid #FDE68A;"></i> خلال 90 يوماً</span>
+<span><i class="csp-inline-schedule-1632"></i> تاريخ منتهٍ</span>
+<span><i class="csp-inline-schedule-1633"></i> ينتهي خلال 30 يوماً</span>
+<span><i class="csp-inline-schedule-1634"></i> خلال 90 يوماً</span>
 <span>📲 إشعار السائق ببياناته عبر واتساب</span>
 </div>
 <div class="sched-table-wrap glass-panel" id="mainPrintArea">
@@ -549,7 +221,7 @@
 <!-- TAB: SPARE / broken -->
 <div class="sp-panel" id="spPanel-spare">
 <div class="sec-title spare"><h2>بيان المركبات الأسبير والمعطلة</h2>
-<button class="btn-neon" onclick="addRow('spare')" style="padding:6px 14px;font-size:.85rem;">➕ إضافة</button></div>
+<button class="btn-neon csp-inline-schedule-1635" onclick="addRow('spare')">➕ إضافة</button></div>
 <div class="schedule-view-tools" data-section="spare">
   <label class="schedule-search"><span aria-hidden="true">⌕</span><input id="scheduleSearchSpare" type="search" placeholder="ابحث باللوحة أو النوع أو الحالة" autocomplete="off"></label>
   <label class="schedule-filter"><span>الحالة</span><select id="scheduleStatusSpare"><option value="all">كل الحالات</option><option value="أسبير">أسبير</option><option value="معطلة">معطلة</option><option value="غير محدد">غير محدد</option></select></label>
@@ -565,8 +237,8 @@
 <!-- TAB: VACATION -->
 <div class="sp-panel" id="spPanel-vacation">
 <div class="sec-title vac"><h2>السائقون في إجازة (هذا الأسبوع)</h2>
-<button class="btn-neon" onclick="addRow('vacation')" style="padding:6px 14px;font-size:.85rem;">➕ إضافة سائق في إجازة</button></div>
-<p class="hint" style="margin:-4px 0 8px;">أضف سائقاً وعدّل بياناته — يزداد العدد تلقائياً في الملخص.</p>
+<button class="btn-neon csp-inline-schedule-1636" onclick="addRow('vacation')">➕ إضافة سائق في إجازة</button></div>
+<p class="hint csp-inline-schedule-1637">أضف سائقاً وعدّل بياناته — يزداد العدد تلقائياً في الملخص.</p>
 <div class="schedule-view-tools" data-section="vacation">
   <label class="schedule-search"><span aria-hidden="true">⌕</span><input id="scheduleSearchVacation" type="search" placeholder="ابحث باسم السائق أو الرقم الوظيفي" autocomplete="off"></label>
   <label class="schedule-filter"><span>الترتيب</span><select id="scheduleSortVacation"><option value="default">الترتيب الأصلي</option><option value="name">الاسم</option><option value="empid">الرقم الوظيفي</option></select></label>
@@ -594,53 +266,53 @@
 <!-- TAB: ALL BRANCH VEHICLES -->
 <div class="sp-panel" id="spPanel-vehicles">
 <div class="sec-title"><h2>🚗 جميع مركبات الفرع</h2>
-<button class="btn-neon" onclick="window.print()" style="padding:6px 14px;font-size:.85rem;">🖨️ طباعة / تصدير PDF</button>
+<button class="btn-neon csp-inline-schedule-1638" onclick="window.print()">🖨️ طباعة / تصدير PDF</button>
 </div>
-<p class="hint" style="margin:-4px 0 10px;">جميع الموظفين الذين لديهم مركبة في هذا الفرع (المصدر: سجل السائقين).</p>
-<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
-<div class="bz-smart-search" style="margin-bottom:0; flex:1; min-width:240px;">
+<p class="hint csp-inline-schedule-1639">جميع الموظفين الذين لديهم مركبة في هذا الفرع (المصدر: سجل السائقين).</p>
+<div class="csp-inline-schedule-1640">
+<div class="bz-smart-search csp-inline-schedule-1641">
 <input id="vehSearch" oninput="filterVehicles(this.value)" placeholder="ابحث بالاسم / اللوحة / الرقم الوظيفي / الجوال" type="text"/>
 <span class="search-icon">🔍</span>
 </div>
 <span class="hint" id="vehCount">0 مركبة</span>
-<button class="btn-neon" id="vehBulkDel" onclick="bulkDeleteVehicles()" style="padding:8px 14px;font-size:.85rem;font-weight:800;color:#ef4444;border-color:rgba(239,68,68,.4);display:none;" type="button">🗑 حذف المحدد (<span id="vehSelCount">0</span>)</button>
+<button class="btn-neon csp-inline-schedule-1642" id="vehBulkDel" onclick="bulkDeleteVehicles()" type="button">🗑 حذف المحدد (<span id="vehSelCount">0</span>)</button>
 </div>
 <div class="sched-table-wrap glass-panel" id="vehPrintArea">
 <table class="sched">
 <thead><tr>
-<th style="width:36px;text-align:center"><input id="vehSelAll" style="width:16px;height:16px;cursor:pointer;accent-color:var(--p-accent,#c5a059)" title="تحديد الكل" type="checkbox"/></th>
+<th class="csp-inline-schedule-1643"><input id="vehSelAll" title="تحديد الكل" type="checkbox" class="csp-inline-schedule-1644"/></th>
 <th>#</th><th>الاسم</th><th>الرقم الوظيفي</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>رقم الجوال</th>
 </tr></thead>
-<tbody id="bodyVeh"><tr><td colspan="7" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">جارٍ التحميل…</td></tr></tbody>
+<tbody id="bodyVeh"><tr><td colspan="7" class="csp-inline-schedule-1645">جارٍ التحميل…</td></tr></tbody>
 </table>
 </div>
 </div>
 <!-- TAB: UNSCHEDULED VEHICLES -->
 <div class="sp-panel" id="spPanel-unscheduled">
 <div class="sec-title"><h2>⚠️ المركبات المستبعدة / غير المجدولة</h2></div>
-<p class="hint" style="margin:-4px 0 10px;">يعرض هذا القسم تلقائياً أي مركبة مسجلة في الأسطول وليست موجودة في الجدول الرئيسي أو الاسبير أو الإجازات. يمكنك إضافتها للجدول بضغطة زر لتجنب نسيانها.</p>
+<p class="hint csp-inline-schedule-1646">يعرض هذا القسم تلقائياً أي مركبة مسجلة في الأسطول وليست موجودة في الجدول الرئيسي أو الاسبير أو الإجازات. يمكنك إضافتها للجدول بضغطة زر لتجنب نسيانها.</p>
 <div class="sched-table-wrap glass-panel">
 <table class="sched">
 <thead><tr>
 <th>الاسم</th><th>الإقامة</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>إجراء سريع</th>
 </tr></thead>
-<tbody id="bodyUnscheduled"><tr><td colspan="5" style="text-align:center;padding:1.4rem;">جارٍ المقارنة بالأسطول...</td></tr></tbody>
+<tbody id="bodyUnscheduled"><tr><td colspan="5" class="csp-inline-schedule-1647">جارٍ المقارنة بالأسطول...</td></tr></tbody>
 </table>
 </div>
 </div>
 <!-- تم إلغاء تفويضهم (من مزامنة أبشر) — يظهر دائماً أسفل الجدول، قابل للتعديل والحذف والتصدير -->
-<div class="sec-title" style="margin-top:2rem;"><h2 style="color:#FF6B6B;">🚫 تم إلغاء تفويضهم</h2>
+<div class="sec-title csp-inline-schedule-1648"><h2 class="csp-inline-schedule-1649">🚫 تم إلغاء تفويضهم</h2>
 <span class="sp-chip red" id="deauthCount">0</span></div>
-<p class="hint" style="margin:-6px 0 10px;">سائقون لم يعودوا المستخدم الفعلي لأي مركبة في آخر تحديث من أبشر. يمكنك <b>التعديل والحذف</b> مباشرةً، والبيانات الناقصة (الجوال/الرقم الوظيفي) تُكمَّل تلقائياً من بيانات الموظفين.</p>
-<div class="bz-actions-bar" style="margin-bottom:10px;">
+<p class="hint csp-inline-schedule-1650">سائقون لم يعودوا المستخدم الفعلي لأي مركبة في آخر تحديث من أبشر. يمكنك <b>التعديل والحذف</b> مباشرةً، والبيانات الناقصة (الجوال/الرقم الوظيفي) تُكمَّل تلقائياً من بيانات الموظفين.</p>
+<div class="bz-actions-bar csp-inline-schedule-1651">
 <button class="btn-neon" onclick="exportDeauthorized()">📥 تصدير Excel</button>
 <button class="btn-neon" onclick="deauthAddRow()">➕ إضافة صف</button>
-<span class="hint" id="deauthSaveHint" style="margin-inline-start:auto;"></span>
+<span class="hint csp-inline-schedule-1652" id="deauthSaveHint"></span>
 </div>
 <div class="sched-table-wrap glass-panel" id="deauthPrintArea">
 <table class="sched bz-fit">
 <thead><tr><th>#</th><th>الاسم</th><th>الرقم الوظيفي</th><th>رقم الإقامة</th><th>رقم اللوحة</th><th>نوع المركبة</th><th>رقم الجوال</th><th>إجراء</th></tr></thead>
-<tbody id="deauthBody"><tr><td colspan="8" style="text-align:center;padding:1.2rem;color:var(--p-muted,#94a3b8)">لا يوجد.</td></tr></tbody>
+<tbody id="deauthBody"><tr><td colspan="8" class="csp-inline-schedule-1653">لا يوجد.</td></tr></tbody>
 </table>
 </div>
 <div class="sign-block">
@@ -665,10 +337,10 @@
 </ul>
 </div>
 
-<div class="bz-actions-bar" style="margin:16px 0 10px;">
+<div class="bz-actions-bar csp-inline-schedule-1654">
 <button class="btn-neon" onclick="openIncidentModal()">➕ تسجيل حادث جديد</button>
 <button class="btn-neon" onclick="exportIncidentsExcel()">📥 تصدير Excel</button>
-<span class="hint" id="incidentSaveHint" style="margin-inline-start:auto;"></span>
+<span class="hint csp-inline-schedule-1655" id="incidentSaveHint"></span>
 </div>
 
 <div class="sched-table-wrap glass-panel">
@@ -676,20 +348,20 @@
 <thead><tr>
 <th>#</th><th>رقم الحادث</th><th>التاريخ</th><th>اسم السائق</th><th>اللوحة / نوع السيارة</th><th>مكان الحادث</th><th>طرف آخر؟</th><th>نسبة الخطأ</th><th>حالة السيارة</th><th>إجراء</th>
 </tr></thead>
-<tbody id="bodyIncidents"><tr><td colspan="10" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">لا توجد حوادث مسجّلة لهذا الشهر.</td></tr></tbody>
+<tbody id="bodyIncidents"><tr><td colspan="10" class="csp-inline-schedule-1656">لا توجد حوادث مسجّلة لهذا الشهر.</td></tr></tbody>
 </table>
 </div>
 </div>
 
  Fleet Select Modal
-<div class="modal-overlay" id="fleetModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:9999;">
-<div style="background:var(--surface);padding:2rem;border-radius:12px;width:90%;max-width:400px;">
-<h3 style="margin-top:0;color:var(--brand-navy);">🚚 استدعاء مركبة من الأسطول</h3>
-<p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:1rem;">اختر رقم اللوحة أو اسم السائق لإضافته للجدول الرئيسي فوراً.</p>
-<div style="margin-bottom:1rem;">
-<input id="fleetSearchInput" list="driverNames" onkeydown="if(event.key==='Enter') confirmFleetCall()" placeholder="اكتب أو اختر السائق / اللوحة" style="width:100%;padding:0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);font-size:1rem;" type="text"/>
+<div class="modal-overlay csp-inline-schedule-1657" id="fleetModal">
+<div class="csp-inline-schedule-1658">
+<h3 class="csp-inline-schedule-1659">🚚 استدعاء مركبة من الأسطول</h3>
+<p class="csp-inline-schedule-1660">اختر رقم اللوحة أو اسم السائق لإضافته للجدول الرئيسي فوراً.</p>
+<div class="csp-inline-schedule-1661">
+<input id="fleetSearchInput" list="driverNames" onkeydown="if(event.key==='Enter') confirmFleetCall()" placeholder="اكتب أو اختر السائق / اللوحة" type="text" class="csp-inline-schedule-1662"/>
 </div>
-<div style="display:flex;gap:1rem;justify-content:flex-end;">
+<div class="csp-inline-schedule-1663">
 <button class="btn-neon" onclick="closeFleetModal()">إلغاء</button>
 <button class="btn-neon" onclick="confirmFleetCall()">➕ إضافة للجدول</button>
 </div>
@@ -698,7 +370,7 @@
 <datalist id="driverNames"></datalist>
  Custody-transfer modal: reassign a vehicle's row to a different driver, with an
        auditable note. Vehicle data (plate/model/etc) stays fixed — only the driver box
-       changes, reusing the exact same protection autofillRow() already guarantees. 
+       changes, reusing the exact same protection autofillRow() already guarantees.
 <div class="modal-backdrop" id="custodyModal">
 <div class="modal-content-custom">
 <div class="modal-header-custom">
@@ -714,16 +386,16 @@
 <label>السائق المستلم (الجديد)</label>
 <input id="custodyNewDriver" list="driverNames" placeholder="اكتب السائق أو اكتب 'الشركة'" type="text"/>
 </div>
-<div class="custody-field" style="display:flex; gap:15px; margin-bottom:15px; padding:10px; background:var(--surface-hover,#262626); border-radius:8px;">
-<label style="margin:0; font-weight:bold; color:#fff;">حالة العهدة:</label>
-<label style="cursor:pointer; margin:0;"><input checked="" id="condOk" name="custodyCond" type="radio" value="سليمة"/> ✅ سليمة</label>
-<label style="cursor:pointer; margin:0;"><input id="condBad" name="custodyCond" type="radio" value="بها ملاحظات"/> ⚠️ بها ملاحظات</label>
+<div class="custody-field csp-inline-schedule-1664">
+<label class="csp-inline-schedule-1665">حالة العهدة:</label>
+<label class="csp-inline-schedule-1666"><input checked="" id="condOk" name="custodyCond" type="radio" value="سليمة"/> ✅ سليمة</label>
+<label class="csp-inline-schedule-1667"><input id="condBad" name="custodyCond" type="radio" value="بها ملاحظات"/> ⚠️ بها ملاحظات</label>
 </div>
 <div class="custody-field">
 <label>ملاحظات النقل (اختياري)</label>
 <input id="custodyNote" placeholder="مثال: تسليم بموجب تفويض إدارة الحركة" type="text"/>
 </div>
-<div style="display:flex;gap:.75rem;justify-content:flex-end;">
+<div class="csp-inline-schedule-1668">
 <button class="btn-neon" onclick="closeCustodyModal()">إلغاء</button>
 <button class="btn-neon" onclick="confirmCustodyTransfer()">✍️ تأكيد واعتماد النقل</button>
 </div>
@@ -733,7 +405,7 @@
 
 <!-- Incident Report Modal — fields mirror the official "نموذج تقرير حادث سيارة" template exactly -->
 <div class="modal-backdrop" id="incidentModal">
-<div class="modal-content-custom" style="max-width:720px;">
+<div class="modal-content-custom csp-inline-schedule-1669">
 <div class="modal-header-custom">
 <h2 id="incidentModalTitle">🚨 تسجيل حادث جديد</h2>
 <button class="close-btn" onclick="closeIncidentModal()">✕</button>
@@ -752,7 +424,7 @@
 <div class="inc-section-label">بيانات السائق والسيارة</div>
 <div class="inc-grid">
 <div class="custody-field"><label>اسم السائق</label><input id="incDriver" list="driverNames" type="text"/></div>
-<div class="custody-field"><label>رقم الجوال</label><input id="incPhone" style="direction:ltr;text-align:right;" type="text"/></div>
+<div class="custody-field"><label>رقم الجوال</label><input id="incPhone" type="text" class="csp-inline-schedule-1670"/></div>
 <div class="custody-field"><label>المسمى الوظيفي</label><input id="incJob" type="text"/></div>
 <div class="custody-field"><label>نوع السيارة / اللوحة</label><input id="incVehicle" type="text"/></div>
 </div>
@@ -763,7 +435,7 @@
 <div class="custody-field"><label>هل يوجد طرف آخر؟</label>
 <select id="incOtherParty"><option value="لا">لا</option><option value="نعم">نعم</option></select>
 </div>
-<div class="custody-field" style="grid-column:1 / -1;"><label>وصف الحادث</label><textarea id="incDesc" rows="3" style="width:100%;padding:.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);font-family:inherit;"></textarea></div>
+<div class="custody-field csp-inline-schedule-1671"><label>وصف الحادث</label><textarea id="incDesc" rows="3" class="csp-inline-schedule-1672"></textarea></div>
 <div class="custody-field"><label>نسبة الخطأ (%)</label><input id="incFault" max="100" min="0" type="number"/></div>
 </div>
 
@@ -779,7 +451,7 @@
 <div class="custody-field"><label>حالة السيارة حالياً</label><input id="incVehicleStatus" type="text"/></div>
 </div>
 
-<div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:10px;">
+<div class="csp-inline-schedule-1673">
 <button class="btn-neon" onclick="closeIncidentModal()">إلغاء</button>
 <button class="btn-neon" onclick="saveIncident()">✍️ حفظ التقرير</button>
 </div>
@@ -882,19 +554,19 @@
     function buildHead(id, section) {
       const thead = document.getElementById(id);
       const cols = colsFor(section);
-      
+
       const nbLabel = s => escapeHtml(s).split(' ').map(w => `<span class="nb">${w}</span>`).join(' ');
-      
+
       let h = '<tr><th class="col-idx">م</th>';
       h += cols.map(c => `<th>${nbLabel(c.label)}</th>`).join('');
       h += '<th class="col-act">⚙</th></tr>';
-      
+
       thead.innerHTML = h;
 
       const table = thead.closest('table');
       const old = table.querySelector('colgroup'); if (old) old.remove();
       const cg = document.createElement('colgroup');
-      cg.innerHTML = [2, ...cols.map(c => c.w), 5].map(w => `<col style="width:${w}%">`).join('');
+      cg.innerHTML = [2, ...cols.map(c => c.w), 5].map(w => `<col class="csp-inline-schedule-1674">`).join('');
       table.insertBefore(cg, table.firstChild);
     }
 
@@ -1027,7 +699,7 @@
         let html = `<td class="col-idx">${idx + 1}</td>`;
         cols.forEach((c, cIdx) => {
           let v = escapeHtml(row[c.key] || '');
-          
+
           // Calculate remaining days automatically for readonly rem_days columns
           if (c.readonly && c.key.startsWith('rem_days') && cIdx > 0) {
             const dateCol = cols[cIdx - 1];
@@ -1039,7 +711,7 @@
 
           const listAttr = (c.key === 'name' || c.key === 'empid' || c.key === 'plate' || c.key === 'iqama') ? ' list="driverNames"' : '';
           const readonlyAttr = c.readonly ? ' readonly tabindex="-1"' : '';
-          
+
           // presentation-only cell classes: date status (with days hint) + job/plate badge look
           let cls = '';
           let dataAttr = '';
@@ -1346,7 +1018,7 @@
       if(document.getElementById('condBad') && document.getElementById('condBad').checked) {
           condition = 'بها ملاحظات';
       }
-      
+
       if (!newName) { if (window.showToast) showToast('يرجى اختيار السائق المستلم أو "الشركة"', 'error'); return; }
       const oldName = r.name || 'الشركة';
       const plate = r.plate || '';
@@ -1506,8 +1178,8 @@
        if (jsBody) {
          jsBody.innerHTML = Object.entries(s.jobSplit).map(([label, val]) => `
            <tr>
-             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid rgba(255,255,255,0.12); padding:8px 10px; background:rgba(255,255,255,0.06); font-weight:bold; color:var(--p-text, #f4f4f4); outline:none;">${escapeHtml(label)}</td>
-             <td contenteditable="true" onblur="onJobSplitEdit()" style="border:1px solid rgba(255,255,255,0.12); padding:8px 10px; background:rgba(255,255,255,0.06); font-weight:bold; color:var(--p-gold2, #d8b87a); width:70px; text-align:center; outline:none;">${val}</td>
+             <td contenteditable="true" onblur="onJobSplitEdit()" class="csp-inline-schedule-1675">${escapeHtml(label)}</td>
+             <td contenteditable="true" onblur="onJobSplitEdit()" class="csp-inline-schedule-1676">${val}</td>
            </tr>`).join('');
        }
 
@@ -1517,8 +1189,8 @@
        if (vtBody) {
          vtBody.innerHTML = sortedTypes.map(([type, count]) => `
            <tr>
-             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid rgba(255,255,255,0.12); padding:8px 10px; width:44px; text-align:center; background:rgba(255,255,255,0.06); font-weight:bold; color:var(--p-gold2, #d8b87a); outline:none;">${count}</td>
-             <td contenteditable="true" onblur="onVehicleTypeEdit()" style="border:1px solid rgba(255,255,255,0.12); padding:8px 10px; font-weight:bold; color:var(--p-text, #f4f4f4); outline:none;">${escapeHtml(type)}</td>
+             <td contenteditable="true" onblur="onVehicleTypeEdit()" class="csp-inline-schedule-1677">${count}</td>
+             <td contenteditable="true" onblur="onVehicleTypeEdit()" class="csp-inline-schedule-1678">${escapeHtml(type)}</td>
            </tr>`).join('');
        }
 
@@ -1655,7 +1327,7 @@
         if (el && el.tagName === 'INPUT') { el.value = v; }
         else if (el) { el.textContent = v; }
       };
-      
+
       // Set KPI input values — prefer saved summary value, fallback to computed
       const getKpi = (saved, computed, dummy) => {
         let val = pick(saved, computed);
@@ -1668,13 +1340,13 @@
       setInput('excelDistributors', getKpi(s.distributors, c.distributors, 13));
       setInput('excelVacation', getKpi(s.vacation, c.vacation, 0));
       setInput('excelSpare', getKpi(s.spare, state.spare.length, 0));
-      
+
       // Tab chips
       const setChip = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
       setChip('chipMain', state.main.length);
       setChip('chipSpare', state.spare.length);
       setChip('chipVac', state.vacation.length);
-      
+
       const exp = expiringList();
       setChip('chipExp', exp.length);
 
@@ -1699,20 +1371,20 @@
           const daysTxt = r.days < 0 ? `منتهٍ منذ ${Math.abs(r.days)} يوم` : `${r.days} يوم`;
           const tr = document.createElement('tr');
           tr.innerHTML =
-            `<td style="padding:8px 10px;font-weight:700;">${escapeHtml(r.name)}</td>` +
-            `<td style="padding:8px 10px;">${escapeHtml(r.empid)}</td>` +
-            `<td style="padding:8px 10px;"><span style="background:rgba(197,160,89,.16);color:#e0c489;border-radius:8px;padding:3px 10px;font-weight:700;">${escapeHtml(r.plate)}</span></td>` +
-            `<td style="padding:8px 10px;font-weight:600;">${escapeHtml(r.doc)}</td>` +
-            `<td class="${cls}" style="padding:8px 10px;font-weight:800;">${escapeHtml(r.date)}</td>` +
-            `<td style="padding:8px 10px;">${status}</td>` +
-            `<td style="padding:8px 10px;font-weight:700;color:var(--p-gold2);">${daysTxt}</td>`;
+            `<td class="csp-inline-schedule-1679">${escapeHtml(r.name)}</td>` +
+            `<td class="csp-inline-schedule-1680">${escapeHtml(r.empid)}</td>` +
+            `<td class="csp-inline-schedule-1681"><span class="csp-inline-schedule-1682">${escapeHtml(r.plate)}</span></td>` +
+            `<td class="csp-inline-schedule-1683">${escapeHtml(r.doc)}</td>` +
+            `<td class="${cls} csp-inline-schedule-1684">${escapeHtml(r.date)}</td>` +
+            `<td class="csp-inline-schedule-1685">${status}</td>` +
+            `<td class="csp-inline-schedule-1686">${daysTxt}</td>`;
           tbOld.appendChild(tr);
         });
         if (!exp.length) {
-          tbOld.innerHTML = `<tr><td colspan="7" style="padding:16px;color:var(--p-muted);">لا توجد وثائق منتهية أو قريبة من الانتهاء خلال 90 يوماً ✅</td></tr>`;
+          tbOld.innerHTML = `<tr><td colspan="7" class="csp-inline-schedule-1687">لا توجد وثائق منتهية أو قريبة من الانتهاء خلال 90 يوماً ✅</td></tr>`;
         }
       }
-      
+
       const tbNew = document.getElementById('excelExpiringBody');
       if (!tbNew) return;
       tbNew.innerHTML = '';
@@ -1743,12 +1415,12 @@
         const tr = document.createElement('tr');
         if (i % 2 === 1) tr.style.background = '#f7f9fc';
         tr.innerHTML =
-          `<td style="border:1px solid #dde3ee; padding:8px 6px; color:#000;">${i + 1}</td>` +
-          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; color:#000; outline:none;">${escapeHtml(r.name)}</td>` +
-          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000; outline:none;">${escapeHtml(r.plate)}</td>` +
-          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; color:#000; outline:none;">${escapeHtml(r.doc)}</td>` +
-          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; direction:ltr; color:#000; outline:none;">${escapeHtml(r.date)}</td>` +
-          `<td contenteditable="true" onblur="onExpiringEdit()" style="border:1px solid #dde3ee; padding:8px 6px; ${daysColor} outline:none;">${r.days}</td>`;
+          `<td class="csp-inline-schedule-1688">${i + 1}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" class="csp-inline-schedule-1689">${escapeHtml(r.name)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" class="csp-inline-schedule-1690">${escapeHtml(r.plate)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" class="csp-inline-schedule-1691">${escapeHtml(r.doc)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" class="csp-inline-schedule-1692">${escapeHtml(r.date)}</td>` +
+          `<td contenteditable="true" onblur="onExpiringEdit()" class="csp-inline-schedule-1693">${r.days}</td>`;
         tbNew.appendChild(tr);
       });
     }
@@ -1771,7 +1443,7 @@
       if (chip) chip.textContent = rows.length;
       if (!body) return;
       if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">لا توجد حوادث مسجّلة لهذا الشهر.</td></tr>';
+        body.innerHTML = '<tr><td colspan="10" class="csp-inline-schedule-1694">لا توجد حوادث مسجّلة لهذا الشهر.</td></tr>';
         return;
       }
       body.innerHTML = rows.map(function (r, i) {
@@ -1785,10 +1457,10 @@
           '<td>' + vesc(r.otherParty || 'لا') + '</td>' +
           '<td>' + vesc(r.faultPercent ? (r.faultPercent + '%') : '') + '</td>' +
           '<td>' + vesc(r.vehicleStatus) + '</td>' +
-          '<td style="white-space:nowrap;">' +
-            '<button class="btn-neon" style="padding:4px 10px;font-size:12px;" onclick="openIncidentModal(\'' + r.id + '\')" title="تعديل">✏️</button> ' +
-            '<button class="btn-neon" style="padding:4px 10px;font-size:12px;" onclick="printIncident(\'' + r.id + '\')" title="طباعة التقرير">🖨️</button> ' +
-            '<button class="btn-neon" style="padding:4px 10px;font-size:12px;color:#e05252;" onclick="deleteIncident(\'' + r.id + '\')" title="حذف">🗑️</button>' +
+          '<td class="csp-inline-schedule-1695">' +
+            '<button class="btn-neon csp-inline-schedule-1696" onclick="openIncidentModal(\'' + r.id + '\')" title="تعديل">✏️</button> ' +
+            '<button class="btn-neon csp-inline-schedule-1697" onclick="printIncident(\'' + r.id + '\')" title="طباعة التقرير">🖨️</button> ' +
+            '<button class="btn-neon csp-inline-schedule-1698" onclick="deleteIncident(\'' + r.id + '\')" title="حذف">🗑️</button>' +
           '</td>' +
           '</tr>';
       }).join('');
@@ -1915,17 +1587,17 @@
         return;
       }
       const row = function (label, val) {
-        return '<tr><td style="font-weight:700;background:#f5f5f5;padding:6px 10px;border:1px solid #ccc;width:38%;">' + label + '</td><td style="padding:6px 10px;border:1px solid #ccc;">' + (val ? vesc(val) : '—') + '</td></tr>';
+        return '<tr><td class="csp-inline-schedule-1699">' + label + '</td><td class="csp-inline-schedule-1700">' + (val ? vesc(val) : '—') + '</td></tr>';
       };
       w.document.write(
         '<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير حادث ' + vesc(r.incidentNo) + '</title>' +
-        '<style>body{font-family:Tahoma,Arial,sans-serif;padding:24px;} table{border-collapse:collapse;width:100%;margin-bottom:18px;} h2{border-bottom:3px solid #c5a059;padding-bottom:8px;}</style></head><body>' +
+        '<link rel="stylesheet" href="{{ url_for('static', filename='css/page/schedule.css', v=1) }}"></head><body>' +
         '<h2>تقرير حادث سيارة</h2>' +
         '<table>' + row('رقم الحادث', r.incidentNo) + row('الفرع', r.branch) + row('تاريخ الحادث', r.date) + row('وقت الحادث', r.time) + '</table>' +
         '<h3>بيانات السائق والسيارة</h3><table>' + row('اسم السائق', r.driverName) + row('رقم الجوال', r.phone) + row('المسمى الوظيفي', r.jobTitle) + row('نوع السيارة / اللوحة', r.vehicleType) + '</table>' +
         '<h3>تفاصيل الحادث</h3><table>' + row('مكان وقوع الحادث', r.location) + row('وصف الحادث', r.description) + row('هل يوجد طرف آخر؟', r.otherParty) + row('نسبة الخطأ (%)', r.faultPercent) + '</table>' +
         '<h3>الإصلاح والتكلفة</h3><table>' + row('مكان الإصلاح', r.repairPlace) + row('طريقة الدفع', r.paymentMethod) + row('التكلفة الفعلية', r.actualCost) + row('تكلفة الإصلاح المتوقعة', r.expectedCost) + row('المدة المتوقعة للإصلاح', r.repairDuration) + row('حالة السيارة حالياً', r.vehicleStatus) + '</table>' +
-        '<div style="display:flex;justify-content:space-between;margin-top:60px;"><div>توقيع السائق: ______________</div><div>مسؤول الحركة: ______________</div></div>' +
+        '<div class="csp-inline-schedule-1701"><div>توقيع السائق: ______________</div><div>مسؤول الحركة: ______________</div></div>' +
         '</body></html>'
       );
       w.document.close();
@@ -1956,15 +1628,15 @@
     function renderVehicles(rows) {
       const body = document.getElementById('bodyVeh'); if (!body) return;
       const cnt = document.getElementById('vehCount'); if (cnt) cnt.textContent = rows.length + ' مركبة';
-      if (!rows.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:1.4rem;color:var(--p-muted,#94a3b8)">لا توجد مركبات مسجّلة لهذا الفرع.</td></tr>'; vehSyncSelUI(); return; }
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="7" class="csp-inline-schedule-1702">لا توجد مركبات مسجّلة لهذا الفرع.</td></tr>'; vehSyncSelUI(); return; }
       body.innerHTML = rows.map(function (d, i) {
-        return '<tr><td style="text-align:center"><input type="checkbox" class="vehChk" data-id="' + vesc(d.id) + '" style="width:16px;height:16px;cursor:pointer;accent-color:var(--p-accent,#c5a059)"></td>' +
+        return '<tr><td class="csp-inline-schedule-1703"><input type="checkbox" class="vehChk csp-inline-schedule-1704" data-id="' + vesc(d.id) + '"></td>' +
           '<td>' + (i + 1) + '</td>' +
           '<td>' + vesc(d.name) + '</td>' +
-          '<td style="direction:ltr;unicode-bidi:plaintext">' + vesc(d.empid) + '</td>' +
-          '<td style="font-weight:700">' + vesc(d.plate) + '</td>' +
+          '<td class="csp-inline-schedule-1705">' + vesc(d.empid) + '</td>' +
+          '<td class="csp-inline-schedule-1706">' + vesc(d.plate) + '</td>' +
           '<td>' + vesc(d.car) + '</td>' +
-          '<td style="direction:ltr;unicode-bidi:plaintext">' + vesc(d.phone) + '</td></tr>';
+          '<td class="csp-inline-schedule-1707">' + vesc(d.phone) + '</td></tr>';
       }).join('');
       vehSyncSelUI();
     }
@@ -2041,8 +1713,8 @@
       const body = document.getElementById('deauthBody'); if (!body) return;
       const rows = window.__deauthAll || [];
       const chip = document.getElementById('deauthCount'); if (chip) chip.textContent = rows.length;
-      if (!rows.length) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:1.2rem;color:var(--p-muted,#94a3b8)">لا يوجد — كل السائقين مفوّضون ✓</td></tr>'; return; }
-      function inp(i, k, v, ltr) { return '<input class="deauth-in" data-i="' + i + '" data-k="' + k + '" value="' + vesc(v) + '"' + (ltr ? ' style="direction:ltr;unicode-bidi:plaintext"' : '') + '>'; }
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="8" class="csp-inline-schedule-1708">لا يوجد — كل السائقين مفوّضون ✓</td></tr>'; return; }
+      function inp(i, k, v, ltr) { return '<input class="deauth-in csp-inline-schedule-1709" data-i="' + i + '" data-k="' + k + '" value="' + vesc(v) + '"' + (ltr ? '' : '') + '>'; }
       body.innerHTML = rows.map(function (d, i) {
         return '<tr><td>' + (i + 1) + '</td>' +
           '<td>' + inp(i, 'name', d.name) + '</td>' +
@@ -2051,7 +1723,7 @@
           '<td>' + inp(i, 'plate', d.plate) + '</td>' +
           '<td>' + inp(i, 'car', d.car) + '</td>' +
           '<td>' + inp(i, 'phone', d.phone, true) + '</td>' +
-          '<td><button class="btn-neon" style="padding:4px 11px;color:#FF6B6B;border-color:#FF6B6B" onclick="deauthDelete(' + i + ')">🗑 حذف</button></td></tr>';
+          '<td><button class="btn-neon csp-inline-schedule-1710" onclick="deauthDelete(' + i + ')">🗑 حذف</button></td></tr>';
       }).join('');
     }
     document.addEventListener('input', function (e) {
@@ -2440,24 +2112,24 @@
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         if (!worksheet) throw new Error("لا توجد أوراق عمل في الملف");
-        
+
         // Convert sheet to array of arrays with raw: false to format dates automatically
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
-        
+
         let currentSection = 'main';
         const newMain = [];
         const newSpare = [];
-        
+
         jsonData.forEach((row, rowIndex) => {
           if (!row || row.length === 0) return;
           const firstCell = String(row[0] || '');
-          
+
           if (firstCell.includes('المركبات الاسبير') || firstCell.includes('المعطلة')) {
             currentSection = 'spare';
           } else if (firstCell.includes('المركبات الأساسية') || firstCell.includes('الجدول الأسبوعي')) {
             currentSection = 'main';
           }
-          
+
           const idx = row[0];
           // Row is considered data if first column is a number (index)
           if (idx !== '' && !isNaN(parseInt(idx))) {
@@ -2466,14 +2138,14 @@
             EXPORT_COLS.forEach((c, i) => {
               // Note: excelJS uses 1-based, here row is 0-based array. First col is row[0], so (i+1) is data cell.
               let v = row[i + 1];
-              // XLSX usually converts dates to numbers or strings depending on cellType. 
+              // XLSX usually converts dates to numbers or strings depending on cellType.
               // We'll treat it as string or format it.
               if (v instanceof Date) {
                 const y = v.getFullYear();
                 const m = String(v.getMonth()+1).padStart(2,'0');
                 const d = String(v.getDate()).padStart(2,'0');
                 v = `${y}-${m}-${d}`;
-              } else if (typeof v === 'number' && v > 40000 && v < 50000) { 
+              } else if (typeof v === 'number' && v > 40000 && v < 50000) {
                   // Simple excel date conversion heuristic just in case
                   const date = new Date(Math.round((v - 25569) * 86400 * 1000));
                   v = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
@@ -2489,7 +2161,7 @@
             }
           }
         });
-        
+
         state.main = newMain;
         state.spare = newSpare;
         renderAll();
@@ -2534,14 +2206,14 @@
           const ia = new Uint8Array(ab);
           for (let i = 0; i < bs.length; i++) ia[i] = bs.charCodeAt(i);
           const blob = new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-          
+
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
           a.download = scheduleFileName();
           document.body.appendChild(a);
           a.click();
           a.remove();
-          
+
           if (window.showToast) showToast('تم تصدير الجدول بنجاح', 'success');
         } else {
           throw new Error(d.error || 'Unknown error');
@@ -2651,14 +2323,14 @@
       const rows = state.main.filter(r => String(r.name || '').trim());
       let items;
       if (!rows.length) {
-        items = `<p class="hint" style="padding:10px;">لا يوجد سائقون في الجدول الرئيسي.</p>`;
+        items = `<p class="hint csp-inline-schedule-1711">لا يوجد سائقون في الجدول الرئيسي.</p>`;
       } else {
         items = rows.map(r => {
           const link = waLink(r.phone, driverWaMessage(r));
           const name = escapeHtml(r.name || '—');
           const phone = escapeHtml(r.phone || '');
           const btn = link
-            ? `<a class="btn-neon" style="padding:6px 14px;font-size:.85rem;text-decoration:none;" href="${escapeHtml(link)}" target="_blank" rel="noopener">📲 إرسال</a>`
+            ? `<a class="btn-neon csp-inline-schedule-1712" href="${escapeHtml(link)}" target="_blank" rel="noopener">📲 إرسال</a>`
             : `<span class="hint">لا يوجد جوال</span>`;
           return `<div class="wa-all-row"><div class="wa-all-info"><strong>${name}</strong><span class="hint">${phone || '—'}</span></div>${btn}</div>`;
         }).join('');
@@ -2667,10 +2339,10 @@
       overlay.className = 'modal-backdrop show';
       overlay.style.zIndex = 3000;
       overlay.innerHTML =
-        '<div class="modal-content-custom glass-panel" style="max-width:480px;">' +
+        '<div class="modal-content-custom glass-panel csp-inline-schedule-1713">' +
         '<div class="modal-header-custom"><h2>📲 إرسال للجميع عبر واتساب</h2>' +
         '<button class="close-btn" data-x>✕</button></div>' +
-        '<div class="modal-body-custom"><p class="hint" style="margin:.2rem 0 .8rem;">المتصفح يحجب الفتح الجماعي التلقائي — أرسل لكل سائق على حدة:</p>' +
+        '<div class="modal-body-custom"><p class="hint csp-inline-schedule-1714">المتصفح يحجب الفتح الجماعي التلقائي — أرسل لكل سائق على حدة:</p>' +
         '<div class="wa-all-list">' + items + '</div></div></div>';
       document.body.appendChild(overlay);
       overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.hasAttribute('data-x')) overlay.remove(); });
@@ -2738,29 +2410,29 @@
         if (d.plate) return !scheduledPlates.has(FleetData.normalizePlate(d.plate));
         return !(d.name && scheduledNames.has(d.name.trim()));
       });
-      
+
       const chip = document.getElementById('chipUnscheduled');
       if(chip) chip.innerText = unscheduled.length;
-      
+
       let html = '';
       unscheduled.forEach(d => {
         const nm = (d.name||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         const pl = (d.plate||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         const cr = (d.car||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         const iq = (d.iqama||'').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        
+
         html += `<tr>
-          <td style="font-weight:bold;color:var(--brand-navy)">${nm || '---'}</td>
+          <td class="csp-inline-schedule-1715">${nm || '---'}</td>
           <td>${iq || '---'}</td>
-          <td style="direction:ltr;text-align:right;">${pl || '---'}</td>
+          <td class="csp-inline-schedule-1716">${pl || '---'}</td>
           <td>${cr || '---'}</td>
-          <td style="text-align:center;">
-            <button class="btn-neon" style="padding:4px 10px;font-size:0.8rem;" onclick="addUnscheduledToMain('${nm}','${pl}','${cr}','${iq}')">➕ للجدول</button>
+          <td class="csp-inline-schedule-1717">
+            <button class="btn-neon csp-inline-schedule-1718" onclick="addUnscheduledToMain('${nm}','${pl}','${cr}','${iq}')">➕ للجدول</button>
           </td>
         </tr>`;
       });
       if (unscheduled.length === 0) {
-        html = `<tr><td colspan="5" style="text-align:center;padding:1.4rem;color:#16a34a;font-weight:bold;">✅ جميع مركبات الأسطول مجدولة!</td></tr>`;
+        html = `<tr><td colspan="5" class="csp-inline-schedule-1719">✅ جميع مركبات الأسطول مجدولة!</td></tr>`;
       }
       const tbody = document.getElementById('bodyUnscheduled');
       if(tbody) tbody.innerHTML = html;

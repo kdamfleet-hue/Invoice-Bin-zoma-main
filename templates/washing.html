@@ -17,223 +17,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-<style>
-/* ===== WASHING 2026 — Modern Command UI ===== */
-:root {
-  --w-gold: #c9a45a;
-  --w-gold-2: #e3c47a;
-  --w-ok: #22c55e;
-  --w-ok-bg: rgba(34,197,94,.14);
-  --w-no: rgba(148,163,184,.18);
-  --w-panel: rgba(13,23,36,.72);
-  --w-line: rgba(201,164,90,.22);
-  --w-soft: rgba(255,255,255,.04);
-}
-html[data-theme="light"] {
-  --w-panel: rgba(255,252,246,.92);
-  --w-soft: rgba(138,106,40,.06);
-}
-
-.wash-hero {
-  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
-  gap: 1rem; margin-bottom: 1.25rem;
-}
-.wash-hero h1 {
-  margin: 0; font-size: clamp(1.35rem, 2.4vw, 1.85rem); font-weight: 800;
-  color: var(--w-gold-2); letter-spacing: -0.02em;
-}
-.wash-hero p { margin: .35rem 0 0; color: var(--bz-muted, #93a0b3); font-size: .9rem; }
-
-.wash-kpis {
-  display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr));
-  gap: 12px; margin-bottom: 1.1rem;
-}
-@media (max-width: 900px) { .wash-kpis { grid-template-columns: repeat(2, 1fr); } }
-.wash-kpi {
-  background: linear-gradient(160deg, rgba(201,164,90,.12), var(--w-soft));
-  border: 1px solid var(--w-line); border-radius: 16px;
-  padding: 14px 16px; text-align: center;
-  box-shadow: 0 8px 24px rgba(0,0,0,.18);
-}
-.wash-kpi .num {
-  font-size: 1.65rem; font-weight: 800; color: var(--w-gold-2);
-  font-variant-numeric: tabular-nums; line-height: 1.15;
-}
-.wash-kpi .label { margin-top: 4px; font-size: .78rem; color: var(--bz-muted, #93a0b3); font-weight: 600; }
-.wash-kpi.warn .num { color: #f87171; }
-.wash-kpi.ok .num { color: var(--w-ok); }
-
-.wash-panels {
-  display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; margin-bottom: 1.1rem;
-}
-@media (max-width: 900px) { .wash-panels { grid-template-columns: 1fr; } }
-.wash-panel {
-  background: var(--w-panel); border: 1px solid var(--w-line); border-radius: 16px;
-  padding: 14px 16px; backdrop-filter: blur(10px);
-}
-.wash-panel .ptitle { font-weight: 800; color: var(--w-gold); font-size: .85rem; margin-bottom: 10px; }
-.month-summary, .wash-finance {
-  display: flex !important; flex-wrap: wrap; gap: 10px 14px; align-items: center;
-  margin: 0 !important; padding: 0 !important; border: none !important;
-  background: transparent !important; box-shadow: none !important; max-width: none !important;
-}
-.ms-pill, .wf-item {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-radius: 999px; font-size: .85rem; font-weight: 700;
-  background: var(--w-soft); border: 1px solid var(--w-line);
-}
-.ms-pill .badge {
-  min-width: 26px; text-align: center; padding: 2px 8px; border-radius: 999px; font-weight: 800;
-}
-.ms-pill.received .badge { background: var(--w-ok); color: #052e16; }
-.ms-pill.pending .badge { background: rgba(248,113,113,.2); color: #fecaca; border: 1px solid rgba(248,113,113,.35); }
-.wf-item b { color: var(--w-gold-2); margin-inline-start: 4px; }
-.wf-item.paid b { color: var(--w-ok); }
-.wf-item.pend b { color: #fbbf24; }
-
-.wash-toolbar {
-  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-  justify-content: space-between; margin-bottom: 12px;
-}
-.wash-search {
-  flex: 1 1 260px; max-width: 420px; position: relative;
-}
-.wash-search input {
-  width: 100%; padding: 12px 16px 12px 42px; border-radius: 14px;
-  border: 1px solid var(--w-line); background: var(--w-soft);
-  color: inherit; font-family: inherit; font-size: .95rem;
-  outline: none; transition: border-color .15s, box-shadow .15s;
-}
-.wash-search input:focus {
-  border-color: var(--w-gold); box-shadow: 0 0 0 3px rgba(201,164,90,.18);
-}
-.wash-search::before {
-  content: "⌕"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-  color: var(--w-gold); font-size: 1.1rem; pointer-events: none;
-}
-html[dir="rtl"] .wash-search input { padding: 12px 42px 12px 16px; }
-html[dir="rtl"] .wash-search::before { right: auto; left: 14px; }
-
-.wash-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.wbtn {
-  border: 1px solid var(--w-line); background: var(--w-soft); color: inherit;
-  border-radius: 12px; padding: 9px 14px; font-family: inherit; font-weight: 700;
-  font-size: .82rem; cursor: pointer; transition: .15s ease;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.wbtn:hover { border-color: var(--w-gold); background: rgba(201,164,90,.12); }
-.wbtn.primary {
-  background: linear-gradient(135deg, rgba(201,164,90,.35), rgba(201,164,90,.15));
-  border-color: var(--w-gold); color: var(--w-gold-2);
-}
-.wbtn.success {
-  background: linear-gradient(135deg, rgba(34,197,94,.28), rgba(34,197,94,.1));
-  border-color: rgba(34,197,94,.45); color: #86efac;
-}
-.wbtn.ghost { opacity: .9; }
-
-/* Table shell */
-.wash-card {
-  background: var(--w-panel); border: 1px solid var(--w-line); border-radius: 18px;
-  overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.22);
-}
-.wash-table-wrap { overflow-x: auto; max-width: 100%; }
-#washTable {
-  width: 100%; border-collapse: separate; border-spacing: 0;
-  table-layout: auto; font-size: .86rem;
-}
-#washTable thead { position: sticky; top: 0; z-index: 5; }
-#washTable thead th {
-  background: linear-gradient(180deg, #0f1c2e, #0a1422);
-  color: #e8eef8; padding: 12px 10px; font-size: .75rem; font-weight: 800;
-  text-align: center; white-space: nowrap; border-bottom: 1px solid var(--w-line);
-  letter-spacing: .02em;
-}
-#washTable thead th.col-plate,
-#washTable thead th.col-type,
-#washTable thead th.col-driver { text-align: right; }
-#washTable thead th.col-total,
-#washTable thead th.col-price,
-#washTable thead th.col-amount {
-  background: linear-gradient(180deg, rgba(201,164,90,.35), rgba(201,164,90,.18));
-  color: #1a1408;
-}
-#washTable thead th.col-month.current-month {
-  background: linear-gradient(180deg, var(--w-gold), #a8842f) !important;
-  color: #0c0a05 !important; font-weight: 900;
-  box-shadow: inset 0 -3px 0 #0c0a05;
-}
-#washTable thead th.col-month.current-month::after { content: " ●"; font-size: .65rem; }
-#washTable tbody td {
-  padding: 10px 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,.04);
-  vertical-align: middle; background: transparent;
-}
-#washTable tbody tr:hover td { background: rgba(201,164,90,.06); }
-#washTable tbody td.cell-plate { text-align: right; font-weight: 700; }
-#washTable tbody td.cell-type { text-align: right; color: var(--bz-muted, #93a0b3); }
-#washTable tbody td.cell-driver { text-align: right; }
-#washTable tbody td.cell-total {
-  font-weight: 800; font-size: 1rem;
-  background: rgba(201,164,90,.08) !important;
-}
-#washTable tbody td.cell-amount {
-  font-weight: 800; color: var(--w-gold-2);
-  font-variant-numeric: tabular-nums;
-  background: rgba(201,164,90,.1) !important;
-}
-#washTable tbody td.cell-wash {
-  cursor: pointer; user-select: none; transition: transform .12s, background .12s;
-  min-width: 44px;
-}
-#washTable tbody td.cell-wash:hover { transform: scale(1.08); }
-#washTable tbody td.cell-wash.washed {
-  background: var(--w-ok-bg) !important;
-}
-#washTable tbody td.cell-wash.not-washed {
-  background: var(--w-no) !important;
-}
-#washTable tbody td.cell-wash.current-month {
-  box-shadow: inset 0 0 0 2px var(--w-gold);
-}
-.ok-mark {
-  display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center;
-  border-radius: 9px; background: var(--w-ok); color: #052e16; font-weight: 900; font-size: .85rem;
-}
-.x-mark {
-  display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center;
-  border-radius: 9px; background: rgba(100,116,139,.25); color: #94a3b8; font-weight: 800; font-size: .85rem;
-}
-.wash-row-del {
-  width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(248,113,113,.35);
-  background: rgba(248,113,113,.12); color: #f87171; cursor: pointer; font-weight: 800;
-}
-.wash-row-del:hover { background: rgba(248,113,113,.28); }
-#washTable .type-edit-input,
-#washTable .wash-price-in,
-#washTable select {
-  width: 100%; min-width: 90px; max-width: 180px;
-  padding: 7px 8px; border-radius: 10px; border: 1px solid var(--w-line);
-  background: rgba(0,0,0,.25); color: inherit; font-family: inherit; font-size: .82rem;
-}
-#washTable .wash-price-in { max-width: 90px; text-align: center; }
-
-.wash-legend {
-  display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; justify-content: center;
-  padding: 14px; border-top: 1px solid var(--w-line);
-  color: var(--bz-muted, #93a0b3); font-size: .82rem;
-}
-.wash-legend span { display: inline-flex; align-items: center; gap: 8px; }
-
-#emptyStateBanner {
-  margin-top: 12px; border-radius: 14px; padding: 14px 16px;
-  border: 1px solid rgba(248,113,113,.35); background: rgba(248,113,113,.08);
-}
-
-.wash-foot {
-  text-align: center; padding: 1.2rem; color: var(--bz-muted, #93a0b3);
-  font-size: .8rem; margin-top: 1.5rem;
-}
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/washing.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -291,11 +75,11 @@ html[dir="rtl"] .wash-search::before { right: auto; left: 14px; }
   <div class="table-wrapper wash-table-wrap">
     <table class="bz-fit bz-table" id="washTable">
       <colgroup>
-        <col style="width:3%"/><col style="width:11%"/><col style="width:15%"/><col style="width:16%"/>
-        <col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
-        <col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
-        <col style="width:4%"/><col style="width:4%"/><col style="width:4%"/><col style="width:4%"/>
-        <col style="width:7%"/><col style="width:7%"/><col style="width:9%"/>
+        <col class="csp-inline-washing-1891"/><col class="csp-inline-washing-1892"/><col class="csp-inline-washing-1893"/><col class="csp-inline-washing-1894"/>
+        <col class="csp-inline-washing-1895"/><col class="csp-inline-washing-1896"/><col class="csp-inline-washing-1897"/><col class="csp-inline-washing-1898"/>
+        <col class="csp-inline-washing-1899"/><col class="csp-inline-washing-1900"/><col class="csp-inline-washing-1901"/><col class="csp-inline-washing-1902"/>
+        <col class="csp-inline-washing-1903"/><col class="csp-inline-washing-1904"/><col class="csp-inline-washing-1905"/><col class="csp-inline-washing-1906"/>
+        <col class="csp-inline-washing-1907"/><col class="csp-inline-washing-1908"/><col class="csp-inline-washing-1909"/>
       </colgroup>
       <thead>
         <tr>
@@ -325,10 +109,10 @@ html[dir="rtl"] .wash-search::before { right: auto; left: 14px; }
   </div>
 </div>
 
-<div id="emptyStateBanner" style="display:none;">
-  <strong style="color:#f87171;">لا توجد مركبات في جدول الغسيل</strong>
-  <div style="margin-top:6px;font-size:0.85rem;opacity:.9;">استخدم «من قاعدة البيانات» أو «مزامنة شاملة» لجلب البيانات. لا يتم حذف أي بيانات مخزّنة تلقائياً.</div>
-  <button onclick="this.parentElement.style.display='none'" class="wbtn" style="margin-top:10px;">✕ إخفاء</button>
+<div id="emptyStateBanner" class="csp-inline-washing-1910">
+  <strong class="csp-inline-washing-1911">لا توجد مركبات في جدول الغسيل</strong>
+  <div class="csp-inline-washing-1912">استخدم «من قاعدة البيانات» أو «مزامنة شاملة» لجلب البيانات. لا يتم حذف أي بيانات مخزّنة تلقائياً.</div>
+  <button onclick="this.parentElement.style.display='none'" class="wbtn csp-inline-washing-1913">✕ إخفاء</button>
 </div>
 
 <datalist id="driversList"></datalist>
@@ -525,7 +309,7 @@ html[dir="rtl"] .wash-search::before { right: auto; left: 14px; }
 
             const total = getTotal(v);
             const driver = v.driver || '';
-            let pSelect = `<select class="bz-select2 plate-edit-input" style="min-width: 120px;" onchange="updateVehicleField(${idx},'plate',this.value)">`;
+            let pSelect = `<select class="bz-select2 plate-edit-input csp-inline-washing-1914" onchange="updateVehicleField(${idx},'plate',this.value)">`;
             let pOpts = window.cachedPlateOptions || '<option value="">اختر لوحة...</option>';
             if (v.plate && !pOpts.includes(`value="${escapeHtml(v.plate)}"`)) {
                 pOpts += `<option value="${escapeHtml(v.plate)}">${escapeHtml(v.plate)}</option>`;
@@ -535,7 +319,7 @@ html[dir="rtl"] .wash-search::before { right: auto; left: 14px; }
             }
             pSelect += pOpts + `</select>`;
 
-            let dSelect = `<select class="bz-select2 driver-edit-input" style="min-width: 150px;" onchange="updateVehicleField(${idx},'driver',this.value)">`;
+            let dSelect = `<select class="bz-select2 driver-edit-input csp-inline-washing-1915" onchange="updateVehicleField(${idx},'driver',this.value)">`;
             let dOpts = window.cachedDriverOptions || '<option value="">اختر أو أدخل الاسم...</option>';
             if (driver && !dOpts.includes(`value="${escapeHtml(driver)}"`)) {
                 dOpts += `<option value="${escapeHtml(driver)}">${escapeHtml(driver)}</option>`;
@@ -557,7 +341,7 @@ html[dir="rtl"] .wash-search::before { right: auto; left: 14px; }
                 const cur = mi === CURRENT_MONTH ? ' current-month' : '';
                 const mark = w ? '<span class="ok-mark" title="استلم">✓</span>'
                                : '<span class="x-mark" title="لم يستلم">✗</span>';
-                const disp = (mi === CURRENT_MONTH) ? '' : 'style="display:none;"';
+                const disp = (mi === CURRENT_MONTH) ? '' : 'is-hidden';
                 html += `<td class="cell-wash ${w ? 'washed' : 'not-washed'}${cur}" ${disp} onclick="toggle(${idx},${mi})" title="${escapeHtml(MONTH_NAMES[mi])}: ${w ? 'استلم' : 'لم يستلم'}">${mark}</td>`;
             }
             html += `<td class="cell-total">${total}</td>` +

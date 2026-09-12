@@ -14,238 +14,14 @@
       window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
   }
 </script>
-<style>
-        /* ── Page-specific layout only (tokens from base_styles.css) ── */
-        .header-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0 auto 1rem auto;
-            width: 100%;
-            max-width: 1200px;
-        }
-
-        .site-logo {
-            max-width: 280px;
-            width: 90%;
-            margin-bottom: 1rem;
-            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.12));
-            transition: var(--trans);
-        }
-
-        body.dark-mode .site-logo { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)); }
-
-        .nav-buttons {
-            display: flex;
-            gap: 0.75rem;
-            margin-top: 0.5rem;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .table-container {
-            width: 100%;
-            padding: 1.5rem;
-            margin: 1.5rem auto 0 auto;
-        }
-
-        /* On-screen readability for the multi-column bz-fit tables (parts/repairs/
-           tires/batteries/summary). The .excel-table base style clips with
-           overflow:hidden (for rounded corners) which can cut header text; for the
-           bz-fit tables we make overflow visible so single-word Arabic headers
-           (الموديل / الحمولة / المسافة …) are never cut and multi-word headers wrap
-           at spaces. table-layout:auto (from bz-fit) sizes each column to content.
-           Export logic / data are untouched. */
-        .excel-table.bz-fit { overflow: visible; }
-        .excel-table.bz-fit thead th {
-            white-space: normal;
-            word-break: keep-all;
-            overflow-wrap: normal;
-            overflow: visible;
-        }
-        /* The blue full-width section bar (e.g. "البطاريات", "ملخص الإجماليات")
-           should stay on one line — it has ample room across all columns. */
-        .excel-table.bz-fit thead th.excel-header {
-            white-space: nowrap;
-        }
-        /* Narrow screens: the base CSS widens each editable cell (min-width) so the
-           multi-column bz-fit tables (up to 9 cols) become wider than the viewport.
-           Make each such table scroll HORIZONTALLY inside its own bordered, rounded
-           box instead of overflowing/clipping. display:block is required for a
-           <table> to honour overflow-x; the inner table reverts to table layout so
-           sizing/headers are unchanged. Desktop (>920px) keeps the no-scroll
-           fit-to-width layout untouched. Export/PDF logic is not affected. */
-        @media (max-width: 920px) {
-            .excel-table.bz-fit {
-                display: block;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                border-radius: 8px;
-            }
-            .excel-table.bz-fit thead,
-            .excel-table.bz-fit tbody {
-                display: table;
-                width: 100%;
-                table-layout: auto;
-            }
-        }
-
-        .section-title {
-            background: var(--accent);
-            color: #fff;
-            text-align: center;
-            padding: 10px;
-            font-size: 1.1rem;
-            font-weight: 800;
-            border-radius: 10px;
-            margin: 15px 0 12px;
-            box-shadow: var(--shadow-md);
-        }
-
-        .btn-remove {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 4px 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: var(--trans);
-        }
-
-        .btn-remove:hover {
-            background: #c0392b;
-            transform: scale(1.1);
-        }
-
-        /* Floating Action Button */
-        .fab-btn {
-            position: fixed;
-            bottom: 25px;
-            left: 25px;
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            font-size: 1.7rem;
-            cursor: pointer;
-            box-shadow: var(--shadow-lg);
-            z-index: 999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: var(--trans);
-        }
-
-        .fab-btn:hover {
-            transform: scale(1.08) rotate(8deg);
-        }
-
-        .glass-surface {
-            background: rgba(20, 20, 20, 0.4);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(212, 175, 55, 0.15);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        }
-
-        /* ── Corporate "Excel-look" form tables (kept; this is the page's signature layout) ── */
-        .excel-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 22px;
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            background: rgba(30, 30, 30, 0.5);
-            backdrop-filter: blur(12px);
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        .excel-table th, .excel-table td {
-            border: 1px solid rgba(212, 175, 55, 0.15);
-            padding: 0;
-            margin: 0;
-        }
-        .excel-header {
-            background: rgba(15, 15, 15, 0.85) !important;
-            color: var(--accent) !important;
-            text-align: center;
-            font-weight: 800;
-            padding: 9px !important;
-            font-size: 1.05rem;
-            border-bottom: 2px solid var(--accent);
-            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-        .excel-label {
-            background: rgba(212, 175, 55, 0.1) !important;
-            color: var(--accent) !important;
-            text-align: center;
-            font-weight: 700;
-            padding: 6px !important;
-            font-size: 0.92rem;
-            width: 12%;
-            white-space: nowrap;
-        }
-        .excel-table th {
-            background: rgba(15, 15, 15, 0.85);
-            color: var(--text-primary);
-            text-align: center;
-            font-weight: 700;
-            padding: 7px !important;
-            font-size: 0.92rem;
-        }
-        .excel-input {
-            width: 21%;
-        }
-        .excel-input input, .excel-table td input,
-        .excel-table td textarea {
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-            border: none !important;
-            padding: 8px;
-            background: transparent;
-            font-family: inherit;
-            font-weight: 700;
-            color: var(--text-primary);
-            text-align: center;
-            outline: none;
-            min-height: 35px;
-            transition: all 0.3s;
-        }
-        .excel-input input:focus, .excel-table td input:focus,
-        .excel-table td textarea:focus {
-            background: rgba(212, 175, 55, 0.1);
-        }
-        .btn-add-row {
-            background: var(--gold, #c9a227);
-            color: #0C2340;
-            border: none;
-            border-radius: 6px;
-            padding: 4px 12px;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: 800;
-            font-size: 0.85rem;
-            margin-right: 15px;
-        }
-        .btn-add-row:hover {
-            filter: brightness(0.95);
-        }
-        /* Force readable dark text on the printed/notes black-text rows in dark mode */
-        body.dark-mode .excel-table td[style*="color:#000"],
-        body.dark-mode .excel-table th[style*="color:#000"] { color: var(--text-primary) !important; }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/purchase.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
-<video autoplay="" loop="" muted="" playsinline="" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3;">
+<video autoplay="" loop="" muted="" playsinline="" class="csp-inline-purchase-1399">
 <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4"/>
 </video>
- Standard top bar 
+ Standard top bar
 <header class="bz-topbar">
 <div class="bz-brand">
 <img alt="شركة بن زومة" src="{{ url_for('static', filename='nav_logo.png') }}"/>
@@ -275,29 +51,29 @@
 <datalist id="empidList"></datalist>
 <div class="bz-shell">
 <div class="header-container">
-<img alt="Logo" class="site-logo" src="{{ url_for('static', filename='main_logo.png') }}" style="width: 300px; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));"/>
+<img alt="Logo" class="site-logo csp-inline-purchase-1400" src="{{ url_for('static', filename='main_logo.png') }}"/>
                 {% if google_user %}
-        <div class="user-badge" style="position:fixed;top:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:var(--surface);padding:5px 15px;border-radius:50px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:100;backdrop-filter:blur(5px);">
-<img alt="Profile" src="{{ google_user.picture }}" style="width:28px;height:28px;border-radius:50%"/>
-<span style="font-weight:bold;color:var(--text-primary);font-size:0.9rem">{{ google_user.name }}</span>
-<a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:0.85rem;font-weight:bold;margin-right:8px;transition:var(--trans);">تسجيل خروج</a>
+        <div class="user-badge csp-inline-purchase-1401">
+<img alt="Profile" src="{{ google_user.picture }}" class="csp-inline-purchase-1402"/>
+<span class="csp-inline-purchase-1403">{{ google_user.name }}</span>
+<a href="/logout" class="csp-inline-purchase-1404">تسجيل خروج</a>
 </div>
         {% endif %}
-        <h1 class="bz-section-title" style="text-align:center;">نموذج طلب شراء وإصلاح سيارة</h1>
+        <h1 class="bz-section-title csp-inline-purchase-1405">نموذج طلب شراء وإصلاح سيارة</h1>
 <div class="nav-buttons">
 <a class="btn-outline" href="/">🔙 العودة للرئيسية</a>
-<a class="btn-outline" href="/washing" style="text-decoration:none;">🚿 تحضير جدول الغسيل</a>
-<a class="btn-outline" href="/tracking" style="text-decoration:none;">🛰️ التتبع المباشر</a>
+<a class="btn-outline csp-inline-purchase-1406" href="/washing">🚿 تحضير جدول الغسيل</a>
+<a class="btn-outline csp-inline-purchase-1407" href="/tracking">🛰️ التتبع المباشر</a>
 </div>
 </div>
 <!-- Vehicle Info -->
 <div class="table-container glass-surface" id="poFormArea">
 <div class="section-title">🚗 بيانات السيارة والسائق</div>
 <!-- Universal Search (interactive tool only — excluded from PDF export) -->
-<div class="pdf-exclude" style="position:relative;margin-bottom:15px;">
-<label style="font-weight:bold;color:var(--accent);font-size:1rem;display:block;margin-bottom:6px;">🔍 بحث شامل (اسم / رقم إقامة / رقم لوحة / جوال):</label>
-<input id="universalSearch" oninput="universalSearchFn()" placeholder="ابحث هنا... مثال: خالد أو 7775 أو 2487345031" style="width:100%;padding:14px 16px;border:2px solid var(--accent);border-radius:10px;font-size:1.05rem;font-family:'Cairo';font-weight:700;background:var(--surface);color:var(--text-primary);box-sizing:border-box;transition:var(--trans);" type="text"/>
-<div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:0 0 10px 10px;max-height:300px;overflow-y:auto;z-index:100;box-shadow:var(--shadow-md);"></div>
+<div class="pdf-exclude csp-inline-purchase-1408">
+<label class="csp-inline-purchase-1409">🔍 بحث شامل (اسم / رقم إقامة / رقم لوحة / جوال):</label>
+<input id="universalSearch" oninput="universalSearchFn()" placeholder="ابحث هنا... مثال: خالد أو 7775 أو 2487345031" type="text" class="csp-inline-purchase-1410"/>
+<div id="searchResults" class="csp-inline-purchase-1411"></div>
 </div>
 <table class="excel-table">
 <thead>
@@ -323,7 +99,7 @@
 <th class="excel-label">التاريخ:</th><td class="excel-input"><input id="poDate" type="date"/></td>
 </tr>
 <tr>
-<th class="excel-label">الرقم التسلسلي:</th><td class="excel-input" colspan="5"><input id="poSerial" readonly="" style="background: rgba(0,0,0,0.05); color: #d35400;" type="text"/></td>
+<th class="excel-label">الرقم التسلسلي:</th><td class="excel-input" colspan="5"><input id="poSerial" readonly="" type="text" class="csp-inline-purchase-1412"/></td>
 </tr>
 </tbody>
 </table>
@@ -332,13 +108,13 @@
 <thead>
 <tr><th class="excel-header" colspan="7">قطع الغيار <button class="btn-add-row pdf-exclude" onclick="addPartRow()">+ إضافة</button></th></tr>
 <tr>
-<th style="width: 5%;">م</th>
-<th style="width: 35%;">البيان</th>
-<th style="width: 10%;">الكمية</th>
-<th style="width: 15%;">السعر</th>
-<th style="width: 15%;">القيمة</th>
-<th style="width: 15%;">ملاحظات</th>
-<th style="width: 5%;">حذف</th>
+<th class="csp-inline-purchase-1413">م</th>
+<th class="csp-inline-purchase-1414">البيان</th>
+<th class="csp-inline-purchase-1415">الكمية</th>
+<th class="csp-inline-purchase-1416">السعر</th>
+<th class="csp-inline-purchase-1417">القيمة</th>
+<th class="csp-inline-purchase-1418">ملاحظات</th>
+<th class="csp-inline-purchase-1419">حذف</th>
 </tr>
 </thead>
 <tbody></tbody>
@@ -348,11 +124,11 @@
 <thead>
 <tr><th class="excel-header" colspan="5">الإصلاح <button class="btn-add-row pdf-exclude" onclick="addRepairRow()">+ إضافة</button></th></tr>
 <tr>
-<th style="width: 5%;">م</th>
-<th style="width: 45%;">الوصف</th>
-<th style="width: 20%;">القيمة</th>
-<th style="width: 25%;">ملاحظات</th>
-<th style="width: 5%;">حذف</th>
+<th class="csp-inline-purchase-1420">م</th>
+<th class="csp-inline-purchase-1421">الوصف</th>
+<th class="csp-inline-purchase-1422">القيمة</th>
+<th class="csp-inline-purchase-1423">ملاحظات</th>
+<th class="csp-inline-purchase-1424">حذف</th>
 </tr>
 </thead>
 <tbody></tbody>
@@ -362,15 +138,15 @@
 <thead>
 <tr><th class="excel-header" colspan="9">الكفرات <button class="btn-add-row pdf-exclude" onclick="addTireRow()">+ إضافة</button></th></tr>
 <tr>
-<th style="width: 5%;">م</th>
-<th style="width: 15%;">تاريخ التغيير</th>
-<th style="width: 10%;">العدد</th>
-<th style="width: 10%;">أمامية</th>
-<th style="width: 10%;">خلفية</th>
-<th style="width: 15%;">قراءة سابقة</th>
-<th style="width: 15%;">قراءة حالية</th>
-<th style="width: 15%;">المسافة</th>
-<th style="width: 5%;">حذف</th>
+<th class="csp-inline-purchase-1425">م</th>
+<th class="csp-inline-purchase-1426">تاريخ التغيير</th>
+<th class="csp-inline-purchase-1427">العدد</th>
+<th class="csp-inline-purchase-1428">أمامية</th>
+<th class="csp-inline-purchase-1429">خلفية</th>
+<th class="csp-inline-purchase-1430">قراءة سابقة</th>
+<th class="csp-inline-purchase-1431">قراءة حالية</th>
+<th class="csp-inline-purchase-1432">المسافة</th>
+<th class="csp-inline-purchase-1433">حذف</th>
 </tr>
 </thead>
 <tbody></tbody>
@@ -380,14 +156,14 @@
 <thead>
 <tr><th class="excel-header" colspan="8">البطاريات <button class="btn-add-row pdf-exclude" onclick="addBatteryRow()">+ إضافة</button></th></tr>
 <tr>
-<th style="width: 5%;">م</th>
-<th style="width: 30%;">الوصف</th>
-<th style="width: 10%;">العدد</th>
-<th style="width: 15%;">المقاس</th>
-<th style="width: 10%;">أمبير</th>
-<th style="width: 15%;">السعر للوحدة</th>
-<th style="width: 10%;">التاريخ</th>
-<th style="width: 5%;">حذف</th>
+<th class="csp-inline-purchase-1434">م</th>
+<th class="csp-inline-purchase-1435">الوصف</th>
+<th class="csp-inline-purchase-1436">العدد</th>
+<th class="csp-inline-purchase-1437">المقاس</th>
+<th class="csp-inline-purchase-1438">أمبير</th>
+<th class="csp-inline-purchase-1439">السعر للوحدة</th>
+<th class="csp-inline-purchase-1440">التاريخ</th>
+<th class="csp-inline-purchase-1441">حذف</th>
 </tr>
 </thead>
 <tbody></tbody>
@@ -397,68 +173,68 @@
 <thead>
 <tr><th class="excel-header" colspan="7">ملخص الإجماليات</th></tr>
 <tr>
-<th style="width: 14%;">قطع الغيار</th>
-<th style="width: 14%;">الإصلاح</th>
-<th style="width: 14%;">الكفرات</th>
-<th style="width: 14%;">البطاريات</th>
-<th style="width: 15%;">الإجمالي (قبل الضريبة)</th>
-<th style="width: 14%;">ضريبة 15%</th>
-<th style="width: 15%;">الإجمالي شامل الضريبة</th>
+<th class="csp-inline-purchase-1442">قطع الغيار</th>
+<th class="csp-inline-purchase-1443">الإصلاح</th>
+<th class="csp-inline-purchase-1444">الكفرات</th>
+<th class="csp-inline-purchase-1445">البطاريات</th>
+<th class="csp-inline-purchase-1446">الإجمالي (قبل الضريبة)</th>
+<th class="csp-inline-purchase-1447">ضريبة 15%</th>
+<th class="csp-inline-purchase-1448">الإجمالي شامل الضريبة</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><input id="sumParts" oninput="recalcSummary()" placeholder="الإجمالي" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" type="number"/></td>
-<td><input id="sumRepairs" oninput="recalcSummary()" placeholder="الإجمالي" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" type="number"/></td>
-<td><input id="sumTires" oninput="recalcSummary()" placeholder="أدخل يدوياً" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" type="number"/></td>
-<td><input id="sumBatteries" oninput="recalcSummary()" placeholder="الإجمالي" style="font-weight:bold;text-align:center;background:rgba(30, 30, 30, 0.4);color:var(--text-primary);" type="number"/></td>
-<td><input id="sumSubtotal" readonly="" style="background:rgba(212, 175, 55, 0.1);font-weight:bold;text-align:center;color:var(--accent);" type="number"/></td>
-<td><input id="sumVat" readonly="" style="background:rgba(212, 175, 55, 0.1);font-weight:bold;text-align:center;color:#f39c12;" type="number"/></td>
-<td><input id="sumGrandTotal" readonly="" style="background:rgba(212, 175, 55, 0.2);font-weight:bold;text-align:center;color:#2ecc71;font-size:1.1rem;border:1px solid rgba(46, 204, 113, 0.5);" type="number"/></td>
+<td><input id="sumParts" oninput="recalcSummary()" placeholder="الإجمالي" type="number" class="csp-inline-purchase-1449"/></td>
+<td><input id="sumRepairs" oninput="recalcSummary()" placeholder="الإجمالي" type="number" class="csp-inline-purchase-1450"/></td>
+<td><input id="sumTires" oninput="recalcSummary()" placeholder="أدخل يدوياً" type="number" class="csp-inline-purchase-1451"/></td>
+<td><input id="sumBatteries" oninput="recalcSummary()" placeholder="الإجمالي" type="number" class="csp-inline-purchase-1452"/></td>
+<td><input id="sumSubtotal" readonly="" type="number" class="csp-inline-purchase-1453"/></td>
+<td><input id="sumVat" readonly="" type="number" class="csp-inline-purchase-1454"/></td>
+<td><input id="sumGrandTotal" readonly="" type="number" class="csp-inline-purchase-1455"/></td>
 </tr>
 </tbody>
 </table>
 <!-- User Notes -->
-<table class="excel-table" style="margin-top: 15px;">
+<table class="excel-table csp-inline-purchase-1456">
 <tr>
-<th class="excel-label" style="width:15%">ملاحظات:</th>
-<td style="padding:0;"><textarea id="poNotes" placeholder="حقل الملاحظات..." rows="2" style="width:100%; height:100%; padding:8px; border:none; resize:none; font-family:inherit; font-weight:bold; outline:none; font-size:1rem; background:transparent; color:var(--text-primary);"></textarea></td>
+<th class="excel-label csp-inline-purchase-1457">ملاحظات:</th>
+<td class="csp-inline-purchase-1458"><textarea id="poNotes" placeholder="حقل الملاحظات..." rows="2" class="csp-inline-purchase-1459"></textarea></td>
 </tr>
 </table>
 <!-- Signatures Row -->
-<div style="border-top: 2px solid #b8860b; border-bottom: 2px solid #b8860b; padding: 40px 0 10px 0; display: flex; justify-content: space-between; font-weight: bold; margin-top: 30px; font-size: 0.95rem;">
-<div style="width:14%; text-align:center; color:var(--text-primary);">السائق</div>
-<div style="width:14%; text-align:center; color:var(--text-primary);">الميكانيكي</div>
-<div style="width:14%; text-align:center; color:var(--text-primary);">قسم الحركة</div>
-<div style="width:14%; text-align:center; color:var(--text-primary);">مسئول الشراء</div>
-<div style="width:14%; text-align:center; color:var(--text-primary);">الحسابات</div>
-<div style="width:14%; text-align:center; color:var(--text-primary);">مدير الفرع</div>
-<div style="width:16%; text-align:center; color:var(--text-primary);">اعتماد الإدارة</div>
+<div class="csp-inline-purchase-1460">
+<div class="csp-inline-purchase-1461">السائق</div>
+<div class="csp-inline-purchase-1462">الميكانيكي</div>
+<div class="csp-inline-purchase-1463">قسم الحركة</div>
+<div class="csp-inline-purchase-1464">مسئول الشراء</div>
+<div class="csp-inline-purchase-1465">الحسابات</div>
+<div class="csp-inline-purchase-1466">مدير الفرع</div>
+<div class="csp-inline-purchase-1467">اعتماد الإدارة</div>
 </div>
 <!-- Notes Section -->
-<div style="text-align: center; font-weight: bold; margin-top: 40px; margin-bottom: 5px; color:var(--text-primary);">
+<div class="csp-inline-purchase-1468">
             تم إعداد هذا الجدول بواسطة قسم الحركة
         </div>
-<table class="excel-table" style="margin-top: 0; margin-bottom: 30px;">
+<table class="excel-table csp-inline-purchase-1469">
 <thead>
-<tr><th class="excel-header" style="background-color: var(--accent) !important; text-align: center; padding:4px !important;">ملاحظات هامة</th></tr>
+<tr><th class="excel-header csp-inline-purchase-1470">ملاحظات هامة</th></tr>
 </thead>
 <tbody>
-<tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">1- يعبأ الطلب من قبل مسئول الورشة بعد توقيعه وتوقيع السائق والميكانيكي</td></tr>
-<tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">2- يوقع بعد ذلك من المحاسبة ويتم ارساله للإدارة عن طريق محاسب الفرع ليتم اعتماده من الإدارة</td></tr>
-<tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">3- عند وجود ملاحظة لأي من الأطراف يمكن تدوينها في حقل الملاحظات أعلاه</td></tr>
-<tr><td style="padding: 4px 10px !important; font-weight: bold; text-align: right; font-size: 0.95rem; border: 1px solid var(--border); color:var(--text-primary);">4- ترفق صورة للإدارة المالية وصورة لقسم الحركة بالإدارة، ويتم حفظ صورة من الطلب لدى الورشة</td></tr>
+<tr><td class="csp-inline-purchase-1471">1- يعبأ الطلب من قبل مسئول الورشة بعد توقيعه وتوقيع السائق والميكانيكي</td></tr>
+<tr><td class="csp-inline-purchase-1472">2- يوقع بعد ذلك من المحاسبة ويتم ارساله للإدارة عن طريق محاسب الفرع ليتم اعتماده من الإدارة</td></tr>
+<tr><td class="csp-inline-purchase-1473">3- عند وجود ملاحظة لأي من الأطراف يمكن تدوينها في حقل الملاحظات أعلاه</td></tr>
+<tr><td class="csp-inline-purchase-1474">4- ترفق صورة للإدارة المالية وصورة لقسم الحركة بالإدارة، ويتم حفظ صورة من الطلب لدى الورشة</td></tr>
 </tbody>
 </table>
-<div class="pdf-exclude" style="text-align:center;margin-top:20px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap">
+<div class="pdf-exclude csp-inline-purchase-1475">
 <button class="btn-submit-gold" onclick="downloadPO(this)">📥 استخراج الطلب (Excel)</button>
 <button class="btn-primary" onclick="sharePO(this)">📤 مشاركة / تصدير</button>
 <button class="btn-submit-orange" onclick="openCustomModal('emailModal')">📧 إرسال عبر الإيميل</button>
 </div>
 </div>
-<footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);width:100%">
+<footer class="csp-inline-purchase-1476">
         تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
-</div> /bz-shell 
+</div> /bz-shell
 <script>
         let driversData = [];
 
@@ -473,36 +249,36 @@
                 .toLowerCase();
         }
 
-        async function fetchDrivers() { 
-            try { 
-                const res = await fetch('/api/drivers'); 
+        async function fetchDrivers() {
+            try {
+                const res = await fetch('/api/drivers');
                 const json = await res.json();
                 driversData = Array.isArray(json) ? json : (json.data || []);
-                const dl = document.getElementById('driversList'); 
+                const dl = document.getElementById('driversList');
                 const pl = document.getElementById('platesList');
                 const el = document.getElementById('empidList');
-                if (dl) dl.innerHTML = ''; 
+                if (dl) dl.innerHTML = '';
                 if (pl) pl.innerHTML = '';
                 if (el) el.innerHTML = '';
-                driversData.forEach(d => { 
+                driversData.forEach(d => {
                     if (d.name && dl) {
-                        const o = document.createElement('option'); o.value = d.name; dl.appendChild(o); 
+                        const o = document.createElement('option'); o.value = d.name; dl.appendChild(o);
                     }
                     if (d.plate && d.plate !== 'None' && pl) {
-                        const o2 = document.createElement('option'); o2.value = d.plate; pl.appendChild(o2); 
+                        const o2 = document.createElement('option'); o2.value = d.plate; pl.appendChild(o2);
                     }
                     if (d.empid && el) {
-                        const o3 = document.createElement('option'); o3.value = d.empid; el.appendChild(o3); 
+                        const o3 = document.createElement('option'); o3.value = d.empid; el.appendChild(o3);
                     }
-                }); 
-            } catch (e) { console.error('fetchDrivers error:', e); } 
+                });
+            } catch (e) { console.error('fetchDrivers error:', e); }
         }
 
         function poAutofill() {
             const driverVal = (document.getElementById('poDriver')?.value || '').trim();
             const plateVal = (document.getElementById('poPlate')?.value || '').trim();
             const empidVal = (document.getElementById('poEmpid')?.value || '').trim();
-            
+
             let d = null;
 
             // Priority 1: Exact match by employee ID
@@ -539,14 +315,14 @@
                     }
                 }
             };
-            
+
             setIfNotFocused('poDriver', d.name);
             setIfNotFocused('poPlate', d.plate);
             setIfNotFocused('poCar', d.car);
             setIfNotFocused('poEmpid', d.empid);
             setIfNotFocused('poPhone', d.phone);
             setIfNotFocused('poJob', d.job);
-            
+
             // Model: prefer direct field, fallback to extracting year from car type
             if (d.model && d.model !== 'None') {
                 setIfNotFocused('poModel', d.model);
@@ -554,7 +330,7 @@
                 const match = d.car.match(/(\d{4}|[٠١٢٣٤٥٦٧٨٩]{4})/);
                 if (match) setIfNotFocused('poModel', match[1]);
             }
-            
+
             // Odometer/KM
             const kmVal = d.odometer || d.current_km || d.km;
             if (kmVal) setIfNotFocused('odometer', kmVal);
@@ -588,7 +364,7 @@
             });
 
             if (matches.length === 0) {
-                resultsDiv.innerHTML = '<div style="padding:12px;color:var(--text-muted);text-align:center;">لا توجد نتائج</div>';
+                resultsDiv.innerHTML = '<div class="csp-inline-purchase-1477">لا توجد نتائج</div>';
             } else {
                 const esc = window.escapeHtml || (s => s);
                 resultsDiv.innerHTML = matches.slice(0, 10).map(d => {
@@ -600,11 +376,11 @@
                     const safeName = esc(d.name);
                     const attrName = String(d.name).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, "\\'");
                     return `<div onclick="selectSearchResult('${attrName}')"
-                        style="padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:var(--trans);"
+
                         onmouseover="this.style.background='var(--surface-hover)'"
-                        onmouseout="this.style.background='transparent'">
-                        <div style="font-weight:bold;color:var(--text-primary);font-size:1rem;">👤 ${safeName}</div>
-                        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:3px;">${parts.join(' | ')}</div>
+                        onmouseout="this.style.background='transparent'" class="csp-inline-purchase-1478">
+                        <div class="csp-inline-purchase-1479">👤 ${safeName}</div>
+                        <div class="csp-inline-purchase-1480">${parts.join(' | ')}</div>
                     </div>`;
                 }).join('');
             }
@@ -860,10 +636,10 @@
                     const filename = 'طلب_شراء_' + (document.getElementById('poSerial').value) + '_' + (document.getElementById('poDriver').value || 'سائق') + '.xlsx';
                     const res = await fetch('/api/send_email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, filename, file_b64: poData.file_b64, subject: document.getElementById('emailSubject').value, cc: getCcEmails() }) });
                     const data = await res.json();
-                    if (data.success) { 
-                        showToast('تم إرسال طلب الشراء بنجاح! ✅', 'success'); 
-                        closeCustomModal('emailModal'); 
-                        
+                    if (data.success) {
+                        showToast('تم إرسال طلب الشراء بنجاح! ✅', 'success');
+                        closeCustomModal('emailModal');
+
                         // Increment Serial after successful email
                         let currentSerial = parseInt(localStorage.getItem('poSerialCounter')) || 102;
                         localStorage.setItem('poSerialCounter', currentSerial + 1);
@@ -882,7 +658,7 @@
             const row = document.createElement('div');
             row.className = 'cc-row';
             row.style.cssText = 'display:flex;gap:5px;align-items:center';
-            row.innerHTML = '<input type="email" class="cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
+            row.innerHTML = '<input type="email" class="cc-email csp-inline-purchase-1481" placeholder="نسخة إضافية"><button type="button" onclick="this.parentElement.remove()" class="btn-danger csp-inline-purchase-1482">✕</button>';
             container.appendChild(row);
         }
         function getCcEmails() {
@@ -1022,63 +798,63 @@
 <div class="modal-content-custom">
 <div class="modal-header-custom">
 <span>📧 إرسال عبر الإيميل</span>
-<button class="close-btn" onclick="closeCustomModal('emailModal')" style="color:white;">✕</button>
+<button class="close-btn csp-inline-purchase-1483" onclick="closeCustomModal('emailModal')">✕</button>
 </div>
 <div class="modal-body-custom">
-<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
-<input id="targetEmail" placeholder="example@gmail.com" required="" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="email"/>
+<div class="csp-inline-purchase-1484">
+<label class="csp-inline-purchase-1485">إلى:</label>
+<input id="targetEmail" placeholder="example@gmail.com" required="" type="email" class="csp-inline-purchase-1486"/>
 </div>
-<div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-<div style="display:flex;align-items:center;gap:8px">
-<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة
+<div class="csp-inline-purchase-1487">
+<div class="csp-inline-purchase-1488">
+<label class="csp-inline-purchase-1489">نسخة
                             إلى:</label>
-<div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
-<div class="cc-row" style="display:flex;gap:5px;align-items:center">
-<input class="cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);" type="email"/>
-<button onclick="addCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center" type="button">+</button>
+<div id="ccContainer" class="csp-inline-purchase-1490">
+<div class="cc-row csp-inline-purchase-1491">
+<input class="cc-email csp-inline-purchase-1492" placeholder="نسخة (اختياري)" type="email"/>
+<button onclick="addCcRow()" type="button" class="csp-inline-purchase-1493">+</button>
 </div>
 </div>
 </div>
 </div>
-<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
-<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
-<input id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="text"/>
+<div class="csp-inline-purchase-1494">
+<label class="csp-inline-purchase-1495">الموضوع:</label>
+<input id="emailSubject" placeholder="موضوع الرسالة" type="text" class="csp-inline-purchase-1496"/>
 </div>
-<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+<div class="csp-inline-purchase-1497">
 <button class="btn-outline" onclick="downloadPO(this)" type="button">حفظ في سطح المكتب 💾</button>
-<button class="btn-outline" onclick="closeCustomModal('emailModal')" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+<button class="btn-outline csp-inline-purchase-1498" onclick="closeCustomModal('emailModal')">إلغاء</button>
 <button class="btn-primary" id="btnSendEmail" onclick="sendPOEmail()">إرسال 🚀</button>
 </div>
 </div>
 </div>
 </div>
- Compose Email FAB 
+ Compose Email FAB
 <button class="fab-btn" id="composeFab" onclick="openCustomModal('composeModal')" title="إنشاء رسالة">✉️</button>
 <div class="modal-backdrop" id="composeModal">
 <div class="modal-content-custom">
 <div class="modal-header-custom">
 <span>✉️ إنشاء رسالة جديدة</span>
-<button class="close-btn" onclick="closeCustomModal('composeModal')" style="color:white;">✕</button>
+<button class="close-btn csp-inline-purchase-1499" onclick="closeCustomModal('composeModal')">✕</button>
 </div>
-<form class="modal-body-custom" id="composeForm" style="display:flex;flex-direction:column;gap:12px">
-<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-<label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
-<input name="email" placeholder="example@gmail.com" required="" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="email"/>
+<form class="modal-body-custom csp-inline-purchase-1500" id="composeForm">
+<div class="csp-inline-purchase-1501">
+<label class="csp-inline-purchase-1502">إلى:</label>
+<input name="email" placeholder="example@gmail.com" required="" type="email" class="csp-inline-purchase-1503"/>
 </div>
-<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-<label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
-<input name="subject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="text"/>
+<div class="csp-inline-purchase-1504">
+<label class="csp-inline-purchase-1505">الموضوع:</label>
+<input name="subject" placeholder="موضوع الرسالة" type="text" class="csp-inline-purchase-1506"/>
 </div>
-<textarea name="body" placeholder="اكتب رسالتك هنا..." rows="5" style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:inherit;font-size:1rem;resize:vertical;outline:none"></textarea>
-<div onclick="document.getElementById('composeFile').click()" style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer">
-<span style="font-size:1.3rem">📎</span>
-<span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو
+<textarea name="body" placeholder="اكتب رسالتك هنا..." rows="5" class="csp-inline-purchase-1507"></textarea>
+<div onclick="document.getElementById('composeFile').click()" class="csp-inline-purchase-1508">
+<span class="csp-inline-purchase-1509">📎</span>
+<span id="composeFileName" class="csp-inline-purchase-1510">اضغط لإرفاق ملف Excel أو
                         أي ملف آخر</span>
-<input id="composeFile" name="attachment" onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'" style="display:none" type="file"/>
+<input id="composeFile" name="attachment" onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'" type="file" class="csp-inline-purchase-1511"/>
 </div>
-<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
-<button class="btn-outline" onclick="closeCustomModal('composeModal')" style="border-color:var(--border-strong);color:var(--text-primary);" type="button">إلغاء</button>
+<div class="csp-inline-purchase-1512">
+<button class="btn-outline csp-inline-purchase-1513" onclick="closeCustomModal('composeModal')" type="button">إلغاء</button>
 <button class="btn-primary" id="composeSendBtn" type="submit">إرسال 🚀</button>
 </div>
 </form>

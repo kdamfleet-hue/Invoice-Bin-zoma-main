@@ -12,55 +12,7 @@
       window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
   }
 </script>
-<style>
-        .set-wrap { max-width: 920px; margin: 0 auto; }
-        .set-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 1.4rem 1.5rem; margin-bottom: 1.4rem; }
-        .set-card h3 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
-        .set-card .sub { color: var(--text-secondary); font-size: .9rem; line-height: 1.8; margin-bottom: 1.1rem; }
-        .set-form { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: .8rem; align-items: end; }
-        .set-form .fld label { display: block; font-size: .8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
-        .set-form .pw-wrap { position: relative; }
-        .set-form .pw-wrap .eye { position: absolute; inset-inline-start: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1rem; opacity: .7; background: none; border: none; }
-        .set-add { padding: 12px 18px; white-space: nowrap; }
-        @media (max-width: 720px) { .set-form { grid-template-columns: 1fr; } }
-        .set-msg { margin-top: 10px; font-size: .86rem; font-weight: 700; min-height: 1.1rem; }
-        .users-tbl { width: 100%; border-collapse: collapse; margin-top: 4px; }
-        .users-tbl th, .users-tbl td { padding: 11px 12px; text-align: right; border-bottom: 1px solid var(--border); font-size: .88rem; }
-        .users-tbl th { background: var(--surface-hover); color: var(--text-secondary); font-weight: 800; }
-        .users-tbl td { color: var(--text-primary); }
-        .users-tbl .uname { font-family: monospace; direction: ltr; unicode-bidi: plaintext; display: inline-block; color: var(--brand-gold); }
-        .users-empty { text-align: center; color: var(--text-muted); padding: 1.6rem; font-weight: 700; }
-        .u-del { background: rgba(220,38,38,.12); color: #f87171; border: 1px solid rgba(220,38,38,.3); border-radius: 8px; padding: 5px 12px; font-weight: 800; cursor: pointer; font-size: .8rem; transition: var(--trans, .2s); }
-        .u-del:hover { background: #dc2626; color: #fff; }
-        .admin-note { display: flex; align-items: center; gap: 10px; background: rgba(197,160,89,.08); border: 1px solid rgba(197,160,89,.25); border-radius: 12px; padding: 12px 16px; color: var(--text-secondary); font-size: .86rem; }
-        .snap-bar { display: flex; gap: .7rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
-        .snap-bar .fld { flex: 1; min-width: 220px; }
-        .snap-bar label { display: block; font-size: .8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
-        .snap-bar select { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text-primary); font-family: inherit; font-size: .9rem; }
-        .snap-list { list-style: none; margin: 0; padding: 0; }
-        .snap-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: .55rem; background: var(--surface-hover); }
-        .snap-list .snap-when { font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: plaintext; }
-        .snap-list .snap-when small { color: var(--text-muted); font-weight: 700; margin-inline-start: 8px; }
-        .snap-restore { background: rgba(197,160,89,.14); color: var(--brand-gold); border: 1px solid rgba(197,160,89,.35); border-radius: 9px; padding: 7px 15px; font-weight: 800; cursor: pointer; font-size: .82rem; transition: var(--trans, .2s); white-space: nowrap; }
-        .snap-restore:hover { background: var(--brand-gold); color: #1a1a1a; }
-        .snap-restore:disabled { opacity: .5; cursor: default; }
-        .snap-empty { text-align: center; color: var(--text-muted); padding: 1.4rem; font-weight: 700; }
-
-        /* ── Feature Flagging Toggle Switches ── */
-        .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
-        @media (max-width: 720px) { .feat-grid { grid-template-columns: 1fr; } }
-        .feat-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--surface-hover); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; transition: var(--trans, .2s); }
-        .feat-item:hover { border-color: var(--accent, #c5a059); box-shadow: 0 0 12px rgba(197,160,89,.12); }
-        .feat-info { flex: 1; }
-        .feat-info .feat-label { font-weight: 800; font-size: .95rem; color: var(--text-primary); margin-bottom: 2px; }
-        .feat-info .feat-desc { font-size: .78rem; color: var(--text-secondary); line-height: 1.6; }
-        .toggle-switch { position: relative; width: 52px; height: 28px; flex-shrink: 0; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #3b3b4f; border-radius: 28px; transition: .3s; }
-        .toggle-slider::before { content: ''; position: absolute; width: 22px; height: 22px; border-radius: 50%; background: #fff; bottom: 3px; left: 3px; transition: .3s; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
-        .toggle-switch input:checked + .toggle-slider { background: linear-gradient(135deg, #c5a059, #d4af37); box-shadow: 0 0 14px rgba(197,160,89,.35); }
-        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(24px); }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/settings.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -110,8 +62,8 @@
 <div class="set-msg" id="addMsg"></div>
 </div>
 <div class="set-card">
-<h3>👥 المستخدمون المشاركون <span class="sub" id="uCount" style="margin:0;font-weight:700;"></span></h3>
-<div class="dtable-wrap" style="overflow-x:auto;">
+<h3>👥 المستخدمون المشاركون <span class="sub csp-inline-settings-1749" id="uCount"></span></h3>
+<div class="dtable-wrap csp-inline-settings-1750">
 <table class="users-tbl">
 <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور الأساسي</th><th>تاريخ الإنشاء</th><th>إجراء</th></tr></thead>
 <tbody id="usersBody"><tr><td class="users-empty" colspan="5">جارٍ التحميل…</td></tr></tbody>
@@ -133,7 +85,7 @@
 <div class="set-card">
 <h3>🏢 حسابات الفروع — اسم مستخدم ورمز لكل فرع</h3>
 <div class="sub">عيّن لكل فرع <b>اسم مستخدم ورمز دخول</b>. عند الدخول بهذه البيانات يُقفَل المستخدم تلقائياً على فرعه فقط، وتُنسب كل تعديلاته لاسم مستخدمه في <b>مركز الفروع</b>. الرموز تُحفظ <b>مشفّرة</b>.</div>
-<div class="dtable-wrap" style="overflow-x:auto;">
+<div class="dtable-wrap csp-inline-settings-1751">
 <table class="users-tbl">
 <thead><tr><th>الفرع</th><th>اسم المستخدم</th><th>الرمز</th><th>إجراء</th></tr></thead>
 <tbody id="baBody"><tr><td class="users-empty" colspan="4">جارٍ التحميل…</td></tr></tbody>
@@ -145,30 +97,30 @@
 <div class="admin-note">🛡️ <span>حساب <b>المدير الرئيسي</b> ثابت ومُدار من إعدادات الخادم (لا يظهر هنا ولا يمكن حذفه). هو وحده من يبدّل بين كل الفروع ويرى <b>مركز الفروع</b>.</span></div>
 </div>
 <!-- ═══════════ قسم إنشاء حساب مخصص برقم سر ومحطة صفحة واحدة ═══════════ -->
-<div class="set-card" id="createDedicatedUserCard" style="border: 1px solid rgba(197,160,89,0.35); background: linear-gradient(135deg, rgba(12,35,64,0.6), rgba(15,23,42,0.8)); margin-bottom: 24px;">
-    <h3 style="color: var(--gold-primary, #c5a059); margin-top: 0; display: flex; align-items: center; gap: 8px;">
+<div class="set-card csp-inline-settings-1752" id="createDedicatedUserCard">
+    <h3 class="csp-inline-settings-1753">
         🔑 إنشاء حساب مخصص برقم سر ومحطة صفحة واحدة
     </h3>
     <div class="sub">أدخل بيانات الدخول وحدد الصفحة الحصرية المقيدة لإنشاء حساب مستقل فوراً:</div>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 15px;">
+
+    <div class="csp-inline-settings-1754">
         <div>
-            <label style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px;">
+            <label class="csp-inline-settings-1755">
                 اسم المستخدم (Username):
             </label>
-            <input type="text" id="newDedicatedUser" placeholder="مثال: aaa أو workshop_user" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-primary); font-family: monospace; direction: ltr;">
+            <input type="text" id="newDedicatedUser" placeholder="مثال: aaa أو workshop_user" class="csp-inline-settings-1756">
         </div>
         <div>
-            <label style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px;">
+            <label class="csp-inline-settings-1757">
                 كلمة المرور (Password):
             </label>
-            <input type="text" id="newDedicatedPass" placeholder="مثال: 123aaa" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-primary); font-family: monospace; direction: ltr;">
+            <input type="text" id="newDedicatedPass" placeholder="مثال: 123aaa" class="csp-inline-settings-1758">
         </div>
-        <div style="grid-column: span 1 / -1;">
-            <label style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px;">
+        <div class="csp-inline-settings-1759">
+            <label class="csp-inline-settings-1760">
                 🎯 الصلاحية المقيدة (Dedicated Mode):
             </label>
-            <select id="newDedicatedPage" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-primary); font-family: inherit;">
+            <select id="newDedicatedPage" class="csp-inline-settings-1761">
                 <option value="/purchase">🛒 طلب شراء فقط (/purchase)</option>
                 <option value="/workshop">🔧 ورشة الصيانة فقط (/workshop)</option>
                 <option value="/washing">🚿 محطة الغسيل فقط (/washing)</option>
@@ -182,12 +134,12 @@
             </select>
         </div>
     </div>
-    
-    <div style="margin-top: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-        <button class="btn-submit-gold" onclick="submitCreateDedicatedUser()" style="padding: 10px 20px; font-weight: 800; border-radius: 10px; font-size: 0.95rem;">
+
+    <div class="csp-inline-settings-1762">
+        <button class="btn-submit-gold csp-inline-settings-1763" onclick="submitCreateDedicatedUser()">
             ➕ إنشاء الحساب المخصص الآن
         </button>
-        <div id="createDedicatedUserMsg" style="font-weight: 700; font-size: 0.9rem;"></div>
+        <div id="createDedicatedUserMsg" class="csp-inline-settings-1764"></div>
     </div>
 </div>
 
@@ -196,23 +148,23 @@
 <h3>📌 تخصيص التبويبات والمحطة الواحدة المخصصة</h3>
 <div class="sub">حدد التبويبات المسموح بها والمغلقة، أو قُم بتقييد الواجهة على <b>صفحة واحدة مخصصة</b> فقط (مثل: طلب شراء فقط، ورشة فقط، محطة غسيل فقط...).</div>
 
-<div style="background: rgba(12, 35, 64, 0.4); border: 1px solid rgba(197,160,89,0.3); border-radius: 14px; padding: 18px; margin-bottom: 16px;">
-    <label for="targetAccountSelect" style="display: block; font-weight: 800; font-size: 0.95rem; color: var(--gold-primary, #c5a059); margin-bottom: 8px;">
+<div class="csp-inline-settings-1765">
+    <label for="targetAccountSelect" class="csp-inline-settings-1766">
         👤 اختر الحساب المراد تخصيص صلاحياته (Select User Account)
     </label>
-    <select id="targetAccountSelect" onchange="onAccountSelected()" style="width: 100%; padding: 12px; border-radius: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-primary); font-family: inherit; font-size: 0.95rem;">
+    <select id="targetAccountSelect" onchange="onAccountSelected()" class="csp-inline-settings-1767">
         <option value="__global__">🌐 الإعداد العام لجميع الحسابات (Default Global Permissions)</option>
     </select>
-    <p style="margin: 8px 0 0 0; color: var(--text-muted); font-size: 0.8rem;">
+    <p class="csp-inline-settings-1768">
         💡 اختر حساباً محدداً لتحديد تبويباته المفتوحة أو تخصيص واجهته على صفحة واحدة فقط.
     </p>
 </div>
 
-<div style="background: rgba(197,160,89,0.08); border: 1px solid rgba(197,160,89,0.25); border-radius: 14px; padding: 18px; margin-bottom: 20px;">
-    <label for="dedicatedModeSelect" style="display: block; font-weight: 800; font-size: 0.95rem; color: var(--gold-primary, #c5a059); margin-bottom: 8px;">
+<div class="csp-inline-settings-1769">
+    <label for="dedicatedModeSelect" class="csp-inline-settings-1770">
         🎯 نمط الصفحة الواحدة المخصصة (Dedicated Single Page Mode)
     </label>
-    <select id="dedicatedModeSelect" style="width: 100%; padding: 12px; border-radius: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-primary); font-family: inherit; font-size: 0.95rem;">
+    <select id="dedicatedModeSelect" class="csp-inline-settings-1771">
         <option value="all">🌐 الكل (إتاحة جميع التبويبات المسموحة)</option>
         <option value="/purchase">🛒 طلب شراء فقط (Purchase Only)</option>
         <option value="/workshop">🔧 ورشة الصيانة فقط (Workshop Only)</option>
@@ -225,12 +177,12 @@
         <option value="/handover">🚗 تسليم واستلام مركبة فقط</option>
         <option value="/finance/petty-cash">💵 العهد والمصاريف فقط</option>
     </select>
-    <p style="margin: 8px 0 0 0; color: var(--text-muted); font-size: 0.8rem;">
+    <p class="csp-inline-settings-1772">
         💡 عند اختيار صفحة واحدة مخصصة، سيتم إخفاء باقي القوائم تلقائياً وتقييد التصفح على تلك الصفحة حصراً.
     </p>
 </div>
 
-<h4 style="color: var(--text-primary); font-size: 1rem; margin: 15px 0 10px 0; font-weight: 800;">
+<h4 class="csp-inline-settings-1773">
     🔒 إغلاق وتحديد التبويبات المسموح بها:
 </h4>
 <div class="feat-grid" id="tabsGrid">
@@ -254,8 +206,8 @@
     <div class="feat-item"><div class="feat-info"><div class="feat-label">📂 أرشيف الوثائق</div></div><label class="toggle-switch"><input type="checkbox" class="tab-toggle" checked data-href="/documents"><span class="toggle-slider"></span></label></div>
 </div>
 
-<div style="margin-top: 20px; text-align: left;">
-    <button onclick="saveTabPermissions()" class="btn-submit-gold" style="padding: 12px 28px; font-weight: 800;">
+<div class="csp-inline-settings-1774">
+    <button onclick="saveTabPermissions()" class="btn-submit-gold csp-inline-settings-1775">
         💾 حفظ وتطبيق الصلاحيات
     </button>
 </div>
@@ -312,7 +264,7 @@
     var name = $('u-name').value.trim(), username = $('u-username').value.trim(), email = $('u-email').value.trim(), password = $('u-pass').value;
     var msg = $('addMsg');
     if (password.length < 12) {
-      msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ كلمة المرور يجب أن تكون 12 حرفًا على الأقل.</span>';
+      msg.innerHTML = '<span class="csp-inline-settings-1776">⚠ كلمة المرور يجب أن تكون 12 حرفًا على الأقل.</span>';
       $('u-pass').focus();
       return;
     }
@@ -320,15 +272,15 @@
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (res.ok && res.j.success) {
-          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تمت إضافة المستخدم «' + esc(username) + '»</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1777">✓ تمت إضافة المستخدم «' + esc(username) + '»</span>';
           $('u-name').value = ''; $('u-username').value = ''; $('u-email').value = ''; $('u-pass').value = ''; $('u-role').value = 'viewer';
           if (window.showToast) showToast('تمت إضافة المستخدم ✓', 'success');
           loadUsers();
         } else {
-          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + esc((res.j && (res.j.reason || res.j.error)) || 'تعذّرت الإضافة') + '</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1778">⚠ ' + esc((res.j && (res.j.reason || res.j.error)) || 'تعذّرت الإضافة') + '</span>';
         }
       })
-      .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+      .catch(function () { msg.innerHTML = '<span class="csp-inline-settings-1779">تعذّر الاتصال بالخادم.</span>'; });
   });
 
   // ── السجل الزمني (النسخ المؤرّخة) ───────────────────────────────
@@ -369,19 +321,19 @@
   async function restoreSnap(id, tab) {
     if (!(await window.bzConfirm('استعادة هذه النسخة؟ ستحلّ محل البيانات الحالية لهذا التبويب — والحالة الحالية تبقى محفوظة في السجل ويمكنك الرجوع إليها.'))) return;
     var msg = $('snapMsg');
-    msg.innerHTML = '<span style="color:var(--text-secondary)">جارٍ الاستعادة…</span>';
+    msg.innerHTML = '<span class="csp-inline-settings-1780">جارٍ الاستعادة…</span>';
     fetch('/api/snapshots/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (res.ok && res.j.success) {
-          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تمت الاستعادة بنجاح.</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1781">✓ تمت الاستعادة بنجاح.</span>';
           if (window.showToast) showToast('تمت استعادة النسخة ✓', 'success');
           loadSnaps(tab);
         } else {
-          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ تعذّرت الاستعادة' + (res.j && res.j.error ? ' (' + esc(res.j.error) + ')' : '') + '.</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1782">⚠ تعذّرت الاستعادة' + (res.j && res.j.error ? ' (' + esc(res.j.error) + ')' : '') + '.</span>';
         }
       })
-      .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+      .catch(function () { msg.innerHTML = '<span class="csp-inline-settings-1783">تعذّر الاتصال بالخادم.</span>'; });
   }
 
   $('snapTab').addEventListener('change', function () { $('snapMsg').innerHTML = ''; loadSnaps(this.value); });
@@ -395,10 +347,10 @@
         if (!rows.length) { $('baBody').innerHTML = '<tr><td colspan="4" class="users-empty">—</td></tr>'; return; }
         $('baBody').innerHTML = rows.map(function (r) {
           return '<tr data-bid="' + r.branch_id + '">' +
-            '<td style="font-weight:800">🏢 ' + esc(r.branch_name) + '</td>' +
-            '<td><input class="ba-user" type="text" value="' + esc(r.username) + '" placeholder="اسم مستخدم بالإنجليزية" style="width:150px;font-family:monospace;direction:ltr"></td>' +
-            '<td><input class="ba-code" type="text" placeholder="' + (r.has_code ? '•••• (محفوظ — اكتب لتغييره)' : 'رمز جديد (4+ أحرف)') + '" style="width:170px;direction:ltr"></td>' +
-            '<td><button class="btn-submit-gold ba-save" style="padding:6px 12px;font-size:.8rem;border-radius:8px">حفظ</button>' +
+            '<td class="csp-inline-settings-1784">🏢 ' + esc(r.branch_name) + '</td>' +
+            '<td><input class="ba-user csp-inline-settings-1785" type="text" value="' + esc(r.username) + '" placeholder="اسم مستخدم بالإنجليزية"></td>' +
+            '<td><input class="ba-code csp-inline-settings-1786" type="text" placeholder="' + (r.has_code ? '•••• (محفوظ — اكتب لتغييره)' : 'رمز جديد (4+ أحرف)') + '"></td>' +
+            '<td><button class="btn-submit-gold ba-save csp-inline-settings-1787">حفظ</button>' +
             (r.has_code ? ' <button class="u-del ba-del">🗑️</button>' : '') + '</td></tr>';
         }).join('');
         Array.prototype.forEach.call(document.querySelectorAll('.ba-save'), function (b) {
@@ -416,19 +368,19 @@
     var username = tr.querySelector('.ba-user').value.trim();
     var code = tr.querySelector('.ba-code').value;
     var msg = $('baMsg');
-    if (!username || !code) { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">أدخل اسم المستخدم والرمز معاً.</span>'; return; }
+    if (!username || !code) { msg.innerHTML = '<span class="csp-inline-settings-1788">أدخل اسم المستخدم والرمز معاً.</span>'; return; }
     fetch('/api/branch_accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch_id: bid, username: username, code: code }) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (res.ok && res.j.success) {
-          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ حساب الفرع.</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1789">✓ تم حفظ حساب الفرع.</span>';
           if (window.showToast) showToast('تم حفظ حساب الفرع ✓', 'success');
           loadBranchAccounts();
         } else {
-          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + esc((res.j && res.j.reason) || 'تعذّر الحفظ') + '</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1790">⚠ ' + esc((res.j && res.j.reason) || 'تعذّر الحفظ') + '</span>';
         }
       })
-      .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+      .catch(function () { msg.innerHTML = '<span class="csp-inline-settings-1791">تعذّر الاتصال بالخادم.</span>'; });
   }
 
   async function delBA(tr) {
@@ -484,7 +436,7 @@
 
   function toggleFeature(key, val) {
     var msg = $('featMsg');
-    msg.innerHTML = '<span style="color:var(--text-secondary)">جارٍ الحفظ…</span>';
+    msg.innerHTML = '<span class="csp-inline-settings-1792">جارٍ الحفظ…</span>';
     var body = {};
     body[key] = val;
     fetch('/api/system_features', {
@@ -495,13 +447,13 @@
     .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
     .then(function (res) {
       if (res.ok && res.j.success) {
-        msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ الإعداد.</span>';
+        msg.innerHTML = '<span class="csp-inline-settings-1793">✓ تم حفظ الإعداد.</span>';
         if (window.showToast) showToast('✓ تم تحديث الإعداد', 'success');
       } else {
-        msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ تعذّر الحفظ.</span>';
+        msg.innerHTML = '<span class="csp-inline-settings-1794">⚠ تعذّر الحفظ.</span>';
       }
     })
-    .catch(function () { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذّر الاتصال بالخادم.</span>'; });
+    .catch(function () { msg.innerHTML = '<span class="csp-inline-settings-1795">تعذّر الاتصال بالخادم.</span>'; });
   }
 
   loadFeatures();
@@ -511,7 +463,7 @@
   function populateUserAccountSelect() {
     var sel = $('targetAccountSelect');
     if (!sel) return;
-    
+
     fetch('/api/users').then(function(r) { return r.json(); }).then(function(j) {
       var users = (j && j.users) || [];
       users.forEach(function(u) {
@@ -591,7 +543,7 @@
 
   window.saveTabPermissions = function() {
     var msg = $('tabPermsMsg');
-    msg.innerHTML = '<span style="color:var(--text-secondary)">جاري حفظ وتطبيق الصلاحيات...</span>';
+    msg.innerHTML = '<span class="csp-inline-settings-1796">جاري حفظ وتطبيق الصلاحيات...</span>';
 
     var targetUser = $('targetAccountSelect').value;
     var dedicatedMode = $('dedicatedModeSelect').value;
@@ -614,18 +566,18 @@
       .then(function(j) {
         if (j.success) {
           userPermsCache['__global__'] = { dedicated_mode: dedicatedMode, disabled_tabs: disabledTabs };
-          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ التخصيص العام لجميع الحسابات بنجاح!</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1797">✓ تم حفظ التخصيص العام لجميع الحسابات بنجاح!</span>';
           if (window.showToast) showToast('✓ تم حفظ الإعداد العام بنجاح', 'success');
         } else {
-          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + (j.error || 'تعذر الحفظ') + '</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1798">⚠ ' + (j.error || 'تعذر الحفظ') + '</span>';
         }
       })
-      .catch(function() { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذر الاتصال بالخادم.</span>'; });
+      .catch(function() { msg.innerHTML = '<span class="csp-inline-settings-1799">تعذر الاتصال بالخادم.</span>'; });
     } else {
       // An empty allow-list confines the account to the home page with no visible reason.
       // The toggles now start checked, so this only happens if every one was switched off.
       if (allowedTabs.length === 0) {
-        msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ لا يمكن حفظ قائمة تبويبات فارغة — فعّل تبويباً واحداً على الأقل.</span>';
+        msg.innerHTML = '<span class="csp-inline-settings-1800">⚠ لا يمكن حفظ قائمة تبويبات فارغة — فعّل تبويباً واحداً على الأقل.</span>';
         return;
       }
       fetch('/api/system/user_permissions', {
@@ -637,13 +589,13 @@
       .then(function(j) {
         if (j.success) {
           userPermsCache[targetUser] = { dedicated_mode: dedicatedMode, allowed_tabs: allowedTabs };
-          msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم حفظ صلاحيات الحساب (' + esc(targetUser) + ') بنجاح!</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1801">✓ تم حفظ صلاحيات الحساب (' + esc(targetUser) + ') بنجاح!</span>';
           if (window.showToast) showToast('✓ تم حفظ صلاحيات الحساب بنجاح', 'success');
         } else {
-          msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + (j.error || 'تعذر الحفظ') + '</span>';
+          msg.innerHTML = '<span class="csp-inline-settings-1802">⚠ ' + (j.error || 'تعذر الحفظ') + '</span>';
         }
       })
-      .catch(function() { msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذر الاتصال بالخادم.</span>'; });
+      .catch(function() { msg.innerHTML = '<span class="csp-inline-settings-1803">تعذر الاتصال بالخادم.</span>'; });
     }
   };
 
@@ -656,11 +608,11 @@
     var msg = $('createDedicatedUserMsg');
 
     if (!u || !p) {
-      msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">يرجى إدخال اسم المستخدم وكلمة المرور معاً.</span>';
+      msg.innerHTML = '<span class="csp-inline-settings-1804">يرجى إدخال اسم المستخدم وكلمة المرور معاً.</span>';
       return;
     }
 
-    msg.innerHTML = '<span style="color:var(--text-secondary)">جاري إنشاء الحساب المخصص...</span>';
+    msg.innerHTML = '<span class="csp-inline-settings-1805">جاري إنشاء الحساب المخصص...</span>';
 
     fetch('/api/system/create_dedicated_user', {
       method: 'POST',
@@ -670,26 +622,22 @@
     .then(function(r) { return r.json(); })
     .then(function(j) {
       if (j.success) {
-        msg.innerHTML = '<span style="color:var(--ok-fg,#10b981)">✓ تم إنشاء وتجهيز الحساب المخصص (' + esc(u) + ') لـ (' + esc(mode) + ') بنجاح!</span>';
+        msg.innerHTML = '<span class="csp-inline-settings-1806">✓ تم إنشاء وتجهيز الحساب المخصص (' + esc(u) + ') لـ (' + esc(mode) + ') بنجاح!</span>';
         if (window.showToast) showToast('✓ تم إنشاء الحساب المخصص بنجاح', 'success');
         $('newDedicatedUser').value = '';
         $('newDedicatedPass').value = '';
         loadUsers();
         loadTabPermissions();
       } else {
-        msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">⚠ ' + (j.error || 'تعذر إنشاء الحساب') + '</span>';
+        msg.innerHTML = '<span class="csp-inline-settings-1807">⚠ ' + (j.error || 'تعذر إنشاء الحساب') + '</span>';
       }
     })
     .catch(function() {
-      msg.innerHTML = '<span style="color:var(--bad-fg,#ef4444)">تعذر الاتصال بالسيرفر.</span>';
+      msg.innerHTML = '<span class="csp-inline-settings-1808">تعذر الاتصال بالسيرفر.</span>';
     });
   };
 })();
 </script>
 {% endblock %}
 
-<style>
-  .set-form select { width: 100%; padding: 12px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text-primary); font-family: inherit; font-size: .9rem; }
-  .role-badge { display: inline-block; padding: 4px 9px; border-radius: 999px; color: var(--brand-gold); background: rgba(197,160,89,.12); border: 1px solid rgba(197,160,89,.28); font-size: .76rem; font-weight: 800; white-space: nowrap; }
-  @media (max-width: 720px) { .set-form { grid-template-columns: 1fr; } }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/settings.css', v=1) }}">

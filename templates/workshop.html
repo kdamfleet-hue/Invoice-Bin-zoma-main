@@ -15,281 +15,8 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-<style>
-    /* Page-specific layout only — colors/fonts/buttons/inputs come from base_styles.css */
-    .report-header {
-        background: rgba(15, 15, 15, 0.75);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-radius: 14px 14px 0 0;
-        padding: 1.4rem 1.5rem;
-        color: #fff;
-        text-align: center;
-        border-bottom: 2px solid var(--accent);
-        border-inline: 1px solid rgba(212, 175, 55, 0.15);
-        border-top: 1px solid rgba(212, 175, 55, 0.15);
-    }
-
-    .report-header h1 {
-        margin: 0;
-        font-size: 1.35rem;
-        font-weight: 800;
-        color: var(--accent);
-        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-    }
-
-    .meta-grid {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        background: rgba(30, 30, 30, 0.6);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(212, 175, 55, 0.15);
-        border-top: none;
-    }
-
-    .meta-item {
-        padding: 12px;
-        border-inline-start: 1px solid rgba(212, 175, 55, 0.15);
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        align-items: center;
-        min-width: 0;
-        overflow: visible;
-    }
-
-    .meta-item:first-child {
-        border-inline-start: none;
-    }
-
-    .meta-item label {
-        font-weight: 800;
-        color: var(--accent);
-        font-size: 0.82rem;
-        white-space: normal;
-        word-break: keep-all;
-        overflow-wrap: normal;
-        overflow: visible;
-        text-align: center;
-        line-height: 1.35;
-    }
-
-    .meta-item input {
-        width: 100%;
-        text-align: center;
-        font-weight: 700;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(212, 175, 55, 0.2);
-        color: var(--text-primary);
-        border-radius: 6px;
-        padding: 6px;
-        transition: all 0.3s ease;
-    }
-
-    .meta-item input:focus {
-        border-color: var(--accent);
-        box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
-        outline: none;
-    }
-
-    .notes-table {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: auto;
-    }
-
-    .notes-table thead th {
-        background: rgba(15, 15, 15, 0.85);
-        color: var(--text-primary);
-        padding: 12px;
-        font-size: 1.05rem;
-        border: 1px solid rgba(212, 175, 55, 0.15);
-        white-space: normal;
-        word-break: keep-all;
-        overflow-wrap: normal;
-        overflow: visible;
-        text-align: center;
-        line-height: 1.3;
-    }
-
-    .notes-table tbody td {
-        border: 1px solid rgba(212, 175, 55, 0.15);
-        padding: 0;
-        background: rgba(30, 30, 30, 0.4);
-    }
-
-    .col-idx {
-        font-weight: 800;
-        text-align: center;
-        background: rgba(212, 175, 55, 0.1);
-        color: var(--accent);
-    }
-
-    .notes-table input {
-        width: 100%;
-        padding: 12px;
-        border: none;
-        border-radius: 0;
-        background: transparent;
-        color: var(--text-primary);
-        font-weight: 600;
-        outline: none;
-        box-sizing: border-box;
-        transition: background 0.3s;
-    }
-
-    .notes-table input:focus {
-        background: rgba(212, 175, 55, 0.1);
-    }
-
-    .sig-section {
-        display: flex;
-        border: 1px solid rgba(212, 175, 55, 0.15);
-        border-top: none;
-        border-radius: 0 0 14px 14px;
-        background: rgba(30, 30, 30, 0.6);
-        backdrop-filter: blur(12px);
-        overflow: hidden;
-    }
-
-    .sig-item {
-        flex: 1;
-        padding: 1.5rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        align-items: center;
-    }
-
-    .sig-item:first-child {
-        border-inline-start: 1px solid rgba(212, 175, 55, 0.15);
-    }
-
-    .sig-item label {
-        font-weight: 800;
-        color: var(--accent);
-        font-size: 1.05rem;
-    }
-
-    .sig-item input {
-        width: 80%;
-        border: none;
-        border-bottom: 2px dashed rgba(212, 175, 55, 0.4);
-        border-radius: 0;
-        background: transparent;
-        text-align: center;
-        font-weight: 700;
-        color: var(--text-primary);
-    }
-
-    .sig-item input:focus {
-        border-bottom-color: var(--accent);
-        outline: none;
-    }
-
-    .action-bar {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        align-items: center;
-        margin-bottom: 1.25rem;
-    }
-
-    .action-bar .autosave-hint {
-        margin-inline-start: auto;
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-        font-weight: 700;
-    }
-
-    @media (max-width: 768px) {
-        .meta-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .meta-item {
-            border-inline-start: none;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-        }
-
-        .sig-section {
-            flex-direction: column;
-        }
-
-        .sig-item:first-child {
-            border-inline-start: none;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-        }
-    }
-
-    @media print {
-
-        .bz-topbar,
-        .bz-sidebar,
-        .action-bar,
-        .print-hide {
-            display: none !important;
-        }
-
-        .bz-shell {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        body {
-            background: #fff !important;
-        }
-
-        .report-header {
-            border-radius: 0 !important;
-            border: 1px solid #000;
-            background: #eee !important;
-            color: #000 !important;
-            text-shadow: none !important;
-        }
-
-        .report-header h1 {
-            color: #000 !important;
-            text-shadow: none !important;
-        }
-
-        .meta-grid,
-        .notes-table th,
-        .notes-table td,
-        .sig-section {
-            background: #fff !important;
-            color: #000 !important;
-            border-color: #000 !important;
-        }
-
-        .meta-item label,
-        .sig-item label {
-            color: #000 !important;
-        }
-
-        .notes-table input,
-        .meta-item input,
-        .sig-item input {
-            color: #000 !important;
-            border-color: #000 !important;
-        }
-    }
-</style>
-<style>
-    /* Kiosk mode: hide all nav chrome — workshop report fills the full viewport */
-    .bz-topbar,
-    .bz-topbar * {
-        display: none !important;
-    }
-
-    header.bz-topbar+* {
-        margin-top: 0 !important;
-    }
-
-    .bz-shell {
-        margin-top: 1.5rem !important;
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/workshop.css', v=1) }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/workshop.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -329,9 +56,9 @@ Top Navigation Bar
     <div id="workshopPrintable">
         <div class="report-header">
             <h1>Workshop Technical Report — Bin Zomah Trading &amp; Development Company</h1>
-            <div style="font-size:.9rem;font-weight:600;opacity:.85;margin-top:.3rem;direction:ltr;">BIN ZOMAH INTL. —
+            <div class="csp-inline-workshop-1920">BIN ZOMAH INTL. —
                 Dammam Branch</div>
-            <div style="font-size:.9rem;font-weight:600;opacity:.85;direction:rtl;">تقرير صيانة الورشة — فرع الدمام
+            <div class="csp-inline-workshop-1921">تقرير صيانة الورشة — فرع الدمام
             </div>
         </div>
         <div class="meta-grid">
@@ -345,11 +72,11 @@ Top Navigation Bar
                     placeholder="اختر السائق" type="text" />
             </div>
             <div class="meta-item">
-                <label style="display:flex; justify-content:space-between; align-items:center;">
+                <label class="csp-inline-workshop-1922">
                     <span>رقم اللوحة (P:NO)</span>
                     <button type="button"
                         onclick="if(window.showVehicleProfile) showVehicleProfile(document.getElementById('carPlate').value)"
-                        style="background:none; border:none; color:#2563eb; cursor:pointer; font-size:0.8rem; font-weight:600; padding:0;">🔍
+                        class="csp-inline-workshop-1923">🔍
                         كارت السيارة 360°</button>
                 </label>
                 <input id="carPlate" list="plateList" oninput="wsAutofill()" onchange="wsAutofill()"
@@ -363,29 +90,29 @@ Top Navigation Bar
                 <label>الموديل (MODEL)</label>
                 <input id="carModel" placeholder="2024" type="text" />
             </div>
-            <div class="meta-item" style="grid-column: 1 / -1;">
+            <div class="meta-item csp-inline-workshop-1924">
                 <label>العداد (K/m)</label>
                 <input id="carKm" onchange="if(typeof syncKm === 'function') syncKm()" placeholder="150,000"
-                    style="max-width:240px;" type="text" />
+                    type="text"  class="csp-inline-workshop-1925"/>
             </div>
         </div>
         <div class="table-wrapper">
             <table class="notes-table bz-fit">
                 <colgroup>
-                    <col style="width:8%;" />
-                    <col style="width:46%;" />
-                    <col style="width:46%;" />
+                    <col  class="csp-inline-workshop-1926"/>
+                    <col  class="csp-inline-workshop-1927"/>
+                    <col  class="csp-inline-workshop-1928"/>
                 </colgroup>
                 <thead>
                     <tr>
                         <th class="col-idx">م</th>
                         <th class="col-note">
-                            <div style="direction:ltr;">Remarks</div>
-                            <div style="direction:rtl;">الملاحظات</div>
+                            <div class="csp-inline-workshop-1929">Remarks</div>
+                            <div class="csp-inline-workshop-1930">الملاحظات</div>
                         </th>
                         <th class="col-sol">
-                            <div style="direction:ltr;">Solution</div>
-                            <div style="direction:rtl;">الإصلاح</div>
+                            <div class="csp-inline-workshop-1931">Solution</div>
+                            <div class="csp-inline-workshop-1932">الإصلاح</div>
                         </th>
                     </tr>
                 </thead>
@@ -394,27 +121,27 @@ Top Navigation Bar
                 </tbody>
             </table>
         </div>
-        <div class="parts-section"
-            style="margin-top:1.5rem; background: rgba(30,30,30,0.6); padding:1rem; border-inline: 1px solid rgba(212, 175, 55, 0.15); border-top: 1px solid rgba(212, 175, 55, 0.15);">
-            <h3 style="color:var(--accent); margin-top:0; margin-bottom:1rem; text-align:center; font-size:1.1rem;">قطع
+        <div class="parts-section csp-inline-workshop-1933"
+           >
+            <h3 class="csp-inline-workshop-1934">قطع
                 الغيار المستهلكة (Spare Parts Used)</h3>
-            <div class="print-hide" style="display:flex; gap:10px; margin-bottom:1rem; flex-wrap:wrap;">
+            <div class="print-hide csp-inline-workshop-1935">
                 <select id="partSelect"
-                    style="flex:1; padding:10px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.2); color:white; font-weight:600; outline:none; min-width:200px;">
+                    class="csp-inline-workshop-1936">
                     <option value="">-- جارِ تحميل المخزن --</option>
                 </select>
                 <input id="partQty" min="1" placeholder="الكمية"
-                    style="width:100px; padding:10px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(212,175,55,0.2); color:white; font-weight:600; text-align:center; outline:none;"
-                    type="number" value="1" />
-                <button class="btn-primary" id="btnAddPart" onclick="addUsedPart()"
-                    style="padding:10px 15px; font-weight:bold;" type="button">➕ صرف وإضافة للتقرير</button>
+
+                    type="number" value="1"  class="csp-inline-workshop-1937"/>
+                <button class="btn-primary csp-inline-workshop-1938" id="btnAddPart" onclick="addUsedPart()"
+                    type="button">➕ صرف وإضافة للتقرير</button>
             </div>
             <table class="notes-table bz-fit" id="usedPartsTable">
                 <colgroup>
-                    <col style="width:8%;" />
-                    <col style="width:60%;" />
-                    <col style="width:20%;" />
-                    <col class="print-hide" style="width:12%;" />
+                    <col  class="csp-inline-workshop-1939"/>
+                    <col  class="csp-inline-workshop-1940"/>
+                    <col  class="csp-inline-workshop-1941"/>
+                    <col class="print-hide csp-inline-workshop-1942" />
                 </colgroup>
                 <thead>
                     <tr>
@@ -432,15 +159,15 @@ Top Navigation Bar
         <div class="sig-section">
             <div class="sig-item">
                 <label>
-                    <div style="direction:ltr;">Technician Signature</div>
-                    <div style="direction:rtl;">توقيع الفني</div>
+                    <div class="csp-inline-workshop-1943">Technician Signature</div>
+                    <div class="csp-inline-workshop-1944">توقيع الفني</div>
                 </label>
                 <input id="sigTech" placeholder="الاسم أو التوقيع" type="text" />
             </div>
             <div class="sig-item">
                 <label>
-                    <div style="direction:ltr;">Movement Supervisor Signature</div>
-                    <div style="direction:rtl;">توقيع مشرف الحركة</div>
+                    <div class="csp-inline-workshop-1945">Movement Supervisor Signature</div>
+                    <div class="csp-inline-workshop-1946">توقيع مشرف الحركة</div>
                 </label>
                 <input id="sigManager" placeholder="الاسم أو التوقيع" type="text" />
             </div>
@@ -781,7 +508,7 @@ Top Navigation Bar
         if (!tbody) return;
         tbody.innerHTML = '';
         if (usedPartsArray.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--fd-muted);">لم يتم صرف أي قطع للسيارة في هذا التقرير</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="csp-inline-workshop-1947">لم يتم صرف أي قطع للسيارة في هذا التقرير</td></tr>';
             return;
         }
         usedPartsArray.forEach((item, idx) => {
@@ -789,9 +516,9 @@ Top Navigation Bar
                 <tr>
                     <td class="col-idx">${idx + 1}</td>
                     <td>${item.name}</td>
-                    <td style="text-align:center; font-weight:bold;">${item.qty}</td>
-                    <td class="print-hide" style="text-align:center;">
-                        <button class="btn-danger" style="padding:4px 8px; font-size:0.8rem;" onclick="removeUsedPart(${idx})">🗑 استرجاع</button>
+                    <td class="csp-inline-workshop-1948">${item.qty}</td>
+                    <td class="print-hide csp-inline-workshop-1949">
+                        <button class="btn-danger csp-inline-workshop-1950" onclick="removeUsedPart(${idx})">🗑 استرجاع</button>
                     </td>
                 </tr>
             `;

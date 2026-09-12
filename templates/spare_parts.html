@@ -3,77 +3,7 @@
 {% block title %}مستودع قطع الغيار | شركة بن زومة{% endblock %}
 
 {% block head %}
-<style>
-        .sp-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        .sp-stat-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s;
-        }
-        .sp-stat-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-2px);
-        }
-        .sp-stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0; right: 0; left: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary), transparent);
-        }
-        .sp-stat-card .val {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin-bottom: 8px;
-        }
-        .sp-stat-card.alert .val { color: var(--danger); }
-        .sp-stat-card .lbl {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        /* Qty Badge Styles */
-        .qty-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            min-width: 60px;
-            text-align: center;
-        }
-        .qty-high { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
-        .qty-low { background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.3); }
-        .qty-zero { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-
-        .price-col {
-            font-family: 'Courier New', monospace;
-            font-weight: 700;
-            color: var(--primary-light);
-            direction: ltr;
-        }
-        
-        .cat-badge {
-            background: var(--surface2);
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/spare_parts.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -121,17 +51,17 @@
 <div class="val" id="statLowStock">0</div>
 <div class="lbl">قطع نفذت أو قاربت على النفاذ</div>
 </div>
-<div class="sp-stat-card" style="border-bottom: 2px solid var(--primary);">
-<div class="val" id="statTotalValue" style="direction:ltr;">0 SAR</div>
+<div class="sp-stat-card csp-inline-spare-parts-1809">
+<div class="val csp-inline-spare-parts-1810" id="statTotalValue">0 SAR</div>
 <div class="lbl">القيمة الإجمالية للمخزون</div>
 </div>
 </div>
 <div class="bz-card">
 <div class="bz-card-header">
 <h2><i data-lucide="package"></i> سجل المخزون</h2>
-<div style="flex:1; max-width: 300px; position:relative;">
+<div class="csp-inline-spare-parts-1811">
 <input class="bz-input" id="searchInput" oninput="filterTable()" placeholder="بحث بالاسم، الرقم، التصنيف..." type="text"/>
-<i data-lucide="search" style="position:absolute; left:12px; top:10px; color:var(--text-muted); width:16px; height:16px;"></i>
+<i data-lucide="search" class="csp-inline-spare-parts-1812"></i>
 </div>
 </div>
 <div class="bz-table-wrapper">
@@ -151,15 +81,15 @@
 </tr>
 </thead>
 <tbody id="partsBody">
-<tr><td colspan="10" style="text-align:center; padding:30px;">جارٍ تحميل المخزون...</td></tr>
+<tr><td colspan="10" class="csp-inline-spare-parts-1813">جارٍ تحميل المخزون...</td></tr>
 </tbody>
 </table>
 </div>
 </div>
 </div>
- Modal for Add/Edit 
+ Modal for Add/Edit
 <div class="bz-modal" id="partModal">
-<div class="bz-modal-content" style="max-width: 500px;">
+<div class="bz-modal-content csp-inline-spare-parts-1814">
 <div class="bz-modal-header">
 <h3 id="modalTitle">إضافة قطعة غيار</h3>
 <button class="bz-icon-btn" onclick="closePartModal()" type="button"><i data-lucide="x"></i></button>
@@ -185,12 +115,12 @@
 <option value="أخرى">أخرى</option>
 </select>
 </div>
-<div style="display:flex; gap:12px;">
-<div class="bz-form-group" style="flex:1;">
+<div class="csp-inline-spare-parts-1815">
+<div class="bz-form-group csp-inline-spare-parts-1816">
 <label class="bz-label">الكمية المتوفرة *</label>
 <input class="bz-input" id="partQty" min="0" required="" step="1" type="number"/>
 </div>
-<div class="bz-form-group" style="flex:1;">
+<div class="bz-form-group csp-inline-spare-parts-1817">
 <label class="bz-label">سعر الوحدة (ريال)</label>
 <input class="bz-input" id="partPrice" min="0" step="0.01" type="number"/>
 </div>
@@ -199,7 +129,7 @@
 <label class="bz-label">المورد</label>
 <input class="bz-input" id="partSupplier" placeholder="اسم المحل أو المورد" type="text"/>
 </div>
-<div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+<div class="csp-inline-spare-parts-1818">
 <button class="bz-btn-outline" onclick="closePartModal()" type="button">إلغاء</button>
 <button class="bz-btn-primary" type="submit">حفظ القطعة</button>
 </div>
@@ -232,7 +162,7 @@
 
         function renderTable() {
             const q = document.getElementById('searchInput').value.toLowerCase().trim();
-            const filtered = partsData.filter(p => 
+            const filtered = partsData.filter(p =>
                 (p.name||'').toLowerCase().includes(q) ||
                 (p.part_number||'').toLowerCase().includes(q) ||
                 (p.category||'').toLowerCase().includes(q)
@@ -240,7 +170,7 @@
 
             const tbody = document.getElementById('partsBody');
             if(!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px;">لا توجد نتائج</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="csp-inline-spare-parts-1819">لا توجد نتائج</td></tr>';
             } else {
                 tbody.innerHTML = filtered.map((p, i) => {
                     const price = parseFloat(p.unit_price) || 0;
@@ -248,19 +178,19 @@
                     const total = price * qty;
                     return `
                     <tr>
-                        <td style="color:var(--text-muted);">${i+1}</td>
-                        <td style="font-weight:bold; color:var(--primary);">${p.name}</td>
-                        <td style="font-family:monospace; direction:ltr;">${p.part_number || '—'}</td>
+                        <td class="csp-inline-spare-parts-1820">${i+1}</td>
+                        <td class="csp-inline-spare-parts-1821">${p.name}</td>
+                        <td class="csp-inline-spare-parts-1822">${p.part_number || '—'}</td>
                         <td><span class="cat-badge">${p.category || '—'}</span></td>
                         <td><span class="qty-badge ${getQtyClass(qty)}">${qty}</span></td>
                         <td class="price-col">${price.toFixed(2)}</td>
-                        <td class="price-col" style="color:var(--text);">${total.toFixed(2)}</td>
+                        <td class="price-col csp-inline-spare-parts-1823">${total.toFixed(2)}</td>
                         <td>${p.supplier || '—'}</td>
-                        <td style="font-size:0.8rem; color:var(--text-muted); direction:ltr;">${p.last_updated || '—'}</td>
+                        <td class="csp-inline-spare-parts-1824">${p.last_updated || '—'}</td>
                         <td>
-                            <div style="display:flex; gap:6px;">
-                                <button class="bz-icon-btn" onclick="editPart(${p.id})" title="تعديل" style="color:var(--primary);"><i data-lucide="edit"></i></button>
-                                <button class="bz-icon-btn" onclick="deletePart(${p.id}, '${p.name}')" title="حذف" style="color:var(--danger);"><i data-lucide="trash-2"></i></button>
+                            <div class="csp-inline-spare-parts-1825">
+                                <button class="bz-icon-btn csp-inline-spare-parts-1826" onclick="editPart(${p.id})" title="تعديل"><i data-lucide="edit"></i></button>
+                                <button class="bz-icon-btn csp-inline-spare-parts-1827" onclick="deletePart(${p.id}, '${p.name}')" title="حذف"><i data-lucide="trash-2"></i></button>
                             </div>
                         </td>
                     </tr>
@@ -272,11 +202,11 @@
 
         function updateStats() {
             document.getElementById('statTotalParts').textContent = partsData.length;
-            
+
             let items = 0;
             let val = 0;
             let low = 0;
-            
+
             partsData.forEach(p => {
                 const q = parseInt(p.quantity) || 0;
                 const pr = parseFloat(p.unit_price) || 0;
@@ -334,7 +264,7 @@
             };
 
             const url = '/api/spare_parts' + (id ? `/${id}` : '');
-            
+
             try {
                 const r = await fetch(url, {
                     method: id ? 'PUT' : 'POST',

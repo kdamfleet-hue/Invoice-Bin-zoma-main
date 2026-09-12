@@ -12,533 +12,7 @@
       window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
   }
 </script>
-<style>
-  :root {
-    --bg: #1A1A1A;
-    --surface: #2D2D2D;
-    --surface2: #363636;
-    --border: #3a3a3a;
-    --accent: #C5A059;
-    --accent-dim: rgba(197,160,89,0.12);
-    --warn: #f59e0b;
-    --warn-dim: rgba(245,158,11,0.12);
-    --danger: #ef4444;
-    --danger-dim: rgba(239,68,68,0.12);
-    --text: #F4F4F4;
-    --text-sub: #B0B0B0;
-    --text-muted: #8c8c8c;
-    --radius: 12px;
-    --radius-sm: 8px;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'IBM Plex Sans Arabic', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    direction: rtl;
-  }
-
-  /* ── Header ── */
-  header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 0 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 64px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(10px);
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .logo-icon {
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, var(--accent), #d8b87a);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-  }
-
-  .logo-text {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: 0.01em;
-  }
-
-  .logo-sub {
-    font-size: 11px;
-    color: var(--text-sub);
-    margin-top: 1px;
-  }
-
-  .header-badge {
-    background: var(--accent-dim);
-    border: 1px solid rgba(197,160,89,0.3);
-    color: var(--accent);
-    font-size: 12px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-weight: 500;
-  }
-
-  /* ── Main Layout ── */
-  main {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 32px 24px;
-  }
-
-  /* ── Stats Grid ── */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 28px;
-  }
-
-  .stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px 22px;
-    position: relative;
-    overflow: hidden;
-    transition: border-color 0.2s;
-  }
-
-  .stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 3px;
-    height: 100%;
-    border-radius: 0 var(--radius) var(--radius) 0;
-  }
-
-  .stat-card.total::before { background: #C5A059; }
-  .stat-card.active::before { background: var(--accent); }
-  .stat-card.broken::before { background: var(--danger); }
-  .stat-card.issue::before { background: var(--warn); }
-
-  .stat-card:hover { border-color: #4d4d4d; }
-
-  .stat-label {
-    font-size: 12px;
-    color: var(--text-sub);
-    font-weight: 500;
-    letter-spacing: 0.03em;
-    margin-bottom: 8px;
-  }
-
-  .stat-value {
-    font-size: 36px;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-
-  .stat-card.total .stat-value { color: #C5A059; }
-  .stat-card.active .stat-value { color: var(--accent); }
-  .stat-card.broken .stat-value { color: var(--danger); }
-  .stat-card.issue .stat-value { color: var(--warn); }
-
-  .stat-pct {
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-
-  .stat-icon {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    font-size: 28px;
-    opacity: 0.15;
-  }
-
-  /* ── Brand Distribution ── */
-  .brand-bar-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 22px 24px;
-    margin-bottom: 28px;
-  }
-
-  .section-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-sub);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 18px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .section-title::before {
-    content: '';
-    width: 3px;
-    height: 14px;
-    background: var(--accent);
-    border-radius: 2px;
-    display: inline-block;
-  }
-
-  .brand-bars {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .brand-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .brand-name {
-    font-size: 13px;
-    color: var(--text);
-    width: 80px;
-    flex-shrink: 0;
-    font-weight: 500;
-  }
-
-  .brand-track {
-    flex: 1;
-    height: 8px;
-    background: var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .brand-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 1s ease;
-  }
-
-  .brand-count {
-    font-size: 13px;
-    color: var(--text-sub);
-    width: 36px;
-    text-align: left;
-    font-weight: 600;
-  }
-
-  /* ── Search + Filter Bar ── */
-  .controls-bar {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    align-items: center;
-  }
-
-  .search-box {
-    flex: 1;
-    position: relative;
-  }
-
-  .search-icon {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 16px;
-    pointer-events: none;
-  }
-
-  .search-box input {
-    width: 100%;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: 'IBM Plex Sans Arabic', sans-serif;
-    font-size: 14px;
-    padding: 10px 42px 10px 16px;
-    border-radius: var(--radius-sm);
-    outline: none;
-    transition: border-color 0.2s;
-    direction: rtl;
-  }
-
-  .search-box input:focus { border-color: var(--accent); }
-  .search-box input::placeholder { color: var(--text-muted); }
-
-  .filter-btns {
-    display: flex;
-    gap: 6px;
-  }
-
-  .filter-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text-sub);
-    font-family: 'IBM Plex Sans Arabic', sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 8px 16px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-
-  .filter-btn:hover { border-color: #4d4d4d; color: var(--text); }
-
-  .filter-btn.active-btn {
-    background: var(--accent-dim);
-    border-color: rgba(197,160,89,0.4);
-    color: var(--accent);
-  }
-
-  .filter-btn.active-all { background: rgba(197,160,89,0.12); border-color: rgba(197,160,89,0.4); color: #C5A059; }
-  .filter-btn.active-broken { background: var(--danger-dim); border-color: rgba(239,68,68,0.4); color: var(--danger); }
-  .filter-btn.active-issue { background: var(--warn-dim); border-color: rgba(245,158,11,0.4); color: var(--warn); }
-
-  /* ── Table ── */
-  .table-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-
-  .table-header-bar {
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .count-label {
-    font-size: 13px;
-    color: var(--text-sub);
-  }
-
-  .count-num {
-    color: var(--text);
-    font-weight: 600;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-
-  thead tr {
-    background: var(--surface2);
-  }
-
-  th {
-    padding: 11px 16px;
-    text-align: right;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-muted);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    user-select: none;
-    transition: color 0.15s;
-  }
-
-  th:hover { color: var(--text-sub); }
-
-  tbody tr {
-    border-bottom: 1px solid var(--border);
-    transition: background 0.1s;
-  }
-
-  tbody tr:last-child { border-bottom: none; }
-  tbody tr:hover { background: var(--surface2); }
-
-  td {
-    padding: 12px 16px;
-    vertical-align: middle;
-    white-space: nowrap;
-  }
-
-  .row-num {
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 500;
-    min-width: 32px;
-  }
-
-  .plate-badge {
-    font-weight: 700;
-    font-size: 14px;
-    color: var(--text);
-    letter-spacing: 0.02em;
-    font-feature-settings: "tnum";
-    background: var(--surface2);
-    padding: 4px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    display: inline-block;
-  }
-
-  .brand-tag {
-    font-size: 12px;
-    color: var(--text-sub);
-  }
-
-  .model-text {
-    font-size: 12px;
-    color: var(--text-sub);
-  }
-
-  .year-text {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    font-feature-settings: "tnum";
-  }
-
-  .type-badge {
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-weight: 500;
-    background: rgba(197,160,89,0.12);
-    color: #e0c489;
-  }
-
-  .status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .status-active {
-    background: var(--accent-dim);
-    color: var(--accent);
-    border: 1px solid rgba(197,160,89,0.3);
-  }
-
-  .status-broken {
-    background: var(--danger-dim);
-    color: #fca5a5;
-    border: 1px solid rgba(239,68,68,0.2);
-  }
-
-  .status-issue {
-    background: var(--warn-dim);
-    color: #fcd34d;
-    border: 1px solid rgba(245,158,11,0.2);
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-  }
-
-  .status-active .status-dot { background: var(--accent); }
-  .status-broken .status-dot { background: #ef4444; }
-  .status-issue .status-dot { background: var(--warn); animation: pulse 2s infinite; }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  .since-text {
-    font-size: 11px;
-    color: var(--text-muted);
-    max-width: 100px;
-    white-space: normal;
-    line-height: 1.3;
-  }
-
-  /* ── Empty State ── */
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--text-muted);
-  }
-
-  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
-  .empty-state p { font-size: 14px; }
-
-  /* ── Footer ── */
-  footer {
-    text-align: center;
-    padding: 28px 24px;
-    color: var(--text-muted);
-    font-size: 12px;
-    border-top: 1px solid var(--border);
-    margin-top: 40px;
-  }
-
-  /* ── Responsive ── */
-  @media (max-width: 900px) {
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .controls-bar { flex-direction: column; }
-    .filter-btns { flex-wrap: wrap; }
-    header { padding: 0 16px; }
-    main { padding: 20px 12px; }
-  }
-
-  @media (max-width: 600px) {
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .stat-value { font-size: 28px; }
-    td, th { padding: 10px 10px; }
-    .plate-badge { font-size: 12px; }
-    .serial-text { display: none; }
-  }
-
-  /* ── التعديل: أزرار الإجراءات + شريط الأدوات + نافذة التعديل ── */
-  .act-cell { white-space: nowrap; }
-  .ico-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-sub); width: 30px; height: 30px; border-radius: 7px; cursor: pointer; font-size: 14px; margin: 0 2px; transition: all .15s; }
-  .ico-btn.edit:hover { border-color: var(--accent); color: var(--accent); }
-  .ico-btn.del:hover { border-color: var(--danger); color: #fca5a5; }
-  .add-btn { background: var(--accent-dim); border: 1px solid rgba(197,160,89,0.4); color: var(--accent); font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer; transition: all .15s; white-space: nowrap; }
-  .add-btn:hover { background: rgba(197,160,89,0.22); }
-  .save-status { font-size: 12px; color: var(--text-sub); min-width: 64px; }
-  .hbar-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .gps-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
-  .gps-modal.open { display: flex; }
-  .gps-modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; width: 620px; max-width: 96vw; max-height: 92vh; overflow-y: auto; direction: rtl; }
-  .gps-modal-box h2 { font-size: 17px; font-weight: 700; color: var(--accent); margin-bottom: 18px; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .fg { display: flex; flex-direction: column; gap: 5px; }
-  .fg label { font-size: 12px; color: var(--text-sub); font-weight: 600; }
-  .fg input, .fg select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 13px; outline: none; }
-  .fg input:focus, .fg select:focus { border-color: var(--accent); }
-  .fg select option { background: var(--surface); }
-  .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
-  .btn-save { background: var(--accent); color: #1A1A1A; padding: 9px 22px; border-radius: 8px; border: none; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
-  .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-sub); padding: 9px 18px; border-radius: 8px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 13px; cursor: pointer; }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/gps_devices.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -586,27 +60,27 @@
 <div class="brand-bars">
 <div class="brand-row">
 <div class="brand-name">ايسوزو</div>
-<div class="brand-track"><div class="brand-fill" style="width:47%; background:linear-gradient(90deg,#C5A059,#d8b87a);"></div></div>
+<div class="brand-track"><div class="brand-fill csp-inline-gps-devices-287"></div></div>
 <div class="brand-count">36</div>
 </div>
 <div class="brand-row">
 <div class="brand-name">متسوبيشي</div>
-<div class="brand-track"><div class="brand-fill" style="width:25%; background:linear-gradient(90deg,#e0c489,#b8893f);"></div></div>
+<div class="brand-track"><div class="brand-fill csp-inline-gps-devices-288"></div></div>
 <div class="brand-count">19</div>
 </div>
 <div class="brand-row">
 <div class="brand-name">سوزوكي</div>
-<div class="brand-track"><div class="brand-fill" style="width:9%; background:linear-gradient(90deg,#f59e0b,#d97706);"></div></div>
+<div class="brand-track"><div class="brand-fill csp-inline-gps-devices-289"></div></div>
 <div class="brand-count">7</div>
 </div>
 <div class="brand-row">
 <div class="brand-name">تويوتا</div>
-<div class="brand-track"><div class="brand-fill" style="width:5%; background:linear-gradient(90deg,#ef4444,#b91c1c);"></div></div>
+<div class="brand-track"><div class="brand-fill csp-inline-gps-devices-290"></div></div>
 <div class="brand-count">4</div>
 </div>
 <div class="brand-row">
 <div class="brand-name">أخرى</div>
-<div class="brand-track"><div class="brand-fill" style="width:13%; background:linear-gradient(90deg,#8b949e,#484f58);"></div></div>
+<div class="brand-track"><div class="brand-fill csp-inline-gps-devices-291"></div></div>
 <div class="brand-count">10</div>
 </div>
 </div>
@@ -627,14 +101,14 @@
 <!-- Table -->
 <div class="table-wrap">
 <div class="table-header-bar">
-<div class="section-title" style="margin:0">قائمة المركبات</div>
+<div class="section-title csp-inline-gps-devices-292">قائمة المركبات</div>
 <div class="hbar-actions">
 <span class="save-status" id="saveStatus"></span>
 <button class="add-btn" onclick="openAdd()">➕ إضافة مركبة</button>
 <div class="count-label">عرض <span class="count-num" id="showingCount">76</span> مركبة</div>
 </div>
 </div>
-<div style="overflow-x:auto;">
+<div class="csp-inline-gps-devices-293">
 <table>
 <thead>
 <tr>
@@ -653,7 +127,7 @@
 <tbody id="tableBody"></tbody>
 </table>
 </div>
-<div class="empty-state" id="emptyState" style="display:none;">
+<div class="empty-state csp-inline-gps-devices-294" id="emptyState">
 <div class="icon">🔍</div>
 <p>لا توجد نتائج مطابقة للبحث</p>
 </div>
@@ -826,7 +300,7 @@ function recomputeBrands() {
   var colors = ['linear-gradient(90deg,#C5A059,#d8b87a)','linear-gradient(90deg,#e0c489,#b8893f)','linear-gradient(90deg,#f59e0b,#d97706)','linear-gradient(90deg,#ef4444,#b91c1c)','linear-gradient(90deg,#8b949e,#484f58)'];
   var wrap = document.querySelector('.brand-bars'); if (!wrap) return;
   wrap.innerHTML = top.map(function (e, i) {
-    return '<div class="brand-row"><div class="brand-name">' + esc(e[0]) + '</div><div class="brand-track"><div class="brand-fill" style="width:' + Math.round(e[1] / max * 100) + '%; background:' + colors[i % colors.length] + ';"></div></div><div class="brand-count">' + e[1] + '</div></div>';
+    return '<div class="brand-row"><div class="brand-name">' + esc(e[0]) + '</div><div class="brand-track"><div class="brand-fill csp-inline-gps-devices-295"></div></div><div class="brand-count">' + e[1] + '</div></div>';
   }).join('');
 }
 
@@ -905,7 +379,7 @@ function filterTable() {
         <td class="brand-tag">${v.brand}</td>
         <td class="model-text">${v.model}</td>
         <td class="year-text">${v.year}</td>
-        <td class="serial-text" style="font-size:11px;color:var(--text-muted);font-family:monospace;">${v.serial}</td>
+        <td class="serial-text csp-inline-gps-devices-296">${v.serial}</td>
         <td>${statusPill(v.status)}</td>
         <td class="since-text">${v.since || '—'}</td>
         <td class="act-cell"><button class="ico-btn edit" onclick="openEdit(${idx})" title="تعديل">✏️</button><button class="ico-btn del" onclick="delRow(${idx})" title="حذف">🗑️</button></td>

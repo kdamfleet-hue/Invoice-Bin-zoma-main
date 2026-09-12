@@ -14,136 +14,12 @@
       window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
   }
 </script>
-<style>
-        /* Page-specific layout only (tokens from base_styles.css) */
-        .header-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0 auto 2rem auto;
-            width: 95%;
-            max-width: 1000px;
-            z-index: 2;
-        }
-
-        .header-title {
-            color: var(--text-primary);
-            text-align: center;
-        }
-
-        .header-subtitle { text-align: center; margin-bottom: 1.5rem; color: var(--text-secondary); }
-
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin: 0 auto;
-            width: 95%;
-            max-width: 1000px;
-            z-index: 2;
-        }
-        @media (max-width: 480px) {
-            .grid-container { grid-template-columns: 1fr; }
-        }
-
-        .card label { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem; display: block; color: var(--text-primary); }
-
-        .span-2 { grid-column: span 2; }
-        @media (max-width: 768px) { .span-2 { grid-column: span 1; } }
-
-        /* Modal specific layout */
-        .add-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; background: var(--surface-hover); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); }
-        .add-form input { background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-strong); }
-        .btn-add { background: var(--accent); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; grid-column: span 2; transition: var(--trans); }
-        .btn-add:hover { transform: translateY(-2px); filter: brightness(1.1); }
-        
-        .drivers-table-wrapper { width: 100%; overflow-x: auto; overflow-y: auto; max-height: 70vh !important; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem; }
-        /* On-screen readability: every header stays on ONE line (nowrap) and is never
-           cut or broken mid-word; the wrapper (overflow-x:auto) scrolls if the table
-           needs more width than the modal. Single-word headers (السيارة/اللوحة/الإقامة/
-           الجوال) and multi-word ones (الرقم الوظيفي / بطاقة السائق) all render whole. */
-        .drivers-table.bz-fit thead th { white-space: nowrap; word-break: keep-all; overflow: visible; }
-        .drivers-table.bz-fit td { white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
-        
-        /* (floating macOS dock CSS moved to base_styles.css — now global on every tab) */
-
-        @media (max-width: 768px) {
-            .header-title { font-size: 1.8rem; }
-        }
-    </style>
-<style>
-      /* Homepage-only luxury touches — the charcoal+gold palette, the <html> canvas, and the
-         Cairo typography are now GLOBAL (static/base_styles.css), so they are not redeclared here. */
-      body.bz-lux .header-title { font-weight: 300; letter-spacing: .5px; font-size: clamp(1.9rem, 5vw, 2.7rem); color: var(--text-primary); }
-      body.bz-lux .header-title::after { content: ''; display: block; width: 64px; height: 3px; margin: .75rem auto 0; background: linear-gradient(90deg, transparent, var(--accent), transparent); border-radius: 3px; }
-      body.bz-lux .header-subtitle { color: var(--text-secondary); font-weight: 400; letter-spacing: .2px; }
-      body.bz-lux .card label { font-weight: 600; letter-spacing: .2px; }
-      
-      /* Magazine Style Card Overrides */
-      /* These are now globally defined in base_styles.css for all pages */
-
-      /* Tracking Chain CSS */
-      .tracking-chain-wrapper {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 15px;
-          margin: 2rem auto 2.5rem;
-          width: 100%;
-          max-width: 650px;
-          direction: rtl;
-      }
-      .tc-node {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-          color: var(--text-secondary);
-          text-align: center;
-      }
-      .tc-node svg { width: 36px; height: 36px; stroke: var(--border-strong); transition: all 0.3s ease; fill: var(--surface); }
-      .tc-node span { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
-      .tc-node p { font-size: 0.85rem; margin: 0; color: var(--text-muted); }
-      .tc-node.tc-gold svg { stroke: var(--accent); }
-      .tc-node.tc-glow svg { stroke: var(--accent); filter: drop-shadow(0 0 8px var(--accent-glow)); }
-      .tc-line {
-          flex: 1;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
-          position: relative;
-      }
-      .tc-line::after {
-          content: '▼';
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          transform: translate(-50%, -50%) rotate(90deg);
-          color: var(--border-strong);
-          font-size: 10px;
-      }
-
-      /* (cards, inputs, and gold buttons are themed globally in base_styles.css) */
-      body.bz-lux .drivers-table tr:hover td { background: rgba(197,160,89,.06); }
-      /* logo plate + deeper team shadows on charcoal; gold team-nav hover */
-      body.bz-lux .logo img { box-shadow: 0 16px 40px rgba(0,0,0,.55); }
-      body.bz-lux .team-section > h2 { color: var(--text-primary); font-weight: 700; }
-      body.bz-lux .team-card { box-shadow: 0 14px 34px rgba(0,0,0,.5); }
-      body.bz-lux .team-nav { background: var(--surface); color: var(--text-primary); border-color: var(--border); }
-      body.bz-lux .team-nav:hover { background: var(--accent); color: #1a1a1a; }
-      /* "من نحن" / "تواصل معنا" / footer — these have inline white backgrounds + navy text
-         (and JS hover that resets to a light tint), so they need !important to follow the skin */
-      body.bz-lux #about, body.bz-lux #contact { background: var(--surface) !important; border-color: var(--border) !important; box-shadow: 0 14px 34px rgba(0,0,0,.5) !important; }
-      body.bz-lux #about *, body.bz-lux #contact * { color: var(--text-secondary) !important; }
-      body.bz-lux #about h2, body.bz-lux #contact h2, body.bz-lux #about strong, body.bz-lux #contact a div:last-child { color: var(--text-primary) !important; }
-      body.bz-lux #about a { color: var(--accent) !important; }
-      body.bz-lux #contact a { background: var(--surface-hover) !important; border: 1px solid var(--border) !important; }
-      body.bz-lux #contact a:hover { background: #3f3f3f !important; }
-      body.bz-lux footer { color: var(--text-secondary) !important; border-top-color: var(--border) !important; }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/invoice.css', v=1) }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/invoice.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
-<video autoplay="" loop="" muted="" playsinline="" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; object-fit: cover; opacity: 0.3; display: none;">
+<video autoplay="" loop="" muted="" playsinline="" class="csp-inline-invoice-488">
 <source src="{{ url_for('static', filename='login_bg.mp4') }}" type="video/mp4"/>
 </video>
 <header class="bz-topbar">
@@ -154,8 +30,8 @@
 <nav class="bz-nav">
 <a href="/" {% if not show_invoice_title %} class="active" {% endif %}>🏠 الرئيسية</a>
 <a href="/invoice" {% if show_invoice_title %} class="active" {% endif %}>🧾 الفاتورة الذكية</a>
-<a href="/dashboard" style="background:var(--brand-gold);color:var(--brand-navy);border-color:var(--brand-gold);font-weight:800;">🎯 لوحة الإدارة</a>
-<a href="/registry" style="background:linear-gradient(135deg,#0c2340,#1a3a5c);color:white;border-color:#1a3a5c;font-weight:bold;">🗂️ السجل الشامل</a>
+<a href="/dashboard" class="csp-inline-invoice-489">🎯 لوحة الإدارة</a>
+<a href="/registry" class="csp-inline-invoice-490">🗂️ السجل الشامل</a>
 <a href="/purchase">🛒 طلب شراء</a>
 <a href="/schedule">📋 الجدول الأسبوعي</a>
 <a href="/oils">🛢️ الزيوت والفلاتر</a>
@@ -236,14 +112,14 @@
 <input id="iqamaNum" placeholder="اكتب للبحث..." type="text"/>
 </div>
 <!-- Hidden fields required for existing JS logic to not break -->
-<div style="display:none;">
+<div class="csp-inline-invoice-491">
 <select id="requestType"><option value="أخرى">أخرى</option></select>
 <input id="invoiceDate" type="date"/>
 <div id="invoiceBranch">فرع الدمام</div>
 <textarea id="desc"></textarea>
 </div>
 </div>
-<div class="clean-actions" style="margin-top: 2.5rem; display: flex; gap: 1rem;">
+<div class="clean-actions csp-inline-invoice-492">
 <button class="btn-clean-gold" onclick="generateExcel()">تصدير الفاتورة</button>
 <button class="btn-clean" onclick="clearInvoiceForm()">إفراغ</button>
 <button class="btn-clean" onclick="openInvoiceShare()">مشاركة</button>
@@ -265,21 +141,21 @@
 <!-- Email modal is at the bottom of the page with full features -->
 <!-- Modal Drivers Database -->
 <div class="modal-backdrop" id="driversModal">
-<div class="modal-content-custom" style="max-width: 1200px !important; width: 95vw !important;">
+<div class="modal-content-custom csp-inline-invoice-493">
 <div class="modal-header-custom">
 <h2>إدارة قاعدة بيانات السائقين</h2>
-<button class="close-btn" onclick="closeCustomModal('driversModal')" style="color:white;">✖</button>
+<button class="close-btn csp-inline-invoice-494" onclick="closeCustomModal('driversModal')">✖</button>
 </div>
 <div class="modal-body-custom">
 <div class="add-form glass-panel">
-<input id="newName" placeholder="الاسم الرباعي (مطلوب)" style="grid-column: span 2;" type="text"/>
+<input id="newName" placeholder="الاسم الرباعي (مطلوب)" type="text" class="csp-inline-invoice-495"/>
 <input id="newEmpid" placeholder="الرقم الوظيفي" type="text"/>
 <input id="newPlate" placeholder="رقم اللوحة" type="text"/>
 <input id="newCar" placeholder="نوع السيارة وموديلها" type="text"/>
 <input id="newIqama" placeholder="رقم الإقامة" type="text"/>
 <input id="newPhone" placeholder="رقم الجوال" type="text"/>
 <input id="newDriverCard" placeholder="تاريخ انتهاء بطاقة السائق" type="text"/>
-<button class="btn-neon success" onclick="addDriver()" style="width: 100%; justify-content: center; margin-top: 1rem;">إضافة إلى قاعدة البيانات ➕</button>
+<button class="btn-neon success csp-inline-invoice-496" onclick="addDriver()">إضافة إلى قاعدة البيانات ➕</button>
 </div>
 <div class="drivers-table-wrapper">
 <table class="drivers-table bz-fit">
@@ -303,8 +179,8 @@
 </tbody>
 </table>
 </div>
-<div style="text-align:center; margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
-<button class="btn-neon" onclick="closeCustomModal('driversModal')" style="padding:12px 60px; font-size:1.1rem; border-radius:12px;">إغلاق ✖</button>
+<div class="csp-inline-invoice-497">
+<button class="btn-neon csp-inline-invoice-498" onclick="closeCustomModal('driversModal')">إغلاق ✖</button>
 </div>
 </div>
 </div>
@@ -338,7 +214,7 @@
         function updateTable() {
             const tbody = document.getElementById('driversTableBody');
             tbody.innerHTML = '';
-            
+
             if (driversData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
@@ -366,8 +242,8 @@
                     <td>${escapeHtml(d.drivercard || '-')}</td>
                     <td>${escapeHtml(d.phone || '-')}</td>
                     <td>
-                        <button class="btn-outline" style="padding:4px 8px;font-size:0.8rem;border-color:#3498db;color:#3498db;" onclick="editDriver(${id})">تعديل</button>
-                        <button class="btn-delete" style="padding:4px 8px;font-size:0.8rem;" onclick="deleteDriver(${id})">حذف</button>
+                        <button class="btn-outline csp-inline-invoice-499" onclick="editDriver(${id})">تعديل</button>
+                        <button class="btn-delete csp-inline-invoice-500" onclick="deleteDriver(${id})">حذف</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -382,12 +258,12 @@
             const iqama = document.getElementById('newIqama').value;
             const phone = document.getElementById('newPhone').value;
             const drivercard = document.getElementById('newDriverCard').value;
-            
+
             if(!name) {
                 showToast('الاسم مطلوب!', 'error');
                 return;
             }
-            
+
             try {
                 const res = await fetch('/api/drivers', {
                     method: 'POST',
@@ -425,7 +301,7 @@
                 showToast('الاسم مطلوب!', 'error');
                 return;
             }
-            
+
             try {
                 const res = await fetch(`/api/drivers/${id}`, {
                     method: 'PUT',
@@ -513,9 +389,9 @@
             }
         }
 
-        window.addEventListener('load', async () => { 
+        window.addEventListener('load', async () => {
             if (!loadInvoiceForm()) {
-                document.getElementById('invoiceDate').valueAsDate = new Date(); 
+                document.getElementById('invoiceDate').valueAsDate = new Date();
             }
             // Populate plates datalist for plate autofill
             try {
@@ -532,7 +408,7 @@
                 }
             } catch (e) {}
         });
-        
+
         function saveInvoiceForm() {
             clearTimeout(window._invSaveTimer);
             window._invSaveTimer = setTimeout(() => {
@@ -619,10 +495,10 @@
             const new_logo = "{{ b64_en }}";
 
             ws.getRow(2).height = 35; ws.getRow(3).height = 35; ws.getRow(4).height = 35;
-            
-            if(new_logo) { 
-                const id = wb.addImage({ base64: 'data:image/png;base64,'+new_logo, extension: 'png' }); 
-                ws.addImage(id, { tl: { col: 0, row: 0.3 }, br: { col: 7, row: 3.8 } }); 
+
+            if(new_logo) {
+                const id = wb.addImage({ base64: 'data:image/png;base64,'+new_logo, extension: 'png' });
+                ws.addImage(id, { tl: { col: 0, row: 0.3 }, br: { col: 7, row: 3.8 } });
             }
 
             ws.mergeCells('B6:F6');
@@ -689,7 +565,7 @@
             const bBottom = { bottom: { style: 'medium', color: { argb: BLACK } } };
             ws.getCell('B21').border = bBottom; ws.getCell('F21').border = bBottom;
 
-            
+
         ws.addRow([]);
         const footerDate = invoiceDate || new Date().toISOString().slice(0, 10);
         const footerRow = ws.addRow([`${bzTL("أُعدّ بواسطة قسم الحركة — فرع " + (window.BZ_BRANCH || "الدمام"))}    |    ${bzTL("التاريخ")}: ${footerDate}`]);
@@ -771,30 +647,12 @@
             }
             btn.innerText = 'إرسال الفاتورة 🚀';
         }
-    
+
 </script>
 <!-- ═══════════════════════════════════════════ -->
 <!-- فريق العمل (سلايدر كروت) -->
 <!-- ═══════════════════════════════════════════ -->
-<style>
-  .team-section { max-width:1100px; margin:3rem auto 2rem; padding:0 1rem; position:relative; z-index:2; }
-  .team-section > h2 { text-align:center; font-size:2rem; font-weight:800; color:var(--brand-navy,#0C2340); margin-bottom:.4rem; }
-  .team-section .sub { text-align:center; color:var(--text-secondary,#5a6a7a); margin:0 0 1.6rem; font-weight:600; }
-  body.dark-mode .team-section > h2 { color:#fff; }
-  .team-slider { display:flex; align-items:center; gap:.6rem; }
-  .team-track { display:flex; gap:1.2rem; overflow-x:auto; scroll-behavior:smooth; padding:12px 4px 22px; flex:1; scrollbar-width:none; }
-  .team-track::-webkit-scrollbar { height:0; display:none; }
-  .team-card { flex:0 0 230px; background:var(--surface,#fff); border:1px solid var(--border,#eef2f5); border-radius:22px; padding:18px 16px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.08); transition:transform .3s ease, box-shadow .3s ease; }
-  .team-card:hover { transform:translateY(-6px); box-shadow:0 16px 38px rgba(12,35,64,0.18); }
-  .team-card .img-box { width:148px; height:148px; margin:0 auto 14px; border-radius:50%; overflow:hidden; border:4px solid var(--brand-gold,#c9a227); background:var(--surface-hover,#f1f5f9); }
-  .team-card .img-box img { width:100%; height:100%; object-fit:cover; display:block; }
-  .team-card .t-name { color:var(--text-primary,#1a2b49); font-size:1.02rem; font-weight:800; margin:4px 0; line-height:1.4; }
-  .team-card .t-title { color:var(--brand-gold,#c9a227); font-weight:700; font-size:.9rem; margin:2px 0 6px; }
-  .team-card .t-branch { color:var(--text-secondary,#5a6a7a); font-size:.8rem; margin:0; }
-  .team-nav { background:var(--surface,#fff); border:1px solid var(--border,#e2e8f0); border-radius:50%; width:44px; height:44px; min-width:44px; font-size:1.15rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,0.1); color:var(--brand-navy,#0C2340); transition:.25s; }
-  .team-nav:hover { background:var(--brand-navy,#0C2340); color:#fff; transform:scale(1.08); }
-  @media (max-width:520px){ .team-card{ flex-basis:200px; } }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/invoice.css', v=1) }}">
 {% if show_invoice_title is not defined or not show_invoice_title %}
 <section class="team-section" id="team">
 <h2>👥 فريق عمل فرع الدمام</h2>
@@ -882,80 +740,80 @@
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم من نحن -->
 <!-- ═══════════════════════════════════════════ -->
-<section id="about" style="max-width:900px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
-<h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:1.5rem;">🏢 من نحن</h2>
-<div style="color:#3A4A5A; font-size:1rem; line-height:2; text-align:center;">
-<p style="margin-bottom:1rem;">
-<strong style="color:#1A3A5C;">شركة بن زومة للتجارة الدولية والإنماء المحدودة</strong> — فرع الدمام، قسم الحركة والنقل.
+<section id="about" class="csp-inline-invoice-501">
+<h2 class="csp-inline-invoice-502">🏢 من نحن</h2>
+<div class="csp-inline-invoice-503">
+<p class="csp-inline-invoice-504">
+<strong class="csp-inline-invoice-505">شركة بن زومة للتجارة الدولية والإنماء المحدودة</strong> — فرع الدمام، قسم الحركة والنقل.
         </p>
-<p style="margin-bottom:1rem;">
+<p class="csp-inline-invoice-506">
             نحن فريق متخصص في إدارة الأسطول والمركبات، نعمل على تقديم حلول ذكية ومتكاملة لإدارة حركة السيارات والسائقين بكفاءة عالية.
         </p>
-<p style="margin-bottom:1rem;">
-            يُدار هذا النظام الإلكتروني بواسطة <strong style="color:#1A3A5C;">قسم الحركة</strong>، ويهدف إلى أتمام جميع العمليات اليومية من فوترة وصيانة وتتبع وجداول، مما يضمن سير العمل بسلاسة ودقة.
+<p class="csp-inline-invoice-507">
+            يُدار هذا النظام الإلكتروني بواسطة <strong class="csp-inline-invoice-508">قسم الحركة</strong>، ويهدف إلى أتمام جميع العمليات اليومية من فوترة وصيانة وتتبع وجداول، مما يضمن سير العمل بسلاسة ودقة.
         </p>
-<p style="color:#6B7B8D; font-size:0.9rem;">
+<p class="csp-inline-invoice-509">
             📍 المملكة العربية السعودية — فرع الدمام<br/>
             الموقع الرسمي للشركة<br/>
-            🌐 <a href="https://bz.sa" style="color:#1A3A5C; font-weight:bold;" target="_blank">bz.sa</a>
+            🌐 <a href="https://bz.sa" target="_blank" class="csp-inline-invoice-510">bz.sa</a>
 </p>
 </div>
 </section>
 <!-- ═══════════════════════════════════════════ -->
 <!-- قسم تواصل معنا -->
 <!-- ═══════════════════════════════════════════ -->
-<section id="contact" style="max-width:700px; margin:3rem auto; padding:2.5rem; z-index:2; position:relative; background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:1px solid #e8ecf1;">
-<h2 style="text-align:center; font-size:2rem; font-weight:800; color:#1A3A5C; margin-bottom:0.5rem;">📞 تواصل معنا</h2>
-<p style="text-align:center; color:#6B7B8D; margin-bottom:2rem;">قسم الحركة — مسؤول النظام: خالد بن محمد الغامدي</p>
-<div style="display:flex; flex-direction:column; gap:1.2rem; align-items:center;">
-<a href="mailto:damfleet@bz.sa" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;">
-<span style="font-size:1.8rem;">📧</span>
+<section id="contact" class="csp-inline-invoice-511">
+<h2 class="csp-inline-invoice-512">📞 تواصل معنا</h2>
+<p class="csp-inline-invoice-513">قسم الحركة — مسؤول النظام: خالد بن محمد الغامدي</p>
+<div class="csp-inline-invoice-514">
+<a href="mailto:damfleet@bz.sa" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" class="csp-inline-invoice-515">
+<span class="csp-inline-invoice-516">📧</span>
 <div>
-<div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">البريد الإلكتروني</div>
-<div style="color:#3A4A5A; font-size:1rem; direction:ltr;">damfleet@bz.sa</div>
+<div class="csp-inline-invoice-517">البريد الإلكتروني</div>
+<div class="csp-inline-invoice-518">damfleet@bz.sa</div>
 </div>
 </a>
-<a href="https://wa.me/966570310909?text=مرحباً" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" style="display:flex; align-items:center; gap:12px; text-decoration:none; background:#f0f4f8; padding:1rem 2rem; border-radius:12px; width:100%; max-width:400px; transition:all 0.3s;" target="_blank">
-<span style="font-size:1.8rem;">📱</span>
+<a href="https://wa.me/966570310909?text=مرحباً" onmouseout="this.style.background='#f0f4f8'; this.style.transform=''" onmouseover="this.style.background='#e0e8f0'; this.style.transform='translateY(-2px)'" target="_blank" class="csp-inline-invoice-519">
+<span class="csp-inline-invoice-520">📱</span>
 <div>
-<div style="font-weight:700; color:#1A3A5C; font-size:0.9rem;">الجوال / واتساب</div>
-<div style="color:#3A4A5A; font-size:1rem; direction:ltr;">0570310909</div>
+<div class="csp-inline-invoice-521">الجوال / واتساب</div>
+<div class="csp-inline-invoice-522">0570310909</div>
 </div>
 </a>
 </div>
 </section>
 {% endif %}
 
-<footer style="text-align:center; padding: 20px; color:#5A6A7A; font-weight:bold; margin-top:40px; border-top: 1px solid #ddd;">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
+<footer class="csp-inline-invoice-523">تم الإعداد بواسطة قسم الحركة (خالد بن محمد الغامدي)</footer>
 <div class="modal-backdrop" id="emailModal">
 <div class="modal-content-custom">
 <div class="modal-header-custom">
 <span>📧 إرسال عبر الإيميل</span>
-<button class="close-btn" onclick="closeCustomModal('emailModal')" style="color:white;">✖</button>
+<button class="close-btn csp-inline-invoice-524" onclick="closeCustomModal('emailModal')">✖</button>
 </div>
 <div class="modal-body-custom">
-<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">إلى:</label>
-<input id="targetEmail" placeholder="example@gmail.com" required="" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="email"/>
+<div class="csp-inline-invoice-525">
+<label class="csp-inline-invoice-526">إلى:</label>
+<input id="targetEmail" placeholder="example@gmail.com" required="" type="email" class="csp-inline-invoice-527"/>
 </div>
-<div style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px;">
-<div style="display:flex;align-items:center;gap:8px">
-<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">نسخة إلى:</label>
-<div id="ccContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
-<div class="cc-row" style="display:flex;gap:5px;align-items:center">
-<input class="cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);" type="email"/>
-<button onclick="addCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center" type="button">+</button>
-</div>
-</div>
+<div class="csp-inline-invoice-528">
+<div class="csp-inline-invoice-529">
+<label class="csp-inline-invoice-530">نسخة إلى:</label>
+<div id="ccContainer" class="csp-inline-invoice-531">
+<div class="cc-row csp-inline-invoice-532">
+<input class="cc-email csp-inline-invoice-533" placeholder="نسخة (اختياري)" type="email"/>
+<button onclick="addCcRow()" type="button" class="csp-inline-invoice-534">+</button>
 </div>
 </div>
-<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;">
-<label style="font-weight:bold;color:var(--text-primary);min-width:65px;font-size:0.9rem">الموضوع:</label>
-<input id="emailSubject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:0.95rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="text"/>
 </div>
-<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+</div>
+<div class="csp-inline-invoice-535">
+<label class="csp-inline-invoice-536">الموضوع:</label>
+<input id="emailSubject" placeholder="موضوع الرسالة" type="text" class="csp-inline-invoice-537"/>
+</div>
+<div class="csp-inline-invoice-538">
 <button class="btn-outline" onclick="window.bzConfirm('هل تريد حفظه في سطح المكتب؟').then(function(ok){ if(ok){ generateExcel(); } })" type="button">حفظ في سطح المكتب 💾</button>
-<button class="btn-outline" onclick="closeCustomModal('emailModal')" style="border-color:var(--border-strong);color:var(--text-primary);">إلغاء</button>
+<button class="btn-outline csp-inline-invoice-539" onclick="closeCustomModal('emailModal')">إلغاء</button>
 <button class="btn-neon" id="btnSendEmail" onclick="sendExcelEmail()">إرسال 🚀</button>
 </div>
 </div>
@@ -972,36 +830,36 @@
 <div class="modal-content-custom">
 <div class="modal-header-custom">
 <span>✉️ إنشاء رسالة جديدة</span>
-<button class="close-btn" onclick="closeCustomModal('composeModal')" style="color:white;">✖</button>
+<button class="close-btn csp-inline-invoice-540" onclick="closeCustomModal('composeModal')">✖</button>
 </div>
-<form class="modal-body-custom" id="composeForm" style="display:flex;flex-direction:column;gap:12px">
-<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-<label style="font-weight:bold;color:var(--text-primary);min-width:50px">إلى:</label>
-<input name="email" placeholder="example@gmail.com" required="" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="email"/>
+<form class="modal-body-custom csp-inline-invoice-541" id="composeForm">
+<div class="csp-inline-invoice-542">
+<label class="csp-inline-invoice-543">إلى:</label>
+<input name="email" placeholder="example@gmail.com" required="" type="email" class="csp-inline-invoice-544"/>
 </div>
-<div style="border-bottom:1px solid var(--border);padding-bottom:8px">
-<div style="display:flex;align-items:center;gap:8px">
-<label style="font-weight:bold;color:var(--text-primary);min-width:50px">نسخة:</label>
-<div id="composeCcContainer" style="flex:1;display:flex;flex-direction:column;gap:5px">
-<div class="compose-cc-row" style="display:flex;gap:5px;align-items:center">
-<input class="compose-cc-email" placeholder="نسخة (اختياري)" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);" type="email"/>
-<button onclick="addComposeCcRow()" style="background:#27ae60;color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center" type="button">+</button>
-</div>
-</div>
+<div class="csp-inline-invoice-545">
+<div class="csp-inline-invoice-546">
+<label class="csp-inline-invoice-547">نسخة:</label>
+<div id="composeCcContainer" class="csp-inline-invoice-548">
+<div class="compose-cc-row csp-inline-invoice-549">
+<input class="compose-cc-email csp-inline-invoice-550" placeholder="نسخة (اختياري)" type="email"/>
+<button onclick="addComposeCcRow()" type="button" class="csp-inline-invoice-551">+</button>
 </div>
 </div>
-<div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px">
-<label style="font-weight:bold;color:var(--text-primary);min-width:50px">الموضوع:</label>
-<input name="subject" placeholder="موضوع الرسالة" style="flex:1;border:none;outline:none;padding:6px;font-size:1rem;font-family:inherit;background:transparent;color:var(--text-primary);" type="text"/>
 </div>
-<textarea name="body" placeholder="اكتب رسالتك هنا..." rows="5" style="border:1px solid var(--border);background:var(--surface-hover);color:var(--text-primary);border-radius:8px;padding:10px;font-family:inherit;font-size:1rem;resize:vertical;outline:none"></textarea>
-<div onclick="document.getElementById('composeFile').click()" style="display:flex;align-items:center;gap:10px;border:1px dashed var(--border-strong);border-radius:8px;padding:10px;cursor:pointer">
-<span style="font-size:1.3rem">📎</span>
-<span id="composeFileName" style="color:var(--text-muted);font-size:0.9rem">اضغط لإرفاق ملف Excel أو أي ملف آخر</span>
-<input id="composeFile" name="attachment" onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'" style="display:none" type="file"/>
 </div>
-<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:5px">
-<button class="btn-outline" onclick="closeCustomModal('composeModal')" style="border-color:var(--border-strong);color:var(--text-primary);" type="button">إلغاء</button>
+<div class="csp-inline-invoice-552">
+<label class="csp-inline-invoice-553">الموضوع:</label>
+<input name="subject" placeholder="موضوع الرسالة" type="text" class="csp-inline-invoice-554"/>
+</div>
+<textarea name="body" placeholder="اكتب رسالتك هنا..." rows="5" class="csp-inline-invoice-555"></textarea>
+<div onclick="document.getElementById('composeFile').click()" class="csp-inline-invoice-556">
+<span class="csp-inline-invoice-557">📎</span>
+<span id="composeFileName" class="csp-inline-invoice-558">اضغط لإرفاق ملف Excel أو أي ملف آخر</span>
+<input id="composeFile" name="attachment" onchange="document.getElementById('composeFileName').innerText=this.files[0]?this.files[0].name:'لم يتم اختيار ملف'" type="file" class="csp-inline-invoice-559"/>
+</div>
+<div class="csp-inline-invoice-560">
+<button class="btn-outline csp-inline-invoice-561" onclick="closeCustomModal('composeModal')" type="button">إلغاء</button>
 <button class="btn-neon" id="composeSendBtn" type="submit">إرسال 🚀</button>
 </div>
 </form>
@@ -1040,7 +898,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
             const row = document.createElement('div');
             row.className = 'cc-row';
             row.style.cssText = 'display:flex;gap:5px;align-items:center';
-            row.innerHTML = '<input type="email" class="cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
+            row.innerHTML = '<input type="email" class="cc-email csp-inline-invoice-562" placeholder="نسخة إضافية"><button type="button" onclick="this.parentElement.remove()" class="btn-danger csp-inline-invoice-563">✕</button>';
             container.appendChild(row);
         }
         function getCcEmails() {
@@ -1052,7 +910,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
                 const driverMerged = document.getElementById('driverName').value.trim();
                 let phone = '';
                 let rawName = driverMerged;
-                
+
                 // Try to find the driver in data to get phone
                 const driver = driversData.find(d => (d._merged && d._merged.trim() === driverMerged) || (d.name && d.name.trim() === driverMerged));
                 if(driver && driver.phone && driver.phone !== 'None' && driver.phone.toString().trim() !== '') {
@@ -1062,10 +920,10 @@ document.getElementById('composeForm').addEventListener('submit', async function
                     phone = await window.bzPrompt('لم يتم العثور على رقم جوال مسجل لهذا السائق. يرجى إدخال رقم الجوال (مثال: 0500000000):');
                     if(!phone) return;
                 }
-                
+
                 // Clean the phone number (remove spaces, dashes, plus signs)
                 phone = phone.replace(/\D/g, '');
-                
+
                 // Format phone to international standard (Saudi Arabia default)
                 if(phone.startsWith('05')) {
                     phone = '966' + phone.substring(1);
@@ -1074,7 +932,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
                 } else if(phone.startsWith('00966')) {
                     phone = phone.substring(2);
                 }
-                
+
                 // Collect invoice details
                 const req = document.getElementById('requestType').value;
                 const car = document.getElementById('carType').value || 'غير محدد';
@@ -1082,7 +940,7 @@ document.getElementById('composeForm').addEventListener('submit', async function
                 const date = document.getElementById('invoiceDate').value;
 
                 const msg = `مرحباً بك عزيزي السائق (${rawName})،\n\nنود إعلامك بأنه تم إصدار فاتورة / طلب لمركبتك:\n🚗 نوع السيارة: ${car}\n🔢 رقم اللوحة: ${plate}\n🛠️ نوع الطلب: ${req}\n📅 التاريخ: ${date}\n\nشكراً لتعاونكم - إدارة الحركة بفرع ${window.BZ_BRANCH || 'الدمام'}.`;
-                
+
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
                 // Force open
                 const newWindow = window.open(url, '_blank');
@@ -1102,11 +960,11 @@ document.getElementById('composeForm').addEventListener('submit', async function
             const row = document.createElement('div');
             row.className = 'compose-cc-row';
             row.style.cssText = 'display:flex;gap:5px;align-items:center';
-            row.innerHTML = '<input type="email" class="compose-cc-email" placeholder="نسخة إضافية" style="flex:1;border:1px solid var(--border);outline:none;padding:6px;font-size:0.9rem;font-family:inherit;border-radius:6px;background:transparent;color:var(--text-primary);"><button type="button" onclick="this.parentElement.remove()" class="btn-danger" style="padding:4px 8px;">✕</button>';
+            row.innerHTML = '<input type="email" class="compose-cc-email csp-inline-invoice-564" placeholder="نسخة إضافية"><button type="button" onclick="this.parentElement.remove()" class="btn-danger csp-inline-invoice-565">✕</button>';
             container.appendChild(row);
         }
 </script>
-</div> /.bz-shell 
+</div> /.bz-shell
 <script>
         lucide.createIcons();
     </script>

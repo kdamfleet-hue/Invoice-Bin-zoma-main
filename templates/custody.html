@@ -2,19 +2,7 @@
 {% block title %}إدارة العهد والمفاتيح{% endblock %}
 {% block page_heading %}إدارة العهد والمفاتيح{% endblock %}
 {% block extra_css %}
-<style>
-.custody-container { padding: 20px; }
-.top-controls { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
-.custody-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-.custody-table th, .custody-table td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; }
-.custody-table th { background: #f8fafc; color: #475569; font-weight: 600; }
-.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
-.status-active { background: #dcfce7; color: #166534; }
-.status-returned { background: #f1f5f9; color: #475569; }
-.status-lost { background: #fee2e2; color: #991b1b; }
-.btn-action { background: var(--bz-navy); color: #fff; padding: 6px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; border: none; cursor: pointer; }
-.btn-action:hover { filter: brightness(1.1); }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/custody.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -23,7 +11,7 @@
         <h2>سجل العهد الحالي</h2>
         <button class="btn-action" onclick="openAddModal()">+ تسجيل عهدة جديدة</button>
     </div>
-    
+
     <table class="custody-table">
         <thead>
             <tr>
@@ -44,13 +32,13 @@
 </div>
 
 <!-- Add Modal (Simplified for now) -->
-<div id="addModal" class="bz-modal" style="display:none;">
+<div id="addModal" class="bz-modal csp-inline-custody-17">
     <div class="bz-modal-content">
         <h3>تسجيل عهدة جديدة</h3>
         <form id="addForm">
             <label>السائق (Driver ID)</label>
             <input type="number" id="driver_id" required>
-            
+
             <label>نوع العهدة</label>
             <select id="item_type" required>
                 <option value="مفتاح مركبة">مفتاح مركبة</option>
@@ -58,16 +46,16 @@
                 <option value="هاتف ذكي">هاتف ذكي</option>
                 <option value="أخرى">أخرى</option>
             </select>
-            
+
             <label>التفاصيل (رقم البطاقة / اللوحة)</label>
             <input type="text" id="item_details">
-            
+
             <label>تاريخ الاستلام</label>
             <input type="date" id="received_date" required>
-            
-            <div style="margin-top:20px; display:flex; gap:10px;">
+
+            <div class="csp-inline-custody-18">
                 <button type="submit" class="btn-action">حفظ العهدة</button>
-                <button type="button" class="btn-action" style="background:#64748b;" onclick="closeAddModal()">إلغاء</button>
+                <button type="button" class="btn-action csp-inline-custody-19" onclick="closeAddModal()">إلغاء</button>
             </div>
         </form>
     </div>
@@ -84,7 +72,7 @@ function loadCustody() {
                 let statusClass = 'status-active';
                 if (i.status === 'تم الإرجاع') statusClass = 'status-returned';
                 if (i.status === 'مفقود') statusClass = 'status-lost';
-                
+
                 // Escaped: item_details is free text an operations-role user types, and it
                 // used to be injected raw into the admin's page (stored XSS).
                 const esc = window._bzEscHtml || (s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
@@ -97,8 +85,8 @@ function loadCustody() {
                     <td>${esc(i.returned_date || '-')}</td>
                     <td><span class="status-badge ${statusClass}">${esc(i.status)}</span></td>
                     <td>
-                        <button class="btn-action" style="background:#c5a059;" onclick="markReturned(${i.id})">إرجاع</button>
-                        <button class="btn-action" style="background:#ef4444;" onclick="deleteItem(${i.id})">حذف</button>
+                        <button class="btn-action csp-inline-custody-20" onclick="markReturned(${i.id})">إرجاع</button>
+                        <button class="btn-action csp-inline-custody-21" onclick="deleteItem(${i.id})">حذف</button>
                     </td>
                 </tr>`;
             });

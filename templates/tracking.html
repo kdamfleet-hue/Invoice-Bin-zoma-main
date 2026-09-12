@@ -13,137 +13,7 @@
   }
 </script>
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
-<style>
-        /* Page-unique layout only — colors/fonts/buttons come from base_styles.css */
-        .track-layout {
-            display: flex;
-            gap: 1rem;
-            height: calc(100vh - 180px);
-            min-height: 520px;
-        }
-        .track-sidebar {
-            width: 340px;
-            min-width: 280px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            padding: 0;
-        }
-        .track-sidebar .side-head {
-            padding: 1rem 1.1rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: .5rem;
-        }
-        .track-sidebar .side-head h3 {
-            margin: 0;
-            font-size: 1rem;
-            color: var(--text-primary);
-        }
-        .track-search {
-            padding: .75rem 1.1rem;
-            border-bottom: 1px solid var(--border);
-        }
-        .asset-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: .25rem 0;
-        }
-        .asset-item {
-            padding: .75rem 1.1rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: .75rem;
-            cursor: pointer;
-            transition: background .15s ease;
-        }
-        .asset-item:hover { background: var(--surface-hover); }
-        .asset-item .status-dot {
-            width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
-        }
-        .asset-item .asset-name { font-size: .92rem; color: var(--text-primary); font-weight: 600; }
-        .asset-item .asset-meta { font-size: .78rem; color: var(--text-secondary); }
-        .track-map-wrap {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-            padding: 0;
-            min-width: 0;
-        }
-        #map { width: 100%; height: 100%; min-height: 400px; background: var(--surface-hover); }
-
-        .map-state {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            text-align: center;
-            background: var(--surface);
-            z-index: 1200;
-            padding: 2rem;
-        }
-        .map-state .state-icon { font-size: 3rem; opacity: .85; }
-        .map-state h3 { margin: 0; color: var(--text-primary); }
-        .map-state p { margin: 0; color: var(--text-secondary); max-width: 420px; }
-        .map-state.hidden { display: none; }
-        .track-tools { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:0 0 .75rem; }
-        .track-tools select, .track-tools input { min-width:150px; padding:.45rem .65rem; border:1px solid var(--border); border-radius:.45rem; background:var(--surface); color:var(--text-primary); }
-        .track-tools .tool-note { color:var(--text-secondary); font-size:.78rem; }
-        .tracking-report { margin:0 0 1rem; padding:1rem; }
-        .tracking-report-head { display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap; margin-bottom:.8rem; }
-        .tracking-report-head h3 { margin:0; color:var(--text-primary); font-size:1rem; }
-        .tracking-report-actions { display:flex; gap:.45rem; flex-wrap:wrap; }
-        .tracking-report-tabs { display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:.75rem; }
-        .tracking-report-tab { border:1px solid var(--border); border-radius:999px; padding:.45rem .75rem; background:var(--surface); color:var(--text-secondary); font:700 .78rem inherit; cursor:pointer; }
-        .tracking-report-tab.active { color:#1a160d; border-color:#d8b86a; background:linear-gradient(135deg,#c5a059,#f5d88e); }
-        .tracking-report-tab .report-count { display:inline-flex; min-width:1.35rem; height:1.35rem; align-items:center; justify-content:center; margin-inline-start:.25rem; border-radius:50%; background:rgba(0,0,0,.14); font-size:.7rem; }
-        .tracking-report-table-wrap { overflow:auto; border:1px solid var(--border); border-radius:.65rem; }
-        .tracking-report-table { width:100%; min-width:720px; border-collapse:collapse; font-size:.8rem; }
-        .tracking-report-table th,.tracking-report-table td { padding:.6rem .7rem; text-align:right; border-bottom:1px solid var(--border); color:var(--text-primary); white-space:nowrap; }
-        .tracking-report-table th { background:var(--surface-hover); color:var(--text-secondary); font-weight:800; }
-        .tracking-report-table tr:last-child td { border-bottom:0; }
-        .report-color-dot { display:inline-block; width:11px; height:11px; border-radius:50%; vertical-align:-1px; margin-inline-end:5px; border:1px solid rgba(255,255,255,.45); }
-        .report-state { padding:1rem; text-align:center; color:var(--text-secondary); }
-        .report-note { margin-top:.55rem; color:var(--text-secondary); font-size:.72rem; }
-        @media (max-width:650px) { .tracking-report { padding:.75rem; } .tracking-report-head { align-items:flex-start; } }
-        .gps-advanced { margin-top:1rem; padding:1rem; }
-        .gps-advanced summary { cursor:pointer; color:var(--accent); font-weight:800; }
-        .gps-advanced-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin-top:1rem; }
-        .gps-advanced section { border:1px solid var(--border); padding:.8rem; border-radius:.55rem; }
-        .gps-advanced table { width:100%; border-collapse:collapse; font-size:.8rem; }
-        .gps-advanced th,.gps-advanced td { padding:.45rem; border-bottom:1px solid var(--border); text-align:right; }
-        .gps-advanced input { max-width:125px; padding:.4rem; }
-        @media (max-width:860px) { .gps-advanced-grid { grid-template-columns:1fr; } }
-
-        .spinner {
-            width: 42px; height: 42px;
-            border: 4px solid var(--border);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: bz-spin 0.9s linear infinite;
-        }
-        @keyframes bz-spin { to { transform: rotate(360deg); } }
-
-        .asset-item.following { outline: 2px solid #c5a059; outline-offset: -2px; }
-        .custom-marker {
-            width: 32px; height: 32px; border-radius: 50%; border: 3px solid #fff;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.45); display: flex; align-items: center;
-            justify-content: center; font-weight: 800; font-size: 11px; color: #fff;
-        }
-        .leaflet-popup-content { font-family: 'Tajawal', sans-serif; }
-
-        @media (max-width: 860px) {
-            .track-layout { flex-direction: column; height: auto; }
-            .track-sidebar { width: 100%; max-height: 320px; }
-            .track-map-wrap { height: 60vh; }
-        }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/tracking.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -173,13 +43,13 @@
 </header>
 <div class="bz-shell">
 <h2 class="bz-section-title">🛰️ التتبع المباشر للأسطول</h2>
-<div class="bz-stats" style="margin-bottom:.5rem;">
+<div class="bz-stats csp-inline-tracking-1861">
 <div class="bz-stat"><div class="num" id="statTotal">0</div><div class="label">إجمالي المركبات</div></div>
 <div class="bz-stat"><div class="num" id="statOnline">0</div><div class="label">متصلة الآن</div></div>
 <div class="bz-stat"><div class="num" id="statMoving">0</div><div class="label">متحركة</div></div>
 <div class="bz-stat"><div class="num" id="statOffline">0</div><div class="label">غير متصلة</div></div>
 </div>
-<div id="liveStatus" style="margin:0 0 .5rem;font-size:.85rem;font-weight:700;color:var(--text-secondary)">⏳ جاري الاتصال بخدمة التتبع…</div>
+<div id="liveStatus" class="csp-inline-tracking-1862">⏳ جاري الاتصال بخدمة التتبع…</div>
 		<div class="track-tools pdf-exclude" aria-label="أدوات التتبع">
 	  <select id="statusFilter" onchange="renderList()" aria-label="فلترة حالة المركبة">
 	    <option value="all">كل الحالات</option><option value="moving">متحركة</option><option value="idling">تعمل بلا حركة</option><option value="engine_on">المحرك يعمل</option><option value="stopped">متوقفة</option><option value="offline">غير متصلة</option>
@@ -193,7 +63,7 @@
 		  <div class="tracking-report-head">
 		    <h3 id="trackingColorReportTitle">📋 كشف مركبات التتبع حسب اللون والحالة</h3>
 		    <div class="tracking-report-actions pdf-exclude">
-		      <a class="btn-outline" href="/api/gps/color-status.xlsx" download="كشف_التتبع_الالوان_والمعطلة.xlsx" style="text-decoration:none;display:inline-flex;align-items:center;">⬇️ تصدير Excel</a>
+		      <a class="btn-outline csp-inline-tracking-1863" href="/api/gps/color-status.xlsx" download="كشف_التتبع_الالوان_والمعطلة.xlsx">⬇️ تصدير Excel</a>
 		      <button class="btn-outline" type="button" onclick="window.print()">🖨️ طباعة</button>
 		    </div>
 		  </div>
@@ -209,10 +79,10 @@
 		<div class="track-layout">
 <div class="card track-sidebar" id="assetPanel">
 <div class="side-head">
-<h3>📦 مركبات فرع الدمام <span id="assetCount" style="color:var(--text-secondary);font-weight:600;">(0)</span></h3>
-<div class="pdf-exclude" style="display:flex;gap:.4rem;">
-<button class="btn-outline" id="shareBtn" onclick="shareAssets()" style="padding:.35rem .6rem;font-size:.8rem;">📤 مشاركة / تصدير</button>
-<button class="btn-outline" id="refreshBtn" onclick="fetchData()" style="padding:.35rem .75rem;font-size:.8rem;">🔄 تحديث</button>
+<h3>📦 مركبات فرع الدمام <span id="assetCount" class="csp-inline-tracking-1864">(0)</span></h3>
+<div class="pdf-exclude csp-inline-tracking-1865">
+<button class="btn-outline csp-inline-tracking-1866" id="shareBtn" onclick="shareAssets()">📤 مشاركة / تصدير</button>
+<button class="btn-outline csp-inline-tracking-1867" id="refreshBtn" onclick="fetchData()">🔄 تحديث</button>
 </div>
 </div>
 <div class="track-search pdf-exclude">
@@ -234,15 +104,15 @@
 	  <div class="gps-advanced-grid">
 	    <section>
 	      <h3>سجل الرحلات والإشارات</h3>
-	      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.6rem;">
+	      <div class="csp-inline-tracking-1868">
 	        <select id="historyVehicle" aria-label="اختيار مركبة للسجل"><option value="">كل المركبات</option></select>
 	        <button class="btn-outline" type="button" onclick="loadGpsHistory()">تحديث السجل</button>
 	      </div>
-	      <div style="max-height:280px;overflow:auto;"><table><thead><tr><th>المركبة</th><th>الحالة</th><th>السرعة</th><th>الوقت</th></tr></thead><tbody id="historyRows"><tr><td colspan="4">اضغط تحديث السجل</td></tr></tbody></table></div>
+	      <div class="csp-inline-tracking-1869"><table><thead><tr><th>المركبة</th><th>الحالة</th><th>السرعة</th><th>الوقت</th></tr></thead><tbody id="historyRows"><tr><td colspan="4">اضغط تحديث السجل</td></tr></tbody></table></div>
 	    </section>
 	    <section>
 	      <h3>المناطق الجغرافية</h3>
-	      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem;">
+	      <div class="csp-inline-tracking-1870">
 	        <input id="geoName" placeholder="اسم المنطقة" maxlength="100">
 	        <input id="geoLat" type="number" step="any" placeholder="خط العرض">
 	        <input id="geoLng" type="number" step="any" placeholder="خط الطول">
@@ -252,7 +122,7 @@
 	      <div id="geofenceRows">جاري تحميل المناطق…</div>
 	    </section>
 	  </div>
-	  <section style="margin-top:1rem;"><h3>تنبيهات الدخول والخروج</h3><div style="max-height:220px;overflow:auto;"><table><thead><tr><th>المركبة</th><th>المنطقة</th><th>الحدث</th><th>الوقت</th></tr></thead><tbody id="geofenceAlertRows"><tr><td colspan="4">لا توجد تنبيهات بعد</td></tr></tbody></table></div></section>
+	  <section class="csp-inline-tracking-1871"><h3>تنبيهات الدخول والخروج</h3><div class="csp-inline-tracking-1872"><table><thead><tr><th>المركبة</th><th>المنطقة</th><th>الحدث</th><th>الوقت</th></tr></thead><tbody id="geofenceAlertRows"><tr><td colspan="4">لا توجد تنبيهات بعد</td></tr></tbody></table></div></section>
 	</details>
 	</div>
 	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -316,7 +186,7 @@
                     + '<h3>جاري الاتصال بأنظمة التتبع…</h3>'
                     + '<p>يتم الآن جلب مواقع مركبات الأسطول المباشرة.</p>';
             } else if (mode === 'error') {
-                const detail = opts.detail ? '<p style="opacity:.8;font-size:.85rem;">' + escapeHtml(opts.detail) + '</p>' : '';
+                const detail = opts.detail ? '<p class="csp-inline-tracking-1873">' + escapeHtml(opts.detail) + '</p>' : '';
                 el.innerHTML = '<div class="state-icon">📡</div>'
                     + '<h3>تعذّر جلب مواقع الأسطول حالياً</h3>'
                     + '<p>قد تكون خدمة التتبع غير مُفعّلة أو يتعذّر الوصول إليها الآن. يمكنك إعادة المحاولة.</p>'
@@ -437,27 +307,27 @@
             const st = STATUS[a.status] || STATUS.offline;
             const engine = a.ignition === true ? '🟢 يعمل' : (a.ignition === false ? '⚪ متوقف' : '—');
             const speed = (a.speed != null) ? (Math.round(a.speed) + ' كم/س') : '—';
-            return '<div style="min-width:220px;line-height:1.7">'
-                + '<div style="font-weight:800;font-size:1rem">' + escapeHtml(a.name) + '</div>'
+            return '<div class="csp-inline-tracking-1874">'
+                + '<div class="csp-inline-tracking-1875">' + escapeHtml(a.name) + '</div>'
                 + (a.plate ? '<div>🔢 اللوحة: <b>' + escapeHtml(a.plate) + '</b></div>' : '')
                 + (a.driver ? '<div>👤 السائق: ' + escapeHtml(a.driver) + '</div>' : '')
                 + '<div>⚡ السرعة: <b>' + speed + '</b></div>'
                 + '<div>🔑 المحرك: ' + engine + '</div>'
-                + '<div>📶 الحالة: <span style="color:' + st.color + ';font-weight:700">' + st.label + '</span></div>'
+                + '<div>📶 الحالة: <span class="csp-inline-tracking-1876">' + st.label + '</span></div>'
                 + (a.odometer != null ? '<div>🛣️ العداد: ' + Math.round(a.odometer).toLocaleString('ar-SA') + ' كم</div>' : '')
                 + (a.address ? '<div>📍 ' + escapeHtml(a.address) + '</div>' : '')
-                + '<div style="color:#94a3b8;font-size:.8rem">🕓 آخر إشارة: ' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</div>'
-                + '<button class="btn-outline" style="margin-top:.4rem;padding:.25rem .6rem;font-size:.78rem" onclick="followVehicle(' + JSON.stringify(String(a.id)) + ')">🎯 تتبّع هذه المركبة</button>'
+                + '<div class="csp-inline-tracking-1877">🕓 آخر إشارة: ' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</div>'
+                + '<button class="btn-outline csp-inline-tracking-1878" onclick="followVehicle(' + JSON.stringify(String(a.id)) + ')">🎯 تتبّع هذه المركبة</button>'
                 + '</div>';
         }
 
         function markerIcon(a) {
             const st = STATUS[a.status] || STATUS.offline;
             const rot = (typeof a.heading === 'number' && a.status === 'moving') ? a.heading : 0;
-            const arrow = a.status === 'moving' ? '<span style="display:inline-block;transform:rotate(' + rot + 'deg)">➤</span> ' : '';
+            const arrow = a.status === 'moving' ? '<span class="csp-inline-tracking-1879">➤</span> ' : '';
             return L.divIcon({
                 className: 'custom-marker-container',
-                html: '<div class="custom-marker" style="background:' + st.color + '" title="' + escapeHtml(a.name) + '">'
+                html: '<div class="custom-marker csp-inline-tracking-1880" title="' + escapeHtml(a.name) + '">'
                     + arrow + escapeHtml(a.plate || String(a.id)) + '</div>'
             });
         }
@@ -558,7 +428,7 @@
                 const colorLabel = a.colorLabel || (a.colorKey === 'black' ? 'أسود' : a.colorKey === 'blue' ? 'أزرق' : 'غير محدد');
                 const dot = a.colorKey === 'black' ? '#111827' : a.colorKey === 'blue' ? '#2563eb' : '#94a3b8';
                 const statusLabel = a.disabled ? 'معطلة' : ((STATUS[a.status] || STATUS.offline).label);
-                return '<tr><td>' + escapeHtml(a.name) + '</td><td dir="ltr">' + escapeHtml(a.plate || '—') + '</td><td><span class="report-color-dot" style="background:' + dot + '"></span>' + escapeHtml(colorLabel) + '</td><td>' + escapeHtml(statusLabel) + '</td><td>' + escapeHtml(a.driver || '—') + '</td><td>' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</td></tr>';
+                return '<tr><td>' + escapeHtml(a.name) + '</td><td dir="ltr">' + escapeHtml(a.plate || '—') + '</td><td><span class="report-color-dot csp-inline-tracking-1881"></span>' + escapeHtml(colorLabel) + '</td><td>' + escapeHtml(statusLabel) + '</td><td>' + escapeHtml(a.driver || '—') + '</td><td>' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</td></tr>';
             }).join('');
         }
 
@@ -601,9 +471,9 @@
                 const div = document.createElement('div');
                 div.className = 'asset-item' + (String(a.id) === String(followId) ? ' following' : '');
                 div.innerHTML =
-                    '<div class="status-dot" style="background:' + st.color + '"></div>'
-                    + '<div style="flex:1"><div class="asset-name">' + escapeHtml(a.name)
-                    + (a.plate ? ' <small style="color:var(--text-secondary)">' + escapeHtml(a.plate) + '</small>' : '') + '</div>'
+                    '<div class="status-dot csp-inline-tracking-1882"></div>'
+                    + '<div class="csp-inline-tracking-1883"><div class="asset-name">' + escapeHtml(a.name)
+                    + (a.plate ? ' <small class="csp-inline-tracking-1884">' + escapeHtml(a.plate) + '</small>' : '') + '</div>'
                     + '<div class="asset-meta">' + st.label
                     + (a.speed != null ? ' • ' + Math.round(a.speed) + ' كم/س' : '')
                     + (a.driver ? ' • ' + escapeHtml(a.driver) : '')
@@ -667,7 +537,7 @@
 
         async function loadGeofences() {
             const box = document.getElementById('geofenceRows');
-            try { const r = await fetch('/api/gps/geofences',{headers:{Accept:'application/json'}}); const d = await r.json(); if(!r.ok) throw new Error(d.error || 'تعذر تحميل المناطق'); geofences=d.rows||[]; if(box) box.innerHTML=geofences.map(g => '<div style="display:flex;justify-content:space-between;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border)"><span>' + escapeHtml(g.name) + ' — ' + Math.round(g.radius_m) + ' م</span><button class="btn-outline" type="button" onclick="removeGeofence(\'' + escapeHtml(String(g.id)) + '\')">حذف</button></div>').join('') || 'لا توجد مناطق'; drawGeofences(); } catch(e) { if(box) box.textContent=e.message; }
+            try { const r = await fetch('/api/gps/geofences',{headers:{Accept:'application/json'}}); const d = await r.json(); if(!r.ok) throw new Error(d.error || 'تعذر تحميل المناطق'); geofences=d.rows||[]; if(box) box.innerHTML=geofences.map(g => '<div class="csp-inline-tracking-1885"><span>' + escapeHtml(g.name) + ' — ' + Math.round(g.radius_m) + ' م</span><button class="btn-outline" type="button" onclick="removeGeofence(\'' + escapeHtml(String(g.id)) + '\')">حذف</button></div>').join('') || 'لا توجد مناطق'; drawGeofences(); } catch(e) { if(box) box.textContent=e.message; }
             try { const r=await fetch('/api/gps/geofence-alerts',{headers:{Accept:'application/json'}}); const d=await r.json(); const rows=document.getElementById('geofenceAlertRows'); if(rows) rows.innerHTML=(d.history||[]).slice().reverse().map(x=>'<tr><td>'+escapeHtml(x.vehicle||x.vehicle_id)+'</td><td>'+escapeHtml(x.geofence||'')+'</td><td>'+escapeHtml(x.event==='entry'?'دخول':'خروج')+'</td><td>'+escapeHtml(x.created_at||'')+'</td></tr>').join('')||'<tr><td colspan="4">لا توجد تنبيهات بعد</td></tr>'; } catch(_) {}
         }
 

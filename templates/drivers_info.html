@@ -3,279 +3,17 @@
 {% block title %}معلومات سائقو النقل العام والخاص — BIN ZOMAH INTL.{% endblock %}
 
 {% block head %}
-<style>
-    .page-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid var(--border);
-    }
-    .page-header h1 {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0;
-    }
-    .page-header .icon {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, var(--brand-gold), #f59e0b);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.6rem;
-        flex-shrink: 0;
-    }
-    .tabs {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
-        border-bottom: 2px solid var(--border);
-        overflow-x: auto;
-    }
-    .tab-btn {
-        padding: 0.6rem 1.4rem;
-        border: none;
-        background: transparent;
-        color: var(--text-secondary);
-        font-size: 0.95rem;
-        font-weight: 500;
-        cursor: pointer;
-        border-bottom: 3px solid transparent;
-        margin-bottom: -2px;
-        white-space: nowrap;
-        transition: all 0.2s;
-        border-radius: 8px 8px 0 0;
-        font-family: inherit;
-    }
-    .tab-btn:hover { color: var(--brand-gold); background: rgba(201,162,39,0.07); }
-    .tab-btn.active {
-        color: var(--brand-gold);
-        border-bottom-color: var(--brand-gold);
-        background: rgba(201,162,39,0.1);
-    }
-    .tab-pane { display: none; }
-    .tab-pane.active { display: block; }
-    .toolbar {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1.2rem;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-    }
-    .search-box {
-        flex: 1;
-        min-width: 260px;
-        position: relative;
-    }
-    .search-box input {
-        width: 100%;
-        padding: 0.65rem 1rem 0.65rem 2.5rem;
-        border: 2px solid var(--border);
-        border-radius: 8px;
-        font-size: 0.95rem;
-        background: var(--bg);
-        color: var(--text-primary);
-        transition: var(--trans);
-        font-family: inherit;
-    }
-    .search-box input:focus {
-        border-color: var(--brand-gold);
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(201,162,39,0.2);
-    }
-    .search-box .search-icon {
-        position: absolute;
-        left: 0.75rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--text-secondary);
-        pointer-events: none;
-    }
-    .stats-row {
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-        margin-bottom: 1.2rem;
-    }
-    .stat-pill {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 100px;
-        padding: 0.4rem 1.1rem;
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-    .stat-pill strong { color: var(--text-primary); }
-    .stat-pill.gold { border-color: var(--brand-gold); color: var(--brand-gold); }
-    .driver-table-wrap {
-        overflow-x: auto;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-    }
-    .driver-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.88rem;
-        min-width: 900px;
-    }
-    .driver-table th {
-        background: var(--bg);
-        padding: 0.75rem 1rem;
-        text-align: right;
-        font-weight: 600;
-        color: var(--text-secondary);
-        border-bottom: 2px solid var(--border);
-        white-space: nowrap;
-        position: sticky;
-        top: 0;
-        z-index: 2;
-    }
-    .driver-table td {
-        padding: 0.65rem 1rem;
-        border-bottom: 1px solid var(--border);
-        color: var(--text-primary);
-        vertical-align: middle;
-    }
-    .driver-table tr:last-child td { border-bottom: none; }
-    .driver-table tbody tr:hover { background: rgba(201,162,39,0.04); }
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.2rem 0.65rem;
-        border-radius: 100px;
-        font-size: 0.78rem;
-        font-weight: 600;
-    }
-    .badge-green { background: rgba(34,197,94,0.15); color: #16a34a; }
-    .badge-blue  { background: rgba(59,130,246,0.15); color: #2563eb; }
-    .badge-gold  { background: rgba(201,162,39,0.15); color: var(--brand-gold); }
-    .badge-red   { background: rgba(239,68,68,0.15); color: #dc2626; }
-    .no-data {
-        text-align: center;
-        padding: 3rem;
-        color: var(--text-secondary);
-        font-size: 1rem;
-    }
-    .no-data .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
-    .btn-action {
-        padding: 0.5rem 1.1rem;
-        border-radius: 8px;
-        border: none;
-        cursor: pointer;
-        font-size: 0.88rem;
-        font-weight: 600;
-        font-family: inherit;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-    .btn-primary { background: var(--brand-gold); color: #000; }
-    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
-    .btn-outline { background: transparent; color: var(--brand-gold); border: 2px solid var(--brand-gold); }
-    .btn-outline:hover { background: rgba(201,162,39,0.1); }
-    .filter-group {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    .filter-chip {
-        padding: 0.35rem 0.85rem;
-        border-radius: 100px;
-        border: 1.5px solid var(--border);
-        background: transparent;
-        color: var(--text-secondary);
-        font-size: 0.82rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-family: inherit;
-    }
-    .filter-chip:hover, .filter-chip.active {
-        border-color: var(--brand-gold);
-        color: var(--brand-gold);
-        background: rgba(201,162,39,0.08);
-    }
-    
-    /* Modal styles */
-    .modal-overlay {
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.6);
-        z-index: 1000;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 12px;
-        box-sizing: border-box;
-        backdrop-filter: blur(4px);
-    }
-    .modal-overlay.active { display: flex; }
-    .modal-content {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        width: min(100%, 540px);
-        max-width: 500px;
-        padding: 2rem;
-        max-height: calc(100vh - 24px);
-        overflow-y: auto;
-        box-sizing: border-box;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-    .modal-header {
-        display: flex; justify-content: space-between; align-items: center;
-        margin-bottom: 1.5rem;
-    }
-    .modal-header h2 { margin: 0; font-size: 1.3rem; color: var(--text-primary); }
-    .close-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; }
-    .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; margin-bottom: 0.4rem; color: var(--text-secondary); font-size: 0.9rem; }
-    .form-group input, .form-group select, .form-group textarea {
-        width: 100%; padding: 0.75rem; border: 2px solid var(--border);
-        border-radius: 8px; background: var(--bg); color: var(--text-primary);
-        font-family: inherit; font-size: 0.95rem; box-sizing: border-box;
-    }
-    .form-group textarea { resize: vertical; min-height: 70px; }
-    .modal-content .form-group[style*="display:flex"] { flex-wrap: wrap; }
-    .modal-content .form-group[style*="display:flex"] > div { min-width: 0; }
-    @media (max-width: 600px) {
-        .modal-overlay { align-items: flex-start; padding: 8px; overflow-y: auto; }
-        .modal-content { width: 100%; max-width: none; max-height: calc(100vh - 16px); padding: 1rem; border-radius: 12px; }
-        .modal-header { margin-bottom: 1rem; }
-        .modal-header h2 { font-size: 1.05rem; }
-        .form-group[style*="display:flex"] > div { flex: 1 1 100% !important; width: 100%; }
-        .modal-footer { flex-direction: column-reverse; gap: .6rem; }
-        .modal-footer .btn-action { width: 100%; justify-content: center; min-height: 44px; }
-        .close-btn { min-width: 44px; min-height: 44px; }
-    }
-    .form-group input:focus, .form-group select:focus {
-        border-color: var(--brand-gold); outline: none;
-    }
-    .modal-footer { margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem; }
-    .autocomplete-wrap { position: relative; }
-    .autocomplete-list { position: absolute; z-index: 1100; right: 0; left: 0; top: calc(100% + 3px); max-height: 220px; overflow-y: auto; background: var(--surface); border: 1px solid var(--brand-gold); border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,.3); display: none; }
-    .autocomplete-list button { display: block; width: 100%; padding: .7rem .85rem; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--text-primary); text-align: right; cursor: pointer; font-family: inherit; }
-    .autocomplete-list button:hover, .autocomplete-list button:focus { background: rgba(197,160,89,.12); outline: none; }
-    .autocomplete-list small { display: block; color: var(--text-secondary); margin-top: 3px; }
-    
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/drivers_info.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
-<div class="registry-container" style="background:var(--surface);padding:1.5rem;border-radius:12px;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+<div class="registry-container csp-inline-drivers-info-139">
 
     <div class="page-header">
         <div class="icon">🚛</div>
-        <div style="flex:1;">
+        <div class="csp-inline-drivers-info-140">
             <h1>معلومات سائقو النقل العام والخاص</h1>
-            <p style="margin:0;color:var(--text-secondary);font-size:0.9rem;">فرع الدمام — بيانات السائقين وأرقام اللوحات</p>
+            <p class="csp-inline-drivers-info-141">فرع الدمام — بيانات السائقين وأرقام اللوحات</p>
         </div>
         <div>
             <button class="btn-action btn-primary" onclick="openModal()">+ إضافة سائق/مركبة</button>
@@ -421,23 +159,23 @@
         </div>
         <form id="driverForm" onsubmit="saveData(event)">
             <input type="hidden" id="edit_id">
-            
+
             <div class="form-group">
-                <label>الاسم الكامل <span style="color:red">*</span></label>
+                <label>الاسم الكامل <span class="csp-inline-drivers-info-142">*</span></label>
                 <div class="autocomplete-wrap"><input type="text" id="edit_name" required autocomplete="off" oninput="queueDriverSuggest('name')" onblur="autoFillDriver('name')"><div id="nameSuggestions" class="autocomplete-list"></div></div>
             </div>
-            <div class="form-group" style="display:flex; gap:1rem;">
-                <div style="flex:1;">
+            <div class="form-group csp-inline-drivers-info-143">
+                <div class="csp-inline-drivers-info-144">
                     <label>رقم الإقامة</label>
                     <div class="autocomplete-wrap"><input type="text" id="edit_iqama" autocomplete="off" oninput="queueDriverSuggest('iqama')" onblur="autoFillDriver('iqama')"><div id="iqamaSuggestions" class="autocomplete-list"></div></div>
                 </div>
-                <div style="flex:1;">
+                <div class="csp-inline-drivers-info-145">
                     <label>الجوال</label>
                     <input type="text" id="edit_phone">
                 </div>
             </div>
-            <div class="form-group" style="display:flex; gap:1rem;">
-                <div style="flex:1;">
+            <div class="form-group csp-inline-drivers-info-146">
+                <div class="csp-inline-drivers-info-147">
                     <label>الوظيفة (عام/خاص)</label>
                     <select id="edit_job">
                         <option value="سائق نقل عام">سائق نقل عام</option>
@@ -445,7 +183,7 @@
                         <option value="سائق">سائق غير محدد</option>
                     </select>
                 </div>
-                <div style="flex:1;">
+                <div class="csp-inline-drivers-info-148">
                     <label>الحالة</label>
                     <select id="edit_status">
                         <option value="نشط">نشط</option>
@@ -454,30 +192,30 @@
                     </select>
                 </div>
             </div>
-            
-            <hr style="border-color:var(--border); margin:1.5rem 0;">
-            <h3 style="font-size:1rem; margin-bottom:1rem; color:var(--brand-gold);">بيانات المركبة (إن وجدت)</h3>
-            
+
+            <hr class="csp-inline-drivers-info-149">
+            <h3 class="csp-inline-drivers-info-150">بيانات المركبة (إن وجدت)</h3>
+
             <div class="form-group">
                 <label>رقم اللوحة</label>
                 <div class="autocomplete-wrap"><input type="text" id="edit_plate" placeholder="أ ب ج 1234" autocomplete="off" oninput="queueVehicleSuggest()" onblur="autoFillVehicle()"><div id="plateSuggestions" class="autocomplete-list"></div></div>
-                <small style="color:var(--text-secondary);font-size:0.8rem;">اكتب رقم اللوحة ليتم جلب بيانات المركبة تلقائياً إذا كانت مسجلة.</small>
+                <small class="csp-inline-drivers-info-151">اكتب رقم اللوحة ليتم جلب بيانات المركبة تلقائياً إذا كانت مسجلة.</small>
             </div>
-            <div class="form-group" style="display:flex; gap:1rem;">
-                <div style="flex:1;">
+            <div class="form-group csp-inline-drivers-info-152">
+                <div class="csp-inline-drivers-info-153">
                     <label>نوع المركبة</label>
                     <input type="text" id="edit_car">
                 </div>
-                <div style="flex:1;">
+                <div class="csp-inline-drivers-info-154">
                     <label>الموديل</label>
                     <input type="text" id="edit_model">
                 </div>
             </div>
             <div class="form-group">
-                <label>سبب تغيير السائق أو المركبة <span style="color:var(--brand-gold);font-size:.8rem;">(مطلوب عند تغيير الربط)</span></label>
+                <label>سبب تغيير السائق أو المركبة <span class="csp-inline-drivers-info-155">(مطلوب عند تغيير الربط)</span></label>
                 <textarea id="edit_reason" rows="2" placeholder="مثال: نقل عهدة بسبب تغيير خط التشغيل"></textarea>
             </div>
-            
+
             <div class="modal-footer">
                 <button type="button" class="btn-action btn-outline" onclick="closeModal()">إلغاء</button>
                 <button type="submit" class="btn-action btn-primary" id="saveBtn">حفظ البيانات</button>
@@ -534,18 +272,18 @@ function renderTable(tab, rows, isAll) {
     }
     tbody.innerHTML = rows.map((d, i) => `
         <tr>
-            <td style="color:var(--text-secondary);font-size:0.8rem;">${i+1}</td>
-            <td style="font-weight:600;"><span title="${escHtml(d.name)}">${escHtml(d.name) || '—'}</span></td>
-            <td style="font-family:monospace;font-size:0.82rem;">${escHtml(d.iqama) || '—'}</td>
+            <td class="csp-inline-drivers-info-156">${i+1}</td>
+            <td class="csp-inline-drivers-info-157"><span title="${escHtml(d.name)}">${escHtml(d.name) || '—'}</span></td>
+            <td class="csp-inline-drivers-info-158">${escHtml(d.iqama) || '—'}</td>
             <td>${escHtml(d.job) || '—'}</td>
-            <td style="font-family:monospace;">${escHtml(d.phone) || '—'}</td>
-            <td style="font-weight:700;color:var(--brand-gold);">${escHtml(d.plate) || '—'}</td>
+            <td class="csp-inline-drivers-info-159">${escHtml(d.phone) || '—'}</td>
+            <td class="csp-inline-drivers-info-160">${escHtml(d.plate) || '—'}</td>
             <td>${escHtml(d.car) || '—'}</td>
-            <td style="font-size:0.82rem;">${escHtml(d.model) || '—'}</td>
+            <td class="csp-inline-drivers-info-161">${escHtml(d.model) || '—'}</td>
             ${isAll ? `<td>${jobBadge(d.transport_type || d.job)}</td>` : ''}
             <td>${statusBadge(d.status)}</td>
             <td>
-                <button class="btn-action" style="padding:0.2rem 0.5rem;font-size:0.8rem;background:rgba(201,162,39,0.1);color:var(--brand-gold);" onclick='openEdit(${JSON.stringify(d).replace(/'/g, "&apos;")})'>✏️ تعديل</button>
+                <button class="btn-action csp-inline-drivers-info-162" onclick='openEdit(${JSON.stringify(d).replace(/'/g, "&apos;")})'>✏️ تعديل</button>
             </td>
         </tr>`).join('');
 }
@@ -561,14 +299,14 @@ function filterTable(tab, query) {
             (d.car || '').toLowerCase().includes(q) ||
             (d.iqama || '').includes(q) ||
             (d.phone || '').includes(q);
-            
+
         let matchFilter = true;
         if (filt === 'has_vehicle') matchFilter = !!d.plate;
         else if (filt === 'no_vehicle') matchFilter = !d.plate;
         else if (filt === 'نقل عام') matchFilter = (d.job || '').includes('عام') || (d.transport_type || '').includes('عام');
         else if (filt === 'نقل خاص') matchFilter = (d.job || '').includes('خاص') || (d.transport_type || '').includes('خاص');
         else if (filt !== 'all') matchFilter = (d.status || 'نشط') === filt;
-        
+
         return matchSearch && matchFilter;
     });
     renderTable(tab, rows, tab === 'all');
@@ -590,7 +328,7 @@ async function loadDrivers() {
     try {
         const res = await fetch('/api/drivers_info_data');
         let all = await res.json();
-        
+
         if (all.error) {
             if (res.status === 401) {
                 window.location.href = '/login';
@@ -601,7 +339,7 @@ async function loadDrivers() {
         if (!Array.isArray(all)) {
             all = all.data || [];
         }
-        
+
         _rawData = all;
 
         const pub = all.filter(x => (x.job || '').includes('عام') || (x.transport_type || '').includes('عام'));
@@ -640,7 +378,7 @@ function openEdit(data) {
     document.getElementById('edit_plate').value = data.plate || '';
     document.getElementById('edit_car').value = data.car || '';
     document.getElementById('edit_model').value = data.model || '';
-    
+
     // Set selects
     const jSelect = document.getElementById('edit_job');
     if (data.job) {
@@ -654,7 +392,7 @@ function openEdit(data) {
             if(sSelect.options[i].value === data.status) { sSelect.selectedIndex = i; break; }
         }
     }
-    
+
     document.getElementById('modalTitle').textContent = 'تعديل بيانات: ' + data.name;
     document.getElementById('driverModal').classList.add('active');
 }
@@ -733,10 +471,10 @@ function selectVehicleSuggestion(v) {
 async function autoFillDriver(field) {
     // Only auto-fill if we are creating a new record (edit_id is empty)
     if (document.getElementById('edit_id').value) return;
-    
+
     const query = document.getElementById('edit_' + field).value.trim();
     if (!query) return;
-    
+
     try {
         const res = await fetch('/api/driver_search?q=' + encodeURIComponent(query));
         const data = await res.json();
@@ -749,7 +487,7 @@ async function autoFillDriver(field) {
                 document.getElementById('edit_iqama').value = d.iqama || '';
             }
             if (!document.getElementById('edit_phone').value) document.getElementById('edit_phone').value = d.phone || '';
-            
+
             const jSelect = document.getElementById('edit_job');
             if (d.job && jSelect.value === 'سائق') {
                 for(let i=0; i<jSelect.options.length; i++) {
@@ -779,7 +517,7 @@ async function saveData(e) {
     const btn = document.getElementById('saveBtn');
     btn.disabled = true;
     btn.textContent = 'جاري الحفظ...';
-    
+
     const payload = {
         id: document.getElementById('edit_id').value,
         name: document.getElementById('edit_name').value,
@@ -792,7 +530,7 @@ async function saveData(e) {
         model: document.getElementById('edit_model').value,
         reason: document.getElementById('edit_reason').value
     };
-    
+
     try {
         const res = await fetch('/api/drivers_info_save', {
             method: 'POST',

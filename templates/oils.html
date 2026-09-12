@@ -14,96 +14,7 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-<style>
-        /* Page-specific: Excel-replica sheet styling. Uses design-system tokens. */
-        .oils-toolbar { display: flex; gap: .6rem; flex-wrap: wrap; justify-content: center; margin: 1.25rem 0; }
-
-        .excel-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: 'Tajawal', sans-serif;
-            border: 1.5px solid var(--border-strong);
-            background: var(--surface);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: var(--shadow-sm);
-        }
-        .excel-table th, .excel-table td {
-            border: 1px solid var(--border);
-            padding: 0;
-            margin: 0;
-        }
-        .excel-header {
-            background: var(--brand-navy) !important;
-            color: #fff !important;
-            text-align: center;
-            font-weight: 700;
-            padding: 12px 8px !important;
-            font-size: 0.9rem;
-            border: 1px solid var(--brand-navy);
-            border-bottom: 3px solid var(--brand-gold);
-            /* On-screen readability: let long headers wrap cleanly at spaces
-               instead of being clipped/cut mid-word by the fixed layout. */
-            white-space: normal;
-            word-break: keep-all;
-            overflow-wrap: normal;
-            hyphens: none;
-            overflow: visible;
-            line-height: 1.3;
-        }
-        /* Long header "عدد فلاتر الزيت والديزل والهواء" needs more room than its
-           28% colgroup share under table-layout:fixed; reduce header font a touch
-           so every header string is fully visible without ugly mid-word breaks. */
-        .excel-table.bz-fit .excel-header { font-size: 0.82rem; }
-        .excel-rownum {
-            text-align: center;
-            font-weight: 700;
-            border: 1px solid var(--border);
-            background: var(--surface-hover);
-            color: var(--text-primary);
-        }
-        .excel-input input, .excel-table td input {
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-            border: none !important;
-            padding: 9px;
-            background: transparent;
-            font-family: 'Tajawal', sans-serif;
-            font-weight: 600;
-            color: var(--text-primary);
-            text-align: center;
-            outline: none;
-            min-height: 42px;
-        }
-        .excel-input input:focus, .excel-table td input:focus {
-            background: var(--accent-glow);
-        }
-        .excel-table tbody tr:nth-child(even) td { background: var(--surface-hover); }
-        .excel-table tbody tr:nth-child(even) td.excel-input { background: var(--surface-hover); }
-        /* Fit tables to page width; allow horizontal scroll only on very narrow
-           screens so nothing is ever clipped (text stays fully readable). */
-        .excel-table-container { overflow-x: auto; }
-        /* Auto layout so each column sizes to its content: single-word headers
-           (السابق/المستهلك/المتبقي/الموديل…) stay whole, long phrases wrap at spaces.
-           overflow:visible so nothing is clipped at the rounded edge. */
-        .excel-table.bz-fit { table-layout: auto; overflow: visible; }
-        .excel-table.bz-fit input { min-width: 0; }
-        .add-filter-cell { text-align:center; padding: 8px !important; border: 1px solid var(--border); }
-        .btn-del {
-            background: transparent; border: none; cursor: pointer; font-size: 1rem;
-            line-height: 1; padding: 4px; border-radius: 6px; transition: var(--trans);
-        }
-        .btn-del:hover { transform: scale(1.2); }
-        @media print {
-            body * { visibility: hidden; }
-            .excel-table-container, .excel-table-container *,
-            .oils-summary-print, .oils-summary-print * { visibility: visible; }
-            .excel-table-container { position: static; width: 100%; }
-            .bz-topbar, .oils-toolbar, footer { display: none !important; }
-            @page { size: landscape; margin: 5mm; }
-        }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/oils.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -139,883 +50,883 @@
 </div>
 <div class="oils-toolbar">
 <button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد</button>
-<button class="btn-primary" onclick="openDispenseModal()" style="background:var(--primary); box-shadow:0 0 15px rgba(212,175,55,0.4);">📦 صرف من المخزون</button>
+<button class="btn-primary csp-inline-oils-568" onclick="openDispenseModal()">📦 صرف من المخزون</button>
 <button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
 <button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
 <button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
 </div>
 <div id="oilsPrintable">
 <!-- Excel Table Replica -->
-<div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 20px;">
+<div class="excel-table-container csp-inline-oils-569">
 <table class="excel-table bz-fit" id="oilsExcelTable">
 <colgroup>
-<col style="width:5%"/><col style="width:13%"/><col style="width:18%"/><col style="width:14%"/>
-<col style="width:13%"/><col style="width:11%"/><col style="width:23%"/><col style="width:3%"/>
+<col class="csp-inline-oils-570"/><col class="csp-inline-oils-571"/><col class="csp-inline-oils-572"/><col class="csp-inline-oils-573"/>
+<col class="csp-inline-oils-574"/><col class="csp-inline-oils-575"/><col class="csp-inline-oils-576"/><col class="csp-inline-oils-577"/>
 </colgroup>
 <thead>
 <tr>
-<th colspan="8" style="border:none; text-align: center; padding: 14px 8px;">
-<input id="oilsTitle" style="width:100%; text-align:center; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); border: none; font-family: 'Tajawal'; outline: none; background: transparent;" type="text" value="بيان استهلاك الزيوت والفلاتر للسيارات الديزل (فرع الدمام) من تاريخ 2025/12/17 الى تاريخ 2026/2/7"/>
+<th colspan="8" class="csp-inline-oils-578">
+<input id="oilsTitle" type="text" value="بيان استهلاك الزيوت والفلاتر للسيارات الديزل (فرع الدمام) من تاريخ 2025/12/17 الى تاريخ 2026/2/7" class="csp-inline-oils-579"/>
 </th>
 </tr>
 <tr>
-<th class="excel-header" style="width:2%;">م</th>
-<th class="excel-header" style="width:12%;">رقم لوحة السيارة</th>
-<th class="excel-header" style="width:18%;">المستخدم</th>
-<th class="excel-header" style="width:14%;">تاريخ تغيير الزيت</th>
-<th class="excel-header" style="width:12%;">رقم العداد</th>
-<th class="excel-header" style="width:12%;">عدد اللترات</th>
-<th class="excel-header" style="width:28%;">عدد فلاتر الزيت والديزل والهواء</th>
-<th class="excel-header" style="width:3%; border-right:none;">حذف</th>
+<th class="excel-header csp-inline-oils-580">م</th>
+<th class="excel-header csp-inline-oils-581">رقم لوحة السيارة</th>
+<th class="excel-header csp-inline-oils-582">المستخدم</th>
+<th class="excel-header csp-inline-oils-583">تاريخ تغيير الزيت</th>
+<th class="excel-header csp-inline-oils-584">رقم العداد</th>
+<th class="excel-header csp-inline-oils-585">عدد اللترات</th>
+<th class="excel-header csp-inline-oils-586">عدد فلاتر الزيت والديزل والهواء</th>
+<th class="excel-header csp-inline-oils-587">حذف</th>
 </tr>
 </thead>
 <tbody id="oilsBody">
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">1</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3258" selected>ب ط س 3258</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حمداني"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-17"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="123402" selected>123402</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-588">1</td>
+<td class="excel-input csp-inline-oils-589"><select class="bz-select2 csp-inline-oils-590" onchange="autoSaveOils()"><option value="ب ط س 3258" selected>ب ط س 3258</option></select></td>
+<td class="excel-input csp-inline-oils-591"><input list="oilsDriversList" type="text" value="حمداني"/></td>
+<td class="excel-input csp-inline-oils-592"><input type="date" value="2025-12-17"/></td>
+<td class="excel-input csp-inline-oils-593"><select class="bz-select2 csp-inline-oils-594" onchange="autoSaveOils()"><option value="123402" selected>123402</option></select></td>
+<td class="excel-input csp-inline-oils-595"><select class="bz-select2 csp-inline-oils-596" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-597"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-598"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">2</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ح ه 5088" selected>ب ح ه 5088</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حسام ابو المجد"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-18"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="343931" selected>343931</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-599">2</td>
+<td class="excel-input csp-inline-oils-600"><select class="bz-select2 csp-inline-oils-601" onchange="autoSaveOils()"><option value="ب ح ه 5088" selected>ب ح ه 5088</option></select></td>
+<td class="excel-input csp-inline-oils-602"><input list="oilsDriversList" type="text" value="حسام ابو المجد"/></td>
+<td class="excel-input csp-inline-oils-603"><input type="date" value="2025-12-18"/></td>
+<td class="excel-input csp-inline-oils-604"><select class="bz-select2 csp-inline-oils-605" onchange="autoSaveOils()"><option value="343931" selected>343931</option></select></td>
+<td class="excel-input csp-inline-oils-606"><select class="bz-select2 csp-inline-oils-607" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-608"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-609"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">3</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب س ل 5541" selected>ب س ل 5541</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كريم عبدالمنعم"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-18"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="210886" selected>210886</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-610">3</td>
+<td class="excel-input csp-inline-oils-611"><select class="bz-select2 csp-inline-oils-612" onchange="autoSaveOils()"><option value="ب س ل 5541" selected>ب س ل 5541</option></select></td>
+<td class="excel-input csp-inline-oils-613"><input list="oilsDriversList" type="text" value="كريم عبدالمنعم"/></td>
+<td class="excel-input csp-inline-oils-614"><input type="date" value="2025-12-18"/></td>
+<td class="excel-input csp-inline-oils-615"><select class="bz-select2 csp-inline-oils-616" onchange="autoSaveOils()"><option value="210886" selected>210886</option></select></td>
+<td class="excel-input csp-inline-oils-617"><select class="bz-select2 csp-inline-oils-618" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-619"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-620"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">4</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8715" selected>ا س ح 8715</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="تنفير حسين"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-18"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="116687" selected>116687</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-621">4</td>
+<td class="excel-input csp-inline-oils-622"><select class="bz-select2 csp-inline-oils-623" onchange="autoSaveOils()"><option value="ا س ح 8715" selected>ا س ح 8715</option></select></td>
+<td class="excel-input csp-inline-oils-624"><input list="oilsDriversList" type="text" value="تنفير حسين"/></td>
+<td class="excel-input csp-inline-oils-625"><input type="date" value="2025-12-18"/></td>
+<td class="excel-input csp-inline-oils-626"><select class="bz-select2 csp-inline-oils-627" onchange="autoSaveOils()"><option value="116687" selected>116687</option></select></td>
+<td class="excel-input csp-inline-oils-628"><select class="bz-select2 csp-inline-oils-629" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-630"><input type="text" value="1 هواء"/></td>
+<td class="csp-inline-oils-631"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">5</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8670" selected>ا س ح 8670</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="سليم اختر"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-21"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="130021" selected>130021</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-632">5</td>
+<td class="excel-input csp-inline-oils-633"><select class="bz-select2 csp-inline-oils-634" onchange="autoSaveOils()"><option value="ا س ح 8670" selected>ا س ح 8670</option></select></td>
+<td class="excel-input csp-inline-oils-635"><input list="oilsDriversList" type="text" value="سليم اختر"/></td>
+<td class="excel-input csp-inline-oils-636"><input type="date" value="2025-12-21"/></td>
+<td class="excel-input csp-inline-oils-637"><select class="bz-select2 csp-inline-oils-638" onchange="autoSaveOils()"><option value="130021" selected>130021</option></select></td>
+<td class="excel-input csp-inline-oils-639"><select class="bz-select2 csp-inline-oils-640" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-641"><input type="text" value="1 هواء"/></td>
+<td class="csp-inline-oils-642"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">6</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3259" selected>ب ط س 3259</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عمر سمان"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-22"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="102385" selected>102385</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-643">6</td>
+<td class="excel-input csp-inline-oils-644"><select class="bz-select2 csp-inline-oils-645" onchange="autoSaveOils()"><option value="ب ط س 3259" selected>ب ط س 3259</option></select></td>
+<td class="excel-input csp-inline-oils-646"><input list="oilsDriversList" type="text" value="عمر سمان"/></td>
+<td class="excel-input csp-inline-oils-647"><input type="date" value="2025-12-22"/></td>
+<td class="excel-input csp-inline-oils-648"><select class="bz-select2 csp-inline-oils-649" onchange="autoSaveOils()"><option value="102385" selected>102385</option></select></td>
+<td class="excel-input csp-inline-oils-650"><select class="bz-select2 csp-inline-oils-651" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-652"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-653"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">7</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3263" selected>ب ط س 3263</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مأمون مياه"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-23"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="126946" selected>126946</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-654">7</td>
+<td class="excel-input csp-inline-oils-655"><select class="bz-select2 csp-inline-oils-656" onchange="autoSaveOils()"><option value="ب ط س 3263" selected>ب ط س 3263</option></select></td>
+<td class="excel-input csp-inline-oils-657"><input list="oilsDriversList" type="text" value="مأمون مياه"/></td>
+<td class="excel-input csp-inline-oils-658"><input type="date" value="2025-12-23"/></td>
+<td class="excel-input csp-inline-oils-659"><select class="bz-select2 csp-inline-oils-660" onchange="autoSaveOils()"><option value="126946" selected>126946</option></select></td>
+<td class="excel-input csp-inline-oils-661"><select class="bz-select2 csp-inline-oils-662" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-663"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-664"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">8</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ر د ب 4650" selected>ر د ب 4650</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كرم جلال"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-23"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="122422" selected>122422</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-665">8</td>
+<td class="excel-input csp-inline-oils-666"><select class="bz-select2 csp-inline-oils-667" onchange="autoSaveOils()"><option value="ر د ب 4650" selected>ر د ب 4650</option></select></td>
+<td class="excel-input csp-inline-oils-668"><input list="oilsDriversList" type="text" value="كرم جلال"/></td>
+<td class="excel-input csp-inline-oils-669"><input type="date" value="2025-12-23"/></td>
+<td class="excel-input csp-inline-oils-670"><select class="bz-select2 csp-inline-oils-671" onchange="autoSaveOils()"><option value="122422" selected>122422</option></select></td>
+<td class="excel-input csp-inline-oils-672"><select class="bz-select2 csp-inline-oils-673" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-674"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-675"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">9</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8031" selected>ا س م 8031</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عمران حسين"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-24"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="56607" selected>56607</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-676">9</td>
+<td class="excel-input csp-inline-oils-677"><select class="bz-select2 csp-inline-oils-678" onchange="autoSaveOils()"><option value="ا س م 8031" selected>ا س م 8031</option></select></td>
+<td class="excel-input csp-inline-oils-679"><input list="oilsDriversList" type="text" value="عمران حسين"/></td>
+<td class="excel-input csp-inline-oils-680"><input type="date" value="2025-12-24"/></td>
+<td class="excel-input csp-inline-oils-681"><select class="bz-select2 csp-inline-oils-682" onchange="autoSaveOils()"><option value="56607" selected>56607</option></select></td>
+<td class="excel-input csp-inline-oils-683"><select class="bz-select2 csp-inline-oils-684" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-685"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-686"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">10</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8015" selected>ا س م 8015</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="علاء عبدالنبي"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-25"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="25174" selected>25174</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-687">10</td>
+<td class="excel-input csp-inline-oils-688"><select class="bz-select2 csp-inline-oils-689" onchange="autoSaveOils()"><option value="ا س م 8015" selected>ا س م 8015</option></select></td>
+<td class="excel-input csp-inline-oils-690"><input list="oilsDriversList" type="text" value="علاء عبدالنبي"/></td>
+<td class="excel-input csp-inline-oils-691"><input type="date" value="2025-12-25"/></td>
+<td class="excel-input csp-inline-oils-692"><select class="bz-select2 csp-inline-oils-693" onchange="autoSaveOils()"><option value="25174" selected>25174</option></select></td>
+<td class="excel-input csp-inline-oils-694"><select class="bz-select2 csp-inline-oils-695" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-696"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-697"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">11</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر ع 2233" selected>ا ر ع 2233</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مزايد "/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-27"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="319052" selected>319052</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-698">11</td>
+<td class="excel-input csp-inline-oils-699"><select class="bz-select2 csp-inline-oils-700" onchange="autoSaveOils()"><option value="ا ر ع 2233" selected>ا ر ع 2233</option></select></td>
+<td class="excel-input csp-inline-oils-701"><input list="oilsDriversList" type="text" value="مزايد "/></td>
+<td class="excel-input csp-inline-oils-702"><input type="date" value="2025-12-27"/></td>
+<td class="excel-input csp-inline-oils-703"><select class="bz-select2 csp-inline-oils-704" onchange="autoSaveOils()"><option value="319052" selected>319052</option></select></td>
+<td class="excel-input csp-inline-oils-705"><select class="bz-select2 csp-inline-oils-706" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-707"><input type="text" value="1 هواء"/></td>
+<td class="csp-inline-oils-708"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">12</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ب ق 4866" selected>ب ب ق 4866</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد باشا"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-28"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="718161" selected>718161</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-709">12</td>
+<td class="excel-input csp-inline-oils-710"><select class="bz-select2 csp-inline-oils-711" onchange="autoSaveOils()"><option value="ب ب ق 4866" selected>ب ب ق 4866</option></select></td>
+<td class="excel-input csp-inline-oils-712"><input list="oilsDriversList" type="text" value="محمد باشا"/></td>
+<td class="excel-input csp-inline-oils-713"><input type="date" value="2025-12-28"/></td>
+<td class="excel-input csp-inline-oils-714"><select class="bz-select2 csp-inline-oils-715" onchange="autoSaveOils()"><option value="718161" selected>718161</option></select></td>
+<td class="excel-input csp-inline-oils-716"><select class="bz-select2 csp-inline-oils-717" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-718"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-719"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">13</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8714" selected>ا س ح 8714</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كابل مياه"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-29"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="141169" selected>141169</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-720">13</td>
+<td class="excel-input csp-inline-oils-721"><select class="bz-select2 csp-inline-oils-722" onchange="autoSaveOils()"><option value="ا س ح 8714" selected>ا س ح 8714</option></select></td>
+<td class="excel-input csp-inline-oils-723"><input list="oilsDriversList" type="text" value="كابل مياه"/></td>
+<td class="excel-input csp-inline-oils-724"><input type="date" value="2025-12-29"/></td>
+<td class="excel-input csp-inline-oils-725"><select class="bz-select2 csp-inline-oils-726" onchange="autoSaveOils()"><option value="141169" selected>141169</option></select></td>
+<td class="excel-input csp-inline-oils-727"><select class="bz-select2 csp-inline-oils-728" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-729"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-730"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">14</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3417" selected>ب ط س 3417</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="أمين العاقل"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-30"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="150971" selected>150971</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-731">14</td>
+<td class="excel-input csp-inline-oils-732"><select class="bz-select2 csp-inline-oils-733" onchange="autoSaveOils()"><option value="ب ط س 3417" selected>ب ط س 3417</option></select></td>
+<td class="excel-input csp-inline-oils-734"><input list="oilsDriversList" type="text" value="أمين العاقل"/></td>
+<td class="excel-input csp-inline-oils-735"><input type="date" value="2025-12-30"/></td>
+<td class="excel-input csp-inline-oils-736"><select class="bz-select2 csp-inline-oils-737" onchange="autoSaveOils()"><option value="150971" selected>150971</option></select></td>
+<td class="excel-input csp-inline-oils-738"><select class="bz-select2 csp-inline-oils-739" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-740"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-741"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">15</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ص ق 6853" selected>ا ص ق 6853</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد عبدالنبي"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-30"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="39867" selected>39867</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-742">15</td>
+<td class="excel-input csp-inline-oils-743"><select class="bz-select2 csp-inline-oils-744" onchange="autoSaveOils()"><option value="ا ص ق 6853" selected>ا ص ق 6853</option></select></td>
+<td class="excel-input csp-inline-oils-745"><input list="oilsDriversList" type="text" value="محمد عبدالنبي"/></td>
+<td class="excel-input csp-inline-oils-746"><input type="date" value="2025-12-30"/></td>
+<td class="excel-input csp-inline-oils-747"><select class="bz-select2 csp-inline-oils-748" onchange="autoSaveOils()"><option value="39867" selected>39867</option></select></td>
+<td class="excel-input csp-inline-oils-749"><select class="bz-select2 csp-inline-oils-750" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-751"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-752"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">16</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ص ق 6855" selected>ا ص ق 6855</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد المندوه"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2025-12-30"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="37237" selected>37237</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-753">16</td>
+<td class="excel-input csp-inline-oils-754"><select class="bz-select2 csp-inline-oils-755" onchange="autoSaveOils()"><option value="ا ص ق 6855" selected>ا ص ق 6855</option></select></td>
+<td class="excel-input csp-inline-oils-756"><input list="oilsDriversList" type="text" value="محمد المندوه"/></td>
+<td class="excel-input csp-inline-oils-757"><input type="date" value="2025-12-30"/></td>
+<td class="excel-input csp-inline-oils-758"><select class="bz-select2 csp-inline-oils-759" onchange="autoSaveOils()"><option value="37237" selected>37237</option></select></td>
+<td class="excel-input csp-inline-oils-760"><select class="bz-select2 csp-inline-oils-761" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-762"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-763"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">17</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ب ق 4868" selected>ب ب ق 4868</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مانو رشيد"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-01"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="694544" selected>694544</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-764">17</td>
+<td class="excel-input csp-inline-oils-765"><select class="bz-select2 csp-inline-oils-766" onchange="autoSaveOils()"><option value="ب ب ق 4868" selected>ب ب ق 4868</option></select></td>
+<td class="excel-input csp-inline-oils-767"><input list="oilsDriversList" type="text" value="مانو رشيد"/></td>
+<td class="excel-input csp-inline-oils-768"><input type="date" value="2026-01-01"/></td>
+<td class="excel-input csp-inline-oils-769"><select class="bz-select2 csp-inline-oils-770" onchange="autoSaveOils()"><option value="694544" selected>694544</option></select></td>
+<td class="excel-input csp-inline-oils-771"><select class="bz-select2 csp-inline-oils-772" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-773"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-774"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">18</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8022" selected>ا س م 8022</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="فينود"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-01"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="54419" selected>54419</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-775">18</td>
+<td class="excel-input csp-inline-oils-776"><select class="bz-select2 csp-inline-oils-777" onchange="autoSaveOils()"><option value="ا س م 8022" selected>ا س م 8022</option></select></td>
+<td class="excel-input csp-inline-oils-778"><input list="oilsDriversList" type="text" value="فينود"/></td>
+<td class="excel-input csp-inline-oils-779"><input type="date" value="2026-01-01"/></td>
+<td class="excel-input csp-inline-oils-780"><select class="bz-select2 csp-inline-oils-781" onchange="autoSaveOils()"><option value="54419" selected>54419</option></select></td>
+<td class="excel-input csp-inline-oils-782"><select class="bz-select2 csp-inline-oils-783" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-784"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-785"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">19</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8025" selected>ا س م 8025</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="ثابت قاسم"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-01"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="104005" selected>104005</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-786">19</td>
+<td class="excel-input csp-inline-oils-787"><select class="bz-select2 csp-inline-oils-788" onchange="autoSaveOils()"><option value="ا س م 8025" selected>ا س م 8025</option></select></td>
+<td class="excel-input csp-inline-oils-789"><input list="oilsDriversList" type="text" value="ثابت قاسم"/></td>
+<td class="excel-input csp-inline-oils-790"><input type="date" value="2026-01-01"/></td>
+<td class="excel-input csp-inline-oils-791"><select class="bz-select2 csp-inline-oils-792" onchange="autoSaveOils()"><option value="104005" selected>104005</option></select></td>
+<td class="excel-input csp-inline-oils-793"><select class="bz-select2 csp-inline-oils-794" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-795"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-796"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">20</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر ع 2232" selected>ا ر ع 2232</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="انيل كومار"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-03"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="207192" selected>207192</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت 1 هواء"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-797">20</td>
+<td class="excel-input csp-inline-oils-798"><select class="bz-select2 csp-inline-oils-799" onchange="autoSaveOils()"><option value="ا ر ع 2232" selected>ا ر ع 2232</option></select></td>
+<td class="excel-input csp-inline-oils-800"><input list="oilsDriversList" type="text" value="انيل كومار"/></td>
+<td class="excel-input csp-inline-oils-801"><input type="date" value="2026-01-03"/></td>
+<td class="excel-input csp-inline-oils-802"><select class="bz-select2 csp-inline-oils-803" onchange="autoSaveOils()"><option value="207192" selected>207192</option></select></td>
+<td class="excel-input csp-inline-oils-804"><select class="bz-select2 csp-inline-oils-805" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-806"><input type="text" value="1 زيت 1 هواء"/></td>
+<td class="csp-inline-oils-807"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">21</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8033" selected>ا س م 8033</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="سايفول"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-03"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="33686" selected>33686</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-808">21</td>
+<td class="excel-input csp-inline-oils-809"><select class="bz-select2 csp-inline-oils-810" onchange="autoSaveOils()"><option value="ا س م 8033" selected>ا س م 8033</option></select></td>
+<td class="excel-input csp-inline-oils-811"><input list="oilsDriversList" type="text" value="سايفول"/></td>
+<td class="excel-input csp-inline-oils-812"><input type="date" value="2026-01-03"/></td>
+<td class="excel-input csp-inline-oils-813"><select class="bz-select2 csp-inline-oils-814" onchange="autoSaveOils()"><option value="33686" selected>33686</option></select></td>
+<td class="excel-input csp-inline-oils-815"><select class="bz-select2 csp-inline-oils-816" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-817"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-818"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">22</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا و ب 2759" selected>ا و ب 2759</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="جفري"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-05"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="537158" selected>537158</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-819">22</td>
+<td class="excel-input csp-inline-oils-820"><select class="bz-select2 csp-inline-oils-821" onchange="autoSaveOils()"><option value="ا و ب 2759" selected>ا و ب 2759</option></select></td>
+<td class="excel-input csp-inline-oils-822"><input list="oilsDriversList" type="text" value="جفري"/></td>
+<td class="excel-input csp-inline-oils-823"><input type="date" value="2026-01-05"/></td>
+<td class="excel-input csp-inline-oils-824"><select class="bz-select2 csp-inline-oils-825" onchange="autoSaveOils()"><option value="537158" selected>537158</option></select></td>
+<td class="excel-input csp-inline-oils-826"><select class="bz-select2 csp-inline-oils-827" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-828"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-829"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">23</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4085" selected>ا ر و 4085</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="أنور"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-05"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="338064" selected>338064</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-830">23</td>
+<td class="excel-input csp-inline-oils-831"><select class="bz-select2 csp-inline-oils-832" onchange="autoSaveOils()"><option value="ا ر و 4085" selected>ا ر و 4085</option></select></td>
+<td class="excel-input csp-inline-oils-833"><input list="oilsDriversList" type="text" value="أنور"/></td>
+<td class="excel-input csp-inline-oils-834"><input type="date" value="2026-01-05"/></td>
+<td class="excel-input csp-inline-oils-835"><select class="bz-select2 csp-inline-oils-836" onchange="autoSaveOils()"><option value="338064" selected>338064</option></select></td>
+<td class="excel-input csp-inline-oils-837"><select class="bz-select2 csp-inline-oils-838" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-839"><input type="text" value="1 هواء"/></td>
+<td class="csp-inline-oils-840"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">24</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8021" selected>ا س م 8021</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="احمد"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-05"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="96519" selected>96519</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-841">24</td>
+<td class="excel-input csp-inline-oils-842"><select class="bz-select2 csp-inline-oils-843" onchange="autoSaveOils()"><option value="ا س م 8021" selected>ا س م 8021</option></select></td>
+<td class="excel-input csp-inline-oils-844"><input list="oilsDriversList" type="text" value="احمد"/></td>
+<td class="excel-input csp-inline-oils-845"><input type="date" value="2026-01-05"/></td>
+<td class="excel-input csp-inline-oils-846"><select class="bz-select2 csp-inline-oils-847" onchange="autoSaveOils()"><option value="96519" selected>96519</option></select></td>
+<td class="excel-input csp-inline-oils-848"><select class="bz-select2 csp-inline-oils-849" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-850"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-851"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">25</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8717" selected>ا س ح 8717</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="اسف"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-06"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="161847" selected>161847</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-852">25</td>
+<td class="excel-input csp-inline-oils-853"><select class="bz-select2 csp-inline-oils-854" onchange="autoSaveOils()"><option value="ا س ح 8717" selected>ا س ح 8717</option></select></td>
+<td class="excel-input csp-inline-oils-855"><input list="oilsDriversList" type="text" value="اسف"/></td>
+<td class="excel-input csp-inline-oils-856"><input type="date" value="2026-01-06"/></td>
+<td class="excel-input csp-inline-oils-857"><select class="bz-select2 csp-inline-oils-858" onchange="autoSaveOils()"><option value="161847" selected>161847</option></select></td>
+<td class="excel-input csp-inline-oils-859"><select class="bz-select2 csp-inline-oils-860" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-861"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-862"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">26</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8024" selected>ا س م 8024</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عبدالصبور"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-07"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="106127" selected>106127</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-863">26</td>
+<td class="excel-input csp-inline-oils-864"><select class="bz-select2 csp-inline-oils-865" onchange="autoSaveOils()"><option value="ا س م 8024" selected>ا س م 8024</option></select></td>
+<td class="excel-input csp-inline-oils-866"><input list="oilsDriversList" type="text" value="عبدالصبور"/></td>
+<td class="excel-input csp-inline-oils-867"><input type="date" value="2026-01-07"/></td>
+<td class="excel-input csp-inline-oils-868"><select class="bz-select2 csp-inline-oils-869" onchange="autoSaveOils()"><option value="106127" selected>106127</option></select></td>
+<td class="excel-input csp-inline-oils-870"><select class="bz-select2 csp-inline-oils-871" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-872"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-873"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">27</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4084" selected>ا ر و 4084</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="راجا"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-08"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="176033" selected>176033</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-874">27</td>
+<td class="excel-input csp-inline-oils-875"><select class="bz-select2 csp-inline-oils-876" onchange="autoSaveOils()"><option value="ا ر و 4084" selected>ا ر و 4084</option></select></td>
+<td class="excel-input csp-inline-oils-877"><input list="oilsDriversList" type="text" value="راجا"/></td>
+<td class="excel-input csp-inline-oils-878"><input type="date" value="2026-01-08"/></td>
+<td class="excel-input csp-inline-oils-879"><select class="bz-select2 csp-inline-oils-880" onchange="autoSaveOils()"><option value="176033" selected>176033</option></select></td>
+<td class="excel-input csp-inline-oils-881"><select class="bz-select2 csp-inline-oils-882" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-883"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-884"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">28</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3263" selected>ب ط س 3263</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="روبيل"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-10"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="23899HR" selected>23899HR</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 هواء"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-885">28</td>
+<td class="excel-input csp-inline-oils-886"><select class="bz-select2 csp-inline-oils-887" onchange="autoSaveOils()"><option value="ب ط س 3263" selected>ب ط س 3263</option></select></td>
+<td class="excel-input csp-inline-oils-888"><input list="oilsDriversList" type="text" value="روبيل"/></td>
+<td class="excel-input csp-inline-oils-889"><input type="date" value="2026-01-10"/></td>
+<td class="excel-input csp-inline-oils-890"><select class="bz-select2 csp-inline-oils-891" onchange="autoSaveOils()"><option value="23899HR" selected>23899HR</option></select></td>
+<td class="excel-input csp-inline-oils-892"><select class="bz-select2 csp-inline-oils-893" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-894"><input type="text" value="1 هواء"/></td>
+<td class="csp-inline-oils-895"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">29</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا و ب 2760" selected>ا و ب 2760</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="فهاد"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-11"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="596000" selected>596000</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-896">29</td>
+<td class="excel-input csp-inline-oils-897"><select class="bz-select2 csp-inline-oils-898" onchange="autoSaveOils()"><option value="ا و ب 2760" selected>ا و ب 2760</option></select></td>
+<td class="excel-input csp-inline-oils-899"><input list="oilsDriversList" type="text" value="فهاد"/></td>
+<td class="excel-input csp-inline-oils-900"><input type="date" value="2026-01-11"/></td>
+<td class="excel-input csp-inline-oils-901"><select class="bz-select2 csp-inline-oils-902" onchange="autoSaveOils()"><option value="596000" selected>596000</option></select></td>
+<td class="excel-input csp-inline-oils-903"><select class="bz-select2 csp-inline-oils-904" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-905"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-906"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">30</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4140" selected>ا ر و 4140</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="سيراج"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-11"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="79332" selected>79332</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-907">30</td>
+<td class="excel-input csp-inline-oils-908"><select class="bz-select2 csp-inline-oils-909" onchange="autoSaveOils()"><option value="ا ر و 4140" selected>ا ر و 4140</option></select></td>
+<td class="excel-input csp-inline-oils-910"><input list="oilsDriversList" type="text" value="سيراج"/></td>
+<td class="excel-input csp-inline-oils-911"><input type="date" value="2026-01-11"/></td>
+<td class="excel-input csp-inline-oils-912"><select class="bz-select2 csp-inline-oils-913" onchange="autoSaveOils()"><option value="79332" selected>79332</option></select></td>
+<td class="excel-input csp-inline-oils-914"><select class="bz-select2 csp-inline-oils-915" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-916"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-917"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">31</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ق 7920" selected>ا س ق 7920</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مزايد"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-12"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="476697" selected>476697</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-918">31</td>
+<td class="excel-input csp-inline-oils-919"><select class="bz-select2 csp-inline-oils-920" onchange="autoSaveOils()"><option value="ا س ق 7920" selected>ا س ق 7920</option></select></td>
+<td class="excel-input csp-inline-oils-921"><input list="oilsDriversList" type="text" value="مزايد"/></td>
+<td class="excel-input csp-inline-oils-922"><input type="date" value="2026-01-12"/></td>
+<td class="excel-input csp-inline-oils-923"><select class="bz-select2 csp-inline-oils-924" onchange="autoSaveOils()"><option value="476697" selected>476697</option></select></td>
+<td class="excel-input csp-inline-oils-925"><select class="bz-select2 csp-inline-oils-926" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-927"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-928"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">32</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر ع 2240" selected>ا ر ع 2240</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="نديم"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-12"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="213070" selected>213070</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-929">32</td>
+<td class="excel-input csp-inline-oils-930"><select class="bz-select2 csp-inline-oils-931" onchange="autoSaveOils()"><option value="ا ر ع 2240" selected>ا ر ع 2240</option></select></td>
+<td class="excel-input csp-inline-oils-932"><input list="oilsDriversList" type="text" value="نديم"/></td>
+<td class="excel-input csp-inline-oils-933"><input type="date" value="2026-01-12"/></td>
+<td class="excel-input csp-inline-oils-934"><select class="bz-select2 csp-inline-oils-935" onchange="autoSaveOils()"><option value="213070" selected>213070</option></select></td>
+<td class="excel-input csp-inline-oils-936"><select class="bz-select2 csp-inline-oils-937" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-938"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-939"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">33</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8015" selected>ا س م 8015</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="علاء"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-13"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="30420" selected>30420</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-940">33</td>
+<td class="excel-input csp-inline-oils-941"><select class="bz-select2 csp-inline-oils-942" onchange="autoSaveOils()"><option value="ا س م 8015" selected>ا س م 8015</option></select></td>
+<td class="excel-input csp-inline-oils-943"><input list="oilsDriversList" type="text" value="علاء"/></td>
+<td class="excel-input csp-inline-oils-944"><input type="date" value="2026-01-13"/></td>
+<td class="excel-input csp-inline-oils-945"><select class="bz-select2 csp-inline-oils-946" onchange="autoSaveOils()"><option value="30420" selected>30420</option></select></td>
+<td class="excel-input csp-inline-oils-947"><select class="bz-select2 csp-inline-oils-948" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-949"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-950"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">34</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3478" selected>ب ط س 3478</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="تنفير حسين"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-13"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="97217" selected>97217</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-951">34</td>
+<td class="excel-input csp-inline-oils-952"><select class="bz-select2 csp-inline-oils-953" onchange="autoSaveOils()"><option value="ب ط س 3478" selected>ب ط س 3478</option></select></td>
+<td class="excel-input csp-inline-oils-954"><input list="oilsDriversList" type="text" value="تنفير حسين"/></td>
+<td class="excel-input csp-inline-oils-955"><input type="date" value="2026-01-13"/></td>
+<td class="excel-input csp-inline-oils-956"><select class="bz-select2 csp-inline-oils-957" onchange="autoSaveOils()"><option value="97217" selected>97217</option></select></td>
+<td class="excel-input csp-inline-oils-958"><select class="bz-select2 csp-inline-oils-959" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-960"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-961"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">35</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8670" selected>ا س ح 8670</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="سليم اختر"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-13"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="134468" selected>134468</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-962">35</td>
+<td class="excel-input csp-inline-oils-963"><select class="bz-select2 csp-inline-oils-964" onchange="autoSaveOils()"><option value="ا س ح 8670" selected>ا س ح 8670</option></select></td>
+<td class="excel-input csp-inline-oils-965"><input list="oilsDriversList" type="text" value="سليم اختر"/></td>
+<td class="excel-input csp-inline-oils-966"><input type="date" value="2026-01-13"/></td>
+<td class="excel-input csp-inline-oils-967"><select class="bz-select2 csp-inline-oils-968" onchange="autoSaveOils()"><option value="134468" selected>134468</option></select></td>
+<td class="excel-input csp-inline-oils-969"><select class="bz-select2 csp-inline-oils-970" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-971"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-972"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">36</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ق 7821" selected>ا س ق 7821</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="شوكت علي"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-14"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="591254" selected>591254</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-973">36</td>
+<td class="excel-input csp-inline-oils-974"><select class="bz-select2 csp-inline-oils-975" onchange="autoSaveOils()"><option value="ا س ق 7821" selected>ا س ق 7821</option></select></td>
+<td class="excel-input csp-inline-oils-976"><input list="oilsDriversList" type="text" value="شوكت علي"/></td>
+<td class="excel-input csp-inline-oils-977"><input type="date" value="2026-01-14"/></td>
+<td class="excel-input csp-inline-oils-978"><select class="bz-select2 csp-inline-oils-979" onchange="autoSaveOils()"><option value="591254" selected>591254</option></select></td>
+<td class="excel-input csp-inline-oils-980"><select class="bz-select2 csp-inline-oils-981" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-982"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-983"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">37</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8715" selected>ا س ح 8715</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد عاطف"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-17"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="121994" selected>121994</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-984">37</td>
+<td class="excel-input csp-inline-oils-985"><select class="bz-select2 csp-inline-oils-986" onchange="autoSaveOils()"><option value="ا س ح 8715" selected>ا س ح 8715</option></select></td>
+<td class="excel-input csp-inline-oils-987"><input list="oilsDriversList" type="text" value="محمد عاطف"/></td>
+<td class="excel-input csp-inline-oils-988"><input type="date" value="2026-01-17"/></td>
+<td class="excel-input csp-inline-oils-989"><select class="bz-select2 csp-inline-oils-990" onchange="autoSaveOils()"><option value="121994" selected>121994</option></select></td>
+<td class="excel-input csp-inline-oils-991"><select class="bz-select2 csp-inline-oils-992" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-993"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-994"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">38</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ق 7776" selected>ا س ق 7776</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="رفيق "/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-17"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="340474" selected>340474</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-995">38</td>
+<td class="excel-input csp-inline-oils-996"><select class="bz-select2 csp-inline-oils-997" onchange="autoSaveOils()"><option value="ا س ق 7776" selected>ا س ق 7776</option></select></td>
+<td class="excel-input csp-inline-oils-998"><input list="oilsDriversList" type="text" value="رفيق "/></td>
+<td class="excel-input csp-inline-oils-999"><input type="date" value="2026-01-17"/></td>
+<td class="excel-input csp-inline-oils-1000"><select class="bz-select2 csp-inline-oils-1001" onchange="autoSaveOils()"><option value="340474" selected>340474</option></select></td>
+<td class="excel-input csp-inline-oils-1002"><select class="bz-select2 csp-inline-oils-1003" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-1004"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-1005"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">39</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ص ط 9959" selected>ب ص ط 9959</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد عاطف"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-18"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="220976" selected>220976</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1006">39</td>
+<td class="excel-input csp-inline-oils-1007"><select class="bz-select2 csp-inline-oils-1008" onchange="autoSaveOils()"><option value="ب ص ط 9959" selected>ب ص ط 9959</option></select></td>
+<td class="excel-input csp-inline-oils-1009"><input list="oilsDriversList" type="text" value="محمد عاطف"/></td>
+<td class="excel-input csp-inline-oils-1010"><input type="date" value="2026-01-18"/></td>
+<td class="excel-input csp-inline-oils-1011"><select class="bz-select2 csp-inline-oils-1012" onchange="autoSaveOils()"><option value="220976" selected>220976</option></select></td>
+<td class="excel-input csp-inline-oils-1013"><select class="bz-select2 csp-inline-oils-1014" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-1015"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1016"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">40</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب د ل 7208" selected>ب د ل 7208</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="احمد "/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-19"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="453407" selected>453407</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1017">40</td>
+<td class="excel-input csp-inline-oils-1018"><select class="bz-select2 csp-inline-oils-1019" onchange="autoSaveOils()"><option value="ب د ل 7208" selected>ب د ل 7208</option></select></td>
+<td class="excel-input csp-inline-oils-1020"><input list="oilsDriversList" type="text" value="احمد "/></td>
+<td class="excel-input csp-inline-oils-1021"><input type="date" value="2026-01-19"/></td>
+<td class="excel-input csp-inline-oils-1022"><select class="bz-select2 csp-inline-oils-1023" onchange="autoSaveOils()"><option value="453407" selected>453407</option></select></td>
+<td class="excel-input csp-inline-oils-1024"><select class="bz-select2 csp-inline-oils-1025" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-1026"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1027"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">41</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ص ق 6853" selected>ا ص ق 6853</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عبدالنبي"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-22"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="45058" selected>45058</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1028">41</td>
+<td class="excel-input csp-inline-oils-1029"><select class="bz-select2 csp-inline-oils-1030" onchange="autoSaveOils()"><option value="ا ص ق 6853" selected>ا ص ق 6853</option></select></td>
+<td class="excel-input csp-inline-oils-1031"><input list="oilsDriversList" type="text" value="عبدالنبي"/></td>
+<td class="excel-input csp-inline-oils-1032"><input type="date" value="2026-01-22"/></td>
+<td class="excel-input csp-inline-oils-1033"><select class="bz-select2 csp-inline-oils-1034" onchange="autoSaveOils()"><option value="45058" selected>45058</option></select></td>
+<td class="excel-input csp-inline-oils-1035"><select class="bz-select2 csp-inline-oils-1036" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-1037"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-1038"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">42</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر ع 2234" selected>ا ر ع 2234</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="شامجي"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-25"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="217240" selected>217240</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1039">42</td>
+<td class="excel-input csp-inline-oils-1040"><select class="bz-select2 csp-inline-oils-1041" onchange="autoSaveOils()"><option value="ا ر ع 2234" selected>ا ر ع 2234</option></select></td>
+<td class="excel-input csp-inline-oils-1042"><input list="oilsDriversList" type="text" value="شامجي"/></td>
+<td class="excel-input csp-inline-oils-1043"><input type="date" value="2026-01-25"/></td>
+<td class="excel-input csp-inline-oils-1044"><select class="bz-select2 csp-inline-oils-1045" onchange="autoSaveOils()"><option value="217240" selected>217240</option></select></td>
+<td class="excel-input csp-inline-oils-1046"><select class="bz-select2 csp-inline-oils-1047" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-1048"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1049"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">43</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4071" selected>ا ر و 4071</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كرم"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-25"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="152697" selected>152697</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1050">43</td>
+<td class="excel-input csp-inline-oils-1051"><select class="bz-select2 csp-inline-oils-1052" onchange="autoSaveOils()"><option value="ا ر و 4071" selected>ا ر و 4071</option></select></td>
+<td class="excel-input csp-inline-oils-1053"><input list="oilsDriversList" type="text" value="كرم"/></td>
+<td class="excel-input csp-inline-oils-1054"><input type="date" value="2026-01-25"/></td>
+<td class="excel-input csp-inline-oils-1055"><select class="bz-select2 csp-inline-oils-1056" onchange="autoSaveOils()"><option value="152697" selected>152697</option></select></td>
+<td class="excel-input csp-inline-oils-1057"><select class="bz-select2 csp-inline-oils-1058" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-1059"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1060"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">44</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8013" selected>ا س م 8013</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="شيمون"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-26"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="373680" selected>373680</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1061">44</td>
+<td class="excel-input csp-inline-oils-1062"><select class="bz-select2 csp-inline-oils-1063" onchange="autoSaveOils()"><option value="ا س م 8013" selected>ا س م 8013</option></select></td>
+<td class="excel-input csp-inline-oils-1064"><input list="oilsDriversList" type="text" value="شيمون"/></td>
+<td class="excel-input csp-inline-oils-1065"><input type="date" value="2026-01-26"/></td>
+<td class="excel-input csp-inline-oils-1066"><select class="bz-select2 csp-inline-oils-1067" onchange="autoSaveOils()"><option value="373680" selected>373680</option></select></td>
+<td class="excel-input csp-inline-oils-1068"><select class="bz-select2 csp-inline-oils-1069" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-1070"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1071"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">45</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ب ق 4866" selected>ب ب ق 4866</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="محمد باشا"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-27"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="723125" selected>723125</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1072">45</td>
+<td class="excel-input csp-inline-oils-1073"><select class="bz-select2 csp-inline-oils-1074" onchange="autoSaveOils()"><option value="ب ب ق 4866" selected>ب ب ق 4866</option></select></td>
+<td class="excel-input csp-inline-oils-1075"><input list="oilsDriversList" type="text" value="محمد باشا"/></td>
+<td class="excel-input csp-inline-oils-1076"><input type="date" value="2026-01-27"/></td>
+<td class="excel-input csp-inline-oils-1077"><select class="bz-select2 csp-inline-oils-1078" onchange="autoSaveOils()"><option value="723125" selected>723125</option></select></td>
+<td class="excel-input csp-inline-oils-1079"><select class="bz-select2 csp-inline-oils-1080" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-1081"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1082"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">46</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3258" selected>ب ط س 3258</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حمداني"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-28"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="129089" selected>129089</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1083">46</td>
+<td class="excel-input csp-inline-oils-1084"><select class="bz-select2 csp-inline-oils-1085" onchange="autoSaveOils()"><option value="ب ط س 3258" selected>ب ط س 3258</option></select></td>
+<td class="excel-input csp-inline-oils-1086"><input list="oilsDriversList" type="text" value="حمداني"/></td>
+<td class="excel-input csp-inline-oils-1087"><input type="date" value="2026-01-28"/></td>
+<td class="excel-input csp-inline-oils-1088"><select class="bz-select2 csp-inline-oils-1089" onchange="autoSaveOils()"><option value="129089" selected>129089</option></select></td>
+<td class="excel-input csp-inline-oils-1090"><select class="bz-select2 csp-inline-oils-1091" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-1092"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1093"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">47</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3261" selected>ب ط س 3261</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حسن"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-28"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="118161" selected>118161</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1094">47</td>
+<td class="excel-input csp-inline-oils-1095"><select class="bz-select2 csp-inline-oils-1096" onchange="autoSaveOils()"><option value="ب ط س 3261" selected>ب ط س 3261</option></select></td>
+<td class="excel-input csp-inline-oils-1097"><input list="oilsDriversList" type="text" value="حسن"/></td>
+<td class="excel-input csp-inline-oils-1098"><input type="date" value="2026-01-28"/></td>
+<td class="excel-input csp-inline-oils-1099"><select class="bz-select2 csp-inline-oils-1100" onchange="autoSaveOils()"><option value="118161" selected>118161</option></select></td>
+<td class="excel-input csp-inline-oils-1101"><select class="bz-select2 csp-inline-oils-1102" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-1103"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1104"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">48</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا ر و 4085" selected>ا ر و 4085</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="أنور"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-31"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="344134" selected>344134</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1105">48</td>
+<td class="excel-input csp-inline-oils-1106"><select class="bz-select2 csp-inline-oils-1107" onchange="autoSaveOils()"><option value="ا ر و 4085" selected>ا ر و 4085</option></select></td>
+<td class="excel-input csp-inline-oils-1108"><input list="oilsDriversList" type="text" value="أنور"/></td>
+<td class="excel-input csp-inline-oils-1109"><input type="date" value="2026-01-31"/></td>
+<td class="excel-input csp-inline-oils-1110"><select class="bz-select2 csp-inline-oils-1111" onchange="autoSaveOils()"><option value="344134" selected>344134</option></select></td>
+<td class="excel-input csp-inline-oils-1112"><select class="bz-select2 csp-inline-oils-1113" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-1114"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1115"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">49</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ح ه 5088" selected>ب ح ه 5088</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="حسام"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-31"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="351129" selected>351129</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1116">49</td>
+<td class="excel-input csp-inline-oils-1117"><select class="bz-select2 csp-inline-oils-1118" onchange="autoSaveOils()"><option value="ب ح ه 5088" selected>ب ح ه 5088</option></select></td>
+<td class="excel-input csp-inline-oils-1119"><input list="oilsDriversList" type="text" value="حسام"/></td>
+<td class="excel-input csp-inline-oils-1120"><input type="date" value="2026-01-31"/></td>
+<td class="excel-input csp-inline-oils-1121"><select class="bz-select2 csp-inline-oils-1122" onchange="autoSaveOils()"><option value="351129" selected>351129</option></select></td>
+<td class="excel-input csp-inline-oils-1123"><select class="bz-select2 csp-inline-oils-1124" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-1125"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1126"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">50</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ح 8717" selected>ا س ح 8717</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="اسف"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-01-31"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="166994" selected>166994</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1127">50</td>
+<td class="excel-input csp-inline-oils-1128"><select class="bz-select2 csp-inline-oils-1129" onchange="autoSaveOils()"><option value="ا س ح 8717" selected>ا س ح 8717</option></select></td>
+<td class="excel-input csp-inline-oils-1130"><input list="oilsDriversList" type="text" value="اسف"/></td>
+<td class="excel-input csp-inline-oils-1131"><input type="date" value="2026-01-31"/></td>
+<td class="excel-input csp-inline-oils-1132"><select class="bz-select2 csp-inline-oils-1133" onchange="autoSaveOils()"><option value="166994" selected>166994</option></select></td>
+<td class="excel-input csp-inline-oils-1134"><select class="bz-select2 csp-inline-oils-1135" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-1136"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1137"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">51</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ب ق 4868" selected>ب ب ق 4868</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="رشيد"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-01"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="700040" selected>700040</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="1 زيت"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1138">51</td>
+<td class="excel-input csp-inline-oils-1139"><select class="bz-select2 csp-inline-oils-1140" onchange="autoSaveOils()"><option value="ب ب ق 4868" selected>ب ب ق 4868</option></select></td>
+<td class="excel-input csp-inline-oils-1141"><input list="oilsDriversList" type="text" value="رشيد"/></td>
+<td class="excel-input csp-inline-oils-1142"><input type="date" value="2026-02-01"/></td>
+<td class="excel-input csp-inline-oils-1143"><select class="bz-select2 csp-inline-oils-1144" onchange="autoSaveOils()"><option value="700040" selected>700040</option></select></td>
+<td class="excel-input csp-inline-oils-1145"><select class="bz-select2 csp-inline-oils-1146" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-1147"><input type="text" value="1 زيت"/></td>
+<td class="csp-inline-oils-1148"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">52</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8031" selected>ا س م 8031</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="عمران"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-01"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="63040" selected>63040</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1149">52</td>
+<td class="excel-input csp-inline-oils-1150"><select class="bz-select2 csp-inline-oils-1151" onchange="autoSaveOils()"><option value="ا س م 8031" selected>ا س م 8031</option></select></td>
+<td class="excel-input csp-inline-oils-1152"><input list="oilsDriversList" type="text" value="عمران"/></td>
+<td class="excel-input csp-inline-oils-1153"><input type="date" value="2026-02-01"/></td>
+<td class="excel-input csp-inline-oils-1154"><select class="bz-select2 csp-inline-oils-1155" onchange="autoSaveOils()"><option value="63040" selected>63040</option></select></td>
+<td class="excel-input csp-inline-oils-1156"><select class="bz-select2 csp-inline-oils-1157" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-1158"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1159"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">53</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8022" selected>ا س م 8022</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مزايد "/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-04"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="62728" selected>62728</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1160">53</td>
+<td class="excel-input csp-inline-oils-1161"><select class="bz-select2 csp-inline-oils-1162" onchange="autoSaveOils()"><option value="ا س م 8022" selected>ا س م 8022</option></select></td>
+<td class="excel-input csp-inline-oils-1163"><input list="oilsDriversList" type="text" value="مزايد "/></td>
+<td class="excel-input csp-inline-oils-1164"><input type="date" value="2026-02-04"/></td>
+<td class="excel-input csp-inline-oils-1165"><select class="bz-select2 csp-inline-oils-1166" onchange="autoSaveOils()"><option value="62728" selected>62728</option></select></td>
+<td class="excel-input csp-inline-oils-1167"><select class="bz-select2 csp-inline-oils-1168" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-1169"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1170"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">54</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب س ل 5541" selected>ب س ل 5541</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="كريم"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-04"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="215939" selected>215939</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1171">54</td>
+<td class="excel-input csp-inline-oils-1172"><select class="bz-select2 csp-inline-oils-1173" onchange="autoSaveOils()"><option value="ب س ل 5541" selected>ب س ل 5541</option></select></td>
+<td class="excel-input csp-inline-oils-1174"><input list="oilsDriversList" type="text" value="كريم"/></td>
+<td class="excel-input csp-inline-oils-1175"><input type="date" value="2026-02-04"/></td>
+<td class="excel-input csp-inline-oils-1176"><select class="bz-select2 csp-inline-oils-1177" onchange="autoSaveOils()"><option value="215939" selected>215939</option></select></td>
+<td class="excel-input csp-inline-oils-1178"><select class="bz-select2 csp-inline-oils-1179" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-1180"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1181"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">55</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س م 8025" selected>ا س م 8025</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="ثابت"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-05"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="109267" selected>109267</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1182">55</td>
+<td class="excel-input csp-inline-oils-1183"><select class="bz-select2 csp-inline-oils-1184" onchange="autoSaveOils()"><option value="ا س م 8025" selected>ا س م 8025</option></select></td>
+<td class="excel-input csp-inline-oils-1185"><input list="oilsDriversList" type="text" value="ثابت"/></td>
+<td class="excel-input csp-inline-oils-1186"><input type="date" value="2026-02-05"/></td>
+<td class="excel-input csp-inline-oils-1187"><select class="bz-select2 csp-inline-oils-1188" onchange="autoSaveOils()"><option value="109267" selected>109267</option></select></td>
+<td class="excel-input csp-inline-oils-1189"><select class="bz-select2 csp-inline-oils-1190" onchange="autoSaveOils()"><option value="15" selected>15</option></select></td>
+<td class="excel-input csp-inline-oils-1191"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1192"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">56</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ا س ر 8873" selected>ا س ر 8873</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="احمد دنقل"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-07"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="81843" selected>81843</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1193">56</td>
+<td class="excel-input csp-inline-oils-1194"><select class="bz-select2 csp-inline-oils-1195" onchange="autoSaveOils()"><option value="ا س ر 8873" selected>ا س ر 8873</option></select></td>
+<td class="excel-input csp-inline-oils-1196"><input list="oilsDriversList" type="text" value="احمد دنقل"/></td>
+<td class="excel-input csp-inline-oils-1197"><input type="date" value="2026-02-07"/></td>
+<td class="excel-input csp-inline-oils-1198"><select class="bz-select2 csp-inline-oils-1199" onchange="autoSaveOils()"><option value="81843" selected>81843</option></select></td>
+<td class="excel-input csp-inline-oils-1200"><select class="bz-select2 csp-inline-oils-1201" onchange="autoSaveOils()"><option value="12" selected>12</option></select></td>
+<td class="excel-input csp-inline-oils-1202"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1203"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">57</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="ب ط س 3263" selected>ب ط س 3263</option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value="مامون مياه"/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value="2026-02-07"/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="138540" selected>138540</option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value="0"/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1204">57</td>
+<td class="excel-input csp-inline-oils-1205"><select class="bz-select2 csp-inline-oils-1206" onchange="autoSaveOils()"><option value="ب ط س 3263" selected>ب ط س 3263</option></select></td>
+<td class="excel-input csp-inline-oils-1207"><input list="oilsDriversList" type="text" value="مامون مياه"/></td>
+<td class="excel-input csp-inline-oils-1208"><input type="date" value="2026-02-07"/></td>
+<td class="excel-input csp-inline-oils-1209"><select class="bz-select2 csp-inline-oils-1210" onchange="autoSaveOils()"><option value="138540" selected>138540</option></select></td>
+<td class="excel-input csp-inline-oils-1211"><select class="bz-select2 csp-inline-oils-1212" onchange="autoSaveOils()"><option value="7" selected>7</option></select></td>
+<td class="excel-input csp-inline-oils-1213"><input type="text" value="0"/></td>
+<td class="csp-inline-oils-1214"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 <tr>
-<td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">58</td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="" selected></option></select></td>
-<td class="excel-input" style="width:18%;"><input list="oilsDriversList" type="text" value=""/></td>
-<td class="excel-input" style="width:14%;"><input type="date" value=""/></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="" selected></option></select></td>
-<td class="excel-input" style="width:12%;"><select class="bz-select2" style="width:100%;" onchange="autoSaveOils()"><option value="" selected></option></select></td>
-<td class="excel-input" style="width:30%;"><input type="text" value=""/></td>
-<td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
+<td class="csp-inline-oils-1215">58</td>
+<td class="excel-input csp-inline-oils-1216"><select class="bz-select2 csp-inline-oils-1217" onchange="autoSaveOils()"><option value="" selected></option></select></td>
+<td class="excel-input csp-inline-oils-1218"><input list="oilsDriversList" type="text" value=""/></td>
+<td class="excel-input csp-inline-oils-1219"><input type="date" value=""/></td>
+<td class="excel-input csp-inline-oils-1220"><select class="bz-select2 csp-inline-oils-1221" onchange="autoSaveOils()"><option value="" selected></option></select></td>
+<td class="excel-input csp-inline-oils-1222"><select class="bz-select2 csp-inline-oils-1223" onchange="autoSaveOils()"><option value="" selected></option></select></td>
+<td class="excel-input csp-inline-oils-1224"><input type="text" value=""/></td>
+<td class="csp-inline-oils-1225"><button class="btn-del" onclick="deleteRow(this)" title="حذف الصف">❌</button></td>
 </tr>
 </tbody>
 </table>
 </div>
 <!-- Total Consumed Oils -->
-<div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 20px;">
-<table class="excel-table" style="border: 2px solid var(--border-strong); box-shadow: var(--shadow-sm);">
+<div class="csp-inline-oils-1226">
+<table class="excel-table csp-inline-oils-1227">
 <tr>
-<td style="background-color: var(--brand-navy); color: #fff; font-weight: 800; font-size: 1.2rem; text-align: center; padding: 15px !important; width: 70%; border: 1px solid var(--brand-navy);">إجمالي الزيوت المستهلكة (عدد اللترات)</td>
-<td id="totalOilsLiters" style="background: var(--surface); color: var(--text-primary); font-weight: 900; font-size: 1.5rem; text-align: center; padding: 15px !important; width: 30%; border: 1px solid var(--border-strong);">0</td>
+<td class="csp-inline-oils-1228">إجمالي الزيوت المستهلكة (عدد اللترات)</td>
+<td id="totalOilsLiters" class="csp-inline-oils-1229">0</td>
 </tr>
 </table>
 </div>
 <!-- Summary Section -->
-<div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 20px;">
+<div class="csp-inline-oils-1230">
 <table class="excel-table">
 <tr>
-<td style="background-color: var(--brand-navy); color: #fff; font-weight: bold; text-align: center; padding: 10px !important;">ملاحظات وتفاصيل الفلاتر</td>
+<td class="csp-inline-oils-1231">ملاحظات وتفاصيل الفلاتر</td>
 </tr>
-<tr><td style="border:none; height:10px;"></td></tr>
+<tr><td class="csp-inline-oils-1232"></td></tr>
 <tr>
-<td class="excel-input"><input style="text-align: right; padding-right: 15px;" type="text" value="شراء عدد 3 براميل زيت (بترومين) من تاريخ 2025/12/17 الى تاريخ 2026/2/7"/></td>
-</tr>
-<tr>
-<td class="excel-input"><input style="text-align: right; padding-right: 15px;" type="text" value="الكمية= 625 لتر - 622 زيت مستهلك= 3 لتر المتبقي  |  وبناءا عليه تم طلب زيت جديد"/></td>
+<td class="excel-input"><input type="text" value="شراء عدد 3 براميل زيت (بترومين) من تاريخ 2025/12/17 الى تاريخ 2026/2/7" class="csp-inline-oils-1233"/></td>
 </tr>
 <tr>
-<td class="excel-input"><input style="text-align: right; padding-right: 15px;" type="text" value="شراء فلاتر زيت وديزل جديدة + المتبقي من الفلاتر- يخصم منه ما تم تغييره بالبيان"/></td>
+<td class="excel-input"><input type="text" value="الكمية= 625 لتر - 622 زيت مستهلك= 3 لتر المتبقي  |  وبناءا عليه تم طلب زيت جديد" class="csp-inline-oils-1234"/></td>
+</tr>
+<tr>
+<td class="excel-input"><input type="text" value="شراء فلاتر زيت وديزل جديدة + المتبقي من الفلاتر- يخصم منه ما تم تغييره بالبيان" class="csp-inline-oils-1235"/></td>
 </tr>
 </table>
 </div>
 <!-- Filters Table -->
-<div class="oils-toolbar" data-html2canvas-ignore="true" style="margin: 0 auto 10px auto; max-width:1200px;">
+<div class="oils-toolbar csp-inline-oils-1236" data-html2canvas-ignore="true">
 <button class="btn-primary" onclick="addFilterRow()">＋ إضافة صف للفلاتر (زيت / ديزل / هواء)</button>
 </div>
-<div class="excel-table-container" style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px 20px 20px;">
+<div class="excel-table-container csp-inline-oils-1237">
 <table class="excel-table bz-fit" id="filtersExcelTable">
 <colgroup>
-<col style="width:4%"/><col style="width:20%"/><col style="width:8%"/><col style="width:9%"/><col style="width:9%"/>
-<col style="width:4%"/><col style="width:20%"/><col style="width:8%"/><col style="width:9%"/><col style="width:9%"/>
+<col class="csp-inline-oils-1238"/><col class="csp-inline-oils-1239"/><col class="csp-inline-oils-1240"/><col class="csp-inline-oils-1241"/><col class="csp-inline-oils-1242"/>
+<col class="csp-inline-oils-1243"/><col class="csp-inline-oils-1244"/><col class="csp-inline-oils-1245"/><col class="csp-inline-oils-1246"/><col class="csp-inline-oils-1247"/>
 </colgroup>
 <thead>
 <tr>
-<th class="excel-header" style="width:4%;">م</th>
-<th class="excel-header" style="width:20%;">نوع الفلتر</th>
-<th class="excel-header" style="width:8%;">السابق</th>
-<th class="excel-header" style="width:9%;">المستهلك</th>
-<th class="excel-header" style="width:9%;">المتبقي</th>
-<th class="excel-header" style="width:4%;">م</th>
-<th class="excel-header" style="width:20%;">نوع الفلتر</th>
-<th class="excel-header" style="width:8%;">السابق</th>
-<th class="excel-header" style="width:9%;">المستهلك</th>
-<th class="excel-header" style="width:9%;">المتبقي</th>
+<th class="excel-header csp-inline-oils-1248">م</th>
+<th class="excel-header csp-inline-oils-1249">نوع الفلتر</th>
+<th class="excel-header csp-inline-oils-1250">السابق</th>
+<th class="excel-header csp-inline-oils-1251">المستهلك</th>
+<th class="excel-header csp-inline-oils-1252">المتبقي</th>
+<th class="excel-header csp-inline-oils-1253">م</th>
+<th class="excel-header csp-inline-oils-1254">نوع الفلتر</th>
+<th class="excel-header csp-inline-oils-1255">السابق</th>
+<th class="excel-header csp-inline-oils-1256">المستهلك</th>
+<th class="excel-header csp-inline-oils-1257">المتبقي</th>
 </tr>
 </thead>
 <tbody id="filtersBody">
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">1</td>
+<td class="csp-inline-oils-1258">1</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت ميتسوبيشي لوري "/></td>
 <td class="excel-input"><input type="text" value="8"/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
 <td class="excel-input"><input type="text" value="6"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">19</td>
+<td class="csp-inline-oils-1259">19</td>
 <td class="excel-input"><input type="text" value="فلاتر مكيف تويوتا بك أب"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">2</td>
+<td class="csp-inline-oils-1260">2</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت ميتسوبيشي دينا "/></td>
 <td class="excel-input"><input type="text" value="22"/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
 <td class="excel-input"><input type="text" value="18"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">20</td>
+<td class="csp-inline-oils-1261">20</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء جيب تويوتا"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">3</td>
+<td class="csp-inline-oils-1262">3</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت ايسوزو دينا "/></td>
 <td class="excel-input"><input type="text" value="12"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="11"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">21</td>
+<td class="csp-inline-oils-1263">21</td>
 <td class="excel-input"><input type="text" value="فلاتر مكيف جيب تويوتا"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">4</td>
+<td class="csp-inline-oils-1264">4</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت تويوتا دينا"/></td>
 <td class="excel-input"><input type="text" value="9"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="9"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">22</td>
+<td class="csp-inline-oils-1265">22</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء تويوتا كورولا"/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">5</td>
+<td class="csp-inline-oils-1266">5</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت بك ايسوزو "/></td>
 <td class="excel-input"><input type="text" value="24"/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
 <td class="excel-input"><input type="text" value="20"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">23</td>
+<td class="csp-inline-oils-1267">23</td>
 <td class="excel-input"><input type="text" value="فلاتر مكيف تويوتا كورولا"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">6</td>
+<td class="csp-inline-oils-1268">6</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت بك ميتسوبيشي"/></td>
 <td class="excel-input"><input type="text" value="10"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="10"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">24</td>
+<td class="csp-inline-oils-1269">24</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء فوركلفت تويوتا "/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">7</td>
+<td class="csp-inline-oils-1270">7</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت بك وجيب تويوتا + فوركلفت"/></td>
 <td class="excel-input"><input type="text" value="9"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="9"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">25</td>
+<td class="csp-inline-oils-1271">25</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء جريت وول بكب"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">8</td>
+<td class="csp-inline-oils-1272">8</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت MG بك"/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">26</td>
+<td class="csp-inline-oils-1273">26</td>
 <td class="excel-input"><input type="text" value="فلاتر ديزل جريت وول بكب"/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">9</td>
+<td class="csp-inline-oils-1274">9</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء ايسوزو دينا"/></td>
 <td class="excel-input"><input type="text" value="9"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="9"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">27</td>
+<td class="csp-inline-oils-1275">27</td>
 <td class="excel-input"><input type="text" value="فلاتر مكيف جريت وول بكب"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">10</td>
+<td class="csp-inline-oils-1276">10</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء ايسوزو بك اب"/></td>
 <td class="excel-input"><input type="text" value="17"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="17"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">28</td>
+<td class="csp-inline-oils-1277">28</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء كيا"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">11</td>
+<td class="csp-inline-oils-1278">11</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء ميتسوبيشي لوري"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">29</td>
+<td class="csp-inline-oils-1279">29</td>
 <td class="excel-input"><input type="text" value="فلاتر مكيف كيا"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">12</td>
+<td class="csp-inline-oils-1280">12</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء ميتسوبيشي دينا "/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">30</td>
+<td class="csp-inline-oils-1281">30</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء هونداي اكسنت"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">13</td>
+<td class="csp-inline-oils-1282">13</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء بك تويوتا"/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="2"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">31</td>
+<td class="csp-inline-oils-1283">31</td>
 <td class="excel-input"><input type="text" value="فلاتر مكيف هونداي اكسنت"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">14</td>
+<td class="csp-inline-oils-1284">14</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء ميتسوبيشي بك"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">32</td>
+<td class="csp-inline-oils-1285">32</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت جريت وول بكب"/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">15</td>
+<td class="csp-inline-oils-1286">15</td>
 <td class="excel-input"><input type="text" value="فلاتر هواء ايسوزو لوري"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">33</td>
+<td class="csp-inline-oils-1287">33</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت كيا وهونداي بنزين"/></td>
 <td class="excel-input"><input type="text" value="5"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="5"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">16</td>
+<td class="csp-inline-oils-1288">16</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت ايسوزو لوري "/></td>
 <td class="excel-input"><input type="text" value="20"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="19"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">34</td>
+<td class="csp-inline-oils-1289">34</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت كورولا بنزين"/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">17</td>
+<td class="csp-inline-oils-1290">17</td>
 <td class="excel-input"><input type="text" value="فلاتر ديزل ايسوزو لوري"/></td>
 <td class="excel-input"><input type="text" value="18"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="18"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">35</td>
+<td class="csp-inline-oils-1291">35</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت رينو فان "/></td>
 <td class="excel-input"><input type="text" value="5"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="4"/></td>
 </tr>
 <tr>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">18</td>
+<td class="csp-inline-oils-1292">18</td>
 <td class="excel-input"><input type="text" value="فلاتر مكيف ايسوزو بكب أب"/></td>
 <td class="excel-input"><input type="text" value="8"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
 <td class="excel-input"><input type="text" value="8"/></td>
-<td style="text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">36</td>
+<td class="csp-inline-oils-1293">36</td>
 <td class="excel-input"><input type="text" value="فلاتر زيت سوزوكي"/></td>
 <td class="excel-input"><input type="text" value="1"/></td>
 <td class="excel-input"><input type="text" value="0"/></td>
@@ -1025,44 +936,44 @@
 </table>
 </div>
 <!-- Diesel Filters Notes -->
-<div style="width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px;">
-<table class="excel-table" style="border:none;">
+<div class="csp-inline-oils-1294">
+<table class="excel-table csp-inline-oils-1295">
 <tr>
-<td style="font-weight:bold; font-size:1.1rem; padding: 5px 15px !important; border:none; text-align:right;">فلاتر الديزل</td>
+<td class="csp-inline-oils-1296">فلاتر الديزل</td>
 </tr>
 <tr>
-<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل ميتسوبيشي لوري + دينا + تويوتا دينا = العدد 17"/></td>
+<td class="excel-input csp-inline-oils-1297"><input type="text" value="    فلاتر ديزل ميتسوبيشي لوري + دينا + تويوتا دينا = العدد 17" class="csp-inline-oils-1298"/></td>
 </tr>
 <tr>
-<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value=" فلاتر ديزل ايسوزو دينا  = العدد 18"/></td>
+<td class="excel-input csp-inline-oils-1299"><input type="text" value=" فلاتر ديزل ايسوزو دينا  = العدد 18" class="csp-inline-oils-1300"/></td>
 </tr>
 <tr>
-<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل بكب ايسوزو =  العدد 11"/></td>
+<td class="excel-input csp-inline-oils-1301"><input type="text" value="    فلاتر ديزل بكب ايسوزو =  العدد 11" class="csp-inline-oils-1302"/></td>
 </tr>
 <tr>
-<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل بكب ميتسوبيشي = العدد 4"/></td>
+<td class="excel-input csp-inline-oils-1303"><input type="text" value="    فلاتر ديزل بكب ميتسوبيشي = العدد 4" class="csp-inline-oils-1304"/></td>
 </tr>
 <tr>
-<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل بكب وجيب تويوتا + فوركلفت = العدد 7"/></td>
+<td class="excel-input csp-inline-oils-1305"><input type="text" value="    فلاتر ديزل بكب وجيب تويوتا + فوركلفت = العدد 7" class="csp-inline-oils-1306"/></td>
 </tr>
 <tr>
-<td class="excel-input" style="border:none;"><input style="text-align: right; padding-right: 30px; font-weight:bold;" type="text" value="    فلاتر ديزل إم جي بكب = العدد 0"/></td>
+<td class="excel-input csp-inline-oils-1307"><input type="text" value="    فلاتر ديزل إم جي بكب = العدد 0" class="csp-inline-oils-1308"/></td>
 </tr>
 </table>
 </div>
 <!-- Signatures -->
-<div style="width: 100%; max-width: 1200px; margin: 30px auto; padding: 0 20px;">
-<div style="display:flex; justify-content: space-between; font-weight:bold; font-size:1.1rem; padding-top: 10px;">
-<div style="width: 50%; text-align:right;">
-<input id="oilsConclusion" style="width:100%; border:none; text-align:right; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);" type="text" value="وبناءا عليه تم طلب وشراء فلاتر جديدة  —  الحسابات"/>
+<div class="csp-inline-oils-1309">
+<div class="csp-inline-oils-1310">
+<div class="csp-inline-oils-1311">
+<input id="oilsConclusion" type="text" value="وبناءا عليه تم طلب وشراء فلاتر جديدة  —  الحسابات" class="csp-inline-oils-1312"/>
 </div>
-<div style="width: 20%; text-align:center;">
-<div style="margin-bottom:40px;">قسم الحركة</div>
-<input id="oilsSigDept" style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);" type="text" value="خالد بن محمد الغامدي"/>
+<div class="csp-inline-oils-1313">
+<div class="csp-inline-oils-1314">قسم الحركة</div>
+<input id="oilsSigDept" type="text" value="خالد بن محمد الغامدي" class="csp-inline-oils-1315"/>
 </div>
-<div style="width: 20%; text-align:center;">
-<div style="margin-bottom:40px;">التعميد</div>
-<input id="oilsSigApproval" placeholder="..." style="width:100%; border:none; text-align:center; font-family:'Tajawal'; font-weight:bold; background:transparent; color:var(--text-primary);" type="text"/>
+<div class="csp-inline-oils-1316">
+<div class="csp-inline-oils-1317">التعميد</div>
+<input id="oilsSigApproval" placeholder="..." type="text" class="csp-inline-oils-1318"/>
 </div>
 </div>
 </div>
@@ -1137,14 +1048,14 @@
                 dOpts = dOpts.replace(`value="${dVal}"`, `value="${dVal}" selected`);
             }
             return `
-                    <td class="excel-rownum" style="width:2%;">${n}</td>
-                    <td class="excel-input" style="width:12%;"><select class="bz-select2 plate-edit-input" style="width:100%;" onchange="autoSaveOils()">${pOpts}</select></td>
-                    <td class="excel-input" style="width:18%;"><select class="bz-select2 driver-edit-input" style="width:100%;" onchange="autoSaveOils()">${dOpts}</select></td>
-                    <td class="excel-input" style="width:14%;"><input type="date" value="${escapeHtml(r && r[2] || '')}" onchange="autoSaveOils()"></td>
-                    <td class="excel-input" style="width:12%;"><input type="text" value="${escapeHtml(r && r[3] || '')}" onchange="autoSaveOils()"></td>
-                    <td class="excel-input" style="width:12%;"><input type="text" value="${escapeHtml(r && r[4] || '')}" onchange="autoSaveOils()"></td>
-                    <td class="excel-input" style="width:30%;"><input type="text" value="${escapeHtml(r && r[5] || '')}" onchange="autoSaveOils()"></td>
-                    <td class="excel-rownum" style="border-right:none;"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>`;
+                    <td class="excel-rownum csp-inline-oils-1319">${n}</td>
+                    <td class="excel-input csp-inline-oils-1320"><select class="bz-select2 plate-edit-input csp-inline-oils-1321" onchange="autoSaveOils()">${pOpts}</select></td>
+                    <td class="excel-input csp-inline-oils-1322"><select class="bz-select2 driver-edit-input csp-inline-oils-1323" onchange="autoSaveOils()">${dOpts}</select></td>
+                    <td class="excel-input csp-inline-oils-1324"><input type="date" value="${escapeHtml(r && r[2] || '')}" onchange="autoSaveOils()"></td>
+                    <td class="excel-input csp-inline-oils-1325"><input type="text" value="${escapeHtml(r && r[3] || '')}" onchange="autoSaveOils()"></td>
+                    <td class="excel-input csp-inline-oils-1326"><input type="text" value="${escapeHtml(r && r[4] || '')}" onchange="autoSaveOils()"></td>
+                    <td class="excel-input csp-inline-oils-1327"><input type="text" value="${escapeHtml(r && r[5] || '')}" onchange="autoSaveOils()"></td>
+                    <td class="excel-rownum csp-inline-oils-1328"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>`;
         };
 
         function addOilsRow() {
@@ -1158,16 +1069,16 @@
 
         // --- Filters table dynamic rows (each row = two filter entries: oil/diesel/air) ---
         const FILTER_ROW_TEMPLATE = (nL, nR, r) => `
-                    <td class="excel-rownum" style="width:4%;">${nL}</td>
-                    <td class="excel-input" style="width:20%;"><input type="text" value="${escapeHtml(r && r[0] || '')}"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="${escapeHtml(r && r[1] || '')}"></td>
-                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[2] || '')}"></td>
-                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[3] || '')}"></td>
-                    <td class="excel-rownum" style="width:4%;">${nR}</td>
-                    <td class="excel-input" style="width:20%;"><input type="text" value="${escapeHtml(r && r[4] || '')}"></td>
-                    <td class="excel-input" style="width:8%;"><input type="text" value="${escapeHtml(r && r[5] || '')}"></td>
-                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[6] || '')}"></td>
-                    <td class="excel-input" style="width:9%;"><input type="text" value="${escapeHtml(r && r[7] || '')}"></td>`;
+                    <td class="excel-rownum csp-inline-oils-1329">${nL}</td>
+                    <td class="excel-input csp-inline-oils-1330"><input type="text" value="${escapeHtml(r && r[0] || '')}"></td>
+                    <td class="excel-input csp-inline-oils-1331"><input type="text" value="${escapeHtml(r && r[1] || '')}"></td>
+                    <td class="excel-input csp-inline-oils-1332"><input type="text" value="${escapeHtml(r && r[2] || '')}"></td>
+                    <td class="excel-input csp-inline-oils-1333"><input type="text" value="${escapeHtml(r && r[3] || '')}"></td>
+                    <td class="excel-rownum csp-inline-oils-1334">${nR}</td>
+                    <td class="excel-input csp-inline-oils-1335"><input type="text" value="${escapeHtml(r && r[4] || '')}"></td>
+                    <td class="excel-input csp-inline-oils-1336"><input type="text" value="${escapeHtml(r && r[5] || '')}"></td>
+                    <td class="excel-input csp-inline-oils-1337"><input type="text" value="${escapeHtml(r && r[6] || '')}"></td>
+                    <td class="excel-input csp-inline-oils-1338"><input type="text" value="${escapeHtml(r && r[7] || '')}"></td>`;
 
         function renumberFilterRows() {
             const rows = document.querySelectorAll('#filtersBody tr');
@@ -1311,14 +1222,14 @@
                 // data null -> leave tables empty.
             } catch(e) { console.error('Failed to load oils data from server', e); }
         }
-        
+
         function loadFromLocalStorage() {
             const savedData = localStorage.getItem('excel_oils_data');
             if(savedData) {
                 try {
                     const rows = JSON.parse(savedData);
                     const tbody = document.getElementById('oilsBody');
-                    
+
                     if(rows.length > 0) {
                         tbody.innerHTML = '';
                         rows.forEach((r, idx) => {
@@ -1389,7 +1300,7 @@
         async function initFleetData() {
             if(!window.FleetData) return;
             await FleetData.load();
-            
+
             const seenP = new Set();
             let pOpts = '<option value="">اختر لوحة...</option>';
             const seenD = new Set();
@@ -1420,7 +1331,7 @@
                     $(sel).trigger('change.select2');
                 }
             });
-            
+
             document.querySelectorAll('select.driver-edit-input').forEach(sel => {
                 let currentVal = sel.value;
                 sel.innerHTML = dOpts;
@@ -1806,22 +1717,22 @@
             });
         }
 </script>
-<div class="oils-toolbar" style="margin: 30px auto;">
+<div class="oils-toolbar csp-inline-oils-1339">
 <button class="btn-primary" onclick="addOilsRow()">＋ إضافة صف جديد للزيوت</button>
 <button class="btn-primary" onclick="addFilterRow()">＋ إضافة صف للفلاتر</button>
-<button class="btn-primary" onclick="openDispenseModal()" style="background:var(--primary); box-shadow:0 0 15px rgba(212,175,55,0.4);">📦 صرف من المخزون</button>
+<button class="btn-primary csp-inline-oils-1340" onclick="openDispenseModal()">📦 صرف من المخزون</button>
 <button class="btn-submit-gold" onclick="exportOilsExcel()">📥 تحميل كملف Excel</button>
 <button class="btn-submit-orange" onclick="shareOils()">📤 مشاركة / تصدير</button>
 <button class="btn-outline" onclick="window.print()">🖨 طباعة الجدول</button>
 <button class="btn-danger" onclick="clearOilsData()">🗑 مسح البيانات</button>
 </div>
-</div> /bz-shell 
-<footer style="text-align:center;padding:20px;color:var(--text-secondary);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);width:100%">
+</div> /bz-shell
+<footer class="csp-inline-oils-1341">
         أُعدّ بواسطة قسم الحركة — فرع الدمام
     </footer>
- Dispense Modal 
+ Dispense Modal
 <div class="bz-modal" id="dispenseModal">
-<div class="bz-modal-content" style="max-width: 500px;">
+<div class="bz-modal-content csp-inline-oils-1342">
 <div class="bz-modal-header">
 <h3>📦 صرف مواد من المستودع</h3>
 <button class="bz-icon-btn" onclick="closeDispenseModal()" type="button">❌</button>
@@ -1839,17 +1750,17 @@
 <select class="bz-input" id="dispensePart" onchange="updateMaxQty()" required="">
 <option value="">-- جارٍ جلب المستودع... --</option>
 </select>
-<div id="partStockInfo" style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;"></div>
+<div id="partStockInfo" class="csp-inline-oils-1343"></div>
 </div>
 <div class="bz-form-group">
 <label class="bz-label">الكمية المصروفة *</label>
 <input class="bz-input" id="dispenseQty" min="1" required="" step="1" type="number" value="1"/>
 </div>
-<div class="bz-form-group" id="meterGroup" style="display:none;">
+<div class="bz-form-group csp-inline-oils-1344" id="meterGroup">
 <label class="bz-label">رقم العداد (كيلومتر)</label>
 <input class="bz-input" id="dispenseMeter" placeholder="اختياري" type="text"/>
 </div>
-<div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+<div class="csp-inline-oils-1345">
 <button class="bz-btn-outline" onclick="closeDispenseModal()" type="button">إلغاء</button>
 <button class="bz-btn-primary" id="dispenseSubmitBtn" type="submit">تأكيد الصرف</button>
 </div>
@@ -1865,7 +1776,7 @@
             document.getElementById('dispenseModal').classList.add('show');
             document.getElementById('dispenseForm').reset();
             document.getElementById('partStockInfo').textContent = '';
-            
+
             // Fetch parts
             try {
                 const r = await fetch('/api/spare_parts');
@@ -1922,7 +1833,7 @@
             const plate = document.getElementById('dispenseDriver').value;
             const meter = document.getElementById('dispenseMeter').value;
             const btn = document.getElementById('dispenseSubmitBtn');
-            
+
             const part = availableParts.find(p => p.id === pid);
             const driver = allDrivers.find(d => d.plate === plate);
             if(!part || !driver) return;
@@ -1940,12 +1851,12 @@
                 if(r.ok) {
                     const resData = await r.json();
                     if(window.showToast) showToast('تم الصرف وخصم الكمية من المستودع بنجاح!', 'success');
-                    
+
                     // Add row to oils table automatically!
                     const tbody = document.getElementById('oilsBody');
                     const rc = tbody.children.length + 1;
                     const dateStr = new Date().toISOString().split('T')[0];
-                    
+
                     let liters = '0';
                     let filtersStr = '0';
                     if (part.category.includes('زيو') || part.name.includes('زيت')) {
@@ -1977,14 +1888,14 @@
                         tr.setAttribute('data-transaction-id', resData.transaction_id);
                     }
                     tr.innerHTML = `
-                        <td style="width:2%; text-align:center; font-weight:bold; border: 1px solid var(--border); background-color: var(--surface-hover);">${rc}</td>
-                        <td class="excel-input" style="width:12%;"><select class="bz-select2 plate-edit-input" style="width:100%;" onchange="autoSaveOils()">${pOpts}</select></td>
-                        <td class="excel-input" style="width:18%;"><select class="bz-select2 driver-edit-input" style="width:100%;" onchange="autoSaveOils()">${dOpts}</select></td>
-                        <td class="excel-input" style="width:14%;"><input type="date" value="${dateStr}" onchange="autoSaveOils()"></td>
-                        <td class="excel-input" style="width:12%;"><input type="text" value="${meter || '0'}" onchange="autoSaveOils()"></td>
-                        <td class="excel-input" style="width:12%;"><input type="text" value="${liters}" onchange="autoSaveOils()"></td>
-                        <td class="excel-input" style="width:30%;"><input type="text" value="${filtersStr}" onchange="autoSaveOils()"></td>
-                        <td style="text-align:center; border: 1px solid var(--border); border-right:none; background-color: var(--surface-hover);"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
+                        <td class="csp-inline-oils-1346">${rc}</td>
+                        <td class="excel-input csp-inline-oils-1347"><select class="bz-select2 plate-edit-input csp-inline-oils-1348" onchange="autoSaveOils()">${pOpts}</select></td>
+                        <td class="excel-input csp-inline-oils-1349"><select class="bz-select2 driver-edit-input csp-inline-oils-1350" onchange="autoSaveOils()">${dOpts}</select></td>
+                        <td class="excel-input csp-inline-oils-1351"><input type="date" value="${dateStr}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input csp-inline-oils-1352"><input type="text" value="${meter || '0'}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input csp-inline-oils-1353"><input type="text" value="${liters}" onchange="autoSaveOils()"></td>
+                        <td class="excel-input csp-inline-oils-1354"><input type="text" value="${filtersStr}" onchange="autoSaveOils()"></td>
+                        <td class="csp-inline-oils-1355"><button class="btn-del" title="حذف الصف" onclick="deleteRow(this)">❌</button></td>
                     `;
                     tbody.insertBefore(tr, tbody.firstChild);
 
@@ -1995,7 +1906,7 @@
                             dir: 'rtl'
                         });
                     }
-                    
+
                     renumberRows();
                     updateTotalLiters();
                     saveToLocalStorage();

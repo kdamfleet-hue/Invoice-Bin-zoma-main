@@ -2,138 +2,14 @@
 {% block title %}إدارة المستخدمين | شركة بن زومة{% endblock %}
 
 {% block head %}
-<style>
-    .admin-shell { padding: 20px 28px; min-height: 80vh; }
-
-    .admin-title {
-        display: flex; align-items: center; gap: 12px;
-        margin-bottom: 24px;
-    }
-    .admin-title h2 {
-        margin: 0; font-size: 1.3rem; font-weight: 800;
-        color: var(--gold-primary, #c5a059);
-    }
-    .admin-title h2 span {
-        display: block; font-size: .8rem; font-weight: 400;
-        color: var(--text-muted, #94a3b8); margin-top: 4px;
-    }
-
-    /* ── Form Card ── */
-    .admin-form-card {
-        padding: 24px;
-        margin-bottom: 24px;
-    }
-    .admin-form-card h3 {
-        margin: 0 0 18px; font-size: 1rem; font-weight: 700;
-        color: var(--gold-primary, #c5a059);
-        display: flex; align-items: center; gap: 8px;
-    }
-    .admin-grid {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
-        margin-bottom: 18px;
-    }
-    .admin-grid input,
-    .admin-grid select {
-        width: 100%; padding: 10px 14px;
-        background: rgba(0,0,0,0.25);
-        border: 1px solid var(--glass-border, rgba(197,160,89,0.25));
-        color: var(--text-main, #f8fafc);
-        border-radius: 8px;
-        font-family: 'Cairo', sans-serif;
-        font-size: 0.9rem;
-        box-sizing: border-box;
-        transition: border-color 0.3s;
-    }
-    .admin-grid input:focus,
-    .admin-grid select:focus {
-        border-color: var(--gold-primary, #c5a059);
-        outline: none;
-    }
-    .admin-grid input::placeholder { color: var(--text-muted, #94a3b8); }
-    .admin-grid label {
-        display: flex; align-items: center; gap: 10px;
-        color: var(--text-muted, #94a3b8); font-size: 0.9rem;
-    }
-    .admin-grid label input[type="checkbox"] {
-        width: auto; accent-color: var(--gold-primary, #c5a059);
-    }
-
-    /* ── Table ── */
-    .admin-table-card { overflow: hidden; }
-    .admin-table {
-        width: 100%; border-collapse: collapse;
-        font-size: 0.88rem;
-    }
-    .admin-table thead th {
-        background: rgba(0,0,0,0.3);
-        color: var(--gold-primary, #c5a059);
-        font-weight: 700; padding: 12px 14px;
-        text-align: right; white-space: nowrap;
-        border-bottom: 2px solid var(--gold-primary, #c5a059);
-    }
-    .admin-table tbody tr {
-        border-bottom: 1px solid var(--glass-border, rgba(197,160,89,0.15));
-        transition: background 0.15s;
-    }
-    .admin-table tbody tr:hover {
-        background: rgba(197, 160, 89, 0.06);
-    }
-    .admin-table tbody td {
-        padding: 12px 14px;
-        color: var(--text-main, #f8fafc);
-        vertical-align: middle;
-    }
-
-    /* Badges */
-    .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
-    .badge.ok { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
-    .badge.bad { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-
-    .permissions-card {
-        display: none;
-        padding: 20px 24px;
-        margin-bottom: 24px;
-        border: 1px solid rgba(197,160,89,.35);
-    }
-    .permissions-card.is-open { display: block; }
-    .permissions-head {
-        display: flex; align-items: center; justify-content: space-between;
-        gap: 12px; margin-bottom: 14px;
-    }
-    .permissions-head h3 { margin: 0; color: var(--gold-primary,#c5a059); font-size: 1rem; }
-    .permissions-user { color: var(--text-muted,#94a3b8); font-size: .85rem; }
-    .permissions-note {
-        margin: 0 0 16px; color: var(--text-muted,#94a3b8); font-size: .82rem;
-        line-height: 1.7;
-    }
-    .permissions-grid {
-        display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px;
-        margin-bottom: 16px;
-    }
-    .permission-item {
-        display: flex; align-items: center; gap: 9px; padding: 10px 12px;
-        border: 1px solid var(--glass-border,rgba(197,160,89,.2));
-        border-radius: 8px; background: rgba(0,0,0,.18); color: var(--text-main,#f8fafc);
-        font-size: .82rem; cursor: pointer;
-    }
-    .permission-item input { accent-color: var(--gold-primary,#c5a059); }
-    .permission-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-    .permission-status { color:#10b981; font-size:.82rem; min-height:1.2em; }
-    .permission-status.error { color:#ef4444; }
-    .permissions-button { padding:4px 12px; font-size:.8rem; }
-    @media (max-width: 900px) { .permissions-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-    @media (max-width: 768px) {
-        .admin-grid { grid-template-columns: 1fr; }
-        .permissions-grid { grid-template-columns: 1fr; }
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/users_admin.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
 <div class="admin-shell">
 
     <div class="admin-title">
-        <div style="width:44px;height:44px;border-radius:10px;background:var(--gold-primary,#c5a059);display:flex;align-items:center;justify-content:center;font-size:1.3rem;">👥</div>
+        <div class="csp-inline-users-admin-1887">👥</div>
         <h2>إدارة مستخدمي النظام والصلاحيات
             <span>إضافة، تعديل، وإدارة حسابات المستخدمين وأدوارهم</span>
         </h2>
@@ -437,7 +313,7 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
         branch_id: document.getElementById('branch_id').value,
         is_active: document.getElementById('is_active').checked
     };
-    
+
     fetch('/api/users', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},

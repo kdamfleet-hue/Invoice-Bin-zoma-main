@@ -12,139 +12,7 @@
       window.BZ_SNAP_TAB = m.getAttribute("data-snap-tab") || "";
   }
 </script>
-<style>
-        /* Page-specific layout only — colors/fonts/topbar come from base_styles.css */
-        .excel-table-container {
-            width: 100%;
-            overflow-x: auto;
-            background: linear-gradient(180deg, rgba(20,35,58,.72), rgba(8,18,31,.88));
-            padding: .65rem;
-            border-radius: 14px;
-            box-shadow: 0 14px 34px rgba(0,0,0,.18);
-            border: 1px solid rgba(148,163,184,.24);
-        }
-        #employeesTable {
-            width: 100%;
-            min-width: 1480px;
-            border-collapse: separate;
-            border-spacing: 0;
-            white-space: normal;
-            table-layout: auto;
-        }
-        /* The compact view is designed for the available page width: only the key
-           employee fields remain visible, while the full dataset stays in the DOM. */
-        #employeesTable.compact {
-            min-width: 0;
-            table-layout: fixed;
-        }
-        #employeesTable.compact input { min-width: 0; }
-        #employeesTable th,
-        #employeesTable td {
-            border: 0;
-            border-bottom: 1px solid rgba(148,163,184,.16);
-            border-left: 1px solid rgba(148,163,184,.10);
-            padding: 9px 7px;
-            text-align: center;
-            font-size: .78rem;
-            white-space: normal;
-            word-break: normal;
-            overflow: visible;
-            overflow-wrap: anywhere;
-            vertical-align: middle;
-        }
-        #employeesTable.compact th,
-        #employeesTable.compact td { padding: 8px 5px; }
-        #employeesTable thead th {
-            background: #142d50;
-            color: #f8fafc;
-            font-weight: 800;
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            font-size: .76rem;
-            line-height: 1.35;
-            white-space: normal;
-            word-break: keep-all;
-            overflow-wrap: anywhere;
-        }
-        #employeesTable.compact thead th { font-size: .72rem; min-height: 48px; }
-        #employeesTable tbody tr:nth-child(even) { background: rgba(255,255,255,.035); }
-        #employeesTable tbody tr:hover { background: rgba(96,165,250,.12); }
-        #employeesTable tbody tr:last-child td { border-bottom: 0; }
-        #employeesTable.compact .idx-head, #employeesTable.compact .idx-cell { width: 42px; }
-        #employeesTable.compact [data-col="0"] { width: 92px; }
-        #employeesTable.compact [data-col="1"] { width: 110px; }
-        #employeesTable.compact [data-col="2"] { width: 150px; }
-        #employeesTable.compact [data-col="6"] { width: 115px; }
-        #employeesTable.compact [data-col="7"] { width: 105px; }
-        #employeesTable.compact [data-col="10"] { width: 105px; }
-        #employeesTable.compact [data-col="33"] { width: 105px; }
-        #employeesTable.compact [data-col="36"], #employeesTable.compact [data-col="37"], #employeesTable.compact [data-col="38"] { width: 92px; }
-        #employeesTable.compact input { width: 100%; padding: 4px 2px; }
-        #employeesTable.compact .actions-column { width: 58px; }
-        /* Keep the group labels above the real column labels. The old global sticky rule
-           made the first header row overlap the second one while scrolling. */
-        #employeesTable thead .group-row th { position: static; }
-        #employeesTable thead #empColHeaderRow th { top: 0; }
-        #employeesTable thead .column-search-row th { position: static; background: #0d2039; padding: 5px 4px; }
-        #employeesTable .column-search-input { width: 100%; min-width: 0; padding: 5px 4px; border: 1px solid rgba(148,163,184,.35); border-radius: 6px; background: rgba(255,255,255,.08); color: #f8fafc; font-size: .7rem; text-align: center; }
-        #employeesTable .column-search-input::placeholder { color: rgba(226,232,240,.7); }
-        #employeesTable .column-search-input:focus { outline: 2px solid rgba(96,165,250,.7); background: rgba(255,255,255,.14); }
-        #employeesTable.compact .column-search-row .nk { display: none; }
-        #employeesTable.compact .column-search-row .only-compact { display: table-cell; }
-        #employeesTable .group-header {
-            background-color: #16315a;
-            font-size: 0.95rem;
-            border-bottom: 2px solid var(--brand-gold, #c9a227);
-        }
-        #employeesTable .idx-cell {
-            font-weight: 700;
-            background: var(--surface-hover, #f5f7fa);
-            color: var(--text-primary);
-        }
-        #employeesTable input {
-            width: 100%;
-            min-width: 110px;
-            border: none;
-            outline: none;
-            background: transparent;
-            color: var(--text-primary);
-            font: inherit;
-            text-align: center;
-        }
-        #employeesTable input:focus {
-            background: var(--surface-hover, #eef2f7);
-            border-radius: 4px;
-        }
-        .emp-toolbar {
-            display: flex;
-            gap: 0.6rem;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        /* Compact (key columns only) vs full (all 46) view */
-        #employeesTable.compact .nk { display: none; }
-        #employeesTable.compact .group-row { display: none; }
-        .only-compact { display: none; }
-        #employeesTable.compact .only-compact { display: table-cell; }
-        /* Freeze the م column while scrolling sideways (RTL → start = right) */
-        #employeesTable .idx-cell, #employeesTable .idx-head {
-            position: sticky; right: 0; z-index: 3;
-        }
-        #employeesTable .idx-cell { background: rgba(20,45,80,.92); color: #f8fafc; }
-        #employeesTable .btn-delete { min-width: 30px; min-height: 30px; border-radius: 8px; }
-        #employeesTable thead .idx-head { z-index: 6; background-color: var(--brand-navy, #0C2340); color:#fff; }
-        /* The group row must remain a clean, non-sticky band; only the real column header
-           and body index cells are frozen horizontally. */
-        #employeesTable thead .group-row .idx-head { position: static !important; right: auto; }
-        .emp-search { flex: 1; min-width: 200px; max-width: 360px; }
-        .emp-search input { padding: 9px 14px; }
-        .emp-filter { min-width: 170px; max-width: 250px; }
-        .emp-filter select { padding: 9px 14px; cursor: pointer; }
-        .emp-count { font-weight: 700; color: var(--text-secondary); white-space: nowrap; }
-        .emp-hint { font-size: .82rem; color: var(--text-muted); margin: -.4rem 0 .8rem; }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/employees.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -174,25 +42,25 @@
 </header>
 <div class="bz-shell">
 <h2 class="bz-section-title">بيانات جميع الموظفين في الفرع</h2>
-<div id="empLoadWarn" style="display:none;margin:10px 0;padding:12px 14px;border-radius:10px;border:1px solid #ef4444;background:rgba(239,68,68,.12);color:#ef4444;font-weight:700;line-height:1.7;">
+<div id="empLoadWarn" class="csp-inline-employees-164">
   ⚠️ تعذّر تحميل بيانات الموظفين من الخادم. ما يظهر بالأسفل قد لا يكون البيانات الحقيقية —
   <strong>لا تضغط حفظ</strong>، أعد تحميل الصفحة أولاً حتى لا تُستبدل بيانات الموظفين الفعلية.
 </div>
 <div class="emp-toolbar">
-<div class="bz-smart-search" style="margin-bottom:0;">
+<div class="bz-smart-search csp-inline-employees-165">
 <input id="empSearch" oninput="filterEmployees()" placeholder="ابحث باسم الموظف، الإقامة، أو اللوحة..." type="text"/>
 <span class="search-icon">🔍</span>
 </div>
 <div class="emp-filter"><select id="empJobFilter" onchange="filterEmployees()" title="فلترة حسب الوظيفة"><option value="">كل الوظائف</option></select></div>
 <button class="btn-neon success" id="viewToggleBtn" onclick="toggleView()">📊 عرض كامل (كل الأعمدة)</button>
 <span class="emp-count" id="empCount"></span>
-<span style="flex:1"></span>
+<span class="csp-inline-employees-166"></span>
 <button class="btn-neon success" onclick="addEmployeeRow()">+ إضافة صف</button>
-<button class="btn-neon success" onclick="openPasteModal()" style="background-color: #9b59b6;">📋 لصق من إكسل</button>
+<button class="btn-neon success csp-inline-employees-167" onclick="openPasteModal()">📋 لصق من إكسل</button>
 <button class="btn-neon" onclick="exportToExcel()">📥 تصدير Excel</button>
 <button class="btn-neon" onclick="shareEmployees()">📤 مشاركة / تصدير</button>
 <button class="btn-neon" data-action-required="true" data-callback="saveToServer">💾 حفظ على الخادم</button>
-<button class="btn-neon" onclick="updateVehiclesFromFleet()" style="border-color:rgba(96,165,250,.5);color:#60a5fa;">🔄 تحديث المركبات</button>
+<button class="btn-neon csp-inline-employees-168" onclick="updateVehiclesFromFleet()">🔄 تحديث المركبات</button>
 </div>
 <p class="emp-hint">العرض المختصر يُظهر الأعمدة الأساسية فقط (بدون تمرير جانبي). اضغط «عرض كامل» لكل الأعمدة الـ46، واستخدم البحث للوصول لأي موظف بسرعة. عمود «م» والترويسة يبقيان ثابتين أثناء التمرير.</p>
 <div class="excel-table-container">
@@ -294,13 +162,13 @@
             });
             const tbody = document.getElementById('employeesBody');
             const rowsArray = Array.from(tbody.querySelectorAll('tr'));
-            
+
             rowsArray.sort((a, b) => {
                 const aInp = a.querySelector(`input[data-col="${colIdx}"]`);
                 const bInp = b.querySelector(`input[data-col="${colIdx}"]`);
                 const aVal = (aInp ? aInp.value : '').toLowerCase().trim();
                 const bVal = (bInp ? bInp.value : '').toLowerCase().trim();
-                
+
                 const aNum = parseFloat(aVal);
                 const bNum = parseFloat(bVal);
                 if (!isNaN(aNum) && !isNaN(bNum) && aVal === String(aNum) && bVal === String(bNum)) {
@@ -835,13 +703,13 @@
             });
         }
     </script>
- Modal for Pasting Excel Data 
-<div class="modal-backdrop" id="pasteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-<div class="modal-content-custom" style="background: var(--surface, #fff); padding: 2rem; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-<h2 style="margin-top: 0; color: var(--brand-navy, #0c2340);">لصق بيانات الإكسل</h2>
-<p style="color: var(--text-secondary, #5a6a7a); margin-bottom: 1rem;">قم بنسخ الخلايا من ملف الإكسل والصقها في المربع أدناه (اضغط Ctrl+V):</p>
-<textarea id="pasteArea" placeholder="الصق البيانات هنا..." rows="8" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border, #d9d9d9); background: var(--surface-hover, #f1f5f9); color: var(--text-primary, #1a2b49); font-family: inherit; margin-bottom: 1rem; resize: vertical;"></textarea>
-<div style="display: flex; gap: 1rem; justify-content: flex-end;">
+ Modal for Pasting Excel Data
+<div class="modal-backdrop csp-inline-employees-169" id="pasteModal">
+<div class="modal-content-custom csp-inline-employees-170">
+<h2 class="csp-inline-employees-171">لصق بيانات الإكسل</h2>
+<p class="csp-inline-employees-172">قم بنسخ الخلايا من ملف الإكسل والصقها في المربع أدناه (اضغط Ctrl+V):</p>
+<textarea id="pasteArea" placeholder="الصق البيانات هنا..." rows="8" class="csp-inline-employees-173"></textarea>
+<div class="csp-inline-employees-174">
 <button class="btn-neon" onclick="closePasteModal()">إلغاء</button>
 <button class="btn-neon success" onclick="processPasteArea()">إضافة البيانات</button>
 </div>

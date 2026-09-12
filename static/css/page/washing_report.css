@@ -1,0 +1,234 @@
+/* Extracted from templates/washing_report.html; keep this file template-independent. */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #151820;
+    --card: #1c2030;
+    --border: #2a2f45;
+    --gold: #c9a84c;
+    --gold-dim: #8a6e2f;
+    --text: #e8eaf0;
+    --muted: #7a8099;
+    --red: #e05252;
+    --green: #4caf7d;
+    --blue: #4d78cc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Cairo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 20px;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 24px;
+    margin-bottom: 20px;
+  }
+  .brand-logo {
+    width: 48px; height: 48px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 18px; color: #000;
+  }
+  .brand-logo img {
+    width: 100%; height: 100%; border-radius: 50%;
+  }
+  .brand-name { font-size: 18px; font-weight: 700; color: var(--gold); }
+  .brand-sub  { font-size: 12px; color: var(--muted); }
+
+  .report-title {
+    font-size: 26px; font-weight: 900;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .report-meta {
+    margin-top: 6px;
+    font-size: 13px; color: var(--muted);
+    display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;
+  }
+  .report-meta span { display: flex; align-items: center; gap: 4px; }
+
+  /* ── KPI Cards ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--gold);
+    border-radius: 12px 12px 0 0;
+  }
+  .kpi.red::before  { background: var(--red); }
+  .kpi.green::before { background: var(--green); }
+  .kpi.blue::before  { background: var(--blue); }
+
+  .kpi-val {
+    font-size: 36px; font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .kpi.red .kpi-val   { color: var(--red); }
+  .kpi.green .kpi-val { color: var(--green); }
+  .kpi.blue .kpi-val  { color: var(--blue); }
+
+  .kpi-label {
+    font-size: 12px; color: var(--muted);
+  }
+
+  /* ── Finance Row ── */
+  .finance-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .fin-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .fin-label { font-size: 12px; color: var(--muted); }
+  .fin-val   { font-size: 22px; font-weight: 700; color: var(--gold); }
+  .fin-val.pending { color: var(--red); }
+  .fin-val.paid    { color: var(--green); }
+
+  /* ── Invoice Status ── */
+  .invoice-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 24px;
+    margin-bottom: 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .inv-title { font-size: 14px; font-weight: 700; }
+  .inv-badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 12px; font-weight: 700;
+  }
+  .badge-green { background: #1a3a2a; color: var(--green); border: 1px solid var(--green); }
+  .badge-red   { background: #3a1a1a; color: var(--red);   border: 1px solid var(--red); }
+
+  /* ── Table ── */
+  .section-title {
+    font-size: 15px; font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1; height: 1px;
+    background: var(--border);
+  }
+
+  .table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead tr {
+    background: #1a1e2e;
+  }
+  th {
+    padding: 12px 14px;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid #1e2235;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1e2336; }
+
+  .plate {
+    font-weight: 700;
+    background: #1e2235;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    display: inline-block;
+    letter-spacing: 1px;
+    font-size: 12px;
+  }
+  .count-pill {
+    display: inline-block;
+    min-width: 28px; text-align: center;
+    background: #1a2840;
+    border: 1px solid var(--blue);
+    color: var(--blue);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .count-pill.zero {
+    background: #2a1a1a; border-color: #444; color: var(--muted);
+  }
+  .amount { font-weight: 700; color: var(--gold); }
+  .amount.zero { color: var(--muted); }
+  .driver-name { color: var(--text); }
+  .no-driver { color: var(--muted); font-style: italic; }
+
+  .row-num { color: var(--muted); font-size: 11px; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    font-size: 12px; color: var(--muted);
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+/* Extracted static style attributes. */
+.csp-inline-washing-report-1916{background:#1a3a2a;border:1px solid #4caf7d;border-radius:10px;padding:16px 20px;margin-bottom:24px}
+.csp-inline-washing-report-1917{color:#4caf7d;font-weight:700;margin-bottom:6px}
+.csp-inline-washing-report-1918{font-size:13px;color:#a0c0a0}
+.csp-inline-washing-report-1919{color:#fff}

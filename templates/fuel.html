@@ -14,38 +14,7 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-<style>
-        /* ---- Page-unique layout only (tokens from base_styles.css) ---- */
-        .fuel-table-wrap { overflow-x: auto; }
-        #fuelTable { border-collapse: collapse; width: 100%; table-layout: auto; }
-        #fuelTable thead { position: sticky; top: 0; z-index: 5; }
-        #fuelTable thead th {
-            background: var(--brand-navy, #0C2340);
-            color: #fff; padding: 12px 8px; font-size: 0.8rem; font-weight: 700;
-            text-align: center; white-space: normal; word-break: keep-all;
-            overflow-wrap: normal; hyphens: none; line-height: 1.3;
-            border-bottom: 2px solid var(--accent, #c9a227);
-        }
-        #fuelTable td, #fuelTable th { overflow: visible; }
-        #fuelTable tbody td {
-            padding: 6px 8px; font-size: 0.85rem; text-align: center;
-            border: 1px solid var(--border);
-        }
-        #fuelTable tbody tr:nth-child(even) td { background: var(--surface-hover); }
-        #fuelTable input {
-            width: 100%; border: none; background: transparent; color: var(--text-primary);
-            font-family: inherit; font-size: 0.85rem; text-align: center; outline: none;
-            padding: 4px; border-radius: 4px; transition: var(--trans);
-        }
-        #fuelTable input:focus { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--accent); }
-        #fuelTable td.cell-plate input { font-weight: 700; font-family: monospace; color: var(--brand-gold, #c5a059); }
-        #fuelTable td.cell-computed { font-weight: 800; background: rgba(197,160,89,.10); color: var(--brand-gold-soft, #e0c489); white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .fuel-row-del { background: rgba(220,38,38,0.15); color: #f87171; border: none; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; line-height: 1; transition: background 0.15s; }
-        .fuel-row-del:hover { background: #dc2626; color: #fff; }
-        .search-bar { width: 100%; max-width: 500px; margin: 0 auto 1.5rem; }
-        .search-bar input { width: 100%; padding: 12px 20px; border-radius: 50px; font-size: 1rem; }
-        @media (max-width: 768px) { .bz-stats { grid-template-columns: repeat(2, 1fr); } }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/fuel.css', v=1) }}">
 {% endblock %}
 
 {% block content %}
@@ -78,7 +47,7 @@
 <datalist id="fuelPlatesList"></datalist>
 <div class="bz-shell">
 <h2 class="bz-section-title">⛽ تموين المحروقات — فرع الدمام</h2>
-<p style="text-align:center;color:var(--text-muted);margin:-0.5rem 0 1.5rem;">سجل تعبئة الديزل/الوقود لكل مركبة — المصروفات، الكمية، المسافة، والاستهلاك</p>
+<p class="csp-inline-fuel-262">سجل تعبئة الديزل/الوقود لكل مركبة — المصروفات، الكمية، المسافة، والاستهلاك</p>
 <div class="bz-stats">
 <div class="bz-stat"><div class="num" id="statFills">0</div><div class="label">عمليات التموين</div></div>
 <div class="bz-stat"><div class="num" id="statLiters">0</div><div class="label">إجمالي اللترات</div></div>
@@ -92,9 +61,9 @@
 <div class="table-wrapper fuel-table-wrap">
 <table class="bz-fit" id="fuelTable">
 <colgroup>
-<col style="width:3%"/><col style="width:8%"/><col style="width:9%"/><col style="width:11%"/>
-<col style="width:9%"/><col style="width:8%"/><col style="width:8%"/><col style="width:8%"/>
-<col style="width:7%"/><col style="width:9%"/><col style="width:8%"/><col style="width:9%"/><col style="width:3%"/>
+<col class="csp-inline-fuel-263"/><col class="csp-inline-fuel-264"/><col class="csp-inline-fuel-265"/><col class="csp-inline-fuel-266"/>
+<col class="csp-inline-fuel-267"/><col class="csp-inline-fuel-268"/><col class="csp-inline-fuel-269"/><col class="csp-inline-fuel-270"/>
+<col class="csp-inline-fuel-271"/><col class="csp-inline-fuel-272"/><col class="csp-inline-fuel-273"/><col class="csp-inline-fuel-274"/><col class="csp-inline-fuel-275"/>
 </colgroup>
 <thead>
 <tr>
@@ -117,14 +86,14 @@
 </table>
 </div>
 </div>
-<div class="bz-toolbar pdf-exclude" style="justify-content:center;margin-top:20px;gap:15px;">
+<div class="bz-toolbar pdf-exclude csp-inline-fuel-276">
 <button class="btn-neon" onclick="addFuelRow()">➕ إضافة عملية تموين</button>
 <button class="btn-neon success" onclick="exportFuelExcel()">📥 تصدير Excel</button>
 <button class="btn-neon" onclick="shareFuel()">📤 مشاركة / تصدير</button>
 <button class="btn-neon success" onclick="saveFuelState()">💾 حفظ التغييرات</button>
 </div>
-<footer style="text-align:center;padding:20px;color:var(--text-muted);font-weight:bold;margin-top:40px;border-top:1px solid var(--border);">تم الإعداد بواسطة قسم الحركة — فرع الدمام</footer>
-</div> /bz-shell 
+<footer class="csp-inline-fuel-277">تم الإعداد بواسطة قسم الحركة — فرع الدمام</footer>
+</div> /bz-shell
 <script>
     let fuelEntries = [];
     const FUEL_WS = window.location.pathname.indexOf('/importantworkstation') === 0;
@@ -230,7 +199,7 @@
             if (q && !(e.plate || '').toLowerCase().includes(q) && !(e.driver || '').toLowerCase().includes(q)) return;
             const dist = computeDistance(e);
             const cons = computeConsumption(e);
-            let pSelect = `<select class="bz-select2" style="min-width: 120px;" onchange="updateFuelField(${idx},'plate',this.value)">`;
+            let pSelect = `<select class="bz-select2 csp-inline-fuel-278" onchange="updateFuelField(${idx},'plate',this.value)">`;
             let pOpts = window.cachedPlateOptions || '<option value="">اختر لوحة...</option>';
             if (e.plate && !pOpts.includes(`value="${escapeHtml(e.plate)}"`)) {
                 pOpts += `<option value="${escapeHtml(e.plate)}">${escapeHtml(e.plate)}</option>`;
@@ -240,7 +209,7 @@
             }
             pSelect += pOpts + `</select>`;
 
-            let dSelect = `<select class="bz-select2 driver-edit-input" style="min-width: 150px;" onchange="updateFuelField(${idx},'driver',this.value)">`;
+            let dSelect = `<select class="bz-select2 driver-edit-input csp-inline-fuel-279" onchange="updateFuelField(${idx},'driver',this.value)">`;
             let dOpts = window.cachedDriverOptions || '<option value="">اختر أو أدخل الاسم...</option>';
             if (e.driver && !dOpts.includes(`value="${escapeHtml(e.driver)}"`)) {
                 dOpts += `<option value="${escapeHtml(e.driver)}">${escapeHtml(e.driver)}</option>`;
@@ -263,7 +232,7 @@
                 <td class="cell-computed">${cons != null ? cons.toFixed(1) : '—'}</td>
                 <td><input type="number" step="0.01" value="${escapeHtml(e.cost || '')}" onchange="updateFuelField(${idx},'cost',this.value)"></td>
                 <td><input type="text" value="${escapeHtml(e.notes || '')}" onchange="updateFuelField(${idx},'notes',this.value)"></td>
-                <td class="pdf-exclude"><button class="btn-neon danger fuel-row-del" onclick="deleteFuelRow(${idx})" title="حذف" style="padding:4px 8px;font-size:0.75rem;">✕</button></td>
+                <td class="pdf-exclude"><button class="btn-neon danger fuel-row-del csp-inline-fuel-280" onclick="deleteFuelRow(${idx})" title="حذف">✕</button></td>
             </tr>`;
         });
         tbody.innerHTML = html;

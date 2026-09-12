@@ -2,23 +2,7 @@
 {% block title %}دورة تشغيل الأسطول | بن زومة{% endblock %}
 {% block page_heading %}دورة التشغيل اليومية والأسبوعية{% endblock %}
 {% block content %}
-<style>
-.ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px}
-.ops-card{background:var(--bz-panel,#101b28);border:1px solid rgba(201,164,90,.22);border-radius:14px;padding:14px}
-.ops-card b{display:block;font-size:1.4rem;color:var(--bz-gold-2,#e3c47a)}
-.ops-card span{color:#93a0b3;font-size:.8rem}
-.ops-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
-.ops-tabs button{border:1px solid rgba(201,164,90,.25);background:transparent;color:inherit;border-radius:999px;padding:8px 14px;font-family:inherit}
-.ops-tabs button.on{background:rgba(201,164,90,.2);color:#e3c47a}
-.ops-pane{display:none}
-.ops-pane.on{display:block}
-.ops-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:12px}
-.ops-form input,.ops-form select,.ops-form textarea{padding:10px;border-radius:10px;border:1px solid rgba(201,164,90,.22);background:#0d1724;color:#fff;font-family:inherit}
-table.ops{width:100%;border-collapse:collapse;font-size:.86rem}
-table.ops th,table.ops td{padding:8px;border-bottom:1px solid rgba(255,255,255,.06);text-align:right}
-.flag-bad{color:#f87171;font-weight:700}
-@media(max-width:700px){.ops-form{grid-template-columns:1fr}}
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/page/ops_cycle.css', v=1) }}">
 <div class="ops-grid" id="kpis"></div>
 <div class="ops-tabs">
   <button class="on" onclick="pane('daily',this)">التشغيل اليومي</button>
@@ -27,8 +11,8 @@ table.ops th,table.ops td{padding:8px;border-bottom:1px solid rgba(255,255,255,.
   <button onclick="pane('sop',this)">إجراءات العمل</button>
 </div>
 <section class="ops-pane on" id="p-daily">
-  <div class="ops-card" style="margin-bottom:12px">
-    <h3 style="margin-top:0">فحص ما قبل الشفت</h3>
+  <div class="ops-card csp-inline-ops-cycle-1356">
+    <h3 class="csp-inline-ops-cycle-1357">فحص ما قبل الشفت</h3>
     <form class="ops-form" onsubmit="return savePretrip(event)">
       <input name="plate" required placeholder="رقم اللوحة">
       <input name="driver" placeholder="اسم السائق">
@@ -44,8 +28,8 @@ table.ops th,table.ops td{padding:8px;border-bottom:1px solid rgba(255,255,255,.
   <div class="ops-card"><h3>فحوصات اليوم</h3><div id="checks"></div></div>
 </section>
 <section class="ops-pane" id="p-weekly">
-  <div class="ops-card" style="margin-bottom:12px"><h3>معدل الاستهلاك كم/لتر</h3><div id="fuel"></div></div>
-  <div class="ops-card" style="margin-bottom:12px"><h3>صيانة وقائية متوقعة</h3><div id="pm"></div></div>
+  <div class="ops-card csp-inline-ops-cycle-1358"><h3>معدل الاستهلاك كم/لتر</h3><div id="fuel"></div></div>
+  <div class="ops-card csp-inline-ops-cycle-1359"><h3>صيانة وقائية متوقعة</h3><div id="pm"></div></div>
   <div class="ops-card">
     <h3>ساعات التوقف Idle</h3>
     <form class="ops-form" onsubmit="return saveIdle(event)">
@@ -58,7 +42,7 @@ table.ops th,table.ops td{padding:8px;border-bottom:1px solid rgba(255,255,255,.
   </div>
 </section>
 <section class="ops-pane" id="p-garage">
-  <div class="ops-card" style="margin-bottom:12px">
+  <div class="ops-card csp-inline-ops-cycle-1360">
     <h3>فتح أمر شغل</h3>
     <form class="ops-form" onsubmit="return openWO(event)">
       <input name="plate" required placeholder="اللوحة">
@@ -84,7 +68,7 @@ table.ops th,table.ops td{padding:8px;border-bottom:1px solid rgba(255,255,255,.
 </section>
 <script>
 function pane(id,btn){document.querySelectorAll('.ops-pane').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.ops-tabs button').forEach(b=>b.classList.remove('on'));document.getElementById('p-'+id).classList.add('on');btn.classList.add('on');}
-function tbl(headers, rows){if(!rows.length) return '<p style="color:#93a0b3">لا بيانات بعد</p>';return '<div class="table-responsive"><table class="ops"><thead><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${c??'—'}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>';}
+function tbl(headers, rows){if(!rows.length) return '<p class="csp-inline-ops-cycle-1361">لا بيانات بعد</p>';return '<div class="table-responsive"><table class="ops"><thead><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${c??'—'}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>';}
 async function load(){
   try {
     const s=await fetch('/api/ops/summary').then(r=>r.json());
@@ -100,7 +84,7 @@ async function load(){
     document.getElementById('idle').innerHTML=`<p>ساعات الأسبوع: <b>${idle.week_hours||0}</b></p>`+tbl(['التاريخ','اللوحة','ساعات','ملاحظة'],(idle.rows||[]).map(i=>[i.date,i.plate,i.hours,i.note]));
   } catch (e) {
     console.error('ops load failed', e);
-    ['kpis','fuel','pm','checks','wo','idle'].forEach(id => { const el = document.getElementById(id); if (el && !el.innerHTML) el.innerHTML = '<p style="color:#f87171">تعذّر تحميل البيانات، حدّث الصفحة</p>'; });
+    ['kpis','fuel','pm','checks','wo','idle'].forEach(id => { const el = document.getElementById(id); if (el && !el.innerHTML) el.innerHTML = '<p class="csp-inline-ops-cycle-1362">تعذّر تحميل البيانات، حدّث الصفحة</p>'; });
   }
 }
 async function savePretrip(e){e.preventDefault();const f=e.target;await fetch('/api/ops/pretrip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plate:f.plate.value,driver:f.driver.value,odo:f.odo.value,gps_odo:f.gps_odo.value,oil:f.oil.checked,tires:f.tires.checked,lights:f.lights.checked,fault:f.fault.value})});f.reset();load();return false;}
