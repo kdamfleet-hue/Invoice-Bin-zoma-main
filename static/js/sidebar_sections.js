@@ -17,8 +17,8 @@
 
   var FALLBACK_GROUPS = [
     { key: 'overview', label: 'الرئيسية', links: [['👑','مركز القرار','/admin'], ['📊','لوحة الأسطول','/fleet_dashboard'], ['📈','مؤشرات الأداء','/kpis'], ['🧠','التحليلات','/insights']] },
-    { key: 'operations', label: 'التشغيل اليومي', links: [['📋','الجدول الأسبوعي','/schedule'], ['🚚','نقل عام وخاص','/schedule/transport'], ['📱','تطبيق النقل','/m/transport'], ['🅿️','إدارة الساحات','/yard'], ['🛰️','التتبع الحي','/tracking'], ['🔑','تسليم واستلام','/handover']] },
-    { key: 'people', label: 'الأفراد والمركبات', links: [['🚗','مركبات الدمام','/dammam'], ['🚛','سائقو النقل','/drivers_info'], ['🔗','ربط السائق بالمركبة','/driver-vehicle-assignments'], ['✓','جودة البيانات','/data-quality'], ['🔔','تنبيهات الوثائق','/alerts'], ['📂','الوثائق','/documents']] },
+    { key: 'operations', label: 'التشغيل', links: [['📋','الجدول الأسبوعي','/schedule'], ['🚚','نقل عام وخاص','/schedule/transport'], ['📱','تطبيق النقل','/m/transport'], ['🅿️','إدارة الساحات','/yard'], ['🛰️','التتبع الحي','/tracking'], ['🔑','تسليم واستلام','/handover']] },
+    { key: 'people', label: 'المركبات والأفراد', links: [['🚗','مركبات الدمام','/dammam'], ['🚛','سائقو النقل','/drivers_info'], ['🔗','ربط السائق بالمركبة','/driver-vehicle-assignments'], ['✓','جودة البيانات','/data-quality'], ['🔔','تنبيهات الوثائق','/alerts'], ['📂','الوثائق','/documents']] },
     { key: 'maintenance', label: 'الصيانة والمخزون', links: [['🔧','الورشة','/workshop'], ['⛽','المحروقات','/fuel'], ['📜','الزيوت والفلاتر','/oils'], ['💿','الإطارات','/inventory/tires'], ['🔋','البطاريات','/inventory/batteries'], ['📦','قطع الغيار','/spare_parts'], ['🚿','الغسيل','/washing']] },
     { key: 'finance', label: 'المالية والسجلات', links: [['🛒','المشتريات','/purchase'], ['💵','العهد','/finance/petty-cash'], ['🧾','الفواتير','/invoice'], ['🚨','الحوادث','/incidents'], ['📁','السجلات','/records'], ['🛡','سجل التدقيق','/audit-log']] },
     { key: 'system', label: 'النظام', links: [['⚙️','الإعدادات','/settings'], ['🏢','مركز الفروع','/branches'], ['⚡','أوامر النظام','/system_commands'], ['↪','تسجيل الخروج','/logout']] }
