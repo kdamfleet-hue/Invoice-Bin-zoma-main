@@ -118,7 +118,7 @@ def plans():
     return render_template("saas/plans.html", plans=plans)
 
 
-@saas_bp.get("/admin")
+@saas_bp.get("/platform-admin")
 def central_admin():
     if not _central_admin_required():
         return redirect(url_for("auth.login"))
@@ -133,7 +133,7 @@ def central_admin():
     return render_template("saas/admin.html", companies=companies, counts=counts, plans=plans)
 
 
-@saas_bp.post("/admin/company/<int:company_id>/status")
+@saas_bp.post("/platform-admin/company/<int:company_id>/status")
 def central_company_status(company_id):
     if not _central_admin_required():
         return "غير مصرح", 403
@@ -149,7 +149,7 @@ def central_company_status(company_id):
     return redirect(url_for("saas.central_admin"))
 
 
-@saas_bp.post("/admin/plan")
+@saas_bp.post("/platform-admin/plan")
 def central_create_plan():
     if not _central_admin_required():
         return "غير مصرح", 403
@@ -171,7 +171,7 @@ def central_create_plan():
     return redirect(url_for("saas.central_admin"))
 
 
-@saas_bp.get("/admin/payments")
+@saas_bp.get("/platform-admin/payments")
 def central_payments():
     if not _central_admin_required():
         return redirect(url_for("auth.login"))
