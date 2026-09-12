@@ -273,6 +273,30 @@ def ensure_db_columns():
     except Exception as e:
         logger.warning(f"ensure_db_columns notice: {e}")
 
+def ensure_protected_admin_role():
+    """Keep the reserved database-backed ``admin`` account at the admin role.
+
+    The login flow and user-management API already treat ``admin`` as protected.
+    Repairing a legacy/imported row at startup prevents the account from being
+    displayed as a viewer while still receiving administrator behavior. Only the
+    role of the reserved username is changed; password, branch, activity, and
+    audit data remain untouched.
+    """
+    try:
+        from models.schema import User
+        user = User.query.filter_by(username="admin").first()
+        if user and user.role != "admin":
+            previous_role = user.role
+            user.role = "admin"
+            db.session.commit()
+            logger.warning(
+                "Reserved admin account role repaired from %s to admin",
+                previous_role,
+            )
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error repairing reserved admin role: {e}")
+
 def init_db_on_startup():
     with app.app_context():
         try:
@@ -313,6 +337,12 @@ def init_db_on_startup():
             logger.info("✅ Column verification completed.")
         except Exception as e:
             logger.error(f"❌ Error verifying columns: {e}")
+
+        try:
+            ensure_protected_admin_role()
+            logger.info("✅ Reserved admin role verification completed.")
+        except Exception as e:
+            logger.error(f"❌ Error verifying reserved admin role: {e}")
 
 init_db_on_startup()
 
