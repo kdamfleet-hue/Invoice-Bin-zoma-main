@@ -325,6 +325,9 @@ def ensure_db_columns():
                     if col_name not in cols:
                         conn.execute(text(f"ALTER TABLE erp_users ADD COLUMN {col_name} {col_def}"))
                         logger.info(f"Auto-migration: Added {col_name} to erp_users")
+                if 'company_id' not in cols:
+                    conn.execute(text("ALTER TABLE erp_users ADD COLUMN company_id INTEGER"))
+                    logger.info("Auto-migration: Added company_id to erp_users")
                 if 'password_reset_token_hash' not in cols:
                     conn.execute(text("ALTER TABLE erp_users ADD COLUMN password_reset_token_hash VARCHAR(64)"))
                     logger.info("Auto-migration: Added password_reset_token_hash to erp_users")
@@ -5567,6 +5570,8 @@ def _sync_from_employees_to_fleet():
 
 
 # Register blueprints at the end to avoid circular imports
+from routes.saas import saas_bp
+app.register_blueprint(saas_bp)
 from routes.dashboard import dashboard_bp
 app.register_blueprint(dashboard_bp)
 from routes.system import system_bp
