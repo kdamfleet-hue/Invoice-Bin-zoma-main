@@ -43,8 +43,22 @@
 </div>
 </header>
 <div class="bz-shell">
-<h2 class="bz-section-title">⚙️ الإعدادات</h2>
-<div class="settings-tabs" role="tablist" aria-label="أقسام الإعدادات">
+<section class="settings-page-header" aria-labelledby="settingsPageTitle">
+<div class="settings-page-header__copy">
+<span class="settings-kicker"><span class="settings-live-dot"></span> مركز التحكم الإداري</span>
+<h2 class="bz-section-title" id="settingsPageTitle">إعدادات النظام</h2>
+<p>إدارة المستخدمين والصلاحيات وحسابات الفروع والنسخ الاحتياطية من مساحة واحدة منظمة.</p>
+</div>
+<div class="settings-page-header__status"><span class="settings-status-icon">✓</span><div><b>النظام متصل</b><small>كل التغييرات محفوظة</small></div></div>
+</section>
+<section class="settings-summary-grid" aria-label="ملخص الإعدادات">
+<article class="settings-summary-card settings-summary-card--gold"><span>المستخدمون المشاركون</span><strong id="settingsUserMetric">—</strong><small>حسابات مسجلة في النظام</small></article>
+<article class="settings-summary-card settings-summary-card--teal"><span>حالة الحساب الرئيسي</span><strong>admin</strong><small><i></i> مدير النظام — وصول كامل</small></article>
+<article class="settings-summary-card settings-summary-card--violet"><span>صلاحيات التبويبات</span><strong>كاملة</strong><small>النطاق: جميع الفروع</small></article>
+<article class="settings-summary-card settings-summary-card--blue"><span>السجل والنسخ</span><strong>30</strong><small>نسخة مؤرخة لكل تبويب</small></article>
+</section>
+<div class="settings-security-note"><span>🛡️</span><div><b>حماية مركزية مفعّلة</b><small>الحساب الرئيسي محمي من الحذف، وتُسجل تغييرات الصلاحيات والنسخ باسم المنفذ.</small></div><span class="settings-security-note__tag">AES / Audit</span></div>
+<div class="settings-tabs" id="settings-tabs" role="tablist" aria-label="أقسام الإعدادات">
 <button class="settings-tab is-active" id="settings-tab-users" role="tab" aria-selected="true" aria-controls="settings-panel-users">المستخدمون</button>
 <button class="settings-tab" id="settings-tab-permissions" role="tab" aria-selected="false" aria-controls="settings-panel-permissions" tabindex="-1">الصلاحيات</button>
 <button class="settings-tab" id="settings-tab-branches" role="tab" aria-selected="false" aria-controls="settings-panel-branches" tabindex="-1">حسابات الفروع</button>
@@ -322,6 +336,8 @@
       .then(function (j) {
         var users = (j && j.users) || [];
         $('uCount').textContent = '(' + users.length + ')';
+        var userMetric = $('settingsUserMetric');
+        if (userMetric) userMetric.textContent = users.length;
         if (!users.length) { $('usersBody').innerHTML = '<tr><td colspan="5" class="users-empty">لا يوجد مستخدمون مشاركون بعد. أضِف أول مستخدم من الأعلى.</td></tr>'; return; }
         var roleMap = { admin: 'مدير النظام', branch_manager: 'مدير فرع', operations: 'قسم الحركة', maintenance: 'قسم الصيانة', finance: 'قسم الحسابات', data_entry: 'إدخال بيانات', viewer: 'مُطلع', kiosk: 'محطة عمل' };
         $('usersBody').innerHTML = users.map(function (u) {
