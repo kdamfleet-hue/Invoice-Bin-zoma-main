@@ -509,9 +509,9 @@ def gps_color_status_excel():
     return send_file(output, as_attachment=True, download_name="كشف_التتبع_الالوان_والمعطلة.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-@gps_bp.route("/api/notifications", methods=["GET"])
+@gps_bp.route("/api/gps/notifications", methods=["GET"])
 @login_required
-def notifications_data():
+def gps_notifications_data():
     from services.notification_center import get_notifications
     try:
         limit = int(request.args.get("limit", 40))
@@ -520,9 +520,9 @@ def notifications_data():
     return jsonify({"success": True, **get_notifications(limit)})
 
 
-@gps_bp.route("/api/notifications", methods=["POST"])
+@gps_bp.route("/api/gps/notifications", methods=["POST"])
 @login_required
-def notifications_mark_read():
+def gps_notifications_mark_read():
     from services.notification_center import mark_read
     payload = request.get_json(silent=True) or {}
     return jsonify({"success": True, **mark_read(payload.get("ids"), bool(payload.get("all")))})

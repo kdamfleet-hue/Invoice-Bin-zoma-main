@@ -3059,36 +3059,83 @@ def _expiry_counts_for(bid):
 @app.route("/api/notifications", methods=["GET"])
 @login_required
 def api_notifications():
-    """HQ-only live feed: EVERY recent change in ANY branch (from the audit trail) +
-    document-expiry alerts. Each item carries a stable key so the client shows only new ones."""
-    if not session.get("is_admin"):
-        return jsonify({"error": "forbidden"}), 403
+    """Unified notification feed for audit, document, speed and geofence events.
+
+    ``items`` is the canonical UI shape. ``rows`` remains as a compatibility view
+    for older clients, so all consumers receive the same event set and unread state.
+    Admin audit/document events are included only for administrators; GPS events
+    retain the existing authenticated-user behavior.
+    """
+    try:
+        limit = max(1, min(int(request.args.get("limit", 40)), 100))
+    except (TypeError, ValueError):
+        limit = 40
+
+    from services.notification_center import _read_state, get_notifications
+    read_ids = _read_state()
     items = []
-    cutoff = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
-    for b in BRANCHES:
-        for e in _audit_get_at(b["id"]):
-            ts = e.get("ts", "")
-            target = e.get("target", "")
-            if not target or ts < cutoff:
-                continue
-            items.append({
-                "key": "ev|%s|%s|%s|%s" % (b["id"], ts, target, e.get("action", "")),
-                "kind": "change", "icon": _notify_icon(target),
-                "title": "%s — %s" % (e.get("action", "تحديث"), target),
-                "branch": b["name"], "user": e.get("user", "") or "النظام", "ts": ts,
-            })
-        # Memoised per branch: this is the expensive part (loads schedule, employees and the
-        # documents blob for the branch), and it is re-polled by every admin tab.
-        ac = _ttl_cached("expiry_counts:%s" % b["id"], 120, lambda bid=b["id"]: _expiry_counts_for(bid))
-        if sum(ac.values()):
-            items.append({
-                "key": "docs|%s|%s|%s|%s" % (b["id"], ac["expired"], ac["d30"], ac["d90"]),
-                "kind": "docs", "icon": "📄",
-                "title": "وثائق قريبة الانتهاء — منتهية %d · ≤30 يوم %d · ≤90 يوم %d" % (ac["expired"], ac["d30"], ac["d90"]),
-                "branch": b["name"], "user": "", "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            })
+    if session.get("is_admin"):
+        cutoff = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
+        for b in BRANCHES:
+            for e in _audit_get_at(b["id"]):
+                ts = e.get("ts", "")
+                target = e.get("target", "")
+                if not target or ts < cutoff:
+                    continue
+                items.append({
+                    "key": "ev|%s|%s|%s|%s" % (b["id"], ts, target, e.get("action", "")),
+                    "kind": "change", "icon": _notify_icon(target),
+                    "title": "%s — %s" % (e.get("action", "تحديث"), target),
+                    "message": target, "branch": b["name"],
+                    "user": e.get("user", "") or "النظام", "ts": ts,
+                    "read": "ev|%s|%s|%s|%s" % (b["id"], ts, target, e.get("action", "")) in read_ids,
+                })
+            ac = _ttl_cached("expiry_counts:%s" % b["id"], 120, lambda bid=b["id"]: _expiry_counts_for(bid))
+            if sum(ac.values()):
+                items.append({
+                    "key": "docs|%s|%s|%s|%s" % (b["id"], ac["expired"], ac["d30"], ac["d90"]),
+                    "kind": "docs", "icon": "📄",
+                    "title": "وثائق قريبة الانتهاء — منتهية %d · ≤30 يوم %d · ≤90 يوم %d" % (ac["expired"], ac["d30"], ac["d90"]),
+                    "message": "مراجعة وثائق الفرع", "branch": b["name"], "user": "",
+                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "read": "docs|%s|%s|%s|%s" % (b["id"], ac["expired"], ac["d30"], ac["d90"]) in read_ids,
+                })
+
+    gps = get_notifications(limit)
+    for row in gps.get("rows", []):
+        items.append({
+            "key": "gps|" + str(row["id"]),
+            "kind": row.get("type", "gps"),
+            "icon": "⚡" if row.get("type") == "speed" else "📍",
+            "title": row.get("title", "تنبيه تتبع"),
+            "message": row.get("message", ""), "branch": "التتبع",
+            "user": "", "ts": row.get("created_at", ""),
+            "read": bool(row.get("read")), "source": "gps",
+        })
+
     items.sort(key=lambda x: x.get("ts", ""), reverse=True)
-    return jsonify({"success": True, "items": items[:80]})
+    visible = items[:limit]
+    rows = [{
+        "id": item["key"], "type": item["kind"], "title": item["title"],
+        "message": item.get("message", ""), "created_at": item.get("ts", ""),
+        "read": bool(item.get("read")),
+    } for item in visible]
+    return jsonify({
+        "success": True, "items": visible, "rows": rows,
+        "unread_count": sum(1 for item in visible if not item.get("read")),
+        "total": len(visible), "sources": ["audit", "documents", "gps"],
+    })
+
+
+@app.route("/api/notifications", methods=["POST"])
+@login_required
+def api_notifications_mark_read():
+    """Persist read state for IDs from any source in the unified notification feed."""
+    from services.notification_center import mark_read
+    payload = request.get_json(silent=True) or {}
+    ids = payload.get("ids") or []
+    ids = [str(value).removeprefix("gps|") for value in ids]
+    return jsonify({"success": True, **mark_read(ids, bool(payload.get("all")))})
 
 
 def _blob_get_at(table, rid):

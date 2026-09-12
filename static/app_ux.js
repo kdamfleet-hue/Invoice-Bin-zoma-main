@@ -710,7 +710,16 @@ function setupNotifications() {
         if (open) { setLastOpen(nowStr()); badge(0); renderMenu(lastItems); }
     }
     if (bell) { bell.removeAttribute('href'); bell.style.cursor = 'pointer'; bell.title = 'الإشعارات'; bell.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); toggle(); }); }
-    menu.querySelector('.bz-noti-clear').addEventListener('click', function () { setLastOpen(nowStr()); badge(0); renderMenu(lastItems); });
+    menu.querySelector('.bz-noti-clear').addEventListener('click', function () {
+        fetch('/api/notifications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ ids: lastItems.map(function (item) { return item.key; }) })
+        }).then(function (r) { return r.ok ? r.json() : null; })
+          .then(function () { setLastOpen(nowStr()); badge(0); renderMenu(lastItems); })
+          .catch(function () { /* keep the local view usable during a transient failure */ });
+    });
     document.addEventListener('click', function (e) { if (menu.classList.contains('open') && !menu.contains(e.target) && !(bell && bell.contains(e.target))) menu.classList.remove('open'); });
 
     function load(first) {
