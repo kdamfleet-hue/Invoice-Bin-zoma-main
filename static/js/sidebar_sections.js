@@ -2,26 +2,26 @@
   'use strict';
 
   var GROUPS = [
-    { key: 'overview', label: 'نظرة عامة', paths: ['/', '/admin', '/fleet_dashboard', '/ops', '/kpis', '/insights'] },
-    { key: 'operations', label: 'التشغيل اليومي', paths: ['/schedule', '/schedule/transport', '/m/transport', '/yard', '/tracking', '/handover'] },
-    { key: 'people', label: 'الأفراد والمركبات', paths: ['/employees', '/dammam', '/drivers_info', '/driver-vehicle-assignments', '/data-quality', '/alerts', '/documents'] },
+    { key: 'overview', label: 'الرئيسية', paths: ['/', '/admin', '/fleet_dashboard', '/ops', '/kpis', '/insights'] },
+    { key: 'operations', label: 'التشغيل', paths: ['/schedule', '/schedule/transport', '/m/transport', '/yard', '/tracking', '/handover'] },
+    { key: 'people', label: 'المركبات والأفراد', paths: ['/employees', '/dammam', '/drivers_info', '/driver-vehicle-assignments', '/data-quality', '/alerts', '/documents'] },
     { key: 'maintenance', label: 'الصيانة والمخزون', paths: ['/workshop', '/fuel', '/oils', '/inventory/tires', '/inventory/batteries', '/spare_parts', '/washing'] },
     { key: 'finance', label: 'المالية والسجلات', paths: ['/purchase', '/finance/petty-cash', '/invoice', '/incidents', '/records', '/audit-log'] },
-    { key: 'system', label: 'النظام', paths: ['/master_editor', '/system_commands', '/settings', '/logout'] }
+    { key: 'system', label: 'النظام', paths: ['/master_editor', '/system_commands', '/settings', '/branches', '/overview', '/logout'] }
   ];
-  var STORAGE_KEY = 'bz-sidebar-groups';
+  var STORAGE_KEY = 'bz-sidebar-groups-v2';
 
   function pathOf(link) {
     try { return new URL(link.getAttribute('href') || '/', location.origin).pathname; } catch (e) { return link.getAttribute('href') || ''; }
   }
 
   var FALLBACK_GROUPS = [
-    { key: 'overview', label: 'نظرة عامة', links: [['📊','لوحة الأسطول','/fleet_dashboard'], ['⚙️','دورة التشغيل','/ops'], ['📈','مؤشرات الأداء','/kpis'], ['🧠','التحليلات','/insights']] },
+    { key: 'overview', label: 'الرئيسية', links: [['👑','مركز القرار','/admin'], ['📊','لوحة الأسطول','/fleet_dashboard'], ['📈','مؤشرات الأداء','/kpis'], ['🧠','التحليلات','/insights']] },
     { key: 'operations', label: 'التشغيل اليومي', links: [['📋','الجدول الأسبوعي','/schedule'], ['🚚','نقل عام وخاص','/schedule/transport'], ['📱','تطبيق النقل','/m/transport'], ['🅿️','إدارة الساحات','/yard'], ['🛰️','التتبع الحي','/tracking'], ['🔑','تسليم واستلام','/handover']] },
     { key: 'people', label: 'الأفراد والمركبات', links: [['🚗','مركبات الدمام','/dammam'], ['🚛','سائقو النقل','/drivers_info'], ['🔗','ربط السائق بالمركبة','/driver-vehicle-assignments'], ['✓','جودة البيانات','/data-quality'], ['🔔','تنبيهات الوثائق','/alerts'], ['📂','الوثائق','/documents']] },
     { key: 'maintenance', label: 'الصيانة والمخزون', links: [['🔧','الورشة','/workshop'], ['⛽','المحروقات','/fuel'], ['📜','الزيوت والفلاتر','/oils'], ['💿','الإطارات','/inventory/tires'], ['🔋','البطاريات','/inventory/batteries'], ['📦','قطع الغيار','/spare_parts'], ['🚿','الغسيل','/washing']] },
     { key: 'finance', label: 'المالية والسجلات', links: [['🛒','المشتريات','/purchase'], ['💵','العهد','/finance/petty-cash'], ['🧾','الفواتير','/invoice'], ['🚨','الحوادث','/incidents'], ['📁','السجلات','/records'], ['🛡','سجل التدقيق','/audit-log']] },
-    { key: 'system', label: 'النظام', links: [['⚙️','الإعدادات','/settings'], ['↪','تسجيل الخروج','/logout']] }
+    { key: 'system', label: 'النظام', links: [['⚙️','الإعدادات','/settings'], ['🏢','مركز الفروع','/branches'], ['⚡','أوامر النظام','/system_commands'], ['↪','تسجيل الخروج','/logout']] }
   ];
 
   function makeFallbackLink(icon, label, href) {
@@ -111,10 +111,23 @@
       if (Object.prototype.hasOwnProperty.call(saved, name) && !active) {
         group.classList.toggle('is-collapsed', !saved[name]);
         if (button) button.setAttribute('aria-expanded', String(saved[name]));
+      } else if (!active) {
+        group.classList.add('is-collapsed');
+        if (button) button.setAttribute('aria-expanded', 'false');
+      } else {
+        group.classList.remove('is-collapsed');
+        if (button) button.setAttribute('aria-expanded', 'true');
       }
       if (button && !button.dataset.bound) {
         button.dataset.bound = '1';
         button.addEventListener('click', function () {
+          groups.forEach(function (other) {
+            if (other === group) return;
+            other.classList.add('is-collapsed');
+            var otherButton = other.querySelector('.bz-nav-group-toggle');
+            if (otherButton) otherButton.setAttribute('aria-expanded', 'false');
+            saved[other.getAttribute('data-nav-group')] = false;
+          });
           var open = group.classList.toggle('is-collapsed') === false;
           button.setAttribute('aria-expanded', String(open));
           saved[name] = open;
@@ -147,6 +160,20 @@
         });
       });
     }
+
+    groups.forEach(function (group) {
+      Array.prototype.forEach.call(group.querySelectorAll('.bz-nav-group-links a'), function (link) {
+        if (link.dataset.mobileCloseBound) return;
+        link.dataset.mobileCloseBound = '1';
+        link.addEventListener('click', function () {
+          if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) {
+            document.body.classList.remove('sidebar-is-open');
+            var overlay = document.getElementById('bzOverlay');
+            if (overlay) overlay.setAttribute('aria-hidden', 'true');
+          }
+        });
+      });
+    });
   }
 
   function start() {
