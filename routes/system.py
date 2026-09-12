@@ -32,6 +32,7 @@ except Exception:
 
 @system_bp.route("/admin")
 @login_required
+@role_required("admin")
 def admin_console():
     return render_template(
         "admin_console.html",
@@ -55,6 +56,7 @@ def tech_updates_page():
 # hosts the dated-version restore UI, so the site's data-recovery screen was unreachable.
 @system_bp.route("/settings")
 @login_required
+@role_required("admin")
 def settings_page():
     return render_template(
         "settings.html",
@@ -65,6 +67,7 @@ def settings_page():
 
 @system_bp.route("/system_commands")
 @login_required
+@role_required("admin")
 def system_commands_page():
     return render_template(
         "system_commands.html",
@@ -119,6 +122,7 @@ def _do_restore():
 
 @system_bp.route("/api/snapshots")
 @login_required
+@role_required("admin")
 def api_snapshots():
     """Without ?tab= → the snapshottable tab list (Settings dropdown).
     With ?tab=<key> → that tab's dated versions, newest first."""
@@ -130,12 +134,14 @@ def api_snapshots():
 
 @system_bp.route("/api/snapshots/restore", methods=["POST"])
 @login_required
+@role_required("admin")
 def api_snapshots_restore():
     return _do_restore()
 
 
 @system_bp.route("/api/tab_history")
 @login_required
+@role_required("admin")
 def api_tab_history():
     """Per-tab history panel (static/app_ux.js) — same data, tab always required."""
     return _snaps_for((request.args.get("tab") or "").strip())
@@ -143,6 +149,7 @@ def api_tab_history():
 
 @system_bp.route("/api/tab_history/restore", methods=["POST"])
 @login_required
+@role_required("admin")
 def api_tab_history_restore():
     return _do_restore()
 

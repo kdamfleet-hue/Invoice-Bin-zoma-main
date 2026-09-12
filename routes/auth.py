@@ -22,6 +22,11 @@ ALLOWED_USER_ROLES = {
 }
 
 
+def _active_admin_count(db, User):
+    """Count active database administrators before applying an account change."""
+    return User.query.filter_by(role="admin", is_active=True).count()
+
+
 def _send_account_notification(user, event):
     """Best-effort account email; never includes a password or blocks the account change."""
     from flask import current_app
@@ -493,6 +498,13 @@ def api_users():
                     return jsonify({"error": "protected", "reason": "لا يمكن تغيير صلاحية المدير العام"}), 400
                 if user.username == (session.get("username") or session.get("user")) and body.get("is_active") is False:
                     return jsonify({"error": "protected", "reason": "لا يمكن إيقاف الحساب المستخدم حالياً"}), 400
+                current_username = session.get("username") or session.get("user")
+                becoming_inactive = "is_active" in body and body.get("is_active") is False
+                losing_admin = user.role == "admin" and (role != "admin" or becoming_inactive)
+                if losing_admin and _active_admin_count(db, User) <= 1:
+                    return jsonify({"error": "protected", "reason": "لا يمكن تعطيل أو خفض صلاحية آخر مدير نشط"}), 400
+                if user.username == current_username and role != "admin":
+                    return jsonify({"error": "protected", "reason": "لا يمكن للمدير خفض صلاحية حسابه الحالي"}), 400
 
                 user.email = email or user.email
                 user.display_name = display_name or user.display_name
@@ -537,6 +549,8 @@ def api_users():
         if user:
             if user.username == "admin" or user.username == (session.get("username") or session.get("user")):
                 return jsonify({"error": "لا يمكن إيقاف حساب المدير العام أو الحساب المستخدم حالياً"}), 400
+            if user.role == "admin" and _active_admin_count(db, User) <= 1:
+                return jsonify({"error": "protected", "reason": "لا يمكن إيقاف آخر مدير نشط"}), 400
             # Preserve audit history and foreign-key relationships: user removal is
             # represented as a soft disable instead of destructive deletion.
             try:
@@ -550,4 +564,3 @@ def api_users():
                 logger.exception("User disable failed for %s", user.username)
                 return jsonify({"success": False, "error": "تعذر إيقاف المستخدم"}), 500
         return jsonify({"success": False, "error": "المستخدم غير موجود"}), 404
-

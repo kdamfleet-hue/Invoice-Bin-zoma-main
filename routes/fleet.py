@@ -1156,11 +1156,3 @@ def api_master_data_update():
         import traceback
         logger.error(f"Error updating master data: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
-@fleet_bp.route('/api/trigger-excel-import', methods=['GET'])
-def trigger_excel_import():
-    try:
-        from import_weekly_update import main
-        main()
-        return 'Done!'
-    except Exception as e:
-        return str(e)
