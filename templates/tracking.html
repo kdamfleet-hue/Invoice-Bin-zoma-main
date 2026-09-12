@@ -152,6 +152,11 @@
             stopped:   { label: 'متوقفة',      color: '#64748b' },
             offline:   { label: 'غير متصلة',   color: '#ef4444' }
         };
+        // Do not present an old provider reading as a live speed/status signal.
+        // The provider can retain a historical status while the device has been
+        // silent for days; after this threshold it is treated as offline and the
+        // stale speed is suppressed.
+        const STALE_AFTER_SECONDS = 30 * 60;
         let colorReportFilter = 'black';
 
         function normalizeVehicleColor(value) {
@@ -281,18 +286,20 @@
         function normalize(item) {
             const lat = item.lat != null ? item.lat : item.latitude;
             const lng = item.lng != null ? item.lng : item.longitude;
-            const online = !!(item.online || item.is_online || item.status === 'moving' || item.status === 'idling');
+            const age = typeof item.last_update_age_s === 'number' ? item.last_update_age_s : null;
+            const stale = age != null && age > STALE_AFTER_SECONDS;
+            const online = !stale && !!(item.online || item.is_online || item.status === 'moving' || item.status === 'idling');
             const disabled = isDisabledVehicle(item);
-            const status = STATUS[item.status] ? item.status : (online ? 'stopped' : 'offline');
+            const status = stale ? 'offline' : (STATUS[item.status] ? item.status : (online ? 'stopped' : 'offline'));
             const name = item.name || item.plate_number || item.plate || 'مركبة';
             const id = item.id != null ? item.id : (item.asset_id != null ? item.asset_id : (item.device_id != null ? item.device_id : name));
             return {
-                id, name, lat, lng, status, online, disabled,
+                id, name, lat, lng, status, online, disabled, stale,
                 plate: item.plate || item.plate_number || '',
                 colorKey: normalizeVehicleColor(item.color || item.vehicle_color || item.vehicleColor || item.car_color || item.raw_color),
                 colorLabel: item.color || item.vehicle_color || item.vehicleColor || item.car_color || '',
                 driver: item.driver || '',
-                speed: (item.speed_kmh != null ? item.speed_kmh : (item.speed != null ? item.speed : null)),
+                speed: stale ? null : (item.speed_kmh != null ? item.speed_kmh : (item.speed != null ? item.speed : null)),
                 heading: item.heading,
                 ignition: item.ignition_on,
                 address: item.address || '',
@@ -313,7 +320,7 @@
                 + (a.driver ? '<div>👤 السائق: ' + escapeHtml(a.driver) + '</div>' : '')
                 + '<div>⚡ السرعة: <b>' + speed + '</b></div>'
                 + '<div>🔑 المحرك: ' + engine + '</div>'
-                + '<div>📶 الحالة: <span class="csp-inline-tracking-1876">' + st.label + '</span></div>'
+                + '<div>📶 الحالة: <span class="csp-inline-tracking-1876">' + (a.stale ? 'بيانات قديمة' : st.label) + '</span></div>'
                 + (a.odometer != null ? '<div>🛣️ العداد: ' + Math.round(a.odometer).toLocaleString('ar-SA') + ' كم</div>' : '')
                 + (a.address ? '<div>📍 ' + escapeHtml(a.address) + '</div>' : '')
                 + '<div class="csp-inline-tracking-1877">🕓 آخر إشارة: ' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</div>'
@@ -427,7 +434,7 @@
             body.innerHTML = rows.map(a => {
                 const colorLabel = a.colorLabel || (a.colorKey === 'black' ? 'أسود' : a.colorKey === 'blue' ? 'أزرق' : 'غير محدد');
                 const dot = a.colorKey === 'black' ? '#111827' : a.colorKey === 'blue' ? '#2563eb' : '#94a3b8';
-                const statusLabel = a.disabled ? 'معطلة' : ((STATUS[a.status] || STATUS.offline).label);
+                const statusLabel = a.disabled ? 'معطلة' : (a.stale ? 'بيانات قديمة' : ((STATUS[a.status] || STATUS.offline).label));
                 return '<tr><td>' + escapeHtml(a.name) + '</td><td dir="ltr">' + escapeHtml(a.plate || '—') + '</td><td><span class="report-color-dot csp-inline-tracking-1881"></span>' + escapeHtml(colorLabel) + '</td><td>' + escapeHtml(statusLabel) + '</td><td>' + escapeHtml(a.driver || '—') + '</td><td>' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</td></tr>';
             }).join('');
         }
@@ -436,7 +443,7 @@
             const rows = reportRows(colorReportFilter);
             if (!rows.length) { if (typeof showToast === 'function') showToast('لا توجد مركبات في التصنيف الحالي', 'info'); return; }
             const data = [['المركبة','اللوحة','اللون','الحالة','السائق','آخر إشارة']];
-            rows.forEach(a => data.push([a.name, a.plate, a.colorLabel || (a.colorKey === 'black' ? 'أسود' : a.colorKey === 'blue' ? 'أزرق' : 'غير محدد'), a.disabled ? 'معطلة' : ((STATUS[a.status] || STATUS.offline).label), a.driver, timeAgo(a.lastUpdate, a.age)]));
+            rows.forEach(a => data.push([a.name, a.plate, a.colorLabel || (a.colorKey === 'black' ? 'أسود' : a.colorKey === 'blue' ? 'أزرق' : 'غير محدد'), a.disabled ? 'معطلة' : (a.stale ? 'بيانات قديمة' : ((STATUS[a.status] || STATUS.offline).label)), a.driver, timeAgo(a.lastUpdate, a.age)]));
             const csv = '\ufeff' + data.map(row => row.map(v => '"' + String(v ?? '').replaceAll('"','""') + '"').join(',')).join('\n');
             const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'})); link.download = 'كشف_التتبع_الالوان_والمعطلة_' + new Date().toISOString().slice(0,10) + '.csv'; link.click(); URL.revokeObjectURL(link.href);
         }
@@ -474,7 +481,7 @@
                     '<div class="status-dot csp-inline-tracking-1882"></div>'
                     + '<div class="csp-inline-tracking-1883"><div class="asset-name">' + escapeHtml(a.name)
                     + (a.plate ? ' <small class="csp-inline-tracking-1884">' + escapeHtml(a.plate) + '</small>' : '') + '</div>'
-                    + '<div class="asset-meta">' + st.label
+                    + '<div class="asset-meta">' + (a.stale ? 'بيانات قديمة' : st.label)
                     + (a.speed != null ? ' • ' + Math.round(a.speed) + ' كم/س' : '')
                     + (a.driver ? ' • ' + escapeHtml(a.driver) : '')
                     + ' • ' + escapeHtml(timeAgo(a.lastUpdate, a.age)) + '</div></div>';

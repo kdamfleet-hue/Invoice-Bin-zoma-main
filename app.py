@@ -5452,7 +5452,8 @@ app.register_blueprint(analytics_bp)
 import routes.dammam          # noqa: F401
 import routes.ops_cycle       # noqa: F401
 import routes.schedule_transport  # noqa: F401
-import routes.schedule_vehicles   # noqa: F401
+from routes.schedule_vehicles import schedule_vehicles_bp
+app.register_blueprint(schedule_vehicles_bp)
 # routes/invoices.py used to be registered here. It defined no routes at all (its view
 # functions carried no decorators), imported from app at module level (a circular import
 # hazard at every worker boot), and referenced an undefined name (tafqeet) that would have

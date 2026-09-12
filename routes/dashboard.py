@@ -55,7 +55,6 @@ ROLE_HOME_CONFIG = {
         "workspaces": [
             {"label": "دورة التشغيل", "note": "الخطة والاستثناءات", "href": "/ops", "icon": "settings-2"},
             {"label": "التتبع الحي", "note": "مواقع المركبات", "href": "/tracking", "icon": "map-pinned"},
-            {"label": "التتبع الحي", "note": "متابعة حركة المركبات", "href": "/tracking", "icon": "map-pinned"},
             {"label": "التسليم والاستلام", "note": "سجل العهد", "href": "/handover", "icon": "key-round"},
         ],
     },
@@ -76,7 +75,6 @@ ROLE_HOME_CONFIG = {
         "workspaces": [
             {"label": "الجدول الأسبوعي", "note": "توزيع الحركة", "href": "/schedule", "icon": "calendar-days"},
             {"label": "نقل عام وخاص", "note": "الرحلات والتخصيص", "href": "/schedule/transport", "icon": "route"},
-            {"label": "التتبع الحي", "note": "مواقع المركبات", "href": "/tracking", "icon": "map-pinned"},
             {"label": "التتبع الحي", "note": "مواقع المركبات", "href": "/tracking", "icon": "map-pinned"},
         ],
     },
