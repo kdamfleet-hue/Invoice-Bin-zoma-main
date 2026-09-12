@@ -284,7 +284,7 @@
         setTimeout(() => {
             overlay.classList.add('fade-out');
             setTimeout(() => overlay.remove(), 900);
-        }, 3400);
+        }, 5000);
 
         // Click to dismiss early
         overlay.addEventListener('click', () => {

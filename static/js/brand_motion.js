@@ -23,13 +23,19 @@
     };
     let seen = false;
     try { seen = sessionStorage.getItem(seenKey) === '1'; } catch (_) {}
-    if (seen || reducedMotion) {
+    if (reducedMotion) {
       dismiss();
       return;
     }
+    if (seen) {
+      // Already played once this session — give a brief, visible glimpse instead of
+      // an instant flash (the old immediate dismiss read as the intro barely appearing).
+      window.setTimeout(dismiss, 1800);
+      return;
+    }
     if (skip) skip.addEventListener('click', dismiss);
-    // The transparent WebP is encoded at 48 × 146 ms ≈ 7 seconds.
-    window.setTimeout(dismiss, 7000);
+    // The transparent WebP loops; ~9s gives it a full extra pass before we cut away.
+    window.setTimeout(dismiss, 9000);
   }
 
   function initPageMotion() {
