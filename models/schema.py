@@ -17,6 +17,9 @@ class Branch(db.Model):
 
 class User(db.Model):
     __tablename__ = 'erp_users'
+    __table_args__ = (
+        db.Index('ix_erp_users_active_role', 'is_active', 'role'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
     display_name = db.Column(db.String(150), nullable=True)
@@ -275,6 +278,9 @@ class AppSetting(db.Model):
 
 class Snapshot(db.Model):
     __tablename__ = 'erp_snapshots'
+    __table_args__ = (
+        db.Index('ix_erp_snapshots_branch_tab_id', 'branch_id', 'tab', 'id'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     tab = db.Column(db.String(100), nullable=True)
     branch_id = db.Column(db.Integer, nullable=True)

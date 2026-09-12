@@ -21,6 +21,7 @@ import json
 import re
 import html
 import sys
+import hashlib
 import absher_sync          # محرّك مزامنة أبشر (قارئ xlsx بالمكتبة القياسية + الفروقات)
 from datetime import datetime
 import pandas as pd
@@ -90,6 +91,9 @@ CSRF_EXEMPT_PATHS = {
     "/api/cron/speed-alerts",   # protected by X-Alert-Cron-Key
     "/api/analytics/ux-event",  # anonymous, bounded telemetry; contains no stateful user data
 }
+AUTHZ_CACHE_TTL = max(1, int(os.environ.get("AUTHZ_CACHE_TTL", "5")))
+_AUTHZ_CACHE = {}
+_AUTHZ_CACHE_LOCK = threading.Lock()
 
 
 def _csrf_token():
@@ -99,6 +103,43 @@ def _csrf_token():
         token = secrets.token_urlsafe(32)
         session["_csrf_token"] = token
     return token
+
+
+def _authz_state(user_id):
+    """Return (active, version) from shared cache or a process-local fallback."""
+    now = time.monotonic()
+    key = int(user_id)
+    cache_key = "authz_state:%s" % key
+    try:
+        shared_hit = cache.get(cache_key)
+        if shared_hit:
+            return bool(shared_hit[0]), int(shared_hit[1])
+    except Exception:
+        shared_hit = None
+    with _AUTHZ_CACHE_LOCK:
+        hit = _AUTHZ_CACHE.get(key)
+        if hit and hit[0] > now:
+            return hit[1], hit[2]
+    from models.schema import User
+    current_user = db.session.get(User, key)
+    active = bool(current_user and current_user.is_active)
+    version = int(getattr(current_user, "authz_version", 1) or 1) if current_user else 0
+    try:
+        cache.set(cache_key, (active, version), timeout=AUTHZ_CACHE_TTL)
+    except Exception:
+        pass
+    with _AUTHZ_CACHE_LOCK:
+        _AUTHZ_CACHE[key] = (now + AUTHZ_CACHE_TTL, active, version)
+    return active, version
+
+
+def _invalidate_authz_cache(user_id):
+    try:
+        cache.delete("authz_state:%s" % int(user_id))
+    except Exception:
+        pass
+    with _AUTHZ_CACHE_LOCK:
+        _AUTHZ_CACHE.pop(int(user_id), None)
 
 
 @app.context_processor
@@ -149,10 +190,10 @@ def _refuse_oversized_bodies():
 if _db_url:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_pre_ping': True,
-        'pool_recycle': 280,
-        'pool_size': 10,
-        'max_overflow': 20,
-        'pool_timeout': 30
+        'pool_recycle': int(os.environ.get('SQLALCHEMY_POOL_RECYCLE', '280')),
+        'pool_size': int(os.environ.get('SQLALCHEMY_POOL_SIZE', '10')),
+        'max_overflow': int(os.environ.get('SQLALCHEMY_MAX_OVERFLOW', '20')),
+        'pool_timeout': int(os.environ.get('SQLALCHEMY_POOL_TIMEOUT', '30'))
     }
 else:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -197,8 +238,12 @@ CSP_REPORT_ONLY = "; ".join([
 # after_request hook below emits CSP-Report-Only for observability.
 Talisman(app, content_security_policy=None, force_https=False)
 
-# Initialize Caching
-cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
+# Initialize Caching. Use a shared backend when REDIS_URL is configured so authz
+# invalidation propagates across workers; keep SimpleCache as a zero-dependency fallback.
+_redis_url = os.environ.get("REDIS_URL")
+_cache_config = ({'CACHE_TYPE': 'RedisCache', 'CACHE_REDIS_URL': _redis_url}
+                 if _redis_url else {'CACHE_TYPE': 'SimpleCache'})
+cache = Cache(config=_cache_config)
 cache.init_app(app)
 
 # Initialize Rate Limiter
@@ -290,6 +335,15 @@ def ensure_db_columns():
                     conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_erp_users_password_reset_token_hash ON erp_users (password_reset_token_hash)"))
                 except Exception as index_err:
                     logger.warning(f"Auto-migration: reset-token index skipped: {index_err}")
+                try:
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_erp_users_active_role ON erp_users (is_active, role)"))
+                except Exception as index_err:
+                    logger.warning(f"Auto-migration: user role index skipped: {index_err}")
+            if 'erp_snapshots' in tables:
+                try:
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_erp_snapshots_branch_tab_id ON erp_snapshots (branch_id, tab, id)"))
+                except Exception as index_err:
+                    logger.warning(f"Auto-migration: snapshot index skipped: {index_err}")
     except Exception as e:
         logger.warning(f"ensure_db_columns notice: {e}")
 
@@ -381,8 +435,9 @@ app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_DEBUG", "False").low
 from datetime import timedelta
 
 app.permanent_session_lifetime = timedelta(hours=8)
-app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+_debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+app.config['TEMPLATES_AUTO_RELOAD'] = _debug_mode
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = int(os.environ.get("STATIC_MAX_AGE", "0" if _debug_mode else "3600"))
 
 @app.after_request
 def add_header(response):
@@ -491,11 +546,9 @@ def enforce_dedicated_workstation_and_tab_permissions():
     # role/status increments that version, invalidating every older session.
     if session.get("authenticated") and session.get("user_id") and not path.startswith("/static"):
         try:
-            from models.schema import User
-            current_user = db.session.get(User, int(session["user_id"]))
-            current_version = int(getattr(current_user, "authz_version", 1) or 1) if current_user else 0
+            current_active, current_version = _authz_state(session["user_id"])
             session_version = int(session.get("authz_version", 0) or 0)
-            if not current_user or not current_user.is_active or current_version != session_version:
+            if not current_active or current_version != session_version:
                 session.clear()
                 if path.startswith("/api/"):
                     return jsonify({"success": False, "error": "انتهت صلاحيات الجلسة، يرجى تسجيل الدخول مجددًا", "code": "AUTHZ_CHANGED"}), 401
@@ -3142,7 +3195,7 @@ def api_notifications():
                     "kind": "docs", "icon": "📄",
                     "title": "وثائق قريبة الانتهاء — منتهية %d · ≤30 يوم %d · ≤90 يوم %d" % (ac["expired"], ac["d30"], ac["d90"]),
                     "message": "مراجعة وثائق الفرع", "branch": b["name"], "user": "",
-                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "ts": datetime.now().strftime("%Y-%m-%d"),
                     "read": "docs|%s|%s|%s|%s" % (b["id"], ac["expired"], ac["d30"], ac["d90"]) in read_ids,
                 })
 
@@ -3165,11 +3218,14 @@ def api_notifications():
         "message": item.get("message", ""), "created_at": item.get("ts", ""),
         "read": bool(item.get("read")),
     } for item in visible]
-    return jsonify({
+    payload = {
         "success": True, "items": visible, "rows": rows,
         "unread_count": sum(1 for item in visible if not item.get("read")),
         "total": len(visible), "sources": ["audit", "documents", "gps"],
-    })
+    }
+    response = jsonify(payload)
+    response.set_etag(hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest())
+    return response.make_conditional(request)
 
 
 @app.route("/api/notifications", methods=["POST"])

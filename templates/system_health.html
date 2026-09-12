@@ -80,10 +80,13 @@
             }
         });
 
+        let metricsTimer = null;
+        let metricsDelay = 10000;
         async function fetchMetrics() {
             try {
                 const r = await fetch('/api/system_metrics');
                 const j = await r.json();
+                if (!r.ok) throw new Error(j.error || 'تعذر تحميل مؤشرات النظام');
                 if(j.success) {
                     const m = j.metrics;
 
@@ -112,10 +115,22 @@
                     metricsChart.data.datasets[1].data.push(m.ram_percent);
                     metricsChart.update();
                 }
-            } catch(e) { console.error('Error fetching metrics', e); }
+                metricsDelay = 10000;
+            } catch(e) {
+                console.error('Error fetching metrics', e);
+                metricsDelay = Math.min(metricsDelay * 2, 60000);
+            } finally {
+                scheduleMetrics();
+            }
         }
-
+        function scheduleMetrics() {
+            if (metricsTimer) clearTimeout(metricsTimer);
+            if (document.visibilityState === 'visible') metricsTimer = setTimeout(fetchMetrics, metricsDelay);
+        }
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') { metricsDelay = 10000; fetchMetrics(); }
+            else if (metricsTimer) clearTimeout(metricsTimer);
+        });
         fetchMetrics();
-        setInterval(fetchMetrics, 3000); // refresh every 3 seconds
     </script>
 {% endblock %}

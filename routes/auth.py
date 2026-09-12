@@ -518,6 +518,9 @@ def api_users():
                 if 'is_active' in body:
                     user.is_active = bool(body.get('is_active'))
                 db.session.commit()
+                if role_or_status_changed:
+                    from app import _invalidate_authz_cache
+                    _invalidate_authz_cache(user.id)
                 notification = _send_account_notification(user, "reset") if password else "not_applicable"
                 return jsonify({"success": True, "message": "تم التحديث بنجاح", "notification": notification})
 
@@ -562,6 +565,8 @@ def api_users():
                 user.is_active = False
                 user.authz_version = int(getattr(user, "authz_version", 1) or 1) + 1
                 db.session.commit()
+                from app import _invalidate_authz_cache
+                _invalidate_authz_cache(user.id)
                 from app import _audit_add
                 _audit_add("إيقاف مستخدم", user.username, detail="إيقاف آمن دون حذف السجلات")
                 return jsonify({"success": True, "message": "تم إيقاف المستخدم مع الحفاظ على سجلاته"})
