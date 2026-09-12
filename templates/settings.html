@@ -44,6 +44,14 @@
 </header>
 <div class="bz-shell">
 <h2 class="bz-section-title">⚙️ الإعدادات</h2>
+<div class="settings-tabs" role="tablist" aria-label="أقسام الإعدادات">
+<button class="settings-tab is-active" id="settings-tab-users" role="tab" aria-selected="true" aria-controls="settings-panel-users">المستخدمون</button>
+<button class="settings-tab" id="settings-tab-permissions" role="tab" aria-selected="false" aria-controls="settings-panel-permissions" tabindex="-1">الصلاحيات</button>
+<button class="settings-tab" id="settings-tab-branches" role="tab" aria-selected="false" aria-controls="settings-panel-branches" tabindex="-1">حسابات الفروع</button>
+<button class="settings-tab" id="settings-tab-dedicated" role="tab" aria-selected="false" aria-controls="settings-panel-dedicated" tabindex="-1">الحسابات المخصصة</button>
+<button class="settings-tab" id="settings-tab-backups" role="tab" aria-selected="false" aria-controls="settings-panel-backups" tabindex="-1">النسخ والاستعادة</button>
+<button class="settings-tab" id="settings-tab-features" role="tab" aria-selected="false" aria-controls="settings-panel-features" tabindex="-1">ميزات النظام</button>
+</div>
 <div class="set-wrap">
 <div class="set-card">
 <h3>🔑 مشاركة الموقع — حسابات الدخول</h3>
@@ -226,11 +234,86 @@
 </div>
 </div>
 </div>
+<aside class="settings-save-bar" id="settingsSaveBar" data-visible="false" role="status" aria-live="polite">
+<span id="settingsSaveMessage">لديك تغييرات غير محفوظة</span>
+<div class="settings-save-actions">
+<button type="button" class="settings-save-secondary" id="settingsDiscardChanges">التراجع عن التغييرات</button>
+<button type="button" class="settings-save-primary" id="settingsApplyChanges">حفظ وتطبيق الصلاحيات</button>
+</div>
+</aside>
 <script>
 (function () {
   'use strict';
   function $(id) { return document.getElementById(id); }
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>\"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  function initSettingsTabs() {
+    var wrap = document.querySelector('.set-wrap');
+    if (!wrap || wrap.dataset.tabsReady === 'true') return;
+    var cards = Array.prototype.slice.call(wrap.querySelectorAll(':scope > .set-card'));
+    if (!cards.length) return;
+    var groups = {
+      users: document.createElement('section'),
+      permissions: document.createElement('section'),
+      branches: document.createElement('section'),
+      dedicated: document.createElement('section'),
+      backups: document.createElement('section'),
+      features: document.createElement('section')
+    };
+    Object.keys(groups).forEach(function (key) {
+      groups[key].className = 'settings-panel';
+      groups[key].id = 'settings-panel-' + key;
+      groups[key].role = 'tabpanel';
+      groups[key].hidden = key !== 'users';
+      wrap.appendChild(groups[key]);
+    });
+    cards.forEach(function (card, index) {
+      var text = (card.querySelector('h3') || {}).textContent || '';
+      var target = index < 2 ? groups.users :
+        card.id === 'tabPermsCard' ? groups.permissions :
+        card.id === 'createDedicatedUserCard' ? groups.dedicated :
+        card.id === 'featuresCard' ? groups.features :
+        text.indexOf('السجل الزمني') !== -1 ? groups.backups :
+        text.indexOf('حسابات الفروع') !== -1 || card.querySelector('.admin-note') ? groups.branches : groups.users;
+      target.appendChild(card);
+    });
+    wrap.dataset.tabsReady = 'true';
+  }
+  function initSettingsTabControls() {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.settings-tab'));
+    tabs.forEach(function (tab, index) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (item) {
+          var active = item === tab;
+          item.classList.toggle('is-active', active);
+          item.setAttribute('aria-selected', String(active));
+          item.tabIndex = active ? 0 : -1;
+          var panel = $(item.getAttribute('aria-controls'));
+          if (panel) panel.hidden = !active;
+        });
+      });
+      tab.addEventListener('keydown', function (event) {
+        if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        var next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next].click();
+        tabs[next].focus();
+      });
+    });
+  }
+  function markSettingsDirty() {
+    var bar = $('settingsSaveBar');
+    if (bar) bar.dataset.visible = 'true';
+    var message = $('settingsSaveMessage');
+    if (message) message.textContent = 'لديك تغييرات غير محفوظة في الصلاحيات';
+  }
+  function clearSettingsDirty(message) {
+    var bar = $('settingsSaveBar');
+    if (bar) bar.dataset.visible = 'false';
+    var status = $('settingsSaveMessage');
+    if (status) status.textContent = message || 'كل التغييرات محفوظة';
+  }
+  initSettingsTabs();
+  initSettingsTabControls();
   window.hoTogglePw = function () { var i = $('u-pass'); if (i) i.type = i.type === 'password' ? 'text' : 'password'; };
 
   function loadUsers() {
@@ -567,6 +650,7 @@
         if (j.success) {
           userPermsCache['__global__'] = { dedicated_mode: dedicatedMode, disabled_tabs: disabledTabs };
           msg.innerHTML = '<span class="csp-inline-settings-1797">✓ تم حفظ التخصيص العام لجميع الحسابات بنجاح!</span>';
+          clearSettingsDirty('تم حفظ الصلاحيات بنجاح');
           if (window.showToast) showToast('✓ تم حفظ الإعداد العام بنجاح', 'success');
         } else {
           msg.innerHTML = '<span class="csp-inline-settings-1798">⚠ ' + (j.error || 'تعذر الحفظ') + '</span>';
@@ -590,6 +674,7 @@
         if (j.success) {
           userPermsCache[targetUser] = { dedicated_mode: dedicatedMode, allowed_tabs: allowedTabs };
           msg.innerHTML = '<span class="csp-inline-settings-1801">✓ تم حفظ صلاحيات الحساب (' + esc(targetUser) + ') بنجاح!</span>';
+          clearSettingsDirty('تم حفظ الصلاحيات بنجاح');
           if (window.showToast) showToast('✓ تم حفظ صلاحيات الحساب بنجاح', 'success');
         } else {
           msg.innerHTML = '<span class="csp-inline-settings-1802">⚠ ' + (j.error || 'تعذر الحفظ') + '</span>';
@@ -598,6 +683,16 @@
       .catch(function() { msg.innerHTML = '<span class="csp-inline-settings-1803">تعذر الاتصال بالخادم.</span>'; });
     }
   };
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tab-toggle'), function (cb) {
+    cb.addEventListener('change', markSettingsDirty);
+  });
+  if ($('dedicatedModeSelect')) $('dedicatedModeSelect').addEventListener('change', markSettingsDirty);
+  if ($('settingsApplyChanges')) $('settingsApplyChanges').addEventListener('click', function () { window.saveTabPermissions(); });
+  if ($('settingsDiscardChanges')) $('settingsDiscardChanges').addEventListener('click', function () {
+    window.onAccountSelected();
+    clearSettingsDirty('تم التراجع عن التغييرات');
+  });
 
   loadTabPermissions();
 
