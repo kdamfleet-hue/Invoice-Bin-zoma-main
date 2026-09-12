@@ -199,7 +199,6 @@ def index() -> Any:
     """Render the main index page with summary statistics."""
     try:
         google_user = session.get("google_user")
-        b64_en = load_logo()
         home_profile = _role_home_profile(session.get("role"))
         # Branch logins see THEIR branch's numbers; admins/HQ see company-wide totals. These
         # tiles were never scoped, so a branch manager's homepage showed everyone's counts.
@@ -209,7 +208,13 @@ def index() -> Any:
         # expose the same source-aware numbers.
         try:
             from app import _compute_insights
-            insight_view = _compute_insights(rid=bid)
+            from app import _ttl_cached
+            cache_scope = "branch:%s" % (bid if bid is not None else "all")
+            insight_view = _ttl_cached(
+                "home_insights:%s" % cache_scope,
+                10,
+                lambda: _compute_insights(rid=bid),
+            )
             total_drivers = insight_view.get("people", {}).get("reconciled_total", 0)
             active_vehicles = insight_view.get("fleet", {}).get("vehicles", 0)
             urgent_alerts = (insight_view.get("documents", {}).get("expired", 0)
@@ -217,7 +222,6 @@ def index() -> Any:
             return render_template(
                 "index.html",
                 google_user=google_user,
-                b64_en=b64_en,
                 show_invoice_title=False,
                 total_drivers=total_drivers,
                 active_vehicles=active_vehicles,
@@ -271,7 +275,6 @@ def index() -> Any:
         return render_template(
             "index.html",
             google_user=google_user,
-            b64_en=b64_en,
             show_invoice_title=False,
             total_drivers=total_drivers,
             active_vehicles=active_vehicles,
