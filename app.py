@@ -154,15 +154,19 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Initialize Security Headers
 # Keep enforcement disabled while we inventory existing inline scripts and third-party assets.
-# The report-only policy is intentionally strict enough to surface migration work without
-# blocking the current UI. Once violations are resolved, promote it to enforcement.
+# The application still has legacy inline <style> blocks and style attributes across its
+# server-rendered templates. Explicitly scope the temporary compatibility exception to CSS;
+# JavaScript remains governed by the stricter script-src policy below. Remove these style
+# exceptions after the inline CSS is migrated to static files and classes.
 CSP_REPORT_ONLY = "; ".join([
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'self'",
     "script-src 'self' https://unpkg.com https://code.jquery.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plot.ly https://cdn.tailwindcss.com https://cdn.datatables.net",
-    "style-src 'self' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net",
+    "style-src 'self' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net 'unsafe-inline'",
+    "style-src-elem 'self' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net 'unsafe-inline'",
+    "style-src-attr 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://server.arcgisonline.com https://*.basemaps.cartocdn.com https://www.hik-connect.com",
     "media-src 'self' https://assets.mixkit.co",
