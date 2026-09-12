@@ -191,7 +191,7 @@ def _role_home_profile(role: str | None) -> Dict[str, Any]:
     return ROLE_HOME_CONFIG.get(role or "viewer", ROLE_HOME_CONFIG["viewer"])
 
 
-@dashboard_bp.route("/")
+@dashboard_bp.route("/dashboard")
 @login_required
 def index() -> Any:
     """Render the main index page with summary statistics."""
