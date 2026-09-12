@@ -174,6 +174,8 @@ def login():
             session.permanent = True
             session["user"] = user.username
             session["username"] = user.username
+            session["user_id"] = user.id
+            session["authz_version"] = int(getattr(user, "authz_version", 1) or 1)
             session["display_name"] = _resolve_display_name(user.username, branch_id=user.branch_id)
             session["google_user"] = {"name": session["display_name"] or user.username, "email": user.username + "@binzomah.local"}
             session["is_admin"] = (user.role == 'admin')
@@ -505,6 +507,9 @@ def api_users():
                     return jsonify({"error": "protected", "reason": "لا يمكن تعطيل أو خفض صلاحية آخر مدير نشط"}), 400
                 if user.username == current_username and role != "admin":
                     return jsonify({"error": "protected", "reason": "لا يمكن للمدير خفض صلاحية حسابه الحالي"}), 400
+                role_or_status_changed = user.role != role or ("is_active" in body and user.is_active != bool(body.get("is_active")))
+                if role_or_status_changed:
+                    user.authz_version = int(getattr(user, "authz_version", 1) or 1) + 1
 
                 user.email = email or user.email
                 user.display_name = display_name or user.display_name
@@ -555,6 +560,7 @@ def api_users():
             # represented as a soft disable instead of destructive deletion.
             try:
                 user.is_active = False
+                user.authz_version = int(getattr(user, "authz_version", 1) or 1) + 1
                 db.session.commit()
                 from app import _audit_add
                 _audit_add("إيقاف مستخدم", user.username, detail="إيقاف آمن دون حذف السجلات")

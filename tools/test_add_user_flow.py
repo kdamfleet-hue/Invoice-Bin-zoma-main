@@ -13,10 +13,12 @@ with client.session_transaction() as sess:
     sess["authenticated"] = True
     sess["role"] = "admin"
     sess["user"] = "admin"
+    sess["_csrf_token"] = "audit-csrf-token"
 
 for password in ("Asd@123123K", "Asd@123123K!9"):
     response = client.post(
         "/api/users",
+        headers={"X-CSRFToken": "audit-csrf-token"},
         json={
             "name": "محمد العتيبي",
             "username": "audit_probe_user",

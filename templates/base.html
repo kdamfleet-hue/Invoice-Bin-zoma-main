@@ -3,6 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+    (function () {
+        var token = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (!token) return;
+        var originalFetch = window.fetch;
+        if (originalFetch) {
+            window.fetch = function (input, init) {
+                init = init || {};
+                var method = String(init.method || (input && input.method) || 'GET').toUpperCase();
+                if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+                    var headers = new Headers(init.headers || (input && input.headers) || {});
+                    if (!headers.has('X-CSRFToken')) headers.set('X-CSRFToken', token);
+                    init.headers = headers;
+                }
+                return originalFetch.call(this, input, init);
+            };
+        }
+        document.addEventListener('submit', function (event) {
+            var form = event.target;
+            var method = String(form.method || 'GET').toUpperCase();
+            if (method !== 'GET' && method !== 'DIALOG' && !form.querySelector('input[name="csrf_token"]')) {
+                var input = document.createElement('input');
+                input.type = 'hidden'; input.name = 'csrf_token'; input.value = token;
+                form.appendChild(input);
+            }
+        }, true);
+    })();
+    </script>
     <title>{% block title %}نظام إدارة الأسطول | شركة بن زومة{% endblock %}</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#071018">

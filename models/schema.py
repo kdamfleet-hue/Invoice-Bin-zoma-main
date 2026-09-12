@@ -26,6 +26,7 @@ class User(db.Model):
     role = db.Column(db.String(50), nullable=False, default='viewer') # admin, branch_manager, data_entry, viewer, kiosk
     is_active = db.Column(db.Boolean, default=True)
     must_change_password = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    authz_version = db.Column(db.Integer, nullable=False, default=1, server_default='1')
     password_reset_token_hash = db.Column(db.String(64), nullable=True, unique=True)
     password_reset_expires_at = db.Column(db.DateTime, nullable=True)
     last_login = db.Column(db.DateTime, nullable=True)
@@ -279,4 +280,3 @@ class Snapshot(db.Model):
     branch_id = db.Column(db.Integer, nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     data = db.Column(db.Text, nullable=False)
-

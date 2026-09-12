@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,8 +11,10 @@ os.environ.setdefault('SECRET_KEY', 'local-audit-secret')
 from app import app
 
 client = app.test_client()
+page = client.get('/login')
+token = re.search(r'name="csrf_token" value="([^"]+)"', page.get_data(as_text=True)).group(1)
 with patch('app.get_branch_accounts', side_effect=RuntimeError('simulated storage failure')):
-    response = client.post('/login', data={'username': 'audit-invalid-account', 'password': 'audit-invalid-password'})
+    response = client.post('/login', data={'csrf_token': token, 'username': 'audit-invalid-account', 'password': 'audit-invalid-password'})
     assert response.status_code == 200, response.status_code
     assert 'غير صحيحة' in response.get_data(as_text=True)
 print('login storage failure smoke test: PASS')

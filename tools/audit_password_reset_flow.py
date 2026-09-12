@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -16,8 +17,9 @@ assert 'نسيت كلمة المرور' in response.get_data(as_text=True)
 
 response = client.get('/forgot-password')
 assert response.status_code == 200, response.status_code
+token = re.search(r'name="csrf_token" value="([^"]+)"', response.get_data(as_text=True)).group(1)
 
-response = client.post('/forgot-password', data={'identifier': 'not-a-real-account'})
+response = client.post('/forgot-password', data={'csrf_token': token, 'identifier': 'not-a-real-account'})
 assert response.status_code == 200, response.status_code
 assert 'إذا كان الحساب موجودًا' in response.get_data(as_text=True)
 

@@ -85,6 +85,25 @@ DEFAULT_TEMPLATES = {
 EMAIL_LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAHgAAABQCAIAAABd+SbeAAAGl0lEQVR42u3abWybVxUH8HPu47eSxHFiu3GTKW5e3KR5aZhDOkqmFhoxadpg0wqCIugEqwZsIAqIicKmdqNiCLURQhvdBmXVVrUrRJ3WoWpsq1iaboNuTZs0IU7avGyu06RJ7Dh+t597Dx9cYOpgdBMTj9H5f/AXPx8e/XR17z3nPEhEwPnwI5iAoRmaw9AMzdAchmZoDkMzNENzGJqhOQzN0AzNYWiG5jA0QzM0h6HfHQIoxMG9KDhlBEAsPOtCgiYCBFBSZbKy4KxFgRBfSSSWvXv30Bd2nLkcTuetlSKG/q8FERFRCBydSvyud/6lM9ETZ+elVAgkBKpCWNto5E/CpCQCQIS3Q3PBS5elpMrlJSeH0WTCdp996+4Rq0176M7aDX6XLsmkIUN/0B0ZAQAy6fjQ6CQRIUJOV6V2ezyRtpcsOztp3dodKCvW9t/XtPFjbqlIE8jQ748YABDh0Iuh8JIOoABRE6jrZC/Suq63DQTGE8ncuraVpyfMW7sDVjM++YOmT691KyKByNDXfE1WJAQ++OT53b+/mEgrRKT8HwCU1e+8ecXOLZ/j8RCqd+3ibdzSobXtsXCD17GjtaCqjIhKGXNcmoykDgRC4c9/57mdDFQ7L5o3L7RbUpcqfiELgXCQdnBfr/I19b4y8PjD1qY762ztde/8wPTQZX9tcpkuGvrZrHADs2j/e/WzIvkzs+UbdWp89GVpwOoob6uuuerhrnfNLfYOXw3GzSWgCgWQmk7JalxtzZLB6BGOJ3OHeuZsJn97W2FKdOX5qvNJdmiXHZ3/Yn0rpRCQQzSbNSfedz9RvWrg5HokpmgEApGApc8HiqqirK/3GQMvS/hhYCECGdzj3+3cZWb6avf8LjdGy4oXlkKnv8bPTSg5PxZzKS9p1LHZX/YeKDnw4xeVIkRFSORKZ2EkT8Kkz0N/ZGbB41DY3VNyc3+8upC7MlMRKZKV6EjOE2vk6xK2z7yeEMPlugbpoCdAzDdqdKnvnd49AQBgt9u1Df2Ct1gsqizLeNovNhp0+C2OA8koaQnp9/rO2/aKxSaD7qM0c2S9LTfqSPVL+g7gdLk3R4Lvn7+mOzy/opoQygzl5NQIq0/p5lhK0e2LzTzqGkWc+MfHZXRCoZDRfINvaOwiz6hElTDSJI1SP3BSkjGC9pRbIp/87qt+t6PBqkEYVgcUzn9CAABxl/mB7nH0vYi07reLMYozcWJtqzI2u8KnIVC0eTcdVgg//uLewJtFRfvcQCkKR1Bh/zeUZYrtdqSVVnXmdI4JjvQEzWUyIPV+s7p1f5Zk8HkDQ5a8h0/4lTsdTtiCWifdzGoFQylFZ2t+TNl1tN2TVdJW99ddpChfbuVZGXiXku/4WVeK/MlA9GqOFK+HGgnWaVXKgvnXjSkLjWEYhmEYhmEYhmEYhmH+sz8BzQDdMcl1yrQAAAAASUVORK5CYII="
 
 app = Flask(__name__)
+CSRF_EXEMPT_PATHS = {
+    "/api/cron/expiry_alerts",  # protected by ALERT_CRON_KEY
+    "/api/cron/speed-alerts",   # protected by X-Alert-Cron-Key
+    "/api/analytics/ux-event",  # anonymous, bounded telemetry; contains no stateful user data
+}
+
+
+def _csrf_token():
+    """Return a per-session token for same-origin forms and AJAX requests."""
+    token = session.get("_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_csrf_token"] = token
+    return token
+
+
+@app.context_processor
+def inject_security_tokens():
+    return {"csrf_token": _csrf_token}
 # When launched as `python app.py`, blueprints that import `app` must resolve to
 # this same module instead of starting a second partially initialized app module.
 if __name__ == "__main__":
@@ -255,6 +274,7 @@ def ensure_db_columns():
                     ('email', 'VARCHAR(255)'),
                     ('display_name', 'VARCHAR(150)'),
                     ('must_change_password', 'BOOLEAN DEFAULT FALSE'),
+                    ('authz_version', 'INTEGER DEFAULT 1'),
                 ]
                 for col_name, col_def in legacy_user_cols:
                     if col_name not in cols:
@@ -459,6 +479,31 @@ def enforce_dedicated_workstation_and_tab_permissions():
                 if path.startswith("/api/"):
                     return jsonify({"success": False, "error": "مصدر الطلب غير مسموح"}), 403
                 return "مصدر الطلب غير مسموح", 403
+        if path not in CSRF_EXEMPT_PATHS:
+            supplied = request.headers.get("X-CSRFToken") or request.form.get("csrf_token")
+            expected = session.get("_csrf_token")
+            if not expected or not supplied or not hmac.compare_digest(str(supplied), str(expected)):
+                if path.startswith("/api/"):
+                    return jsonify({"success": False, "error": "رمز الحماية غير صالح أو مفقود", "code": "CSRF_FAILED"}), 403
+                return "رمز الحماية غير صالح أو مفقود", 403
+
+    # Database-backed sessions carry the user's authorization version. Changing
+    # role/status increments that version, invalidating every older session.
+    if session.get("authenticated") and session.get("user_id") and not path.startswith("/static"):
+        try:
+            from models.schema import User
+            current_user = db.session.get(User, int(session["user_id"]))
+            current_version = int(getattr(current_user, "authz_version", 1) or 1) if current_user else 0
+            session_version = int(session.get("authz_version", 0) or 0)
+            if not current_user or not current_user.is_active or current_version != session_version:
+                session.clear()
+                if path.startswith("/api/"):
+                    return jsonify({"success": False, "error": "انتهت صلاحيات الجلسة، يرجى تسجيل الدخول مجددًا", "code": "AUTHZ_CHANGED"}), 401
+                return redirect(url_for("auth.login", reason="authz_changed"))
+        except Exception:
+            logger.exception("authorization session validation failed")
+            if path.startswith("/api/"):
+                return jsonify({"success": False, "error": "تعذر التحقق من صلاحيات الجلسة"}), 503
 
     # A newly created or reset account must choose a private password before using
     # any application page. Keep only the change form, logout, and its API reachable.
