@@ -10,6 +10,7 @@ import json
 import html
 import secrets
 import logging
+import unicodedata
 from datetime import datetime
 from functools import wraps
 
@@ -434,16 +435,30 @@ def load_logo():
     return b64_en
 
 def normalize_plate(plate):
+    """Return a stable comparison key for Saudi vehicle plates.
+
+    The key is for matching only: Arabic/Persian digits become ASCII digits,
+    Arabic Saudi plate letters become Latin equivalents, punctuation and
+    whitespace are removed, and the canonical order is digits followed by
+    letters. Callers should preserve the original value for display/storage.
+    """
     if plate is None:
         return ""
-    plate = str(plate)
-    plate = re.sub(r"\s+", "", plate)
-    arabic_digits = "٠١٢٣٤٥٦٧٨٩"
-    english_digits = "0123456789"
-    for a, e in zip(arabic_digits, english_digits):
-        plate = plate.replace(a, e)
-    digits = "".join(re.findall(r"\d+", plate))
-    letters = "".join(re.findall(r"[^\d]+", plate))
+
+    value = unicodedata.normalize("NFKC", str(plate)).strip().upper()
+    value = value.translate(str.maketrans(
+        "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹",
+        "01234567890123456789",
+    ))
+    value = value.translate(str.maketrans({
+        "ا": "A", "أ": "A", "إ": "A", "آ": "A", "ٱ": "A",
+        "ب": "B", "ح": "J", "د": "D", "ر": "R", "س": "S",
+        "ص": "X", "ط": "T", "ع": "E", "ق": "G", "ك": "K",
+        "ل": "L", "م": "Z", "ن": "N", "ه": "H", "و": "U",
+        "ي": "V", "ى": "V",
+    }))
+    digits = "".join(ch for ch in value if ch.isascii() and ch.isdigit())
+    letters = "".join(ch for ch in value if ch.isascii() and ch.isalpha())
     return digits + letters
 
 # ── Alert Config & Constants ─────────────────────────────────────────────────
@@ -474,5 +489,4 @@ def _alert_cfg():
 
 def _alert_cfg_set(cfg):
     _global_blob_set("alert_settings", cfg)
-
 

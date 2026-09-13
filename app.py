@@ -3828,17 +3828,9 @@ def _driver_blob_table(store):
 
 
 def normalize_plate(plate):
-    if plate is None:
-        return ""
-    plate = str(plate)
-    plate = re.sub(r"\s+", "", plate)
-    arabic_digits = "٠١٢٣٤٥٦٧٨٩"
-    english_digits = "0123456789"
-    for a, e in zip(arabic_digits, english_digits):
-        plate = plate.replace(a, e)
-    digits = "".join(re.findall(r"\d+", plate))
-    letters = "".join(re.findall(r"[^\d]+", plate))
-    return digits + letters
+    """Compatibility wrapper around the shared plate normalizer."""
+    from helpers import normalize_plate as _shared_normalize_plate
+    return _shared_normalize_plate(plate)
 
 def tafqeet(amount):
     try:
@@ -4073,16 +4065,8 @@ def api_sync_excel():
 
 
 def _normalize_plate_py(plate):
-    """Python نظير normalizePlate في JS — لمطابقة اللوحات بشكل موحد."""
-    p = str(plate or "")
-    ar_digits = "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669"
-    for i, c in enumerate(ar_digits):
-        p = p.replace(c, str(i))
-    p = "".join(p.split())  # remove spaces
-    import re as _re
-    digits = "".join(_re.findall(r"\d+", p))
-    letters = "".join(_re.findall(r"[^\d]+", p))
-    return digits + letters
+    """Compatibility alias for the shared Python plate normalizer."""
+    return normalize_plate(plate)
 
 
 def _sync_all_tabs_from_drivers(old_name=None, old_plate=None, new_name=None, new_plate=None, new_car=None):
