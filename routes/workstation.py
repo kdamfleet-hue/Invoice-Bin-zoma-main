@@ -130,6 +130,19 @@ def workstation_page(sub=""):
     if seg in WS_LOCKED and not session.get("ws_unlocked"):
         return render_template("tab_lock.html", next=WS_PREFIX + "/" + seg)
     ctx = {"google_user": {"name": "Workstation", "email": "ws@system.local"}, "b64_en": load_logo()}
+    # The workstation renders the shared index template without going through the
+    # authenticated dashboard view. Supply the presentation context that index.html
+    # requires so the intentionally open sandbox does not fail with UndefinedError.
+    if seg in ("", "invoice"):
+        from routes.dashboard import _role_home_profile
+        ctx.update(
+            show_invoice_title=False,
+            total_drivers=0,
+            active_vehicles=0,
+            urgent_alerts=0,
+            truth_center=None,
+            home_profile=_role_home_profile("viewer"),
+        )
     if seg == "cameras":
         ctx["cameras_url"] = os.environ.get("CAMERAS_URL", "")
     if seg == "fleet_dashboard":
