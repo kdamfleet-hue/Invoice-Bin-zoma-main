@@ -91,7 +91,7 @@
     msg.style.color = 'var(--text-secondary)';
     msg.textContent = applying ? 'جارٍ التطبيق على قاعدة البيانات…' : 'جارٍ التحليل…';
     $('abPreviewBtn').disabled = $('abApplyBtn').disabled = true;
-    fetch(url, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (j) {
+    fetch(url, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token() }}' }, body: fd }).then(function (r) { return r.json(); }).then(function (j) {
       $('abPreviewBtn').disabled = $('abApplyBtn').disabled = false;
       if (!j || !j.success) {
         msg.style.color = 'var(--bad-fg,#ef4444)';
