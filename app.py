@@ -89,6 +89,7 @@ app = Flask(__name__)
 CSRF_EXEMPT_PATHS = {
     "/api/cron/expiry_alerts",  # protected by ALERT_CRON_KEY
     "/api/cron/speed-alerts",   # protected by X-Alert-Cron-Key
+    "/api/cron/reconciliation-alerts",  # protected by X-Alert-Cron-Key
     "/api/analytics/ux-event",  # anonymous, bounded telemetry; contains no stateful user data
 }
 AUTHZ_CACHE_TTL = max(1, int(os.environ.get("AUTHZ_CACHE_TTL", "5")))
