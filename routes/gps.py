@@ -669,19 +669,24 @@ def _fleet_reconciliation_records():
     return records
 
 
+def _build_reconciliation_payload():
+    request_id = secrets.token_hex(6)
+    gps_records, err = _fleet_snapshot_or_error(request_id)
+    if err is not None:
+        return None, err
+    from services.reconciliation import build_dashboard_data
+    return build_dashboard_data(_fleet_reconciliation_records(), gps_records), None
+
+
 @gps_bp.route("/api/gps/dashboard-data")
 @login_required
 def gps_dashboard_data():
     """Build dashboard metrics from live GPS assets and the canonical fleet table."""
-    request_id = secrets.token_hex(6)
-    gps_records, err = _fleet_snapshot_or_error(request_id)
+    payload, err = _build_reconciliation_payload()
     if err is not None:
         message, status = err
-        logger.warning("GPS dashboard data unavailable request_id=%s status=%s", request_id, status)
-        return jsonify({"success": False, "error": message, "request_id": request_id}), status
+        return jsonify({"success": False, "error": message}), status
     try:
-        from services.reconciliation import build_dashboard_data
-        payload = build_dashboard_data(_fleet_reconciliation_records(), gps_records)
         reconciliation = payload["meta"]["reconciliation"]
         publish_gate = payload["meta"]["publish_gate"]
         if request.args.get("publish_snapshot") == "1" and not publish_gate["publish"]:
@@ -706,8 +711,29 @@ def gps_dashboard_data():
         payload["success"] = True
         return jsonify(payload)
     except Exception:
-        logger.exception("GPS dashboard reconciliation failed request_id=%s", request_id)
-        return jsonify({"success": False, "error": "تعذر بناء مؤشرات GPS الموحدة", "request_id": request_id}), 500
+        logger.exception("GPS dashboard reconciliation failed")
+        return jsonify({"success": False, "error": "تعذر بناء مؤشرات GPS الموحدة"}), 500
+
+
+@gps_bp.route("/api/cron/reconciliation-alerts", methods=["POST"])
+def reconciliation_alert_cron():
+    """Protected periodic reconciliation check for email/Slack notifications."""
+    supplied = request.headers.get("X-Alert-Cron-Key", "")
+    if not GPS_ALERT_CRON_KEY or not hmac.compare_digest(supplied, GPS_ALERT_CRON_KEY):
+        return jsonify({"success": False, "error": "غير مصرح"}), 401
+    try:
+        payload, err = _build_reconciliation_payload()
+        if err is not None:
+            message, status = err
+            return jsonify({"success": False, "error": message}), status
+        from services.reconciliation_alerts import notify_reconciliation_breach
+        result = payload["meta"]["reconciliation"]
+        gate = payload["meta"]["publish_gate"]
+        notification = notify_reconciliation_breach(result, gate)
+        return jsonify({"success": True, "reconciliation": result, "publish_gate": gate, "notification": notification})
+    except Exception:
+        logger.exception("periodic reconciliation alert check failed")
+        return jsonify({"success": False, "error": "تعذر تنفيذ فحص تنبيه المطابقة"}), 502
 
 
 @gps_bp.route("/gps_dashboard")
