@@ -683,6 +683,14 @@ def gps_dashboard_data():
         from services.reconciliation import build_dashboard_data
         payload = build_dashboard_data(_fleet_reconciliation_records(), gps_records)
         reconciliation = payload["meta"]["reconciliation"]
+        publish_gate = payload["meta"]["publish_gate"]
+        if request.args.get("publish_snapshot") == "1" and not publish_gate["publish"]:
+            return jsonify({
+                "success": False,
+                "error": "تم منع نشر Snapshot بسبب قدم البيانات أو تجاوز نسبة عدم المطابقة.",
+                "publish_gate": publish_gate,
+                "reconciliation": reconciliation,
+            }), 409
         from app import _audit_add
         _audit_add(
             "reconciliation",
