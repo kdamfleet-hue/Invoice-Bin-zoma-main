@@ -205,11 +205,11 @@ def _loads_blob(data_str):
 
 def blob_get(table):
     """Read JSON blob for the active branch from SQLAlchemy AppSetting."""
-    from models.schema import AppSetting
+    from models.schema import AppSetting, db
     table = _safe_tbl(table)
     rid = _row_id()
     key = f"{table}_branch_{rid}"
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     return _loads_blob(setting.value) if setting else None
 
 
@@ -223,7 +223,7 @@ def blob_set(table, data_obj):
     data_str = json.dumps(data_obj, ensure_ascii=False)
 
     try:
-        setting = AppSetting.query.get(key)
+        setting = db.session.get(AppSetting, key)
         if setting:
             setting.value = data_str
         else:
@@ -243,10 +243,10 @@ def blob_set(table, data_obj):
 
 
 def _global_blob_get(table):
-    from models.schema import AppSetting
+    from models.schema import AppSetting, db
     table = _safe_tbl(table)
     key = f"{table}_global"
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     return _loads_blob(setting.value) if setting else None
 
 
@@ -258,7 +258,7 @@ def _global_blob_set(table, data_obj):
     data_str = json.dumps(data_obj, ensure_ascii=False)
 
     try:
-        setting = AppSetting.query.get(key)
+        setting = db.session.get(AppSetting, key)
         if setting:
             setting.value = data_str
         else:
@@ -340,10 +340,10 @@ def _restore_snapshot(sid, mode, require_tab=None):
 
 # ── Audit log ─────────────────────────────────────────────────────────────────
 def _audit_get():
-    from models.schema import AppSetting
+    from models.schema import AppSetting, db
     rid = _row_id()
     key = f"audit_log_branch_{rid}"
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     if not setting:
         return []
     try:
@@ -358,7 +358,7 @@ def _audit_write(log):
     key = f"audit_log_branch_{rid}"
     data_str = json.dumps(log[-AUDIT_MAX:], ensure_ascii=False)
     try:
-        setting = AppSetting.query.get(key)
+        setting = db.session.get(AppSetting, key)
         if setting:
             setting.value = data_str
         else:

@@ -1,3 +1,4 @@
+from time_utils import utcnow
 from flask import Blueprint, request, session, redirect, url_for, render_template, jsonify, current_app, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
@@ -327,7 +328,7 @@ def forgot_password():
             if user and (user.email or "").strip():
                 raw_token = secrets.token_urlsafe(32)
                 user.password_reset_token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-                user.password_reset_expires_at = datetime.utcnow() + timedelta(minutes=30)
+                user.password_reset_expires_at = utcnow() + timedelta(minutes=30)
                 db.session.commit()
                 base_url = (os.environ.get("PUBLIC_BASE_URL") or request.url_root).rstrip("/")
                 reset_url = f"{base_url}{url_for('auth.reset_password', token=raw_token)}"
@@ -360,7 +361,7 @@ def reset_password(token):
     except Exception:
         logger.exception("Password reset token lookup failed")
         return render_template("reset_password.html", error="الرابط غير صالح أو انتهت صلاحيته.", token=None), 400
-    if not user or not user.password_reset_expires_at or user.password_reset_expires_at < datetime.utcnow():
+    if not user or not user.password_reset_expires_at or user.password_reset_expires_at < utcnow():
         return render_template("reset_password.html", error="الرابط غير صالح أو انتهت صلاحيته.", token=None), 400
 
     error = None
@@ -477,7 +478,7 @@ def api_users():
                 branch_id_value = int(branch_id)
             except (TypeError, ValueError):
                 return jsonify({"error": "bad_branch", "reason": "الفرع المحدد غير صحيح"}), 400
-            if not Branch.query.get(branch_id_value):
+            if not db.session.get(Branch, branch_id_value):
                 return jsonify({"error": "bad_branch", "reason": "الفرع المحدد غير موجود"}), 400
         
         if not username:
@@ -555,7 +556,7 @@ def api_users():
 
     if request.method == "DELETE":
         user_id = body.get("id")
-        user = User.query.get(user_id) if user_id else User.query.filter_by(username=(body.get("username") or "").strip()).first()
+        user = db.session.get(User, user_id) if user_id else User.query.filter_by(username=(body.get("username") or "").strip()).first()
         if user:
             if user.username == "admin" or user.username == (session.get("username") or session.get("user")):
                 return jsonify({"error": "لا يمكن إيقاف حساب المدير العام أو الحساب المستخدم حالياً"}), 400

@@ -1,4 +1,5 @@
 
+from time_utils import utcnow
 import os
 import io
 import psutil
@@ -719,7 +720,7 @@ def ux_event_ingest():
             "page": str(payload.get("page", "/"))[:120],
             "category": str(payload.get("category", ""))[:40],
             "feature": str(payload.get("feature", ""))[:80],
-            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}
+            "ts": utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}
     try:
         with UX_EVENTS_LOCK:
             events = _global_blob_get("ux_events") or []
@@ -968,7 +969,7 @@ def blob_get(table):
     table = _safe_tbl(table)
     rid = _row_id()
     key = f"{table}_branch_{rid}"
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     return _loads_blob(setting.value) if setting else None
 
 
@@ -982,7 +983,7 @@ def blob_set(table, data_obj):
     data_str = json.dumps(data_obj, ensure_ascii=False)
     
     try:
-        setting = AppSetting.query.get(key)
+        setting = db.session.get(AppSetting, key)
         if setting:
             setting.value = data_str
         else:
@@ -1052,7 +1053,7 @@ def _global_blob_get(table):
     from models.schema import AppSetting
     table = _safe_tbl(table)
     key = f"{table}_global"
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     return _loads_blob(setting.value) if setting else None
 
 
@@ -1074,7 +1075,7 @@ def _global_blob_set(table, data_obj):
     data_str = json.dumps(data_obj, ensure_ascii=False)
     
     try:
-        setting = AppSetting.query.get(key)
+        setting = db.session.get(AppSetting, key)
         if setting:
             setting.value = data_str
         else:
@@ -1172,7 +1173,7 @@ UX_EVENTS_LOCK = threading.Lock()
 def _audit_get():
     rid = _row_id()
     key = f"audit_log_branch_{rid}"
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     if not setting: return []
     try:
         return json.loads(setting.value) or []
@@ -1186,7 +1187,7 @@ def _audit_write(log):
     data_str = json.dumps(log[-AUDIT_MAX:], ensure_ascii=False)
     
     try:
-        setting = AppSetting.query.get(key)
+        setting = db.session.get(AppSetting, key)
         if setting:
             setting.value = data_str
         else:
@@ -2923,7 +2924,7 @@ def _audit_get_at(rid):
     """Read the audit list for a SPECIFIC mode/branch id (used by the HQ overview)."""
     key = f"audit_log_branch_{rid}"
     from models.schema import AppSetting
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     if not setting: return []
     try:
         d = json.loads(setting.value)
@@ -3282,7 +3283,7 @@ def _blob_get_at(table, rid):
     """Read a tab blob for a SPECIFIC branch id (used by the all-branches view)."""
     table = _safe_tbl(table)
     key = f"{table}_branch_{rid}"
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     return _loads_blob(setting.value) if setting else None
 
 
@@ -4024,7 +4025,7 @@ def update_driver_status():
     if driver_id:
         from models.schema import Driver
         try:
-            driver = Driver.query.get(driver_id)
+            driver = db.session.get(Driver, driver_id)
             if driver:
                 driver.status = status
                 db.session.commit()

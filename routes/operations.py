@@ -362,7 +362,7 @@ def refund_part():
     if not usage_id:
         return jsonify({"success": False, "error": "Missing usage_id"})
         
-    usage = WorkshopPartUsage.query.get(usage_id)
+    usage = db.session.get(WorkshopPartUsage, usage_id)
     if not usage:
         return jsonify({"success": False, "error": "Usage record not found"})
         

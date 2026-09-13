@@ -1134,7 +1134,7 @@ def api_master_data_update():
             # Find active vehicle
             custody = VehicleCustody.query.filter_by(driver_id=driver.id, status='active').first()
             if custody and custody.vehicle_id:
-                vehicle = Vehicle.query.get(custody.vehicle_id)
+                vehicle = db.session.get(Vehicle, custody.vehicle_id)
                 if vehicle:
                     setattr(vehicle, field, value)
             else:

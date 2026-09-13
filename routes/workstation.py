@@ -44,14 +44,14 @@ except Exception as _e:
 
 def _ws_meta_get(k):
     key = f"ws_meta_{k}"
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     return setting.value if setting else None
 
 
 def _ws_meta_set(k, v):
     key = f"ws_meta_{k}"
     try:
-        setting = AppSetting.query.get(key)
+        setting = db.session.get(AppSetting, key)
         if setting:
             setting.value = str(v)
         else:
@@ -67,7 +67,7 @@ def _ws_get2(table):
     """Read the workstation (id=2) blob for a table, or None."""
     table = _safe_tbl(table)
     key = f"{table}_branch_2"
-    setting = AppSetting.query.get(key)
+    setting = db.session.get(AppSetting, key)
     return _loads_blob(setting.value) if setting else None
 
 
@@ -77,7 +77,7 @@ def _ws_put2(table, value):
     key = f"{table}_branch_2"
     data_str = json.dumps(value, ensure_ascii=False)
     try:
-        setting = AppSetting.query.get(key)
+        setting = db.session.get(AppSetting, key)
         if setting:
             setting.value = data_str
         else:

@@ -1,3 +1,4 @@
+from time_utils import utcnow
 import hmac
 import os
 from flask import Blueprint, request, jsonify
@@ -199,7 +200,7 @@ def add_driver():
             custody = VehicleCustody()
             custody.driver_id = new_driver.id
             custody.vehicle_id = vehicle.id
-            custody.received_date = datetime.utcnow().date()
+            custody.received_date = utcnow().date()
             db.session.add(custody)
 
         db.session.commit()
@@ -285,14 +286,14 @@ def update_driver(driver_id):
             ).all()
             for oc in other_active:
                 oc.status = "returned"
-                oc.returned_date = datetime.utcnow().date()
+                oc.returned_date = utcnow().date()
 
             custody = VehicleCustody.query.filter_by(driver_id=driver.id, vehicle_id=vehicle.id).first()
             if not custody:
                 custody = VehicleCustody()
                 custody.driver_id = driver.id
                 custody.vehicle_id = vehicle.id
-                custody.received_date = datetime.utcnow().date()
+                custody.received_date = utcnow().date()
                 custody.status = "active"
                 db.session.add(custody)
             elif custody.status != "active":
@@ -317,7 +318,7 @@ def update_driver_branch():
     branch_id = data.get('branch_id')
     if driver_id and branch_id is not None:
         try:
-            driver = Driver.query.get(driver_id)
+            driver = db.session.get(Driver, driver_id)
             if driver:
                 driver.branch_id = int(branch_id)
                 db.session.commit()

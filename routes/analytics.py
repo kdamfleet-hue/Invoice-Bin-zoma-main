@@ -1,6 +1,5 @@
-"""
-analytics.py - Blueprint for Advanced Analytics, Smart Alerts, and Workshop Linkage
-"""
+"""analytics.py - Blueprint for Advanced Analytics, Smart Alerts, and Workshop Linkage."""
+from time_utils import utcnow
 
 from flask import Blueprint, jsonify, request, session
 from helpers import login_required, blob_get, blob_set, current_branch_id, role_required, branch_scope
@@ -113,7 +112,7 @@ def api_manage_alerts():
         model = {"vehicle": Vehicle, "driver": Driver, "document": Document}.get(source)
         if not model or field not in {"istimara_expiry", "insurance_expiry", "inspection_expiry", "iqama_expiry", "license_expiry", "expiry"}:
             return jsonify({"success": False, "error": "مصدر التنبيه غير صالح."}), 400
-        record = model.query.get(entity_id)
+        record = db.session.get(model, entity_id)
         if not record:
             return jsonify({"success": False, "error": "السجل غير موجود."}), 404
         if session.get("is_branch_user") and getattr(record, "branch_id", None) != current_branch_id():
@@ -126,7 +125,7 @@ def api_manage_alerts():
         _audit_add("تعديل تاريخ", "إدارة التنبيهات", str(entity_id), f"{source}.{field} = {raw_date}")
         return jsonify({"success": True, "date": raw_date})
 
-    now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    now = utcnow().isoformat(timespec="seconds") + "Z"
     current.update({"status": "completed" if action_type == "complete" else "open", "completed_at": now if action_type == "complete" else "", "completed_by": session.get("user") or session.get("username") or "admin", "note": str(body.get("note") or "").strip()[:500]})
     actions[alert_key] = current
     _save_actions(actions)

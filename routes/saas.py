@@ -1,3 +1,4 @@
+from time_utils import utcnow
 from datetime import datetime, timedelta
 from decimal import Decimal
 import re
@@ -65,7 +66,7 @@ def register_company():
     if error:
         return render_template("saas/register.html", error=error, form=form), 422
 
-    now = datetime.utcnow()
+    now = utcnow()
     company = Company(name=name, owner_name=owner_name, phone=phone, email=email,
                       status="trial", trial_started_at=now,
                       trial_ends_at=now + timedelta(days=TRIAL_DAYS))
@@ -98,7 +99,7 @@ def workspace():
         session.clear()
         return redirect(url_for("saas.register_company"))
     subscription = Subscription.query.filter_by(company_id=company.id).order_by(Subscription.id.desc()).first()
-    remaining = max(0, (company.trial_ends_at - datetime.utcnow()).days) if company.status == "trial" else 0
+    remaining = max(0, (company.trial_ends_at - utcnow()).days) if company.status == "trial" else 0
     return render_template("saas/workspace.html", company=company, subscription=subscription,
                            remaining_days=remaining)
 

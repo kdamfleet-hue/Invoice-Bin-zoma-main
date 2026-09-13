@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from time_utils import utcnow
 
 db = SQLAlchemy()
 
@@ -24,9 +25,9 @@ class Company(db.Model):
     phone = db.Column(db.String(30), nullable=False)
     email = db.Column(db.String(255), nullable=False, unique=True)
     status = db.Column(db.String(30), nullable=False, default='trial')
-    trial_started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    trial_started_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     trial_ends_at = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
     users = db.relationship('User', backref='company', lazy=True)
     subscriptions = db.relationship('Subscription', backref='company', lazy=True)
@@ -51,7 +52,7 @@ class Subscription(db.Model):
     plan_id = db.Column(db.Integer, db.ForeignKey('erp_subscription_plans.id'), nullable=False)
     status = db.Column(db.String(30), nullable=False, default='trial')
     billing_cycle = db.Column(db.String(20), nullable=False, default='monthly')
-    started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    started_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     current_period_end = db.Column(db.DateTime, nullable=False)
     provider = db.Column(db.String(50), nullable=True)
     provider_reference = db.Column(db.String(180), nullable=True)
@@ -67,7 +68,7 @@ class Payment(db.Model):
     status = db.Column(db.String(30), nullable=False, default='pending')
     provider = db.Column(db.String(50), nullable=True)
     provider_reference = db.Column(db.String(180), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     company = db.relationship('Company', backref='payments', lazy=True)
 
 
@@ -175,7 +176,7 @@ class SparePart(db.Model):
     quantity = db.Column(db.Integer, default=0)
     price = db.Column(db.Numeric(10, 2), nullable=True)
     supplier = db.Column(db.String(150), nullable=True)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_updated = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     
     usages = db.relationship('WorkshopPartUsage', backref='spare_part', lazy=True)
 
@@ -212,7 +213,7 @@ class Document(db.Model):
     mime_type = db.Column(db.String(50), nullable=True)
     file_size = db.Column(db.Integer, default=0)
     file_path = db.Column(db.String(255), nullable=False)
-    upload_date = db.Column(db.Date, default=datetime.utcnow)
+    upload_date = db.Column(db.Date, default=utcnow)
 
 class AuditLog(db.Model):
     __tablename__ = 'erp_audit_logs'
@@ -223,7 +224,7 @@ class AuditLog(db.Model):
     target_table = db.Column(db.String(100), nullable=True)
     target_id = db.Column(db.String(50), nullable=True)
     reason = db.Column(db.Text, nullable=True) # التوثيق الإلزامي للمخالفة أو المبرر
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=utcnow)
 
 class FuelRecord(db.Model):
     __tablename__ = 'erp_fuel_records'
@@ -341,5 +342,5 @@ class Snapshot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tab = db.Column(db.String(100), nullable=True)
     branch_id = db.Column(db.Integer, nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=utcnow)
     data = db.Column(db.Text, nullable=False)

@@ -1,5 +1,6 @@
 """Deterministic reconciliation helpers for fleet and GPS vehicle records."""
 from __future__ import annotations
+from time_utils import utcnow
 
 import re
 from collections import Counter, defaultdict
@@ -124,7 +125,7 @@ def nonmatch_rate(result: dict[str, Any]) -> float:
 def validate_publish_gate(result: dict[str, Any], snapshot_generated_at: Any, *, now: datetime | None = None,
                           max_age_seconds: int = 900, max_nonmatch_rate_pct: float = 5.0) -> dict[str, Any]:
     """Return a deterministic decision for publishing a GPS snapshot."""
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     try:
         generated = snapshot_generated_at if isinstance(snapshot_generated_at, datetime) else datetime.fromisoformat(str(snapshot_generated_at).replace("Z", "+00:00"))
         if generated.tzinfo and not now.tzinfo:
@@ -229,7 +230,7 @@ def build_dashboard_data(fleet_records: Iterable[dict[str, Any]], gps_records: I
         priority_by_type[vehicle_type] = {priority: sum(row["priority"] == priority for row in subset) for priority in priority_order}
 
     overall = filter_data["الكل"]
-    generated_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    generated_at = utcnow().isoformat(timespec="seconds") + "Z"
     return {
         "meta": {
             "source": "live_gps_api",

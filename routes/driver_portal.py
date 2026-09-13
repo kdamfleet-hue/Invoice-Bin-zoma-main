@@ -11,7 +11,7 @@ def get_current_driver():
     driver_id = session.get("driver_id")
     if not driver_id:
         return None
-    return Driver.query.get(driver_id)
+    return db.session.get(Driver, driver_id)
 
 @driver_portal_bp.route("/driver", methods=["GET", "POST"])
 @limiter.limit("10 per minute")   # iqama + phone are low-entropy; this is a brute-force surface
