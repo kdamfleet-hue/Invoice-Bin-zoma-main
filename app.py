@@ -150,6 +150,8 @@ def inject_security_tokens():
 if __name__ == "__main__":
     sys.modules.setdefault("app", sys.modules[__name__])
 from models.schema import db, Driver, Vehicle, VehicleCustody, Branch, Document, AuditLog, AppSetting
+import scoping
+from scoping import scoped_get_or_404, scoped_get
 import os
 DB_PATH = os.environ.get('SQLITE_PATH', os.path.join(os.path.dirname(__file__), 'database.sqlite'))
 _db_url = os.environ.get('DATABASE_URL')
@@ -185,6 +187,18 @@ def _refuse_oversized_bodies():
     limit = app.config.get("MAX_CONTENT_LENGTH")
     if limit and request.content_length and request.content_length > limit:
         abort(413)
+
+
+@app.before_request
+def _resolve_query_scope():
+    """Set the active branch scope for scoping.ENFORCED_MODELS (see scoping.py).
+    The driver self-service portal authenticates one driver by iqama+phone, not by
+    branch/staff session, so it is explicitly exempted rather than defaulted to
+    branch 1 (which would make drivers outside that branch unable to log in)."""
+    if request.blueprint == "driver_portal_bp":
+        scoping.set_scope(scoping.ALL_BRANCHES)
+    else:
+        scoping.set_scope(current_branch_id())
 
 
 if _db_url:
@@ -871,6 +885,23 @@ def current_branch_id():
 
 def current_branch_name():
     return BRANCH_NAME.get(current_branch_id(), "الدمام")
+
+
+def allowed_branch_ids_for_session():
+    """Which branch ids the current session may switch /api/branch into.
+
+    Returns "ALL" for admins, a single-id set for an account explicitly locked to
+    one branch (is_branch_user), or an empty set otherwise. Previously "not locked"
+    was treated as "may switch anywhere" — any account without an assigned branch
+    (e.g. a viewer/operations/finance role created with branch_id NULL) could move
+    the session to any of the 6 branches with no check that they were meant to.
+    """
+    if session.get("is_admin") or session.get("role") == "admin":
+        return "ALL"
+    if session.get("is_branch_user"):
+        bid = session.get("branch_id")
+        return {bid} if bid in BRANCH_IDS else set()
+    return set()
 
 
 def _row_id():
@@ -2862,10 +2893,12 @@ def handover_list():
 @login_required
 def api_branch():
     """GET: active branch + list + role flags. POST {id}: switch the session branch (swaps
-    every blob store via _row_id). Branch-locked accounts may NOT switch."""
-    can_switch = not session.get("is_branch_user")
+    every blob store via _row_id). Only admins (any branch) or a branch-locked account
+    (its own branch only) may switch — anything else has no switch rights at all."""
+    allowed = allowed_branch_ids_for_session()
+    can_switch = allowed == "ALL" or len(allowed) > 1
     if request.method == "POST":
-        if not can_switch:
+        if allowed != "ALL" and not allowed:
             return jsonify({"success": False, "reason": "locked_branch"}), 403
         body = request.get_json(silent=True) or {}
         try:
@@ -2874,6 +2907,8 @@ def api_branch():
             return jsonify({"success": False, "reason": "bad_id"}), 400
         if bid not in BRANCH_IDS:
             return jsonify({"success": False, "reason": "unknown_branch"}), 400
+        if allowed != "ALL" and bid not in allowed:
+            return jsonify({"success": False, "reason": "forbidden_branch"}), 403
         session["branch_id"] = bid
         session.permanent = True
         _audit_add("تبديل الفرع", BRANCH_NAME.get(bid, str(bid)))
@@ -3899,7 +3934,7 @@ def tafqeet(amount):
 @role_required("admin", "branch_manager")
 def delete_driver(driver_id):
     try:
-        driver = Driver.query.get(driver_id)
+        driver = scoped_get(Driver, driver_id)
         if driver:
             # Delete custodies first
             VehicleCustody.query.filter_by(driver_id=driver_id).delete()

@@ -4,6 +4,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session
 from helpers import login_required, role_required, load_logo, current_branch_id
 from models.schema import db, CustodyItem, Driver
+from scoping import scoped_get
 
 logger = logging.getLogger("InvoiceApp")
 custody_bp = Blueprint('custody', __name__)
@@ -26,7 +27,7 @@ def api_custody():
         items = CustodyItem.query.filter_by(branch_id=branch_id).all()
         result = []
         for item in items:
-            driver = Driver.query.get(item.driver_id)
+            driver = scoped_get(Driver, item.driver_id)
             driver_name = driver.name if driver else "غير معروف"
             
             result.append({

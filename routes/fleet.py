@@ -10,6 +10,7 @@ from flask import Blueprint, render_template, session, request, jsonify, send_fi
 from helpers import login_required, role_required, load_logo, blob_get, blob_set, audit_and_verify, current_branch_id, _audit_add
 from models.schema import db, Driver, Vehicle, VehicleCustody, Document
 from models.database import db_connection
+from scoping import scoped_get
 from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger("InvoiceApp")
@@ -180,7 +181,7 @@ def api_driver_vehicle_transfer():
     if active_driver and active_driver.vehicle_id == vehicle.id:
         return jsonify({"success": False, "error": "السائق مرتبط بهذه المركبة بالفعل."}), 400
     if active_vehicle and active_vehicle.driver_id != driver.id and not confirm_conflict:
-        current_driver = Driver.query.get(active_vehicle.driver_id)
+        current_driver = scoped_get(Driver, active_vehicle.driver_id)
         return jsonify({"success": False, "conflict": True, "error": "المركبة مرتبطة بسائق آخر. يلزم تأكيد إنهاء العهدة الحالية.", "current_driver": current_driver.name if current_driver else "غير معروف"}), 409
     today = date.today()
     history_note = f"نقل/تغيير العهدة: {reason}"

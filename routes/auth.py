@@ -137,6 +137,7 @@ def login():
             session["google_user"] = {"name": session["display_name"] or KIOSK_USER, "email": KIOSK_USER + "@binzomah.local"}
             session["is_admin"] = False
             session["kiosk"] = True
+            session["branch_id"] = 1  # explicit, was previously an implicit default
             logger.info("Kiosk login")
             return redirect(url_for("operations.workshop"))
 
@@ -154,6 +155,7 @@ def login():
             session["is_admin"] = True
             session["role"] = "admin"
             session["kiosk"] = False
+            session["branch_id"] = 1  # explicit, was previously an implicit default
             logger.info("Master admin login via hardcoded credentials")
             return redirect(url_for("dashboard.index"))
 

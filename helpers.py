@@ -144,6 +144,23 @@ def current_branch_name():
     return BRANCH_NAME.get(current_branch_id(), "الدمام")
 
 
+def allowed_branch_ids_for_session():
+    """Which branch ids the current session may switch /api/branch into.
+
+    Returns "ALL" for admins, a single-id set for an account explicitly locked to
+    one branch (is_branch_user), or an empty set otherwise. Previously "not locked"
+    was treated as "may switch anywhere" — any account without an assigned branch
+    (e.g. a viewer/operations/finance role created with branch_id NULL) could move
+    the session to any of the 6 branches with no check that they were meant to.
+    """
+    if session.get("is_admin") or session.get("role") == "admin":
+        return "ALL"
+    if session.get("is_branch_user"):
+        bid = session.get("branch_id")
+        return {bid} if bid in BRANCH_IDS else set()
+    return set()
+
+
 def branch_scope(column, branch_id=None, include_legacy_dammam=True):
     """Return a SQLAlchemy predicate for the caller's branch boundary.
 
