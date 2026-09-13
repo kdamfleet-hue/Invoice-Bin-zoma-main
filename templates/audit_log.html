@@ -2,5 +2,37 @@
 {% block title %}سجل التدقيق{% endblock %}
 {% block page_heading %}سجل التدقيق{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/page/audit_log.css', v=1) }}">{% endblock %}
-{% block content %}<div class="audit-page" dir="rtl"><div class="audit-head"><h1>سجل التدقيق</h1><p>سجل للعمليات المهمة. هذه الصفحة للعرض والمراجعة فقط.</p></div><div class="audit-toolbar"><input id="auditSearch" type="search" placeholder="بحث بالمستخدم أو العملية أو السجل"><span id="auditStatus" class="bz-chip">جاري التحميل...</span></div><div class="audit-table-wrap"><table class="audit-table"><thead><tr><th>التاريخ</th><th>المستخدم</th><th>العملية</th><th>السجل</th><th>التفاصيل</th></tr></thead><tbody id="auditRows"><tr><td colspan="5" class="audit-state">جاري تحميل السجل...</td></tr></tbody></table></div></div>{% endblock %}
-{% block extra_js %}<script>(function(){const body=document.getElementById('auditRows'),search=document.getElementById('auditSearch'),status=document.getElementById('auditStatus');let rows=[];function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function render(){const q=(search.value||'').toLowerCase().trim();const list=rows.filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q));body.innerHTML=list.length?list.map(r=>`<tr><td>${esc(r.timestamp||r.time||'—')}</td><td>${esc(r.user||r.username||'—')}</td><td>${esc(r.action||'—')}</td><td>${esc(r.target||r.target_table||'—')}</td><td>${esc(r.detail||r.reason||'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="audit-state">لا توجد نتائج.</td></tr>';status.textContent=`${list.length} سجل`;}fetch('/api/audit_log',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{rows=Array.isArray(d.rows)?d.rows:[];render()}).catch(()=>{body.innerHTML='<tr><td colspan="5" class="audit-state">تعذر تحميل سجل التدقيق.</td></tr>';status.textContent='خطأ التحميل'});search.addEventListener('input',render)})();</script>{% endblock %}
+{% block content %}
+<div class="audit-page" dir="rtl">
+  <div class="audit-head"><h1>سجل التدقيق</h1><p>سجل للعمليات المهمة. هذه الصفحة للعرض والمراجعة فقط.</p></div>
+  <div class="audit-toolbar"><input id="auditSearch" type="search" placeholder="بحث بالمستخدم أو العملية أو السجل"><span id="auditStatus" class="bz-chip">جاري التحميل...</span></div>
+  <div class="audit-table-wrap"><table class="audit-table"><thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>العملية</th><th>السجل</th><th>التفاصيل</th></tr></thead><tbody id="auditRows"><tr><td colspan="5" class="audit-state">جاري تحميل السجل...</td></tr></tbody></table></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  const body = document.getElementById('auditRows');
+  const search = document.getElementById('auditSearch');
+  const status = document.getElementById('auditStatus');
+  let rows = [];
+  function esc(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function render() {
+    const query = (search.value || '').toLowerCase().trim();
+    const list = rows.filter(row => !query || JSON.stringify(row).toLowerCase().includes(query));
+    body.innerHTML = list.length ? list.map(row => `<tr><td>${esc(row.ts || row.timestamp || row.time || '—')}</td><td>${esc(row.user || row.username || '—')}</td><td>${esc(row.action || '—')}</td><td>${esc(row.target || row.target_table || '—')}</td><td>${esc(row.detail || row.reason || '—')}</td></tr>`).join('') : '<tr><td colspan="5" class="audit-state">لا توجد نتائج.</td></tr>';
+    status.textContent = `${list.length} سجل`;
+  }
+  fetch('/api/audit_log', {credentials: 'same-origin'}).then(response => response.json()).then(data => {
+    rows = Array.isArray(data.rows) ? data.rows : [];
+    render();
+  }).catch(() => {
+    body.innerHTML = '<tr><td colspan="5" class="audit-state">تعذر تحميل سجل التدقيق.</td></tr>';
+    status.textContent = 'خطأ التحميل';
+  });
+  search.addEventListener('input', render);
+}());
+</script>
+{% endblock %}

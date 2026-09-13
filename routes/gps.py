@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit
 from flask import Blueprint, render_template, session, request, jsonify, send_file
 
-from helpers import login_required, load_logo, blob_set, normalize_plate, _global_blob_get, _global_blob_set
+from helpers import login_required, load_logo, blob_set, normalize_plate, branch_scope, _global_blob_get, _global_blob_set
 
 logger = logging.getLogger("InvoiceApp")
 gps_bp = Blueprint('gps', __name__)
@@ -644,6 +644,62 @@ def run_speed_alert_check():
 def speed_alerts_data():
     from services.speed_alerts import get_speed_alerts
     return jsonify(get_speed_alerts())
+
+
+def _fleet_reconciliation_records():
+    """Return the current branch's canonical vehicle records for reconciliation."""
+    from models.schema import Vehicle, VehicleCustody
+
+    records = []
+    vehicles = Vehicle.query.filter(branch_scope(Vehicle.branch_id)).all()
+    for vehicle in vehicles:
+        custody = (VehicleCustody.query.filter_by(vehicle_id=vehicle.id, status="active")
+                   .order_by(VehicleCustody.id.desc()).first())
+        driver = custody.driver if custody and custody.driver else None
+        records.append({
+            "vehicle_id": vehicle.id,
+            "plate": vehicle.plate_number or "",
+            "serial_number": vehicle.serial_number or "",
+            "v_type": vehicle.v_type or "",
+            "model": vehicle.model or "",
+            "driver": driver.name if driver else "",
+            "inspection_expiry": vehicle.inspection_expiry,
+            "insurance_expiry": vehicle.insurance_expiry,
+        })
+    return records
+
+
+@gps_bp.route("/api/gps/dashboard-data")
+@login_required
+def gps_dashboard_data():
+    """Build dashboard metrics from live GPS assets and the canonical fleet table."""
+    request_id = secrets.token_hex(6)
+    gps_records, err = _fleet_snapshot_or_error(request_id)
+    if err is not None:
+        message, status = err
+        logger.warning("GPS dashboard data unavailable request_id=%s status=%s", request_id, status)
+        return jsonify({"success": False, "error": message, "request_id": request_id}), status
+    try:
+        from services.reconciliation import build_dashboard_data
+        payload = build_dashboard_data(_fleet_reconciliation_records(), gps_records)
+        reconciliation = payload["meta"]["reconciliation"]
+        from app import _audit_add
+        _audit_add(
+            "reconciliation",
+            "gps_dashboard",
+            count=reconciliation["matched_count"],
+            detail=(
+                f"GPS: {reconciliation['gps_count']} · الأسطول: {reconciliation['fleet_count']} · "
+                f"مطابق: {reconciliation['matched_count']} · GPS فقط: {reconciliation['gps_only_count']} · "
+                f"الأسطول فقط: {reconciliation['fleet_only_count']} · مراجعة: {reconciliation['manual_review_count']} · "
+                f"مكرر: {reconciliation['duplicate_count']}"
+            ),
+        )
+        payload["success"] = True
+        return jsonify(payload)
+    except Exception:
+        logger.exception("GPS dashboard reconciliation failed request_id=%s", request_id)
+        return jsonify({"success": False, "error": "تعذر بناء مؤشرات GPS الموحدة", "request_id": request_id}), 500
 
 
 @gps_bp.route("/gps_dashboard")
