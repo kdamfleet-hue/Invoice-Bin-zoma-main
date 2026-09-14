@@ -5,7 +5,7 @@ from helpers import login_required, load_logo, current_branch_id
 
 from routes.operations import operations_bp
 
-MANAGER_ROLES = {"admin", "branch_manager"}
+MANAGER_ROLES = {"admin", "branch_manager", "operations"}
 
 SEED = [
     {"ref": "MT-014", "title": "تأمين حساب Google: Takeout وربط Manus", "status": "وارد", "priority": "عاجل", "category": "أمن", "waiting": "—", "due": "2026-09-14", "meta": "تنفيذ من المتصفح. لا تخزين رموز."},
@@ -21,6 +21,8 @@ SEED = [
 
 
 def _role_ok():
+    if session.get("is_admin"):
+        return True
     role = (session.get("role") or session.get("user_role") or "").strip().lower()
     if role in MANAGER_ROLES:
         return True
