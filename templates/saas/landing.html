@@ -3,14 +3,15 @@
   .logo-stage{padding:0;overflow:hidden;min-height:320px;position:relative;border:1px solid rgba(198,160,86,.22);box-shadow:0 24px 60px rgba(0,0,0,.28)}
   .logo-stage:before{content:"KM";position:absolute;inset:0;display:grid;place-items:center;color:#c6a056;font-weight:800;font-size:42px;letter-spacing:.5px;background:radial-gradient(circle at 50% 40%,rgba(198,160,86,.2),#08131f 70%);z-index:0}
   .logo-stage:after{content:"";position:absolute;inset:-30%;background:conic-gradient(from 180deg,transparent,rgba(198,160,86,.18),transparent 40%);animation:spin 9s linear infinite;pointer-events:none}
-  .logo-stage video{position:relative;z-index:1;width:100%;height:320px;object-fit:cover;border-radius:24px;background:#08131f;display:block;opacity:0;transform:scale(1.04);filter:blur(8px);transition:opacity .6s ease,transform .7s ease,filter .7s ease}
-  .logo-stage.is-ready video{opacity:1;transform:scale(1);filter:none}
-  .logo-stage:hover video{transform:scale(1.03);filter:saturate(1.08)}
+  .logo-stage .anim{position:relative;z-index:1;width:100%;height:320px;object-fit:cover;border-radius:24px;background:#08131f;display:block;opacity:0;transform:scale(1.04);filter:blur(6px);transition:opacity .55s ease,transform .65s ease,filter .65s ease}
+  .logo-stage.is-ready .anim{opacity:1;transform:scale(1);filter:none}
+  .logo-stage:hover .anim{transform:scale(1.03);filter:saturate(1.08)}
+  .logo-stage video.fallback{display:none}
   @keyframes spin{to{transform:rotate(1turn)}}
   .promo{padding:0 0 76px}
   .media-card{position:relative;margin-top:22px;border-radius:24px;overflow:hidden;border:1px solid var(--line);background:#08131f;min-height:220px;content-visibility:auto}
-  .media-card video{width:100%;display:block;opacity:0;transition:opacity .5s ease}
-  .media-card.is-ready video{opacity:1}
+  .media-card .anim{width:100%;display:block;opacity:0;transition:opacity .5s ease}
+  .media-card.is-ready .anim{opacity:1}
   .shimmer{position:absolute;inset:0;background:linear-gradient(100deg,#08131f 20%,rgba(198,160,86,.12) 50%,#08131f 80%);background-size:200% 100%;animation:shine 1.4s ease infinite}
   .media-card.is-ready .shimmer,.logo-stage.is-ready:before{opacity:0;transition:opacity .4s ease}
   @keyframes shine{to{background-position:-200% 0}}
@@ -28,7 +29,11 @@
       </div>
     </div>
     <aside class="panel logo-stage" id="heroMedia">
-      <video id="heroVid" autoplay muted loop playsinline preload="metadata" poster="{{ url_for('static', filename='saas/km_logo.jpg') }}">
+      <picture>
+        <source srcset="{{ url_for('static', filename='saas/km_logo.webp') }}" type="image/webp">
+        <img class="anim" id="heroImg" alt="شعار KM المتحرك" width="640" height="320" decoding="async" fetchpriority="high" src="{{ url_for('static', filename='saas/km_logo.webp') }}">
+      </picture>
+      <video class="anim fallback" id="heroVid" autoplay muted loop playsinline preload="none">
         <source src="{{ url_for('static', filename='saas/km_logo.mp4') }}" type="video/mp4">
       </video>
     </aside>
@@ -39,10 +44,10 @@
   <div class="shell">
     <div class="eyebrow">المقطع</div>
     <h2>شعار KM المتحرك</h2>
-    <p class="muted">يُحمّل عند الظهور فقط لتخفيف الصفحة.</p>
+    <p class="muted">يُعرض كصورة WebP متحركة لتخفيف التحميل، مع احتياط MP4.</p>
     <div class="media-card" id="promoMedia">
       <div class="shimmer" aria-hidden="true"></div>
-      <video id="promoVid" controls playsinline preload="none"></video>
+      <img class="anim" id="promoImg" alt="KM" width="960" height="540" decoding="async" loading="lazy">
     </div>
   </div>
 </section>
@@ -61,31 +66,45 @@
 </section>
 <script>
 (function(){
-  var src = "{{ url_for('static', filename='saas/km_logo.mp4') }}";
-  var hero = document.getElementById('heroVid');
+  var webp = "{{ url_for('static', filename='saas/km_logo.webp') }}";
+  var mp4 = "{{ url_for('static', filename='saas/km_logo.mp4') }}";
   var stage = document.getElementById('heroMedia');
-  function ready(el, wrap){ if(wrap) wrap.classList.add('is-ready'); }
-  if(hero){
-    if(hero.readyState >= 2) ready(hero, stage);
-    hero.addEventListener('loadeddata', function(){ ready(hero, stage); });
-    hero.addEventListener('canplay', function(){ ready(hero, stage); });
+  var img = document.getElementById('heroImg');
+  var vid = document.getElementById('heroVid');
+  function ok(wrap){ if(wrap) wrap.classList.add('is-ready'); }
+  function supportsWebpAnim(){
+    var c=document.createElement('canvas');
+    if(!c.getContext) return false;
+    return c.toDataURL('image/webp').indexOf('data:image/webp')===0;
+  }
+  if(img){
+    if(img.complete && img.naturalWidth) ok(stage);
+    img.addEventListener('load', function(){ ok(stage); });
+    img.addEventListener('error', function(){
+      if(!vid) return;
+      img.style.display='none';
+      vid.style.display='block';
+      vid.preload='metadata';
+      vid.src=mp4;
+      vid.play().catch(function(){});
+      vid.addEventListener('loadeddata', function(){ ok(stage); });
+    });
   }
   var card = document.getElementById('promoMedia');
-  var promo = document.getElementById('promoVid');
+  var promo = document.getElementById('promoImg');
   if(card && promo && 'IntersectionObserver' in window){
     var io = new IntersectionObserver(function(entries){
       entries.forEach(function(e){
         if(!e.isIntersecting || promo.getAttribute('data-on')) return;
         promo.setAttribute('data-on','1');
-        promo.src = src;
-        promo.load();
-        promo.addEventListener('loadeddata', function(){ card.classList.add('is-ready'); });
+        promo.src = supportsWebpAnim() ? webp : mp4;
+        promo.addEventListener('load', function(){ card.classList.add('is-ready'); });
         io.disconnect();
       });
     }, {rootMargin:'200px'});
     io.observe(card);
   } else if(promo){
-    promo.src = src;
+    promo.src = webp;
   }
 })();
 </script>
