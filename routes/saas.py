@@ -84,7 +84,8 @@ def company_login():
     if session.get("authenticated") and session.get("company_id"):
         return redirect(url_for("dashboard.index"))
     if request.method == "GET":
-        return render_template("saas/login.html")
+        message = "تم تحديث كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن." if request.args.get("reset") == "success" else None
+        return render_template("saas/login.html", message=message)
     identifier = (request.form.get("email") or request.form.get("username") or "").strip().lower()
     password = request.form.get("password", "")
     if not identifier or not password:

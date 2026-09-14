@@ -378,7 +378,7 @@ def reset_password(token):
             user.password_reset_expires_at = None
             db.session.commit()
             logger.info("Password reset completed for user %s", user.username)
-            return redirect(url_for("auth.login", reset="success"))
+            return redirect(url_for("saas.company_login", reset="success"))
     return render_template("reset_password.html", error=error, token=token)
 
 

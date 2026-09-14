@@ -12,6 +12,7 @@
       <h1 style="font-size:30px">أهلًا بعودتك</h1>
       <p class="muted">أدخل بيانات الحساب للوصول إلى منصة شركتك.</p>
       {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      {% if message %}<div class="notice" role="status">{{ message }}</div>{% endif %}
       <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-grid">
@@ -20,7 +21,15 @@
         </div>
         <button class="btn gold full" style="margin-top:20px" type="submit">تسجيل الدخول</button>
       </form>
-      <p class="muted" style="margin-top:16px">ليس لديك حساب؟ <a href="{{ url_for('saas.register_company') }}">أنشئ حساب الشركة</a></p>
+      <div class="auth-actions" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:16px">
+        <a href="{{ url_for('auth.forgot_password') }}">نسيت كلمة المرور؟</a>
+        <span class="muted">|</span>
+        <a href="{{ url_for('saas.register_company') }}">إنشاء حساب شركة</a>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px">
+        <a class="btn ghost" href="{{ url_for('saas.landing') }}">الصفحة الرئيسية</a>
+        <a class="btn ghost" href="{{ url_for('saas.plans') }}">عرض الباقات</a>
+      </div>
     </div>
   </div>
 </div>
