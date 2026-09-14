@@ -2,7 +2,6 @@ import os
 import re
 import uuid
 import unittest
-from datetime import timedelta
 
 os.environ.setdefault('ALLOW_SQLITE_FALLBACK', 'true')
 os.environ.setdefault('SECRET_KEY', 'saas-test-secret')
@@ -16,6 +15,7 @@ class SaaSOnboardingTests(unittest.TestCase):
         client = app.test_client()
         self.assertEqual(client.get('/').status_code, 200)
         self.assertEqual(client.get('/register').status_code, 200)
+        self.assertEqual(client.get('/saas-login').status_code, 200)
         html = client.get('/register').get_data(as_text=True)
         token = re.search(r'name="csrf_token" value="([^"]+)"', html).group(1)
         email = f"saas-{uuid.uuid4().hex[:12]}@example.com"
@@ -26,6 +26,7 @@ class SaaSOnboardingTests(unittest.TestCase):
             'password_confirmation': 'StrongPass123',
         })
         self.assertEqual(response.status_code, 302)
+        self.assertIn('/dashboard', response.headers.get('Location', ''))
         with app.app_context():
             company = Company.query.filter_by(email=email).first()
             self.assertIsNotNone(company)

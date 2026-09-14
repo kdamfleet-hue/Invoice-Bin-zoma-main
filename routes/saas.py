@@ -1,10 +1,10 @@
 from time_utils import utcnow
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 import re
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from models.schema import Company, Payment, Subscription, SubscriptionPlan, User, db
 
@@ -36,10 +36,64 @@ def _central_admin_required():
     return bool(session.get("authenticated") and (session.get("is_admin") or session.get("role") == "admin"))
 
 
+def _enter_isolated_site(user, company):
+    """Open a session then send the tenant into the isolated operations app."""
+    session.clear()
+    session.permanent = True
+    session.update({
+        "authenticated": True,
+        "user_id": user.id,
+        "username": user.username,
+        "user": user.username,
+        "display_name": user.display_name or company.name,
+        "role": user.role or "admin",
+        "is_admin": False,
+        "company_id": company.id,
+        "authz_version": int(getattr(user, "authz_version", 1) or 1),
+        "kiosk": False,
+        "google_user": {
+            "name": user.display_name or company.name,
+            "email": user.email or user.username,
+        },
+    })
+    return redirect(url_for("dashboard.index"))
+
+
 @saas_bp.get("/")
 def landing():
     plan = SubscriptionPlan.query.filter_by(name="الأساسية", is_active=True).first()
     return render_template("saas/landing.html", plan=plan)
+
+
+@saas_bp.route("/saas-login", methods=["GET", "POST"])
+def company_login():
+    if session.get("authenticated") and session.get("company_id"):
+        return redirect(url_for("dashboard.index"))
+
+    if request.method == "GET":
+        return render_template("saas/login.html")
+
+    identifier = (request.form.get("email") or request.form.get("username") or "").strip().lower()
+    password = request.form.get("password", "")
+    if not identifier or not password:
+        return render_template("saas/login.html", error="أدخل البريد وكلمة المرور"), 422
+
+    user = User.query.filter(
+        db.or_(db.func.lower(User.email) == identifier, db.func.lower(User.username) == identifier),
+        User.is_active.is_(True),
+    ).first()
+    if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
+        return render_template("saas/login.html", error="بيانات الدخول غير صحيحة"), 401
+
+    company = db.session.get(Company, user.company_id) if user.company_id else None
+    if not company:
+        return render_template("saas/login.html", error="هذا الحساب غير مرتبط بشركة. استخدم صفحة الدخول المعزولة للموظفين."), 403
+    if company.status == "suspended":
+        return render_template("saas/login.html", error="حساب الشركة موقوف. تواصل مع الدعم."), 403
+
+    user.last_login = utcnow()
+    db.session.commit()
+    return _enter_isolated_site(user, company)
 
 
 @saas_bp.route("/register", methods=["GET", "POST"])
@@ -81,19 +135,13 @@ def register_company():
                                 current_period_end=company.trial_ends_at)
     db.session.add_all([user, subscription])
     db.session.commit()
-
-    session.clear()
-    session.permanent = True
-    session.update({"authenticated": True, "user_id": user.id, "username": user.username,
-                    "user": user.username, "display_name": owner_name, "role": "admin",
-                    "is_admin": False, "company_id": company.id, "authz_version": 1})
-    return redirect(url_for("saas.workspace"))
+    return _enter_isolated_site(user, company)
 
 
 @saas_bp.get("/workspace")
 def workspace():
     if not session.get("authenticated") or not session.get("company_id"):
-        return redirect(url_for("saas.login_redirect"))
+        return redirect(url_for("saas.company_login"))
     company = db.session.get(Company, session["company_id"])
     if not company:
         session.clear()
@@ -106,7 +154,7 @@ def workspace():
 
 @saas_bp.get("/login-redirect")
 def login_redirect():
-    return redirect(url_for("auth.login"))
+    return redirect(url_for("saas.company_login"))
 
 
 @saas_bp.get("/plans")

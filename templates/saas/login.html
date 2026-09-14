@@ -1,0 +1,26 @@
+{% extends 'saas/base.html' %}{% block title %}دخول الشركات{% endblock %}{% block content %}
+<div class="shell form-wrap">
+  <div class="card">
+    <div class="eyebrow">دخول منفصل للشركات</div>
+    <h1>تسجيل دخول الشركة</h1>
+    <p class="muted">بعد الدخول يتم تحويلك مباشرة إلى الموقع المعزول (لوحة التشغيل الخاصة بشركتك).</p>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="field full">
+          <label>البريد الإلكتروني</label>
+          <input name="email" type="email" required maxlength="255" autocomplete="username">
+        </div>
+        <div class="field full">
+          <label>كلمة المرور</label>
+          <input name="password" type="password" required minlength="12" autocomplete="current-password">
+        </div>
+      </div>
+      <button class="btn" style="margin-top:22px" type="submit">دخول إلى الموقع المعزول</button>
+    </form>
+    <p class="muted" style="margin-top:18px">موظف داخلي؟ استخدم <a href="{{ url_for('auth.login') }}">صفحة الدخول المعزولة</a>.</p>
+    <p class="muted">شركة جديدة؟ <a href="{{ url_for('saas.register_company') }}">أنشئ حسابًا مجانًا</a>.</p>
+  </div>
+</div>
+{% endblock %}
