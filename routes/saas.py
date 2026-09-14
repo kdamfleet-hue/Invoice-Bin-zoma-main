@@ -37,7 +37,6 @@ def _central_admin_required():
 
 
 def _enter_isolated_site(user, company):
-    """Open a session then send the tenant into the isolated operations app."""
     session.clear()
     session.permanent = True
     session.update({
@@ -65,32 +64,32 @@ def landing():
     return render_template("saas/landing.html", plan=plan)
 
 
+@saas_bp.get("/highlights")
+def highlights():
+    return render_template("saas/highlights.html")
+
+
 @saas_bp.route("/saas-login", methods=["GET", "POST"])
 def company_login():
     if session.get("authenticated") and session.get("company_id"):
         return redirect(url_for("dashboard.index"))
-
     if request.method == "GET":
         return render_template("saas/login.html")
-
     identifier = (request.form.get("email") or request.form.get("username") or "").strip().lower()
     password = request.form.get("password", "")
     if not identifier or not password:
         return render_template("saas/login.html", error="أدخل البريد وكلمة المرور"), 422
-
     user = User.query.filter(
         db.or_(db.func.lower(User.email) == identifier, db.func.lower(User.username) == identifier),
         User.is_active.is_(True),
     ).first()
     if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
         return render_template("saas/login.html", error="بيانات الدخول غير صحيحة"), 401
-
     company = db.session.get(Company, user.company_id) if user.company_id else None
     if not company:
-        return render_template("saas/login.html", error="هذا الحساب غير مرتبط بشركة. استخدم صفحة الدخول المعزولة للموظفين."), 403
+        return render_template("saas/login.html", error="هذا الحساب غير مرتبط بشركة."), 403
     if company.status == "suspended":
-        return render_template("saas/login.html", error="حساب الشركة موقوف. تواصل مع الدعم."), 403
-
+        return render_template("saas/login.html", error="حساب الشركة موقوف."), 403
     user.last_login = utcnow()
     db.session.commit()
     return _enter_isolated_site(user, company)
@@ -100,7 +99,6 @@ def company_login():
 def register_company():
     if request.method == "GET":
         return render_template("saas/register.html")
-
     form = request.form
     name = form.get("company_name", "").strip()[:180]
     owner_name = form.get("owner_name", "").strip()[:150]
@@ -119,7 +117,6 @@ def register_company():
         error = "يوجد حساب شركة بهذا البريد مسبقًا"
     if error:
         return render_template("saas/register.html", error=error, form=form), 422
-
     now = utcnow()
     company = Company(name=name, owner_name=owner_name, phone=phone, email=email,
                       status="trial", trial_started_at=now,
