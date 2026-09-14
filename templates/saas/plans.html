@@ -1,32 +1,23 @@
-{% extends 'saas/base.html' %}{% block title %}الباقات والأسعار{% endblock %}{% block content %}
+{% extends 'saas/base.html' %}{% block title %}الباقات — KM المتكامل{% endblock %}{% block content %}
 <section class="section">
   <div class="shell">
-    <div class="eyebrow">نمو واضح</div>
-    <h1>باقة واحدة تبدأ بها، ثم تتوسع.</h1>
-    <p class="muted">كل باقة تفتح بتجربة 14 يومًا، ثم تنتقل إلى الموقع المعزول مباشرة.</p>
-    <div class="plans" style="margin-top:28px">
+    <div class="eyebrow">الاشتراك</div>
+    <h1>الباقات</h1>
+    <p class="muted">تجربة مجانية لمدة 14 يومًا مع كل باقة.</p>
+    <div class="grid3">
       {% for plan in plans %}
-      <article class="card plan-card">
-        <span class="eyebrow">شهري / سنوي</span>
+      <article class="card">
+        <div class="eyebrow">شهري</div>
         <h2>{{ plan.name }}</h2>
-        <div class="price">{{ plan.monthly_price|int }} <span>ريال / شهريًا</span></div>
-        <p class="muted">{{ plan.description or 'إدارة متكاملة لعمليات الأسطول.' }}</p>
-        <ul>
-          <li>لوحة أسطول وتشغيل معزولة</li>
-          <li>إدارة المستخدمين والصلاحيات</li>
-          <li>المستندات والصيانة والمخزون</li>
-        </ul>
+        <div class="price">{{ plan.monthly_price|int }} <span>ريال</span></div>
+        <p class="muted">{{ plan.description or 'إدارة متكاملة للأسطول.' }}</p>
         {% if session.get('company_id') %}
-        <a class="btn gold" href="{{ url_for('dashboard.index') }}">العودة إلى الموقع المعزول</a>
+        <a class="btn gold" href="{{ url_for('dashboard.index') }}">العودة للحساب</a>
         {% else %}
         <a class="btn gold" href="{{ url_for('saas.register_company') }}">ابدأ التجربة المجانية</a>
         {% endif %}
       </article>
       {% endfor %}
-    </div>
-    <div class="card" style="margin-top:22px">
-      <h3>الدفع الإلكتروني</h3>
-      <p class="muted">نموذج الاشتراك وسجل الدفع جاهزان. سيُفعّل الدفع بعد اعتماد Moyasar أو HyperPay أو Tap.</p>
     </div>
   </div>
 </section>
