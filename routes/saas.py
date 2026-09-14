@@ -142,7 +142,8 @@ def register_company():
                                 current_period_end=company.trial_ends_at)
     db.session.add_all([user, subscription])
     db.session.commit()
-    return _enter_isolated_site(user, company)
+    _enter_isolated_site(user, company)
+    return redirect(url_for("saas.workspace"))
 
 
 @saas_bp.get("/workspace")

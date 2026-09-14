@@ -26,7 +26,8 @@ class SaaSOnboardingTests(unittest.TestCase):
             'password_confirmation': 'StrongPass123',
         })
         self.assertEqual(response.status_code, 302)
-        self.assertIn('/dashboard', response.headers.get('Location', ''))
+        self.assertIn('/workspace', response.headers.get('Location', ''))
+        self.assertEqual(client.get('/workspace').status_code, 200)
         with app.app_context():
             company = Company.query.filter_by(email=email).first()
             self.assertIsNotNone(company)
