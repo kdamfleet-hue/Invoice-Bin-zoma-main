@@ -1,1 +1,36 @@
-{% extends 'saas/base.html' %}{% block title %}تسجيل شركة جديدة{% endblock %}{% block content %}<div class="shell form-wrap"><div class="card"><div class="eyebrow">ابدأ مجانًا لمدة 14 يومًا</div><h1>أنشئ مساحة شركتك</h1><p class="muted">بعد التسجيل يتم تحويلك تلقائيًا إلى الموقع المعزول ولوحة التشغيل الخاصة بشركتك.</p>{% if error %}<div class="error">{{ error }}</div>{% endif %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="form-grid"><div class="field full"><label>اسم الشركة</label><input name="company_name" value="{{ form.company_name if form else '' }}" required maxlength="180" placeholder="مثال: شركة بن زومة للنقل"></div><div class="field"><label>اسم المسؤول</label><input name="owner_name" value="{{ form.owner_name if form else '' }}" required maxlength="150"></div><div class="field"><label>رقم الجوال</label><input name="phone" value="{{ form.phone if form else '' }}" required maxlength="30" type="tel"></div><div class="field full"><label>البريد الإلكتروني</label><input name="email" value="{{ form.email if form else '' }}" required maxlength="255" type="email"></div><div class="field"><label>كلمة المرور</label><input name="password" required minlength="12" type="password"><small class="muted">12 حرفًا، حرف كبير وصغير ورقم.</small></div><div class="field"><label>تأكيد كلمة المرور</label><input name="password_confirmation" required minlength="12" type="password"></div></div><button class="btn" style="margin-top:22px" type="submit">إنشاء الشركة والدخول للموقع المعزول</button></form><p class="muted" style="margin-top:18px">لديك حساب؟ <a href="{{ url_for('saas.company_login') }}">صفحة الدخول المنفصلة</a>.</p></div></div>{% endblock %}
+{% extends 'saas/base.html' %}{% block title %}بداية التسجيل — KM المتكامل{% endblock %}{% block content %}
+<div class="shell form-wrap">
+  <div class="auth-grid">
+    <aside class="auth-side">
+      <div class="eyebrow">خطوة البداية</div>
+      <h2>أنشئ شركتك
+      في أقل من دقيقة.</h2>
+      <p style="color:#c9dceb">بعد الإرسال نُنشئ حساب المدير ونحوّلك مباشرة إلى الموقع المعزول.</p>
+      <div class="path">
+        <div><b>14 يومًا</b> تجربة كاملة بلا بطاقة</div>
+        <div><b>عزل خاص</b> لبيانات شركتك وفريقك</div>
+        <div><b>تشغيل فوري</b> من أول لحظة بعد التسجيل</div>
+      </div>
+    </aside>
+    <div class="card auth-copy">
+      <div class="eyebrow">تسجيل شركة جديدة</div>
+      <h1 style="font-size:34px">ابدأ مساحة التشغيل</h1>
+      <p class="muted">بعد الإنشاء يتم تحويلك تلقائيًا إلى لوحة التشغيل المعزولة.</p>
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid">
+          <div class="field full"><label>اسم الشركة</label><input name="company_name" value="{{ form.company_name if form else '' }}" required maxlength="180" placeholder="مثال: شركة بن زومة للنقل"></div>
+          <div class="field"><label>اسم المسؤول</label><input name="owner_name" value="{{ form.owner_name if form else '' }}" required maxlength="150"></div>
+          <div class="field"><label>رقم الجوال</label><input name="phone" value="{{ form.phone if form else '' }}" required maxlength="30" type="tel" placeholder="05xxxxxxxx"></div>
+          <div class="field full"><label>البريد الإلكتروني</label><input name="email" value="{{ form.email if form else '' }}" required maxlength="255" type="email" placeholder="name@company.com"></div>
+          <div class="field"><label>كلمة المرور</label><input name="password" required minlength="12" type="password"><small class="muted">12 حرفًا، حرف كبير وصغير ورقم.</small></div>
+          <div class="field"><label>تأكيد كلمة المرور</label><input name="password_confirmation" required minlength="12" type="password"></div>
+        </div>
+        <button class="btn gold full" style="margin-top:22px" type="submit">إنشاء الشركة ودخول الموقع المعزول</button>
+      </form>
+      <p class="muted" style="margin-top:18px">لديك حساب؟ <a href="{{ url_for('saas.company_login') }}">افتح صفحة الدخول المنفصلة</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
