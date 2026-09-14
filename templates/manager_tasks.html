@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}غرفة عمليات المسؤول{% endblock %}
+{% block page_heading %}غرفة عمليات المسؤول{% endblock %}
+{% block extra_css %}
+<style>
+.mt-wrap{max-width:1400px;margin:0 auto;padding:8px 4px 32px}
+.mt-lede{color:#8d99ab;font-size:14px;line-height:1.8;margin:0 0 16px}
+.mt-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.mt-kpi{background:linear-gradient(165deg,#121c2e,#0c121c);border:1px solid rgba(201,168,98,.22);border-radius:16px;padding:14px 16px}
+.mt-kpi b{display:block;font-size:28px;margin:6px 0 2px}
+.mt-kpi span{color:#8d99ab;font-size:12px}
+.mt-board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.mt-col{background:rgba(10,16,27,.7);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:10px;min-height:360px}
+.mt-col h3{font-size:13px;margin:0 0 10px;display:flex;justify-content:space-between;color:#e8d5a3}
+.mt-card{background:#141e30;border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:11px;margin-bottom:8px}
+.mt-card.hot{box-shadow:inset 3px 0 0 #e85d5d}
+.mt-tag{font-size:10px;padding:2px 7px;border-radius:99px;background:rgba(201,168,98,.12);color:#e8d5a3;margin-left:4px}
+.mt-title{font-size:14px;font-weight:600;margin:7px 0 5px}
+.mt-meta{font-size:12px;color:#8d99ab;line-height:1.65}
+.mt-foot{margin-top:14px;font-size:12px;color:#5d6a7c}
+@media(max-width:1100px){.mt-kpis,.mt-board{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.mt-kpis,.mt-board{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="mt-wrap">
+  <p class="mt-lede">مركز قيادة داخلي لاعتمادات الحركة والشروط الناقصة. «تم الاطلاع» ليست إغلاقاً. هذه الصفحة لا ترسل بريداً.</p>
+  <div class="mt-kpis">
+    <div class="mt-kpi"><span>مفتوح</span><b>{{ kpi.open }}</b></div>
+    <div class="mt-kpi"><span>بانتظار غيرك</span><b>{{ kpi.waiting }}</b></div>
+    <div class="mt-kpi"><span>على الموعد أو متأخر</span><b>{{ kpi.overdue }}</b></div>
+    <div class="mt-kpi"><span>عاجل</span><b>{{ kpi.urgent }}</b></div>
+  </div>
+  <div class="mt-board">
+    {% for name in ["وارد","قيد التنفيذ","بانتظار اعتماد","مغلق"] %}
+    <div class="mt-col">
+      <h3>{{ name }} <span>{{ columns[name]|length }}</span></h3>
+      {% for t in columns[name] %}
+      <article class="mt-card {% if t.priority=='عاجل' and name!='مغلق' %}hot{% endif %}">
+        <span class="mt-tag">{{ t.priority }}</span>
+        <span class="mt-tag">{{ t.category }}</span>
+        <span class="mt-tag">{{ t.ref }}</span>
+        <div class="mt-title">{{ t.title }}</div>
+        <div class="mt-meta">{{ t.meta }}<br/>بانتظار: {{ t.waiting }} · موعد: {{ t.due }}</div>
+      </article>
+      {% else %}
+      <div class="mt-meta">لا بطاقات في هذا العمود.</div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <p class="mt-foot">الصلاحية: مسؤول / مدير فرع فقط · الجدول: erp_manager_tasks</p>
+</div>
+<script>
+(function(){
+  var side = document.querySelector('.bz-sidebar nav .bz-nav-group[data-nav-group="operations"] .bz-nav-group-links');
+  if(!side || side.querySelector('a[href="/manager-tasks"]')) return;
+  var a=document.createElement('a');
+  a.href='/manager-tasks';
+  a.className='active';
+  a.innerHTML='<span class="si">◆</span><span class="slab">مهام المسؤول</span>';
+  var sch=side.querySelector('a[href="/schedule"]');
+  if(sch && sch.nextSibling) side.insertBefore(a, sch.nextSibling);
+  else side.insertBefore(a, side.firstChild);
+})();
+</script>
+{% endblock %}
