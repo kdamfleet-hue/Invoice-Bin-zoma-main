@@ -806,6 +806,7 @@ app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
 app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME")
 email_notifications_default = "true" if app.config.get("MAIL_USERNAME") and app.config.get("MAIL_PASSWORD") else "false"
 app.config["ACCOUNT_EMAIL_NOTIFICATIONS_ENABLED"] = os.environ.get("ACCOUNT_EMAIL_NOTIFICATIONS_ENABLED", email_notifications_default).lower() == "true"
+app.config["LOGIN_EMAIL_ALERTS_ENABLED"] = os.environ.get("LOGIN_EMAIL_ALERTS_ENABLED", "false").lower() == "true"
 mail = Mail(app)
 
 

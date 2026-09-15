@@ -68,6 +68,44 @@ def _enter_isolated_site(user, company):
     return redirect(url_for("dashboard.index"))
 
 
+def _send_login_alert(user, company):
+    """Best-effort alert for a successful company login; never includes secrets."""
+    from flask import current_app
+
+    if not current_app.config.get("LOGIN_EMAIL_ALERTS_ENABLED"):
+        return "disabled"
+    recipient = (getattr(user, "email", None) or "").strip().lower()
+    if not recipient or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", recipient):
+        return "missing_email"
+    try:
+        from flask_mail import Message
+        from app import _mail_send_safe
+
+        now = utcnow().strftime("%Y-%m-%d %H:%M UTC")
+        ip = request.headers.get("CF-Connecting-IP") or request.remote_addr or "غير معروف"
+        user_agent = (request.user_agent.string or "غير معروف")[:240]
+        msg = Message(
+            subject="تنبيه أمني: تسجيل دخول جديد إلى حساب KM",
+            recipients=[recipient],
+            sender=current_app.config.get("MAIL_DEFAULT_SENDER"),
+            body=(
+                f"مرحبًا {user.display_name or user.username}،\n\n"
+                "تم تسجيل دخول ناجح إلى مساحة شركتك في KM.\n\n"
+                f"الشركة: {company.name}\n"
+                f"الوقت: {now}\n"
+                f"عنوان الشبكة: {ip}\n"
+                f"المتصفح: {user_agent}\n\n"
+                "إذا لم تكن أنت، غيّر كلمة المرور فورًا وتواصل مع مسؤول النظام.\n"
+                "لا تتضمن هذه الرسالة كلمة المرور أو أي رمز سري."
+            ),
+        )
+        _mail_send_safe(msg)
+        return "sent"
+    except Exception:
+        current_app.logger.exception("Login alert email failed for user %s", user.username)
+        return "failed"
+
+
 @saas_bp.get("/")
 def landing():
     plan = SubscriptionPlan.query.filter_by(name="الأساسية", is_active=True).first()
@@ -103,6 +141,7 @@ def company_login():
         return render_template("saas/login.html", error="حساب الشركة موقوف."), 403
     user.last_login = utcnow()
     db.session.commit()
+    _send_login_alert(user, company)
     return _enter_isolated_site(user, company)
 
 
