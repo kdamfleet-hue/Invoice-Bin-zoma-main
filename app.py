@@ -203,6 +203,40 @@ def _resolve_query_scope():
         scoping.set_scope(current_branch_id())
 
 
+_SAAS_COMPANY_SAFE_PATHS = {
+    "/", "/highlights", "/saas-login", "/register", "/workspace",
+    "/login-redirect", "/plans", "/forgot-password", "/logout",
+    "/csp-report", "/manifest.json", "/sw.js",
+}
+_SAAS_COMPANY_SAFE_PREFIXES = ("/static/", "/reset-password/", "/importantworkstation")  # WS_PREFIX; defined later in this file, so inlined here to avoid a forward reference
+
+
+@app.before_request
+def _block_company_sessions_from_legacy_app():
+    """CRITICAL: a self-registered SaaS company's own owner account is given
+    role="admin" (routes/saas.py register_company()) so it can manage ITS OWN
+    company — but session["role"] == "admin" is also exactly what login_required's
+    role_required("admin", ...) and dozens of other checks across this app (built
+    for a single company, البن زومة) treat as "trusted, can see/switch every branch,
+    can manage everything." There is no per-company data isolation on the real
+    business tables (Driver/Vehicle/Document/...) yet — only branch_id, which a
+    company session never sets and which then defaults to branch 1 (البن زومة's
+    real Dammam data). Confirmed by direct test: a brand-new self-registered
+    company could read real driver records and reach /platform-admin. Until real
+    company-level isolation is built, any session carrying company_id (i.e. every
+    SaaS registration/login, never a legacy staff login) is confined to this
+    explicit allowlist — deny by default, not "block the routes we thought of."
+    """
+    if not session.get("company_id"):
+        return
+    path = request.path
+    if path in _SAAS_COMPANY_SAFE_PATHS or path.startswith(_SAAS_COMPANY_SAFE_PREFIXES):
+        return
+    if path.startswith("/api/"):
+        return jsonify({"success": False, "error": "غير متاح لحسابك حاليًا"}), 403
+    return redirect(url_for("saas.workspace"))
+
+
 if _db_url:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_pre_ping': True,
@@ -282,9 +316,9 @@ def is_saas_request(path):
         "/highlights",
         "/workspace",
         "/forgot-password",
-        "/clip.mp4",
         "/static/css/saas.css",
         "/static/js/saas.js",
+        "/static/km_clip.mp4",
     }
     return path in exact_paths or path.startswith("/reset-password/")
 
@@ -855,10 +889,7 @@ def _mail_send_safe(msg, timeout=20):
 # A COMPLETELY SEPARATE, OPEN entry that mirrors the site under a URL prefix. It is a
 # sandbox (edits go to id=2, never touching the real id=1 data) and the
 # Cameras/Employees/GPS-Sync tabs are password-locked. The MAIN site (/) is untouched.
-WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD")
-if not WORKSTATION_PASSWORD:
-    WORKSTATION_PASSWORD = secrets.token_hex(16)
-    logger.warning("WORKSTATION_PASSWORD not set in env — generated a random secure key.")
+from helpers import WORKSTATION_PASSWORD
 
 # Kiosk account: workshop-report-only access, no nav, full-screen.
 KIOSK_USER     = os.environ.get("KIOSK_USER",     "jam")

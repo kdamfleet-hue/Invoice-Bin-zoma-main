@@ -3,17 +3,13 @@ import json
 import hmac
 import logging
 from flask import Blueprint, render_template, session, request, redirect, jsonify, current_app
-from helpers import WS_PREFIX, _row_id, blob_get, blob_set, is_workstation, login_required, load_logo, _safe_tbl, _loads_blob
+from helpers import WS_PREFIX, WORKSTATION_PASSWORD, _row_id, blob_get, blob_set, is_workstation, login_required, load_logo, _safe_tbl, _loads_blob, _audit_add
 from models.database import db_connection
 from models.schema import db, AppSetting
+from app import limiter
 
 logger = logging.getLogger("InvoiceApp")
 workstation_bp = Blueprint('workstation', __name__)
-
-WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD")
-if not WORKSTATION_PASSWORD:
-    import secrets
-    WORKSTATION_PASSWORD = secrets.token_hex(16)
 
 WS_TABS = {
     "": "index", "dashboard": "dashboard", "kpis": "kpis", "invoice": "index", "fleet_dashboard": "fleet_dashboard_new",
@@ -174,6 +170,7 @@ def workstation_page(sub=""):
 
 
 @workstation_bp.route(WS_PREFIX + "/unlock", methods=["POST"])
+@limiter.limit("10 per minute")  # unauthenticated password check — same brute-force surface as /login
 def workstation_unlock():
     from app import app
     nxt = request.form.get("next", WS_PREFIX)
@@ -181,11 +178,13 @@ def workstation_unlock():
         nxt = WS_PREFIX
     if hmac.compare_digest(request.form.get("password", ""), WORKSTATION_PASSWORD):
         session["ws_unlocked"] = True
+        _audit_add("فتح محطة العمل", "نجاح")
         resp = redirect(nxt)
         resp.set_cookie("ws_unlocked", "1", path=WS_PREFIX, samesite="Lax",
                         httponly=True,
                         secure=app.config.get("SESSION_COOKIE_SECURE", False))
         return resp
+    _audit_add("فتح محطة العمل", "فشل")
     return render_template("tab_lock.html", next=nxt, error="كلمة المرور غير صحيحة")
 
 @workstation_bp.route("/api/ws_reset", methods=["POST"])

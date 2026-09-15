@@ -23,6 +23,17 @@ WS_PREFIX = "/importantworkstation"
 AUDIT_MAX = 1000
 AUDIT_COALESCE_SEC = 600
 
+# Single source of truth for the workstation unlock password. app.py and
+# routes/workstation.py each used to read WORKSTATION_PASSWORD independently and
+# fall back to their OWN secrets.token_hex(16) when unset — two separate random
+# values that don't match each other, silently breaking the workstation unlock
+# and the bulk-delete/send-alerts "lock" code it's also used for. One resolution
+# here, imported everywhere, guarantees they're always the same value.
+WORKSTATION_PASSWORD = os.environ.get("WORKSTATION_PASSWORD")
+if not WORKSTATION_PASSWORD:
+    WORKSTATION_PASSWORD = secrets.token_hex(16)
+    logger.warning("WORKSTATION_PASSWORD not set in env — generated a random secure key.")
+
 BRANCHES = [
     {"id": 1, "name": "الدمام"},
     {"id": 3, "name": "جدة"},

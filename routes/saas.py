@@ -1,25 +1,15 @@
 from time_utils import utcnow
 from datetime import timedelta
 from decimal import Decimal
-import base64
 import re
 
-from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from models.schema import Company, Payment, Subscription, SubscriptionPlan, User, db
-from routes.km_clip_b64 import CLIP_B64
 
 saas_bp = Blueprint("saas", __name__)
 TRIAL_DAYS = 14
-
-
-@saas_bp.get("/clip.mp4")
-def clip_mp4():
-    data = base64.b64decode(CLIP_B64)
-    resp = Response(data, mimetype="video/mp4")
-    resp.headers["Cache-Control"] = "public, max-age=86400"
-    return resp
 
 
 def _password_error(password):
@@ -43,7 +33,11 @@ def _default_plan():
 
 
 def _central_admin_required():
-    return bool(session.get("authenticated") and (session.get("is_admin") or session.get("role") == "admin"))
+    # A self-registered company's own owner also gets role="admin" (below) to manage
+    # ITS OWN company — that must never satisfy the PLATFORM admin check. Real platform
+    # admins are legacy staff logins, which never carry company_id.
+    return bool(session.get("authenticated") and not session.get("company_id")
+                and (session.get("is_admin") or session.get("role") == "admin"))
 
 
 def _enter_isolated_site(user, company):
@@ -65,7 +59,9 @@ def _enter_isolated_site(user, company):
             "email": user.email or user.username,
         },
     })
-    return redirect(url_for("dashboard.index"))
+    # Not dashboard.index: that's the legacy single-company app, which a company
+    # session is now explicitly blocked from (see app.py _block_company_sessions_from_legacy_app).
+    return redirect(url_for("saas.workspace"))
 
 
 def _send_login_alert(user, company):
