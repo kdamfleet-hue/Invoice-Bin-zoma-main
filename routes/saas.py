@@ -163,8 +163,10 @@ def register_company():
         error = "أدخل بريدًا إلكترونيًا صحيحًا"
     elif password != confirmation:
         error = "تأكيد كلمة المرور غير مطابق"
-    elif Company.query.filter_by(email=email).first():
-        error = "يوجد حساب شركة بهذا البريد مسبقًا"
+    elif Company.query.filter_by(email=email).first() or User.query.filter(
+        db.or_(db.func.lower(User.email) == email, db.func.lower(User.username) == email)
+    ).first():
+        error = "يوجد حساب بهذا البريد مسبقًا. استخدم بريدًا آخر أو سجّل الدخول."
     if error:
         return render_template("saas/register.html", error=error, form=form), 422
     now = utcnow()
@@ -188,9 +190,11 @@ def register_company():
         # Do not expose database details to the user. The common production
         # case is a duplicate email submitted concurrently with another form.
         current_app.logger.exception("Company registration failed for email %s", email)
-        duplicate = Company.query.filter_by(email=email).first()
+        duplicate = Company.query.filter_by(email=email).first() or User.query.filter(
+            db.or_(db.func.lower(User.email) == email, db.func.lower(User.username) == email)
+        ).first()
         if duplicate:
-            error = "يوجد حساب شركة بهذا البريد مسبقًا. استخدم بريدًا آخر أو سجّل الدخول."
+            error = "يوجد حساب بهذا البريد مسبقًا. استخدم بريدًا آخر أو سجّل الدخول."
         else:
             error = "تعذر إنشاء الحساب الآن. حاول مرة أخرى، وإذا تكرر الخطأ تواصل مع الدعم."
         return render_template("saas/register.html", error=error, form=form), 422
