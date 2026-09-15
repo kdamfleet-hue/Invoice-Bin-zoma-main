@@ -99,6 +99,13 @@ def upgrade():
         if IX_USERS_ACTIVE_ROLE not in user_indexes and {"is_active", "role"}.issubset(user_cols):
             batch_op.create_index(IX_USERS_ACTIVE_ROLE, ["is_active", "role"])
     plans = sa.table("erp_subscription_plans", sa.column("id", sa.Integer), sa.column("name", sa.String), sa.column("monthly_price", sa.Numeric), sa.column("annual_price", sa.Numeric), sa.column("description", sa.Text), sa.column("is_active", sa.Boolean))
+    arabic_plan = bind.execute(sa.text("SELECT id FROM erp_subscription_plans WHERE name = 'الأساسية' LIMIT 1")).scalar()
+    basic_plan = bind.execute(sa.text("SELECT id FROM erp_subscription_plans WHERE name = 'Basic' LIMIT 1")).scalar()
+    if arabic_plan is None and basic_plan is not None:
+        bind.execute(sa.text("UPDATE erp_subscription_plans SET name = 'الأساسية', description = :description WHERE id = :id"), {
+            "description": "إدارة الأسطول والتشغيل والمستندات للمؤسسات الصغيرة والمتوسطة.",
+            "id": basic_plan,
+        })
     count = bind.execute(sa.text("SELECT COUNT(*) FROM erp_subscription_plans")).scalar()
     if not count:
         op.bulk_insert(plans, [{"name": "الأساسية", "monthly_price": 99, "annual_price": 990, "description": "إدارة الأسطول والتشغيل والمستندات للمؤسسات الصغيرة والمتوسطة.", "is_active": True}])
