@@ -4,7 +4,7 @@ from decimal import Decimal
 import base64
 import re
 
-from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from models.schema import Company, Payment, Subscription, SubscriptionPlan, User, db
@@ -181,7 +181,19 @@ def register_company():
                                 billing_cycle="monthly", started_at=now,
                                 current_period_end=company.trial_ends_at)
     db.session.add_all([user, subscription])
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        # Do not expose database details to the user. The common production
+        # case is a duplicate email submitted concurrently with another form.
+        current_app.logger.exception("Company registration failed for email %s", email)
+        duplicate = Company.query.filter_by(email=email).first()
+        if duplicate:
+            error = "يوجد حساب شركة بهذا البريد مسبقًا. استخدم بريدًا آخر أو سجّل الدخول."
+        else:
+            error = "تعذر إنشاء الحساب الآن. حاول مرة أخرى، وإذا تكرر الخطأ تواصل مع الدعم."
+        return render_template("saas/register.html", error=error, form=form), 422
     _enter_isolated_site(user, company)
     return redirect(url_for("saas.workspace"))
 
