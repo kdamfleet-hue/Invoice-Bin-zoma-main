@@ -50,7 +50,7 @@ class SecurityControlTests(unittest.TestCase):
             user.authz_version = old_version + 1
             db.session.commit()
             try:
-                response = self.client.get("/api/my_permissions")
+                response = self.client.get("/api/system/my_permissions")
                 self.assertEqual(response.status_code, 401)
                 self.assertEqual(response.get_json()["code"], "AUTHZ_CHANGED")
             finally:
