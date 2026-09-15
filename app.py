@@ -250,6 +250,45 @@ CSP_REPORT_ONLY = "; ".join([
     "form-action 'self' https://wa.me",
     "report-uri /csp-report",
 ])
+
+# Strict policy for the reviewed public SaaS surface. Keep this separate from
+# the legacy application policy so enforcement can be introduced incrementally.
+CSP_SAAS = "; ".join([
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "script-src 'self'",
+    "style-src 'self' https://fonts.googleapis.com",
+    "style-src-elem 'self' https://fonts.googleapis.com",
+    "style-src-attr 'none'",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob:",
+    "media-src 'self'",
+    "connect-src 'self'",
+    "frame-src 'none'",
+    "form-action 'self'",
+    "report-uri /csp-report",
+])
+
+
+def is_saas_request(path):
+    """Return whether a request belongs to the reviewed SaaS surface."""
+    exact_paths = {
+        "/",
+        "/saas-login",
+        "/register",
+        "/plans",
+        "/highlights",
+        "/workspace",
+        "/forgot-password",
+        "/clip.mp4",
+        "/static/css/saas.css",
+        "/static/js/saas.js",
+    }
+    return path in exact_paths or path.startswith("/reset-password/")
+
+
 # content_security_policy=None preserves the current non-blocking behavior while the
 # after_request hook below emits CSP-Report-Only for observability.
 Talisman(app, content_security_policy=None, force_https=False)
@@ -474,12 +513,15 @@ def add_header(response):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
-    # Keep Report-Only during migration; operators can promote the reviewed policy
-    # without a code change after inline scripts and third-party assets are migrated.
-    if os.environ.get("CSP_ENFORCE", "false").lower() == "true":
-        response.headers["Content-Security-Policy"] = CSP_REPORT_ONLY
+    # Enforce only the reviewed SaaS surface. Legacy application pages remain
+    # Report-Only until their inline handlers and third-party dependencies are migrated.
+    saas_enforce = os.environ.get("CSP_SAAS_ENFORCE", "true").lower() == "true"
+    if is_saas_request(request.path) and saas_enforce:
+        response.headers["Content-Security-Policy"] = CSP_SAAS
+        response.headers.pop("Content-Security-Policy-Report-Only", None)
     else:
         response.headers["Content-Security-Policy-Report-Only"] = CSP_REPORT_ONLY
+        response.headers.pop("Content-Security-Policy", None)
     # Do not expose exception text or tracebacks from legacy JSON endpoints. A route that
     # already hand-crafts a safe, translated 5xx message (e.g. "the tracking provider
     # rejected the token — issue a new one") can set X-Error-Safe to keep its own wording
