@@ -405,6 +405,24 @@ def ensure_db_columns():
     except Exception as e:
         logger.warning(f"ensure_db_columns notice: {e}")
 
+
+def ensure_saas_schema():
+    """Apply critical SaaS compatibility columns in isolated transactions."""
+    try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        if 'erp_users' not in inspector.get_table_names():
+            return
+        columns = {column['name'] for column in inspector.get_columns('erp_users')}
+        if 'company_id' not in columns:
+            # Keep this transaction independent from legacy compatibility checks:
+            # one unrelated failed ALTER must not hide this required SaaS column.
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE erp_users ADD COLUMN company_id INTEGER"))
+            logger.info("Auto-migration: Added company_id to erp_users (SaaS compatibility)")
+    except Exception as e:
+        logger.error("SaaS schema verification failed: %s", e)
+
 def ensure_protected_admin_role():
     """Keep the reserved database-backed ``admin`` account at the admin role.
 
@@ -469,6 +487,12 @@ def init_db_on_startup():
             logger.info("✅ Column verification completed.")
         except Exception as e:
             logger.error(f"❌ Error verifying columns: {e}")
+
+        try:
+            ensure_saas_schema()
+            logger.info("✅ SaaS schema verification completed.")
+        except Exception as e:
+            logger.error(f"❌ Error verifying SaaS schema: {e}")
 
         try:
             ensure_protected_admin_role()
