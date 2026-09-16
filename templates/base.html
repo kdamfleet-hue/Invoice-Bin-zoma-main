@@ -107,7 +107,8 @@
                 <a href="/faq" class="{% if request.path == '/faq' %}active{% endif %}"><span class="si">؟</span><span class="slab">الأسئلة الشائعة</span></a></div></section>
                 <section class="bz-nav-group is-open" data-nav-group="operations" data-priority="03"><button type="button" class="bz-nav-group-toggle" aria-expanded="true"><span>التشغيل</span><span class="group-arrow" aria-hidden="true">⌄</span></button><div class="bz-nav-group-links">
                 <a href="/schedule" class="{% if request.path == '/schedule' %}active{% endif %}"><span class="si">📋</span><span class="slab">الجدول الأسبوعي</span></a>
-{% if is_admin or session.get('role') in ['admin','branch_manager','operations'] %}
+{% set sidebar_role = session.get('role') or session.get('user_role') or (session.get('google_user') or {}).get('role') %}
+{% if is_admin or sidebar_role in ['admin','branch_manager','operations'] %}
 <a href="/manager-tasks" class="{% if request.path == '/manager-tasks' %}active{% endif %}"><span class="si">◆</span><span class="slab">مهام المسؤول</span></a>
 {% endif %}
                 <a href="/schedule/transport" class="{% if request.path == '/schedule/transport' %}active{% endif %}"><span class="si">🚚</span><span class="slab">نقل عام وخاص</span></a>
