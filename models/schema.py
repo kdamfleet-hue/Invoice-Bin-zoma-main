@@ -344,3 +344,20 @@ class Snapshot(db.Model):
     branch_id = db.Column(db.Integer, nullable=True)
     timestamp = db.Column(db.DateTime, default=utcnow)
     data = db.Column(db.Text, nullable=False)
+
+
+class InboundEmailTask(db.Model):
+    """Locally imported inbound email; no outbound mail behavior."""
+    __tablename__ = 'erp_inbound_email_tasks'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('erp_branches.id'), nullable=True)
+    message_id = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    thread_id = db.Column(db.String(255), nullable=True)
+    sender = db.Column(db.String(255), nullable=True)
+    recipients = db.Column(db.String(1000), nullable=True)
+    subject = db.Column(db.String(500), nullable=False)
+    body_preview = db.Column(db.Text, nullable=True)
+    received_at = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(50), nullable=False, default='وارد', server_default='وارد')
+    source = db.Column(db.String(50), nullable=False, default='inbound_read_only', server_default='inbound_read_only')
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)

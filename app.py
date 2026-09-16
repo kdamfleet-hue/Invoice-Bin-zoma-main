@@ -5724,6 +5724,8 @@ app.register_blueprint(analytics_bp)
 import routes.dammam          # noqa: F401
 import routes.ops_cycle       # noqa: F401
 import routes.schedule_transport  # noqa: F401
+from routes.inbound_email import inbound_email_bp
+app.register_blueprint(inbound_email_bp)
 from routes.schedule_vehicles import schedule_vehicles_bp
 app.register_blueprint(schedule_vehicles_bp)
 # routes/invoices.py used to be registered here. It defined no routes at all (its view

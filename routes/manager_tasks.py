@@ -59,6 +59,29 @@ def manager_tasks_page():
     except Exception:
         pass
 
+    # Read-only imported inbox items are shown as "وارد" tasks. They never
+    # trigger mail, scheduling, or any external side effect.
+    try:
+        from models.schema import InboundEmailTask
+        from helpers import branch_scope
+        bid = current_branch_id()
+        inbound_rows = InboundEmailTask.query.filter(
+            branch_scope(InboundEmailTask.branch_id, bid)
+        ).order_by(InboundEmailTask.received_at.desc()).limit(100).all()
+        for item in inbound_rows:
+            tasks.append({
+                "ref": f"IN-{item.id:03d}",
+                "title": item.subject,
+                "status": item.status or "وارد",
+                "priority": "متوسط",
+                "category": "بريد وارد",
+                "waiting": "—",
+                "due": "—",
+                "meta": ((item.sender or "") + " — " + (item.body_preview or ""))[:180],
+            })
+    except Exception:
+        pass
+
     by = {"وارد": [], "قيد التنفيذ": [], "بانتظار اعتماد": [], "مغلق": []}
     for t in tasks:
         by.setdefault(t["status"], []).append(t)
