@@ -127,6 +127,11 @@ class PasswordRecoveryIntegrationTest(unittest.TestCase):
         )
         self.assertEqual(new_login.status_code, 302)
         self.assertIn("/dashboard", new_login.headers["Location"])
+        with self.client.session_transaction() as session:
+            self.assertTrue(session.get("authenticated"))
+            self.assertEqual(session.get("username"), self.username)
+            self.assertIsNone(session.get("company_id"))
+            self.assertFalse(session.get("kiosk"))
 
         # The single-use token must no longer work.
         self.assertEqual(self.client.get(f"/reset-password/{token}").status_code, 400)
