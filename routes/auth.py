@@ -317,6 +317,9 @@ def forgot_password():
     from models.schema import User
     from app import db
 
+    source = request.values.get("source", "internal")
+    if source not in {"internal", "saas"}:
+        source = "internal"
     message = None
     if request.method == "POST":
         identifier = (request.form.get("identifier") or "").strip()
@@ -331,7 +334,7 @@ def forgot_password():
                 user.password_reset_expires_at = utcnow() + timedelta(minutes=30)
                 db.session.commit()
                 base_url = (os.environ.get("PUBLIC_BASE_URL") or request.url_root).rstrip("/")
-                reset_url = f"{base_url}{url_for('auth.reset_password', token=raw_token)}"
+                reset_url = f"{base_url}{url_for('auth.reset_password', token=raw_token, source=source)}"
                 result = _send_password_reset_email(user, reset_url)
                 if result != "sent":
                     logger.warning("Password reset requested but email was not sent for user %s: %s", user.username, result)
@@ -340,7 +343,7 @@ def forgot_password():
             db.session.rollback()
             logger.exception("Password reset request failed")
             message = generic
-    return render_template("forgot_password.html", message=message)
+    return render_template("forgot_password.html", message=message, source=source)
 
 
 @auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
@@ -349,6 +352,10 @@ def reset_password(token):
     """Consume a valid reset token and force a fresh password selection."""
     from models.schema import User
     from app import db
+
+    source = request.values.get("source", "internal")
+    if source not in {"internal", "saas"}:
+        source = "internal"
 
     # A valid secrets.token_urlsafe(32) value is substantially longer than this.
     # Reject malformed links before touching the database, including during schema rollout.
@@ -378,8 +385,10 @@ def reset_password(token):
             user.password_reset_expires_at = None
             db.session.commit()
             logger.info("Password reset completed for user %s", user.username)
-            return redirect(url_for("saas.company_login", reset="success"))
-    return render_template("reset_password.html", error=error, token=token)
+            if source == "saas":
+                return redirect(url_for("saas.company_login", reset="success"))
+            return redirect(url_for("auth.login", reset="success"))
+    return render_template("reset_password.html", error=error, token=token, source=source)
 
 
 @auth_bp.route("/force-password-change", methods=["GET", "POST"])

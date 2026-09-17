@@ -16,7 +16,7 @@ assert 'name="password"' in legacy
 assert 'name="email"' in saas
 assert 'name="password"' in saas
 assert 'url_for(\'auth.forgot_password\')' in legacy
-assert 'url_for(\'auth.forgot_password\')' in saas
+assert "url_for('auth.forgot_password', source='saas')" in saas
 assert 'session' not in css
 assert 'company_id' not in css
 assert 'role' not in css
