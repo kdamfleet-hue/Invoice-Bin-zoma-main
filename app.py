@@ -204,7 +204,7 @@ def _resolve_query_scope():
 
 
 _SAAS_COMPANY_SAFE_PATHS = {
-    "/", "/highlights", "/saas-login", "/register", "/workspace",
+    "/", "/highlights", "/saas-login", "/register", "/workspace", "/company-platform",
     "/login-redirect", "/plans", "/forgot-password", "/logout",
     "/csp-report", "/manifest.json", "/sw.js",
 }

@@ -212,6 +212,23 @@ def workspace():
                            remaining_days=remaining)
 
 
+@saas_bp.get("/company-platform")
+def company_platform():
+    """Safe entry point for a company's own platform area.
+
+    Do not send SaaS sessions to the legacy single-company dashboard: that
+    application is not company-isolated yet. This page is the protected
+    company-facing entry until the isolated fleet modules are available.
+    """
+    if not session.get("authenticated") or not session.get("company_id"):
+        return redirect(url_for("saas.company_login"))
+    company = db.session.get(Company, session["company_id"])
+    if not company:
+        session.clear()
+        return redirect(url_for("saas.register_company"))
+    return render_template("saas/company_platform.html", company=company)
+
+
 @saas_bp.get("/login-redirect")
 def login_redirect():
     return redirect(url_for("saas.company_login"))
