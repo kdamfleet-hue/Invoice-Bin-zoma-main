@@ -171,6 +171,18 @@ class PasswordRecoveryIntegrationTest(unittest.TestCase):
             user = User.query.filter_by(username=self.username).first()
             self.assertTrue(check_password_hash(user.password_hash, "OldPassword123"))
 
+    def test_internal_login_accepts_registered_email(self):
+        response = self.client.post(
+            "/login",
+            data={
+                "csrf_token": csrf(self.client, "/login"),
+                "username": "RECOVERY-INTEGRATION@EXAMPLE.COM",
+                "password": "OldPassword123",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/dashboard", response.headers["Location"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

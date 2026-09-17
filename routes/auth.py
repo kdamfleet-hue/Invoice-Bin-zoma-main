@@ -163,7 +163,17 @@ def login():
         # A database/schema failure must not turn the login form into a 500 for
         # the master admin fallback. Log it and continue with safe fallbacks.
         try:
-            user = User.query.filter_by(username=username, is_active=True).first()
+            # Internal accounts may be identified by either their username or
+            # their registered email address (the SaaS login already supports
+            # both). Keep username matching exact while making email matching
+            # case-insensitive for normal email input.
+            user = User.query.filter(
+                db.or_(
+                    User.username == username,
+                    db.func.lower(User.email) == username.lower(),
+                ),
+                User.is_active.is_(True),
+            ).first()
         except Exception:
             logger.exception("User lookup failed during login")
             user = None
