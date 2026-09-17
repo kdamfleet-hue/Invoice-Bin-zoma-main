@@ -107,6 +107,17 @@ def _safe_login_errors(view):
     return wrapped
 
 
+def _post_login_redirect():
+    """Choose the destination from the established session type."""
+    if not session.get("authenticated"):
+        return url_for("auth.login")
+    if session.get("company_id"):
+        return url_for("saas.workspace")
+    if session.get("kiosk"):
+        return url_for("operations.workshop")
+    return url_for("dashboard.index")
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 @_safe_login_errors
@@ -114,9 +125,7 @@ def login():
     from app import KIOSK_PASSWORD, KIOSK_USER, get_branch_accounts, get_users, BRANCH_IDS
 
     if session.get("authenticated"):
-        if session.get("kiosk"):
-            return redirect(url_for("operations.workshop"))
-        return redirect(url_for("dashboard.index"))
+        return redirect(_post_login_redirect())
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -140,7 +149,7 @@ def login():
             session["kiosk"] = True
             session["branch_id"] = 1  # explicit, was previously an implicit default
             logger.info("Kiosk login")
-            return redirect(url_for("operations.workshop"))
+            return redirect(_post_login_redirect())
 
         # Hardcoded master admin fallback (from ENV)
         master_user = os.environ.get("ADMIN_USERNAME")
@@ -158,7 +167,7 @@ def login():
             session["kiosk"] = False
             session["branch_id"] = 1  # explicit, was previously an implicit default
             logger.info("Master admin login via hardcoded credentials")
-            return redirect(url_for("dashboard.index"))
+            return redirect(_post_login_redirect())
 
         # A database/schema failure must not turn the login form into a 500 for
         # the master admin fallback. Log it and continue with safe fallbacks.
@@ -204,9 +213,7 @@ def login():
 
             if session.get("must_change_password"):
                 return redirect(url_for("auth.force_password_change"))
-            if user.role == 'kiosk':
-                return redirect(url_for("operations.workshop"))
-            return redirect(url_for("dashboard.index"))
+            return redirect(_post_login_redirect())
             
         # Branch-account storage is legacy/global data. A malformed record or storage
         # read failure must never turn an invalid login into HTTP 500.
@@ -240,7 +247,7 @@ def login():
                 session["branch_id"] = bid
                 session["is_branch_user"] = True
             logger.info(f"Branch account login: {username} -> branch {bid}")
-            return redirect(url_for("dashboard.index"))
+            return redirect(_post_login_redirect())
 
         else:
             logger.warning("Failed login attempt")
