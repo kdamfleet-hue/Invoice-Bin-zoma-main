@@ -27,7 +27,7 @@ def _role_ok():
     if role in MANAGER_ROLES:
         return True
     user = session.get("user") or session.get("google_user") or {}
-    if isinstance(user, dict) and str(user.get("role") or "").lower() in MANAGER_ROLES:
+    if isinstance(user, dict) and str(user.get("role") or "").strip().lower() in MANAGER_ROLES:
         return True
     return False
 

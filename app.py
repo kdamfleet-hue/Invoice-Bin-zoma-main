@@ -704,11 +704,28 @@ def enforce_dedicated_workstation_and_tab_permissions():
     try:
         guser = session.get("google_user")
         gname = guser.get("name") if isinstance(guser, dict) else ""
-        username = session.get("user") or session.get("username") or gname or ""
+        raw_user = session.get("user")
+        if isinstance(raw_user, dict):
+            # Some auth flows keep a structured user object in the session. A dict
+            # cannot be used as a mapping key, so resolve a stable scalar identity.
+            username = (
+                raw_user.get("username")
+                or raw_user.get("email")
+                or raw_user.get("name")
+                or session.get("username")
+                or gname
+                or ""
+            )
+        else:
+            username = raw_user or session.get("username") or gname or ""
 
         # 1. Read per-user account permissions using global system-wide storage
         all_user_perms = _global_blob_get("user_account_permissions") or {}
+        if not isinstance(all_user_perms, dict):
+            all_user_perms = {}
         user_account_perms = all_user_perms.get(username, {})
+        if not isinstance(user_account_perms, dict):
+            user_account_perms = {}
 
         # The "branch<N>" key is the restriction set for a BRANCH LOGIN. It used to apply to
         # anyone whose session merely had that branch active — so switching the active
@@ -719,6 +736,8 @@ def enforce_dedicated_workstation_and_tab_permissions():
             user_account_perms = all_user_perms.get(branch_key, {})
 
         global_perms = _global_blob_get("tab_permissions") or {}
+        if not isinstance(global_perms, dict):
+            global_perms = {}
         
         dedicated_mode = user_account_perms.get("dedicated_mode") or global_perms.get("dedicated_mode", "all")
         user_allowed_tabs = user_account_perms.get("allowed_tabs")
