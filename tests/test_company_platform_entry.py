@@ -72,6 +72,40 @@ class CompanyPlatformEntryTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('href="/company-platform"', response.get_data(as_text=True))
 
+    def test_company_session_dashboard_redirects_to_workspace_without_loop(self):
+        with self.client.session_transaction() as session:
+            session.update({"authenticated": True, "company_id": self.company_id, "role": "admin"})
+        response = self.client.get("/dashboard")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/workspace", response.headers["Location"])
+        follow = self.client.get(response.headers["Location"])
+        self.assertEqual(follow.status_code, 200)
+
+    def test_internal_session_can_open_dashboard(self):
+        with app.app.app_context():
+            internal = User(
+                username=self.username + ".internal",
+                email=self.username + ".internal",
+                password_hash=generate_password_hash("StrongPass123"),
+                role="admin",
+                is_active=True,
+            )
+            app.db.session.add(internal)
+            app.db.session.commit()
+            internal_id = internal.id
+        with self.client.session_transaction() as session:
+            session.update({
+                "authenticated": True,
+                "user_id": internal_id,
+                "username": internal.username,
+                "user": internal.username,
+                "role": "admin",
+                "is_admin": True,
+                "authz_version": 1,
+            })
+        response = self.client.get("/dashboard")
+        self.assertEqual(response.status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

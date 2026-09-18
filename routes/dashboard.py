@@ -7,7 +7,7 @@ import logging
 
 from flask import Blueprint, render_template, session
 
-from helpers import login_required, load_logo, blob_get, current_branch_id
+from helpers import binzomah_dashboard_required, login_required, load_logo, blob_get, current_branch_id
 from models.schema import Driver, Vehicle
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -192,7 +192,7 @@ def _role_home_profile(role: str | None) -> Dict[str, Any]:
 
 
 @dashboard_bp.route("/dashboard")
-@login_required
+@binzomah_dashboard_required
 def index() -> Any:
     """Render the main index page with summary statistics."""
     try:

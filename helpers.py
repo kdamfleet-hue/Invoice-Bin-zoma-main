@@ -115,6 +115,31 @@ def login_required(f):
     return decorated_function
 
 
+def binzomah_dashboard_required(f):
+    """Require a legacy BIN ZOMAH session for the main dashboard.
+
+    A KM company session may also have an admin role, so role alone cannot
+    distinguish it from the legacy internal application. ``company_id`` is the
+    explicit session boundary and must route to the company workspace instead.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("authenticated"):
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "error": "Session expired. Please refresh and log in again."}), 401
+            return redirect(url_for("auth.login"))
+        if session.get("company_id"):
+            logger.info(
+                "Dashboard blocked for company session: company_id=%s user_id=%s",
+                session.get("company_id"), session.get("user_id"),
+            )
+            return redirect(url_for("saas.workspace"))
+        if session.get("kiosk"):
+            return redirect(url_for("operations.workshop"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 def role_required(*roles):
     def decorator(f):
         @wraps(f)
@@ -517,4 +542,3 @@ def _alert_cfg():
 
 def _alert_cfg_set(cfg):
     _global_blob_set("alert_settings", cfg)
-
