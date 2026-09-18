@@ -10,7 +10,7 @@ import logging
 import re
 from functools import wraps
 from sqlalchemy.exc import IntegrityError
-from helpers import _global_blob_get, _global_blob_set, BRANCH_NAME, log_login_event
+from helpers import _global_blob_get, _global_blob_set, BRANCH_NAME, log_login_event, phone_login_variants
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
@@ -131,7 +131,7 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        from models.schema import User
+        from models.schema import Company, User
         from datetime import datetime
         from app import db
 
@@ -176,13 +176,21 @@ def login():
             # their registered email address (the SaaS login already supports
             # both). Keep username matching exact while making email matching
             # case-insensitive for normal email input.
-            user = User.query.filter(
-                db.or_(
-                    User.username == username,
-                    db.func.lower(User.email) == username.lower(),
-                ),
-                User.is_active.is_(True),
-            ).first()
+            phone_variants = phone_login_variants(username)
+            identity_filters = [
+                User.username == username,
+                db.func.lower(User.email) == username.lower(),
+            ]
+            if phone_variants:
+                identity_filters.extend([
+                    User.phone.in_(phone_variants),
+                    Company.phone.in_(phone_variants),
+                ])
+            user = (
+                User.query.outerjoin(Company, User.company_id == Company.id)
+                .filter(db.or_(*identity_filters), User.is_active.is_(True))
+                .first()
+            )
         except Exception:
             logger.exception("User lookup failed during login")
             user = None

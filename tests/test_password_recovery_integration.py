@@ -22,6 +22,9 @@ import app  # noqa: E402
 from models.schema import User  # noqa: E402
 from werkzeug.security import check_password_hash, generate_password_hash  # noqa: E402
 
+app.app.config["RATELIMIT_ENABLED"] = False
+app.limiter.enabled = False
+
 
 def csrf(client, path):
     response = client.get(path)
@@ -43,6 +46,7 @@ class PasswordRecoveryIntegrationTest(unittest.TestCase):
             self.user = User(
                 username=self.username,
                 email="recovery-integration@example.com",
+                phone="0551234567",
                 password_hash=generate_password_hash("OldPassword123"),
                 role="viewer",
                 is_active=True,
@@ -187,6 +191,20 @@ class PasswordRecoveryIntegrationTest(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertIn("/dashboard", response.headers["Location"])
+
+    def test_internal_login_accepts_registered_mobile_formats(self):
+        for mobile in ("0551234567", "+966551234567", "966551234567"):
+            self.client.get("/logout")
+            response = self.client.post(
+                "/login",
+                data={
+                    "csrf_token": csrf(self.client, "/login"),
+                    "username": mobile,
+                    "password": "OldPassword123",
+                },
+            )
+            self.assertEqual(response.status_code, 302, mobile)
+            self.assertIn("/dashboard", response.headers["Location"], mobile)
 
     def test_failed_login_writes_safe_security_audit_event(self):
         secret = "DefinitelyNotThePassword123"

@@ -406,6 +406,7 @@ def ensure_db_columns():
                 # the route can return a useful validation response.
                 legacy_user_cols = [
                     ('email', 'VARCHAR(255)'),
+                    ('phone', 'VARCHAR(30)'),
                     ('display_name', 'VARCHAR(150)'),
                     ('must_change_password', 'BOOLEAN DEFAULT FALSE'),
                     ('authz_version', 'INTEGER DEFAULT 1'),

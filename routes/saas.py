@@ -171,7 +171,7 @@ def register_company():
                       trial_ends_at=now + timedelta(days=TRIAL_DAYS))
     db.session.add(company)
     db.session.flush()
-    user = User(company_id=company.id, username=email, email=email, display_name=owner_name,
+    user = User(company_id=company.id, username=email, email=email, phone=phone, display_name=owner_name,
                 password_hash=generate_password_hash(password), role="admin", is_active=True,
                 authz_version=1)
     plan = _default_plan()

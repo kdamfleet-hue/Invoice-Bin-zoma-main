@@ -116,6 +116,27 @@ def mask_login_identifier(value):
     return f"{value[:2]}***" if len(value) > 2 else "***"
 
 
+def normalize_phone(value):
+    """Normalize common Saudi mobile formats to a stable 05xxxxxxxx form."""
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    if digits.startswith("00966"):
+        digits = digits[5:]
+    elif digits.startswith("966") and len(digits) >= 11:
+        digits = digits[3:]
+    if digits.startswith("5") and len(digits) == 9:
+        digits = "0" + digits
+    return digits
+
+
+def phone_login_variants(value):
+    """Return stored representations that may correspond to a phone input."""
+    canonical = normalize_phone(value)
+    if len(canonical) < 8:
+        return set()
+    local = canonical[1:] if canonical.startswith("0") else canonical
+    return {canonical, local, "966" + local, "00966" + local, "+966" + local}
+
+
 def log_login_event(event, reason=None, username=None, user=None):
     """Log authentication metadata without passwords, cookies, or tokens."""
     def safe(value, limit):

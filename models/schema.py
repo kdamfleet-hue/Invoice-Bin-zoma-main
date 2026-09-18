@@ -83,6 +83,7 @@ class User(db.Model):
     display_name = db.Column(db.String(150), nullable=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     email = db.Column(db.String(255), nullable=True)
+    phone = db.Column(db.String(30), nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False, default='viewer') # admin, branch_manager, data_entry, viewer, kiosk
     is_active = db.Column(db.Boolean, default=True)
