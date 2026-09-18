@@ -10,7 +10,7 @@ import logging
 import re
 from functools import wraps
 from sqlalchemy.exc import IntegrityError
-from helpers import _global_blob_get, _global_blob_set, BRANCH_NAME
+from helpers import _global_blob_get, _global_blob_set, BRANCH_NAME, log_login_event
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
@@ -148,7 +148,7 @@ def login():
             session["is_admin"] = False
             session["kiosk"] = True
             session["branch_id"] = 1  # explicit, was previously an implicit default
-            logger.info("Kiosk login")
+            log_login_event("login_success", reason="kiosk", username=KIOSK_USER)
             return redirect(_post_login_redirect())
 
         # Hardcoded master admin fallback (from ENV)
@@ -166,7 +166,7 @@ def login():
             session["role"] = "admin"
             session["kiosk"] = False
             session["branch_id"] = 1  # explicit, was previously an implicit default
-            logger.info("Master admin login via hardcoded credentials")
+            log_login_event("login_success", reason="master_admin", username=username)
             return redirect(_post_login_redirect())
 
         # A database/schema failure must not turn the login form into a 500 for
@@ -209,7 +209,7 @@ def login():
                 session["is_branch_user"] = True
 
             session["kiosk"] = (user.role == 'kiosk')
-            logger.info(f"Successful login for user: {user.username} with role: {user.role}")
+            log_login_event("login_success", username=user.username, user=user)
 
             if session.get("must_change_password"):
                 return redirect(url_for("auth.force_password_change"))
@@ -246,11 +246,11 @@ def login():
             if bid in BRANCH_IDS:
                 session["branch_id"] = bid
                 session["is_branch_user"] = True
-            logger.info(f"Branch account login: {username} -> branch {bid}")
+            log_login_event("login_success", reason="branch_account", username=username)
             return redirect(_post_login_redirect())
 
         else:
-            logger.warning("Failed login attempt")
+            log_login_event("login_failed", reason="invalid_credentials", username=username)
             return render_template("login.html", error="اسم المستخدم أو كلمة المرور غير صحيحة أو الحساب غير مفعل")
 
     return render_template("login.html", reset_success=(request.args.get("reset") == "success"))

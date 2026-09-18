@@ -188,6 +188,25 @@ class PasswordRecoveryIntegrationTest(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/dashboard", response.headers["Location"])
 
+    def test_failed_login_writes_safe_security_audit_event(self):
+        secret = "DefinitelyNotThePassword123"
+        with self.assertLogs("SecurityAudit", level="WARNING") as captured:
+            response = self.client.post(
+                "/login",
+                data={
+                    "csrf_token": csrf(self.client, "/login"),
+                    "username": "recovery-integration@example.com",
+                    "password": secret,
+                },
+            )
+        self.assertEqual(response.status_code, 200)
+        output = "\n".join(captured.output)
+        self.assertIn("login_failed", output)
+        self.assertIn("reason=invalid_credentials", output)
+        self.assertIn("re***@example.com", output)
+        self.assertNotIn(secret, output)
+        self.assertNotIn("csrf_token", output)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

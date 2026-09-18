@@ -11,12 +11,15 @@ import html
 import secrets
 import logging
 import unicodedata
+import hashlib
+import uuid
 from datetime import datetime
 from functools import wraps
 
 from flask import session, request, redirect, url_for, jsonify, current_app
 
 logger = logging.getLogger('InvoiceApp')
+security_logger = logging.getLogger('SecurityAudit')
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 WS_PREFIX = "/importantworkstation"
@@ -102,6 +105,46 @@ def get_logo_path():
 
 
 # ── Security Decorators ───────────────────────────────────────────────────────
+def mask_login_identifier(value):
+    """Return a privacy-preserving display value for login audit logs."""
+    value = (value or "").strip()
+    if not value:
+        return "<empty>"
+    if "@" in value:
+        local, domain = value.split("@", 1)
+        return f"{local[:2]}***@{domain}" if len(local) > 2 else f"***@{domain}"
+    return f"{value[:2]}***" if len(value) > 2 else "***"
+
+
+def log_login_event(event, reason=None, username=None, user=None):
+    """Log authentication metadata without passwords, cookies, or tokens."""
+    def safe(value, limit):
+        return " ".join(str(value or "-").split())[:limit]
+
+    identifier = (username or "").strip().lower()
+    request_id = safe(request.headers.get("X-Request-ID"), 64) if request.headers.get("X-Request-ID") else uuid.uuid4().hex[:16]
+    fields = {
+        "event": event,
+        "request_id": request_id,
+        "reason": reason or "-",
+        "identifier": mask_login_identifier(username),
+        "identifier_hash": hashlib.sha256(identifier.encode("utf-8")).hexdigest()[:16],
+        "ip": request.remote_addr or "-",
+        "forwarded_for": safe(request.headers.get("X-Forwarded-For"), 200),
+        "user_agent": safe(request.user_agent.string, 300),
+        "path": request.path,
+        "method": request.method,
+    }
+    if user is not None:
+        fields.update({
+            "user_id": getattr(user, "id", "-"),
+            "role": getattr(user, "role", "-"),
+            "company_session": bool(session.get("company_id")),
+        })
+    message = " ".join(f"{key}={value}" for key, value in fields.items())
+    (security_logger.info if event == "login_success" else security_logger.warning)(message)
+
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
