@@ -87,13 +87,24 @@ class SaaSOnboardingTests(unittest.TestCase):
         response = _register(client, email)
         self.assertEqual(response.status_code, 302)
 
-        # Every legacy/business-data surface must be blocked for a company session.
-        for path in ('/dashboard', '/employees', '/fleet_dashboard', '/api/driver-vehicle-options'):
+        # The full legacy single-company app, and /employees specifically (built on a
+        # raw, unbranched table with no per-company isolation possible), must stay
+        # fully blocked for a company session.
+        for path in ('/dashboard', '/employees'):
             result = client.get(path)
             is_blocked = result.status_code == 403 or (
                 result.status_code in (301, 302) and '/workspace' in result.headers.get('Location', '')
             )
             self.assertTrue(is_blocked, f"{path} was NOT blocked for a company session (status={result.status_code})")
+
+        # /fleet_dashboard and /api/driver-vehicle-options WERE opened up as curated,
+        # individually-verified-safe trial tabs (see app.py _SAAS_TRIAL_TAB_PATHS) —
+        # they must be reachable, but must never surface the real driver seeded above.
+        for path in ('/fleet_dashboard', '/api/driver-vehicle-options'):
+            result = client.get(path)
+            self.assertEqual(result.status_code, 200, f"{path} should be reachable for a trial company session")
+            self.assertNotIn('سائق بيانات حقيقية للاختبار', result.get_data(as_text=True),
+                              f"{path} leaked the real بن زومة driver to a company session")
 
         # The platform-admin panel (manages every company) must also stay out of reach.
         admin_result = client.get('/platform-admin')

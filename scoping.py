@@ -20,12 +20,16 @@ from contextvars import ContextVar
 from sqlalchemy import event
 from sqlalchemy.orm import Session, with_loader_criteria
 
-from models.schema import Driver
+from models.schema import CustodyItem, Driver, SparePart, Vehicle
 
 ALL_BRANCHES = "__ALL__"
 
-# Grows one model at a time as each is verified safe to enforce.
-ENFORCED_MODELS = {Driver}
+# Grows one model at a time as each is verified safe to enforce. Vehicle/CustodyItem/
+# SparePart added together while building real (safely isolated) operational tabs for
+# SaaS trial companies — see routes/saas.py register_company()'s auto-provisioned
+# per-company branch. The single .get() call found on Vehicle was converted to
+# scoped_get (routes/fleet.py); CustodyItem and SparePart had none.
+ENFORCED_MODELS = {Driver, Vehicle, CustodyItem, SparePart}
 
 _scope = ContextVar("_branch_scope", default=None)
 
@@ -68,8 +72,18 @@ def _enforce_branch_scope(orm_execute_state):
             raise ScopeNotSet(f"{cls.__name__} query executed with no branch scope set")
         if bid == ALL_BRANCHES:
             continue
+        # `bid` MUST be a genuine closure variable here, not a `lambda c, bid=bid:`
+        # default-argument capture. SQLAlchemy's lambda-SQL cache extracts bound
+        # values by inspecting the lambda's closure cells, not its `__defaults__` —
+        # a default-argument value is invisible to it, so with `bid=bid` every call
+        # silently reused whichever bid was bound the FIRST time this lambda's byte-
+        # code shape was compiled, no matter what scope was actually active on later
+        # calls. (SQLAlchemy also flatly rejects calling _scope.get() *inside* the
+        # lambda: "lambda SQL constructs should not invoke functions from closure
+        # variables to produce literal values.") Reproduced and confirmed fixed with
+        # a real query switching scope 8 -> 1 within one process.
         orm_execute_state.statement = orm_execute_state.statement.options(
-            with_loader_criteria(cls, lambda c, bid=bid: c.branch_id == bid, include_aliases=True)
+            with_loader_criteria(cls, lambda c: c.branch_id == bid, include_aliases=True)
         )
 
 

@@ -20,6 +20,6 @@ referenced = {parent for _, parents in revisions.values() for parent in parents 
 heads = sorted(set(revisions) - referenced)
 print("revisions", len(revisions))
 print("heads", heads)
-if len(heads) != 1 or heads[0] != "a91c3e7b5d02":
+if len(heads) != 1 or heads[0] != "b3c4d5e6f7a8":
     raise SystemExit("migration graph does not have the expected single merge head")
 print("OK: single merge head")

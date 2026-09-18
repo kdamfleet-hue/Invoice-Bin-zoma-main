@@ -206,9 +206,52 @@ def _resolve_query_scope():
 _SAAS_COMPANY_SAFE_PATHS = {
     "/", "/highlights", "/saas-login", "/register", "/workspace", "/company-platform",
     "/login-redirect", "/plans", "/forgot-password", "/logout",
-    "/csp-report", "/manifest.json", "/sw.js",
+    "/csp-report", "/manifest.json", "/sw.js", "/api/whoami",
 }
 _SAAS_COMPANY_SAFE_PREFIXES = ("/static/", "/reset-password/", "/importantworkstation")  # WS_PREFIX; defined later in this file, so inlined here to avoid a forward reference
+
+# The real operational tabs opened up for SaaS companies once individually verified
+# safe: every branch-owned model they touch is in scoping.ENFORCED_MODELS, every
+# blob-store read is branch-keyed (safe by construction), and the specific raw-table/
+# static-file/third-party-GPS leaks an audit found have been guarded off for company
+# sessions at their source (routes/schedule.py _sync_schedule_to_db, routes/yard.py
+# load_vehicles merge, app.py _compute_insights' hr_employees count and GPS health).
+# Deliberately NOT included: /employees (built entirely on the raw, unbranched
+# hr_employees table — no ORM path exists), /tracking (real third-party GPS device
+# data for البن زومة's real fleet — would need per-tenant device provisioning, a
+# product decision, not a quick fix).
+#
+# Gated separately from _SAAS_COMPANY_SAFE_PATHS above because these specifically
+# must stop working once a trial expires with no paid plan — /workspace and /plans
+# always stay reachable so the company can see why and upgrade.
+_SAAS_TRIAL_TAB_PATHS = {
+    "/custody", "/driver-vehicle-assignments", "/drivers_info", "/purchase", "/handover",
+    "/workshop", "/oils", "/incidents", "/records", "/washing", "/kpis", "/yard",
+    "/fleet_dashboard", "/insights", "/schedule",
+    "/api/driver-vehicle-assignments", "/api/driver-vehicle-options",
+    "/api/driver-vehicle-transfer", "/api/driver-vehicle-documents",
+    "/api/drivers_info_data", "/api/vehicle_search", "/api/driver_search",
+    "/api/purchase_data", "/api/handover/list", "/api/handover/submit",
+    "/api/workshop_data", "/api/dispense_part", "/api/refund_part",
+    "/api/oils_data", "/api/fleet_data", "/api/incidents", "/api/records",
+    "/api/washing_data", "/api/schedule_data", "/api/driver_registry",
+    "/api/vehicle_registry", "/api/deauthorized", "/api/insights", "/api/drivers",
+}
+_SAAS_TRIAL_TAB_PREFIXES = ("/api/custody", "/api/spare_parts", "/api/yard")
+
+
+def _company_trial_active():
+    """True if this company session's trial/subscription still grants access to the
+    curated operational tabs (_SAAS_TRIAL_TAB_PATHS/_PREFIXES)."""
+    from models.schema import Company
+    company = db.session.get(Company, session.get("company_id"))
+    if not company:
+        return False
+    if company.status == "active":
+        return True
+    if company.status == "trial":
+        return bool(company.trial_ends_at) and utcnow() <= company.trial_ends_at
+    return False  # suspended / expired / anything else
 
 
 @app.before_request
@@ -218,23 +261,27 @@ def _block_company_sessions_from_legacy_app():
     company — but session["role"] == "admin" is also exactly what login_required's
     role_required("admin", ...) and dozens of other checks across this app (built
     for a single company, البن زومة) treat as "trusted, can see/switch every branch,
-    can manage everything." There is no per-company data isolation on the real
-    business tables (Driver/Vehicle/Document/...) yet — only branch_id, which a
-    company session never sets and which then defaults to branch 1 (البن زومة's
-    real Dammam data). Confirmed by direct test: a brand-new self-registered
-    company could read real driver records and reach /platform-admin. Until real
-    company-level isolation is built, any session carrying company_id (i.e. every
-    SaaS registration/login, never a legacy staff login) is confined to this
-    explicit allowlist — deny by default, not "block the routes we thought of."
+    can manage everything." Confirmed by direct test: a brand-new self-registered
+    company could originally read real driver records and reach /platform-admin.
+    Any session carrying company_id (i.e. every SaaS registration/login, never a
+    legacy staff login) is confined to an explicit allowlist — deny by default, not
+    "block the routes we thought of" — plus a curated, individually-verified-safe
+    set of real operational tabs (_SAAS_TRIAL_TAB_PATHS) gated by trial/subscription
+    status.
     """
     if not session.get("company_id"):
         return
     path = request.path
     if path in _SAAS_COMPANY_SAFE_PATHS or path.startswith(_SAAS_COMPANY_SAFE_PREFIXES):
         return
+    is_trial_tab = path in _SAAS_TRIAL_TAB_PATHS or path.startswith(_SAAS_TRIAL_TAB_PREFIXES)
+    if is_trial_tab and _company_trial_active():
+        return
     if path.startswith("/api/"):
+        if is_trial_tab:
+            return jsonify({"success": False, "error": "انتهت الفترة التجريبية. يرجى الترقية للاستمرار.", "code": "TRIAL_EXPIRED"}), 402
         return jsonify({"success": False, "error": "غير متاح لحسابك حاليًا"}), 403
-    return redirect(url_for("saas.workspace"))
+    return redirect(url_for("saas.plans" if is_trial_tab else "saas.workspace"))
 
 
 if _db_url:
@@ -1011,16 +1058,39 @@ with app.app_context():
 def current_branch_id():
     """Active branch id from the session (defaults to الدمام = 1). Validated against the
     known set so a stale/forged cookie — or a call outside a request — can never point
-    at an unknown store."""
+    at an unknown store.
+
+    A SaaS company session's branch_id is its own auto-provisioned branch
+    (routes/saas.py register_company()) — deliberately NOT in the hardcoded
+    BRANCH_IDS set (see models/schema.py Branch.company_id), since that set
+    feeds real-admin aggregation views that must never see a trial company's
+    branch. Still safe to trust here: branch_id is only ever set server-side
+    at registration/login, and /api/branch (the only way to change it) is
+    already blocked entirely for company sessions."""
     try:
         bid = int(session.get("branch_id", 1))
     except (TypeError, ValueError, RuntimeError):
         return 1
-    return bid if bid in BRANCH_IDS else 1
+    if bid in BRANCH_IDS:
+        return bid
+    if session.get("company_id"):
+        return bid
+    return 1
 
 
 def current_branch_name():
-    return BRANCH_NAME.get(current_branch_id(), "الدمام")
+    bid = current_branch_id()
+    if bid in BRANCH_NAME:
+        return BRANCH_NAME[bid]
+    if session.get("company_id"):
+        try:
+            from models.schema import Branch
+            b = db.session.get(Branch, bid)
+            if b and b.company_id == session.get("company_id"):
+                return b.name
+        except Exception:
+            pass
+    return "الدمام"
 
 
 def allowed_branch_ids_for_session():
@@ -3528,11 +3598,17 @@ def _compute_insights(rid=None):
         ("washing", "washing_schedule"), ("records", "records_data"),
         ("gps_devices", "gps_devices_data"))}
     
-    # hr_employees is now a real SQL table, not a JSON blob, so we must count it from DB directly.
-    with db_connection() as cdb:
-        row = cdb.execute("SELECT COUNT(*) FROM hr_employees").fetchone()
-        emp_count = list(row.values())[0] if hasattr(row, 'values') else row[0]
-        volume["employees"] = emp_count
+    # hr_employees is a real SQL table with NO branch/company column at all — counting
+    # it directly would leak البن زومة's real headcount to a SaaS company session. A
+    # trial company has no legacy HR import; 0 is the honest number for it.
+    if session.get("company_id"):
+        emp_count = 0
+        volume["employees"] = 0
+    else:
+        with db_connection() as cdb:
+            row = cdb.execute("SELECT COUNT(*) FROM hr_employees").fetchone()
+            emp_count = list(row.values())[0] if hasattr(row, 'values') else row[0]
+            volume["employees"] = emp_count
 
     # 4b) operational truth center: reconcile sources without mutating either source.
     driver_count = len(drivers)
@@ -3545,14 +3621,22 @@ def _compute_insights(rid=None):
         "status": "متطابق" if people_gap == 0 else "يحتاج مراجعة",
         "sources": {"drivers": "erp_drivers", "employees": "hr_employees"},
     }
-    try:
-        from routes.gps import get_gps_health_snapshot
-        gps_health = get_gps_health_snapshot()
-    except Exception as gps_exc:
-        logger.warning("Unable to read GPS health snapshot: %s", gps_exc)
+    # get_gps_health_snapshot() reads one process-wide diagnostic dict for البن زومة's
+    # single real GPS provider connection — not branch/company-scoped at all, since
+    # there is only ever one. A trial company has no GPS integration of its own.
+    if session.get("company_id"):
         gps_health = {"state": "unknown", "label": "غير متاح", "configured": False,
                       "last_success_at": None, "last_vehicle_count": None,
                       "last_update_age_s": None, "last_error": None}
+    else:
+        try:
+            from routes.gps import get_gps_health_snapshot
+            gps_health = get_gps_health_snapshot()
+        except Exception as gps_exc:
+            logger.warning("Unable to read GPS health snapshot: %s", gps_exc)
+            gps_health = {"state": "unknown", "label": "غير متاح", "configured": False,
+                          "last_success_at": None, "last_vehicle_count": None,
+                          "last_update_age_s": None, "last_error": None}
 
     quality_issues = []
     if people_gap:

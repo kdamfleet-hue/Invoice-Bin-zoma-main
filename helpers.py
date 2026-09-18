@@ -232,16 +232,41 @@ def is_workstation():
 
 
 def current_branch_id():
-    """Active branch id from the session (defaults to الدمام = 1)."""
+    """Active branch id from the session (defaults to الدمام = 1).
+
+    A SaaS company session's branch_id is its own auto-provisioned branch
+    (routes/saas.py register_company()) — deliberately NOT in the hardcoded
+    BRANCH_IDS set (see models/schema.py Branch.company_id), since that set
+    feeds real-admin aggregation views that must never see a trial company's
+    branch. It's still safe to trust here: branch_id is only ever set
+    server-side at registration/login, and /api/branch (the only way to
+    change it) is already blocked entirely for company sessions.
+    """
     try:
         bid = int(session.get("branch_id", 1))
     except (TypeError, ValueError, RuntimeError):
         return 1
-    return bid if bid in BRANCH_IDS else 1
+    if bid in BRANCH_IDS:
+        return bid
+    if session.get("company_id"):
+        return bid
+    return 1
 
 
 def current_branch_name():
-    return BRANCH_NAME.get(current_branch_id(), "الدمام")
+    bid = current_branch_id()
+    if bid in BRANCH_NAME:
+        return BRANCH_NAME[bid]
+    if session.get("company_id"):
+        try:
+            from models.schema import Branch
+            from models.schema import db as _db
+            b = _db.session.get(Branch, bid)
+            if b and b.company_id == session.get("company_id"):
+                return b.name
+        except Exception:
+            pass
+    return "الدمام"
 
 
 def allowed_branch_ids_for_session():

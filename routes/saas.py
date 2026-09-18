@@ -6,7 +6,7 @@ import re
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from models.schema import Company, Payment, Subscription, SubscriptionPlan, User, db
+from models.schema import Branch, Company, Payment, Subscription, SubscriptionPlan, User, db
 
 saas_bp = Blueprint("saas", __name__)
 TRIAL_DAYS = 14
@@ -59,6 +59,9 @@ def _enter_isolated_site(user, company):
             "email": user.email or user.username,
         },
     })
+    if user.branch_id:
+        session["branch_id"] = user.branch_id
+        session["is_branch_user"] = True
     # Not dashboard.index: that's the legacy single-company app, which a company
     # session is now explicitly blocked from (see app.py _block_company_sessions_from_legacy_app).
     return redirect(url_for("saas.workspace"))
@@ -171,9 +174,17 @@ def register_company():
                       trial_ends_at=now + timedelta(days=TRIAL_DAYS))
     db.session.add(company)
     db.session.flush()
-    user = User(company_id=company.id, username=email, email=email, phone=phone, display_name=owner_name,
-                password_hash=generate_password_hash(password), role="admin", is_active=True,
-                authz_version=1)
+    # This company's own isolated operational space — never one of البن زومة's real
+    # 6 branches (see models/schema.py Branch.company_id). Reuses the existing,
+    # tested branch_id-based scoping.py enforcement instead of a second isolation
+    # mechanism; current_branch_id() (helpers.py/app.py) knows to trust this id only
+    # for this exact company's own session.
+    branch = Branch(name=f"مساحة {name}", company_id=company.id)
+    db.session.add(branch)
+    db.session.flush()
+    user = User(company_id=company.id, branch_id=branch.id, username=email, email=email, phone=phone,
+                display_name=owner_name, password_hash=generate_password_hash(password), role="admin",
+                is_active=True, authz_version=1)
     plan = _default_plan()
     subscription = Subscription(company=company, plan=plan, status="trial",
                                 billing_cycle="monthly", started_at=now,
@@ -212,13 +223,33 @@ def workspace():
                            remaining_days=remaining)
 
 
+TRIAL_TABS = [
+    {"href": "/fleet_dashboard", "icon": "📊", "title": "لوحة الأسطول", "desc": "نظرة عامة على المركبات والسائقين والتنبيهات"},
+    {"href": "/drivers_info", "icon": "🧑‍✈️", "title": "بيانات السائقين", "desc": "سجلّ السائقين وربطهم بالمركبات"},
+    {"href": "/driver-vehicle-assignments", "icon": "🔗", "title": "ربط السائق بالمركبة", "desc": "تعيين ونقل عهدة المركبات"},
+    {"href": "/schedule", "icon": "📅", "title": "الجدول الأسبوعي", "desc": "جدولة حركة الأسطول أسبوعيًا"},
+    {"href": "/custody", "icon": "📦", "title": "العهد", "desc": "عهد السائقين ومتابعتها"},
+    {"href": "/handover", "icon": "🤝", "title": "التسليم والاستلام", "desc": "سجلّ تسليم واستلام المركبات"},
+    {"href": "/yard", "icon": "🅿️", "title": "الساحة", "desc": "حالة المركبات داخل وخارج الساحة"},
+    {"href": "/workshop", "icon": "🔧", "title": "الورشة", "desc": "أوامر الصيانة وقطع الغيار"},
+    {"href": "/oils", "icon": "🛢️", "title": "الزيوت والفلاتر", "desc": "متابعة صيانة الزيوت الدورية"},
+    {"href": "/purchase", "icon": "🧾", "title": "طلبات الشراء", "desc": "أوامر الشراء ومتابعتها"},
+    {"href": "/washing", "icon": "🧼", "title": "الغسيل", "desc": "جدولة غسيل المركبات"},
+    {"href": "/incidents", "icon": "⚠️", "title": "الحوادث والمخالفات", "desc": "تسجيل ومتابعة الحوادث"},
+    {"href": "/records", "icon": "🗂️", "title": "التوثيق", "desc": "أرشيف السجلات التشغيلية"},
+    {"href": "/insights", "icon": "🧠", "title": "التحليلات", "desc": "مؤشرات تشغيلية مجمّعة"},
+    {"href": "/kpis", "icon": "📈", "title": "مؤشرات الأداء", "desc": "دليل مؤشرات الأداء الرئيسية"},
+]
+
+
 @saas_bp.get("/company-platform")
 def company_platform():
-    """Safe entry point for a company's own platform area.
-
-    Do not send SaaS sessions to the legacy single-company dashboard: that
-    application is not company-isolated yet. This page is the protected
-    company-facing entry until the isolated fleet modules are available.
+    """A company's own platform area — real navigation to the operational tabs
+    individually verified safe for a company session (see app.py
+    _SAAS_TRIAL_TAB_PATHS and the scoping/route fixes it depends on). Anything
+    NOT listed here either isn't company-isolated yet (no safe path exists) or
+    is explicitly excluded (real GPS device data, the unbranched legacy HR table)
+    — never send a company session to the legacy single-company dashboard itself.
     """
     if not session.get("authenticated") or not session.get("company_id"):
         return redirect(url_for("saas.company_login"))
@@ -226,7 +257,11 @@ def company_platform():
     if not company:
         session.clear()
         return redirect(url_for("saas.register_company"))
-    return render_template("saas/company_platform.html", company=company)
+    trial_active = company.status == "active" or (
+        company.status == "trial" and bool(company.trial_ends_at) and utcnow() <= company.trial_ends_at
+    )
+    return render_template("saas/company_platform.html", company=company, tabs=TRIAL_TABS,
+                           trial_active=trial_active)
 
 
 @saas_bp.get("/login-redirect")

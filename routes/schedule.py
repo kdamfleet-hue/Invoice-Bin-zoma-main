@@ -168,12 +168,18 @@ def schedule_data():
                 from app import db
                 db.session.rollback()
                 logger.warning("vehicle_registry harvest failed (non-fatal)")
-            try:
-                _sync_schedule_to_db(sd) # fully sync modifications to central DB
-            except Exception:
-                from app import db
-                db.session.rollback()
-                logger.warning("sync_schedule_to_db failed (non-fatal)")
+            # _sync_schedule_to_db writes the raw, unbranched hr_employees/erp_vehicles/
+            # erp_drivers tables by natural key (empid/iqama/plate) — its whole purpose is
+            # keeping البن زومة's own legacy tables in sync with itself. A SaaS company
+            # session has no legitimate reason to touch it, and a matching natural key
+            # would silently overwrite real بن زومة driver/vehicle fields.
+            if not session.get("company_id"):
+                try:
+                    _sync_schedule_to_db(sd) # fully sync modifications to central DB
+                except Exception:
+                    from app import db
+                    db.session.rollback()
+                    logger.warning("sync_schedule_to_db failed (non-fatal)")
             _n = (len(sd.get("main", []) or []) + len(sd.get("spare", []) or [])) if isinstance(sd, dict) else None
             return jsonify({"success": True})
         except Exception:

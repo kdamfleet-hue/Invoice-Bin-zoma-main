@@ -159,7 +159,12 @@ def _establish_user_session(user):
     session["authz_version"] = int(getattr(user, "authz_version", 1) or 1)
     session["display_name"] = _resolve_display_name(user.username, branch_id=user.branch_id)
     session["google_user"] = {"name": session["display_name"] or user.username, "email": user.email or user.username}
-    session["is_admin"] = (user.role == "admin")
+    # is_admin means "trusted, sees/switches every real branch" throughout this app
+    # (e.g. /api/notifications iterates ALL of البن زومة's real branches' audit logs
+    # when is_admin is set) — a SaaS company's own admin (role="admin", to manage
+    # ITS OWN company) must never get it, the same reasoning already applied to
+    # _central_admin_required() in routes/saas.py.
+    session["is_admin"] = (user.role == "admin" and not user.company_id)
     session["role"] = user.role
     session["must_change_password"] = bool(getattr(user, "must_change_password", False))
     session["kiosk"] = (user.role == "kiosk")

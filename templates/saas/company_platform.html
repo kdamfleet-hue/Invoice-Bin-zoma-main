@@ -7,15 +7,36 @@
       <div>
         <div class="eyebrow">منصة الشركة</div>
         <h1>{{ company.name }}</h1>
-        <p class="muted">هذه بوابة آمنة لمساحة شركتك. سيتم تفعيل وحدات الأسطول المعزولة هنا تباعًا.</p>
+        <p class="muted">مساحتك الخاصة والمعزولة تمامًا — جرّب الوحدات التشغيلية الحقيقية بأمان.</p>
       </div>
       <a class="btn ghost" href="{{ url_for('saas.workspace') }}">العودة إلى مساحة الشركة</a>
     </div>
+
+    {% if not trial_active %}
+    <section class="card trial-card" style="border-color:#e0a; margin-bottom:20px;">
+      <div class="eyebrow">انتهت الفترة التجريبية</div>
+      <h2>انتهت صلاحية الوصول للوحدات التشغيلية</h2>
+      <p class="muted">فعّل باقة مدفوعة للاستمرار في استخدام الوحدات أدناه.</p>
+      <a class="btn" href="{{ url_for('saas.plans') }}">عرض الباقات</a>
+    </section>
+    {% endif %}
+
     <section class="card trial-card">
       <div class="eyebrow">الوصول الآمن</div>
       <h2>تم فتح المنصة بنجاح</h2>
       <p class="muted">حسابك متصل بمساحة الشركة الصحيحة، ولا يتم توجيهك إلى بيانات النظام الداخلي.</p>
     </section>
+
+    <div class="tab-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; margin-top:20px;">
+      {% for tab in tabs %}
+      <a class="card tab-card" href="{{ tab.href if trial_active else url_for('saas.plans') }}"
+         style="display:block; text-decoration:none; color:inherit; {{ 'opacity:.55;' if not trial_active }}">
+        <div style="font-size:28px;">{{ tab.icon }}</div>
+        <h3 style="margin:8px 0 4px;">{{ tab.title }}</h3>
+        <p class="muted" style="font-size:13px; margin:0;">{{ tab.desc }}</p>
+      </a>
+      {% endfor %}
+    </div>
   </div>
 </main>
 {% endblock %}

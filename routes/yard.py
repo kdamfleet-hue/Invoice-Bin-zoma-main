@@ -76,9 +76,11 @@ def api_yard():
         if key:
             seen.add(key)
 
+    # load_vehicles() merges البن زومة's real, static Dammam fleet list (73 real
+    # plates/makes/models) unconditionally — a SaaS company session must never see it.
     try:
         from routes.dammam import load_vehicles
-        for row in load_vehicles():
+        for row in ([] if session.get("company_id") else load_vehicles()):
             plate = (row.get("plate") or "").strip()
             key = normalize_plate(plate)
             if not key or key in seen:

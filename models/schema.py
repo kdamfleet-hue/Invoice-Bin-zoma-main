@@ -9,6 +9,13 @@ class Branch(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     code = db.Column(db.String(20), unique=True, nullable=True)
+    # NULL for البن زومة's 6 real physical branches (helpers.BRANCHES). Set only for a
+    # branch auto-provisioned for one SaaS trial/paying company (routes/saas.py
+    # register_company()) — that company's own isolated space. Deliberately NOT added
+    # to the hardcoded BRANCHES/BRANCH_IDS lists: those feed real-admin aggregation
+    # views (branch switcher, /api/branches_overview, /api/notifications) that must
+    # never mix a trial company's branch into البن زومة's own staff's view.
+    company_id = db.Column(db.Integer, db.ForeignKey('erp_companies.id'), nullable=True)
 
     users = db.relationship('User', backref='branch', lazy=True)
     drivers = db.relationship('Driver', backref='branch', lazy=True)
