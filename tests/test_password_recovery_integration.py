@@ -195,16 +195,51 @@ class PasswordRecoveryIntegrationTest(unittest.TestCase):
     def test_internal_login_accepts_registered_mobile_formats(self):
         for mobile in ("0551234567", "+966551234567", "966551234567"):
             self.client.get("/logout")
+            sent = {}
+            def capture_sms(phone, code):
+                sent.update(phone=phone, code=code)
+                return True
+            with patch("services.sms.send_login_otp_sms", side_effect=capture_sms):
+                response = self.client.post(
+                    "/login",
+                    data={
+                        "csrf_token": csrf(self.client, "/login"),
+                        "username": mobile,
+                        "password": "OldPassword123",
+                    },
+                )
+            self.assertEqual(response.status_code, 302, mobile)
+            self.assertIn("/verify-login-otp", response.headers["Location"], mobile)
+            with self.client.session_transaction() as session:
+                self.assertFalse(session.get("authenticated"), mobile)
+                self.assertTrue(session.get("pending_otp_user_id"), mobile)
             response = self.client.post(
-                "/login",
-                data={
-                    "csrf_token": csrf(self.client, "/login"),
-                    "username": mobile,
-                    "password": "OldPassword123",
-                },
+                "/verify-login-otp",
+                data={"csrf_token": csrf(self.client, "/verify-login-otp"), "otp": sent["code"]},
             )
             self.assertEqual(response.status_code, 302, mobile)
             self.assertIn("/dashboard", response.headers["Location"], mobile)
+
+    def test_wrong_otp_is_rejected_and_is_not_reusable(self):
+        sent = {}
+        with patch("services.sms.send_login_otp_sms", side_effect=lambda phone, code: sent.update(code=code) or True):
+            response = self.client.post(
+                "/login",
+                data={"csrf_token": csrf(self.client, "/login"), "username": "0551234567", "password": "OldPassword123"},
+            )
+        self.assertEqual(response.status_code, 302)
+        wrong = self.client.post(
+            "/verify-login-otp",
+            data={"csrf_token": csrf(self.client, "/verify-login-otp"), "otp": "000000"},
+        )
+        self.assertEqual(wrong.status_code, 200)
+        self.assertIn("غير صحيح", wrong.get_data(as_text=True))
+        good = self.client.post(
+            "/verify-login-otp",
+            data={"csrf_token": csrf(self.client, "/verify-login-otp"), "otp": sent["code"]},
+        )
+        self.assertEqual(good.status_code, 302)
+        self.assertIn("/dashboard", good.headers["Location"])
 
     def test_failed_login_writes_safe_security_audit_event(self):
         secret = "DefinitelyNotThePassword123"

@@ -432,6 +432,22 @@ def ensure_db_columns():
                     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_erp_users_active_role ON erp_users (is_active, role)"))
                 except Exception as index_err:
                     logger.warning(f"Auto-migration: user role index skipped: {index_err}")
+            if 'erp_login_otps' not in tables:
+                conn.execute(text("""
+                    CREATE TABLE erp_login_otps (
+                        id INTEGER PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        phone VARCHAR(30) NOT NULL,
+                        code_hash VARCHAR(64) NOT NULL,
+                        purpose VARCHAR(30) NOT NULL DEFAULT 'login',
+                        expires_at TIMESTAMP NOT NULL,
+                        attempts INTEGER NOT NULL DEFAULT 0,
+                        consumed_at TIMESTAMP NULL,
+                        created_at TIMESTAMP NOT NULL
+                    )
+                """))
+                conn.execute(text("CREATE INDEX ix_erp_login_otps_user_purpose ON erp_login_otps (user_id, purpose, created_at)"))
+                logger.info("Auto-migration: Added erp_login_otps table")
             if 'erp_snapshots' in tables:
                 try:
                     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_erp_snapshots_branch_tab_id ON erp_snapshots (branch_id, tab, id)"))

@@ -95,6 +95,20 @@ class User(db.Model):
     
     audit_logs = db.relationship('AuditLog', backref='user', lazy=True)
 
+
+class LoginOTP(db.Model):
+    __tablename__ = 'erp_login_otps'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('erp_users.id'), nullable=False)
+    phone = db.Column(db.String(30), nullable=False)
+    code_hash = db.Column(db.String(64), nullable=False)
+    purpose = db.Column(db.String(30), nullable=False, default='login')
+    expires_at = db.Column(db.DateTime, nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    consumed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+
 class Driver(db.Model):
     __tablename__ = 'erp_drivers'
     id = db.Column(db.Integer, primary_key=True)

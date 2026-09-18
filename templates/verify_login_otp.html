@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}التحقق من تسجيل الدخول{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <div class="auth-card">
+    <h1>التحقق من تسجيل الدخول</h1>
+    <p>أدخل الرمز المكوّن من 6 أرقام المرسل إلى رقم الجوال المسجل{% if phone %} المنتهي بـ {{ phone[-4:] }}{% endif %}.</p>
+    {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="{{ url_for('auth.verify_login_otp') }}" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="otp">رمز التحقق</label>
+      <input id="otp" name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
+      <button type="submit">تحقق</button>
+    </form>
+    <form method="post" action="{{ url_for('auth.resend_login_otp') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit">إعادة إرسال الرمز</button>
+    </form>
+    <a href="{{ url_for('auth.logout') }}">إلغاء والعودة لتسجيل الدخول</a>
+  </div>
+</div>
+{% endblock %}

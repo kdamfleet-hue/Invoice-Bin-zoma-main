@@ -10,7 +10,7 @@ import logging
 import re
 from functools import wraps
 from sqlalchemy.exc import IntegrityError
-from helpers import _global_blob_get, _global_blob_set, BRANCH_NAME, log_login_event, phone_login_variants
+from helpers import _global_blob_get, _global_blob_set, BRANCH_NAME, log_login_event, normalize_phone, phone_login_variants
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger('InvoiceApp')
@@ -118,6 +118,133 @@ def _post_login_redirect():
     return url_for("dashboard.index")
 
 
+def _create_login_otp(user):
+    """Create and send one OTP; commit only after the SMS provider accepts it."""
+    from app import db
+    from models.schema import LoginOTP
+    phone = phone_login_variants(getattr(user, "phone", None))
+    if not phone:
+        company_phone = getattr(getattr(user, "company", None), "phone", None)
+        phone = phone_login_variants(company_phone)
+    if not phone:
+        raise RuntimeError("No verified phone is available for this account")
+    canonical_phone = normalize_phone(getattr(user, "phone", None) or getattr(getattr(user, "company", None), "phone", None))
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    otp = LoginOTP(
+        user_id=user.id,
+        phone=canonical_phone,
+        code_hash=hashlib.sha256(code.encode("utf-8")).hexdigest(),
+        purpose="login",
+        expires_at=utcnow() + timedelta(minutes=5),
+        attempts=0,
+    )
+    LoginOTP.query.filter_by(user_id=user.id, purpose="login", consumed_at=None).update(
+        {"consumed_at": utcnow()}, synchronize_session=False
+    )
+    from services.sms import send_login_otp_sms
+    send_login_otp_sms(canonical_phone, code)
+    db.session.add(otp)
+    db.session.commit()
+    return canonical_phone
+
+
+def _establish_user_session(user):
+    """Establish the final session only after password and OTP checks succeed."""
+    session.clear()
+    session["authenticated"] = True
+    session.permanent = True
+    session["user"] = user.username
+    session["username"] = user.username
+    session["user_id"] = user.id
+    session["authz_version"] = int(getattr(user, "authz_version", 1) or 1)
+    session["display_name"] = _resolve_display_name(user.username, branch_id=user.branch_id)
+    session["google_user"] = {"name": session["display_name"] or user.username, "email": user.email or user.username}
+    session["is_admin"] = (user.role == "admin")
+    session["role"] = user.role
+    session["must_change_password"] = bool(getattr(user, "must_change_password", False))
+    session["kiosk"] = (user.role == "kiosk")
+    if user.company_id:
+        session["company_id"] = user.company_id
+    if user.branch_id:
+        session["branch_id"] = user.branch_id
+        session["is_branch_user"] = True
+
+
+def _phone_otp_pending():
+    return bool(session.get("pending_otp_user_id") and session.get("pending_otp_purpose") == "login")
+
+
+@auth_bp.route("/verify-login-otp", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
+def verify_login_otp():
+    from app import db
+    from models.schema import LoginOTP, User
+    if not _phone_otp_pending():
+        return redirect(url_for("auth.login"))
+    user = db.session.get(User, session.get("pending_otp_user_id"))
+    if not user or not user.is_active:
+        session.clear()
+        return redirect(url_for("auth.login"))
+    otp = (LoginOTP.query.filter_by(user_id=user.id, purpose="login", consumed_at=None)
+           .order_by(LoginOTP.created_at.desc()).first())
+    error = None
+    if request.method == "POST":
+        if not otp or otp.expires_at <= utcnow():
+            error = "انتهت صلاحية رمز التحقق. اطلب رمزًا جديدًا."
+            log_login_event("otp_failed", reason="expired", username=user.username, user=user)
+        elif otp.attempts >= 5:
+            error = "تم تجاوز عدد المحاولات المسموح بها. اطلب رمزًا جديدًا."
+            log_login_event("otp_failed", reason="locked", username=user.username, user=user)
+        else:
+            submitted = request.form.get("otp", "").strip()
+            otp.attempts += 1
+            valid = hmac.compare_digest(hashlib.sha256(submitted.encode("utf-8")).hexdigest(), otp.code_hash)
+            if not valid:
+                db.session.commit()
+                error = "رمز التحقق غير صحيح."
+                log_login_event("otp_failed", reason="invalid_code", username=user.username, user=user)
+            else:
+                otp.consumed_at = utcnow()
+                user.last_login = utcnow()
+                db.session.commit()
+                _establish_user_session(user)
+                log_login_event("otp_verified", reason="login", username=user.username, user=user)
+                if session.get("must_change_password"):
+                    return redirect(url_for("auth.force_password_change"))
+                return redirect(_post_login_redirect())
+    return render_template("verify_login_otp.html", error=error, phone=session.get("pending_otp_phone"))
+
+
+@auth_bp.post("/resend-login-otp")
+@limiter.limit("3 per 15 minutes")
+def resend_login_otp():
+    from app import db
+    from models.schema import User
+    if not _phone_otp_pending():
+        return redirect(url_for("auth.login"))
+    user = db.session.get(User, session.get("pending_otp_user_id"))
+    if not user or not user.is_active:
+        session.clear()
+        return redirect(url_for("auth.login"))
+    from models.schema import LoginOTP
+    latest = (LoginOTP.query.filter_by(user_id=user.id, purpose="login")
+              .order_by(LoginOTP.created_at.desc()).first())
+    if latest and latest.created_at and (utcnow() - latest.created_at).total_seconds() < 60:
+        return render_template(
+            "verify_login_otp.html",
+            error="انتظر 60 ثانية قبل إعادة إرسال الرمز.",
+            phone=session.get("pending_otp_phone"),
+        ), 429
+    try:
+        phone = _create_login_otp(user)
+    except Exception:
+        db.session.rollback()
+        logger.exception("Login OTP resend failed")
+        return render_template("verify_login_otp.html", error="تعذر إرسال الرمز حاليًا.", phone=session.get("pending_otp_phone")), 503
+    session["pending_otp_phone"] = phone
+    return redirect(url_for("auth.verify_login_otp"))
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 @_safe_login_errors
@@ -196,6 +323,20 @@ def login():
             user = None
 
         if user and check_password_hash(user.password_hash, password):
+            if "@" not in username and phone_login_variants(username):
+                try:
+                    phone = _create_login_otp(user)
+                except Exception:
+                    db.session.rollback()
+                    logger.exception("Login OTP send failed")
+                    return render_template("login.html", error="تعذر إرسال رمز التحقق حاليًا. استخدم البريد أو تواصل مع الدعم الفني."), 503
+                session.clear()
+                session.permanent = True
+                session["pending_otp_user_id"] = user.id
+                session["pending_otp_purpose"] = "login"
+                session["pending_otp_phone"] = phone
+                log_login_event("otp_requested", reason="password_verified", username=user.username, user=user)
+                return redirect(url_for("auth.verify_login_otp"))
             user.last_login = datetime.now()
             db.session.commit()
             
