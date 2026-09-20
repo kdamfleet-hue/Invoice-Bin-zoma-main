@@ -173,9 +173,16 @@ def _establish_user_session(user):
         # Guarantees branch_id even for a legacy account created before
         # per-company branches existed (self-heals instead of leaving it
         # unset, which current_branch_id() would otherwise fail closed on).
+        # Never let a failure here turn a login into a 500 -- the fail-closed
+        # sentinel in current_branch_id() keeps an unhealed session safe either way.
         from helpers import ensure_company_branch
-        session["branch_id"] = ensure_company_branch(user)
-        session["is_branch_user"] = True
+        try:
+            session["branch_id"] = ensure_company_branch(user)
+            session["is_branch_user"] = True
+        except Exception:
+            from app import db
+            current_app.logger.exception("ensure_company_branch failed for user %s", user.id)
+            db.session.rollback()
     elif user.branch_id:
         session["branch_id"] = user.branch_id
         session["is_branch_user"] = True

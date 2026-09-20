@@ -302,6 +302,16 @@ def ensure_company_branch(user):
             return user.branch_id
     branch = Branch.query.filter_by(company_id=user.company_id).first()
     if not branch:
+        if _db.engine.dialect.name == "postgresql":
+            # erp_branches.id also holds بن زومة's real branches, seeded with
+            # explicit ids by app.py _seed_branches() -- which does not advance
+            # Postgres' own id sequence. Realign it before this auto-id insert,
+            # the exact fix _seed_branches() already applies for the identical
+            # class of bug it hit on /api/users.
+            from sqlalchemy import text as _sa_text
+            _db.session.execute(_sa_text(
+                "SELECT setval(pg_get_serial_sequence('erp_branches','id'), "
+                "(SELECT COALESCE(MAX(id), 1) FROM erp_branches))"))
         branch = Branch(name=f"مساحة {user.company.name}", company_id=user.company_id)
         _db.session.add(branch)
         _db.session.flush()
