@@ -404,60 +404,85 @@ app.secret_key = _secret
 init_db(app)
 
 def ensure_db_columns():
-    """Auto-migrate any missing columns in existing tables."""
-    try:
-        from sqlalchemy import inspect, text
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
-        with db.engine.begin() as conn:
-            if 'erp_vehicles' in tables:
-                cols = [c['name'] for c in inspector.get_columns('erp_vehicles')]
-                new_vehicle_cols = [
-                    ('yard_status', "VARCHAR(50) DEFAULT 'خارج الساحة'"),
-                    ('yard_condition', "VARCHAR(50)"),
-                    ('branch_id', "INTEGER DEFAULT 1"),
-                    ('pallets', "VARCHAR(50)"),
-                    ('load_capacity', "VARCHAR(50)"),
-                    ('opcard', "DATE"),
-                    ('fuel_card', "VARCHAR(50)"),
-                    ('notes', "TEXT"),
-                ]
+    """Auto-migrate any missing columns in existing tables.
+
+    Each table gets its own connection/transaction/try-except: on Postgres, one
+    failing statement aborts every later statement in the SAME transaction (until
+    rollback), so a single block sharing one connection across all tables meant one
+    table's failure could silently skip every table after it -- including erp_users,
+    which is how erp_users.phone ended up missing in production despite this function
+    supposedly adding it on every startup (see migrations/versions/e5f6a7b8c9d0, the
+    real migration now written for it).
+    """
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+
+    if 'erp_vehicles' in tables:
+        try:
+            cols = [c['name'] for c in inspector.get_columns('erp_vehicles')]
+            new_vehicle_cols = [
+                ('yard_status', "VARCHAR(50) DEFAULT 'خارج الساحة'"),
+                ('yard_condition', "VARCHAR(50)"),
+                ('branch_id', "INTEGER DEFAULT 1"),
+                ('pallets', "VARCHAR(50)"),
+                ('load_capacity', "VARCHAR(50)"),
+                ('opcard', "DATE"),
+                ('fuel_card', "VARCHAR(50)"),
+                ('notes', "TEXT"),
+            ]
+            with db.engine.begin() as conn:
                 for col_name, col_def in new_vehicle_cols:
                     if col_name not in cols:
                         conn.execute(text(f"ALTER TABLE erp_vehicles ADD COLUMN {col_name} {col_def}"))
                         logger.info(f"Auto-migration: Added {col_name} to erp_vehicles")
-            if 'erp_drivers' in tables:
-                cols = [c['name'] for c in inspector.get_columns('erp_drivers')]
-                new_driver_cols = [
-                    ('status', "VARCHAR(50) DEFAULT 'متاح'"),
-                    ('drivercard', "VARCHAR(50)"),
-                    ('medical_exp', "DATE"),
-                    ('contract_exp', "DATE"),
-                    ('"empNotes"', "TEXT"),
-                    ('birth_date', "DATE"),
-                ]
+        except Exception as e:
+            logger.warning(f"ensure_db_columns (erp_vehicles) notice: {e}")
+
+    if 'erp_drivers' in tables:
+        try:
+            cols = [c['name'] for c in inspector.get_columns('erp_drivers')]
+            new_driver_cols = [
+                ('status', "VARCHAR(50) DEFAULT 'متاح'"),
+                ('drivercard', "VARCHAR(50)"),
+                ('medical_exp', "DATE"),
+                ('contract_exp', "DATE"),
+                ('"empNotes"', "TEXT"),
+                ('birth_date', "DATE"),
+            ]
+            with db.engine.begin() as conn:
                 for col_name, col_def in new_driver_cols:
                     bare = col_name.strip('"')
                     if bare not in cols:
                         conn.execute(text(f"ALTER TABLE erp_drivers ADD COLUMN {col_name} {col_def}"))
                         logger.info(f"Auto-migration: Added {bare} to erp_drivers")
-            if 'erp_audit_logs' in tables:
-                cols = [c['name'] for c in inspector.get_columns('erp_audit_logs')]
+        except Exception as e:
+            logger.warning(f"ensure_db_columns (erp_drivers) notice: {e}")
+
+    if 'erp_audit_logs' in tables:
+        try:
+            cols = [c['name'] for c in inspector.get_columns('erp_audit_logs')]
+            with db.engine.begin() as conn:
                 if 'reason' not in cols:
                     conn.execute(text("ALTER TABLE erp_audit_logs ADD COLUMN reason TEXT"))
                     logger.info("Auto-migration: Added reason to erp_audit_logs")
-            if 'erp_users' in tables:
-                cols = [c['name'] for c in inspector.get_columns('erp_users')]
-                # Keep legacy production databases compatible with the current User model.
-                # Without these columns, any User.query (including /api/users) fails before
-                # the route can return a useful validation response.
-                legacy_user_cols = [
-                    ('email', 'VARCHAR(255)'),
-                    ('phone', 'VARCHAR(30)'),
-                    ('display_name', 'VARCHAR(150)'),
-                    ('must_change_password', 'BOOLEAN DEFAULT FALSE'),
-                    ('authz_version', 'INTEGER DEFAULT 1'),
-                ]
+        except Exception as e:
+            logger.warning(f"ensure_db_columns (erp_audit_logs) notice: {e}")
+
+    if 'erp_users' in tables:
+        try:
+            cols = [c['name'] for c in inspector.get_columns('erp_users')]
+            # Keep legacy production databases compatible with the current User model.
+            # Without these columns, any User.query (including /api/users) fails before
+            # the route can return a useful validation response.
+            legacy_user_cols = [
+                ('email', 'VARCHAR(255)'),
+                ('phone', 'VARCHAR(30)'),
+                ('display_name', 'VARCHAR(150)'),
+                ('must_change_password', 'BOOLEAN DEFAULT FALSE'),
+                ('authz_version', 'INTEGER DEFAULT 1'),
+            ]
+            with db.engine.begin() as conn:
                 for col_name, col_def in legacy_user_cols:
                     if col_name not in cols:
                         conn.execute(text(f"ALTER TABLE erp_users ADD COLUMN {col_name} {col_def}"))
@@ -471,15 +496,22 @@ def ensure_db_columns():
                 if 'password_reset_expires_at' not in cols:
                     conn.execute(text("ALTER TABLE erp_users ADD COLUMN password_reset_expires_at TIMESTAMP"))
                     logger.info("Auto-migration: Added password_reset_expires_at to erp_users")
-                try:
-                    conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_erp_users_password_reset_token_hash ON erp_users (password_reset_token_hash)"))
-                except Exception as index_err:
-                    logger.warning(f"Auto-migration: reset-token index skipped: {index_err}")
-                try:
-                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_erp_users_active_role ON erp_users (is_active, role)"))
-                except Exception as index_err:
-                    logger.warning(f"Auto-migration: user role index skipped: {index_err}")
-            if 'erp_login_otps' not in tables:
+        except Exception as e:
+            logger.warning(f"ensure_db_columns (erp_users columns) notice: {e}")
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_erp_users_password_reset_token_hash ON erp_users (password_reset_token_hash)"))
+        except Exception as index_err:
+            logger.warning(f"Auto-migration: reset-token index skipped: {index_err}")
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_erp_users_active_role ON erp_users (is_active, role)"))
+        except Exception as index_err:
+            logger.warning(f"Auto-migration: user role index skipped: {index_err}")
+
+    if 'erp_login_otps' not in tables:
+        try:
+            with db.engine.begin() as conn:
                 conn.execute(text("""
                     CREATE TABLE erp_login_otps (
                         id INTEGER PRIMARY KEY,
@@ -495,13 +527,15 @@ def ensure_db_columns():
                 """))
                 conn.execute(text("CREATE INDEX ix_erp_login_otps_user_purpose ON erp_login_otps (user_id, purpose, created_at)"))
                 logger.info("Auto-migration: Added erp_login_otps table")
-            if 'erp_snapshots' in tables:
-                try:
-                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_erp_snapshots_branch_tab_id ON erp_snapshots (branch_id, tab, id)"))
-                except Exception as index_err:
-                    logger.warning(f"Auto-migration: snapshot index skipped: {index_err}")
-    except Exception as e:
-        logger.warning(f"ensure_db_columns notice: {e}")
+        except Exception as e:
+            logger.warning(f"ensure_db_columns (erp_login_otps) notice: {e}")
+
+    if 'erp_snapshots' in tables:
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_erp_snapshots_branch_tab_id ON erp_snapshots (branch_id, tab, id)"))
+        except Exception as index_err:
+            logger.warning(f"Auto-migration: snapshot index skipped: {index_err}")
 
 
 def ensure_saas_schema():
