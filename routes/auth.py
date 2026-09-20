@@ -170,7 +170,13 @@ def _establish_user_session(user):
     session["kiosk"] = (user.role == "kiosk")
     if user.company_id:
         session["company_id"] = user.company_id
-    if user.branch_id:
+        # Guarantees branch_id even for a legacy account created before
+        # per-company branches existed (self-heals instead of leaving it
+        # unset, which current_branch_id() would otherwise fail closed on).
+        from helpers import ensure_company_branch
+        session["branch_id"] = ensure_company_branch(user)
+        session["is_branch_user"] = True
+    elif user.branch_id:
         session["branch_id"] = user.branch_id
         session["is_branch_user"] = True
 

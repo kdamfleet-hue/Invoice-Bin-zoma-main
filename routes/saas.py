@@ -59,9 +59,12 @@ def _enter_isolated_site(user, company):
             "email": user.email or user.username,
         },
     })
-    if user.branch_id:
-        session["branch_id"] = user.branch_id
-        session["is_branch_user"] = True
+    # Guarantees branch_id even for a legacy account created before per-company
+    # branches existed (self-heals instead of leaving it unset, which
+    # current_branch_id() would otherwise have to fail closed on).
+    from helpers import ensure_company_branch
+    session["branch_id"] = ensure_company_branch(user)
+    session["is_branch_user"] = True
     # Not dashboard.index: that's the legacy single-company app, which a company
     # session is now explicitly blocked from (see app.py _block_company_sessions_from_legacy_app).
     return redirect(url_for("saas.workspace"))

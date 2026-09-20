@@ -47,6 +47,11 @@ BRANCHES = [
 ]
 BRANCH_IDS = {b["id"] for b in BRANCHES}
 BRANCH_NAME = {b["id"]: b["name"] for b in BRANCHES}
+# Returned by current_branch_id() when a SaaS company session has no verified
+# branch of its own. Matches no real Branch/Vehicle/Driver/... row (ids are
+# always >= 1), so every branch-scoped query naturally comes back empty
+# instead of silently resolving to a real بن زومة branch.
+NO_ACCESS_BRANCH_ID = -1
 
 SNAP_TAB_BY_ROUTE = {
     "/schedule": "schedule_data", "/washing": "washing_schedule", "/employees": "employees",
@@ -235,22 +240,34 @@ def current_branch_id():
     """Active branch id from the session (defaults to الدمام = 1).
 
     A SaaS company session's branch_id is its own auto-provisioned branch
-    (routes/saas.py register_company()) — deliberately NOT in the hardcoded
-    BRANCH_IDS set (see models/schema.py Branch.company_id), since that set
-    feeds real-admin aggregation views that must never see a trial company's
-    branch. It's still safe to trust here: branch_id is only ever set
-    server-side at registration/login, and /api/branch (the only way to
-    change it) is already blocked entirely for company sessions.
+    (routes/saas.py register_company() / ensure_company_branch() below) —
+    deliberately NOT in the hardcoded BRANCH_IDS set (see models/schema.py
+    Branch.company_id), since that set feeds real-admin aggregation views
+    that must never see a trial company's branch.
+
+    A company session is resolved on its own path and never falls through to
+    the generic int(..., 1) default below: branch id 1 (الدمام) is itself a
+    member of BRANCH_IDS, so a legacy company account with no branch_id of
+    its own (e.g. created before per-company branches existed) would
+    otherwise silently resolve to a real بن زومة branch. Missing/invalid/
+    colliding branch_id on a company session fails closed instead.
     """
     try:
-        bid = int(session.get("branch_id", 1))
-    except (TypeError, ValueError, RuntimeError):
+        company_id = session.get("company_id")
+        raw_bid = session.get("branch_id")
+    except RuntimeError:
         return 1
-    if bid in BRANCH_IDS:
-        return bid
-    if session.get("company_id"):
-        return bid
-    return 1
+    if company_id:
+        try:
+            bid = int(raw_bid)
+        except (TypeError, ValueError):
+            return NO_ACCESS_BRANCH_ID
+        return NO_ACCESS_BRANCH_ID if bid in BRANCH_IDS else bid
+    try:
+        bid = int(raw_bid) if raw_bid is not None else 1
+    except (TypeError, ValueError):
+        return 1
+    return bid if bid in BRANCH_IDS else 1
 
 
 def current_branch_name():
@@ -267,6 +284,30 @@ def current_branch_name():
         except Exception:
             pass
     return "الدمام"
+
+
+def ensure_company_branch(user):
+    """Guarantee a SaaS company user has their own dedicated, isolated Branch
+    and return its id, self-healing legacy accounts created before
+    per-company branches existed (routes/saas.py register_company(), before
+    commit 164d207 on 2026-09-18) whose branch_id is NULL. Without this, such
+    a user's session never sets branch_id and current_branch_id() has nothing
+    of the company's own to resolve to (see NO_ACCESS_BRANCH_ID above).
+    Reuses one branch per company — never creates a second one for a company
+    that already has another user with a branch assigned."""
+    from models.schema import Branch, db as _db
+    if user.branch_id:
+        b = _db.session.get(Branch, user.branch_id)
+        if b and b.company_id == user.company_id:
+            return user.branch_id
+    branch = Branch.query.filter_by(company_id=user.company_id).first()
+    if not branch:
+        branch = Branch(name=f"مساحة {user.company.name}", company_id=user.company_id)
+        _db.session.add(branch)
+        _db.session.flush()
+    user.branch_id = branch.id
+    _db.session.commit()
+    return branch.id
 
 
 def allowed_branch_ids_for_session():

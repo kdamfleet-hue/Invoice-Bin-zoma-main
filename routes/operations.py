@@ -358,10 +358,15 @@ def refund_part():
     if not usage_id:
         return jsonify({"success": False, "error": "Missing usage_id"})
         
-    usage = db.session.get(WorkshopPartUsage, usage_id)
+    usage = (
+        WorkshopPartUsage.query
+        .join(SparePart, SparePart.id == WorkshopPartUsage.spare_part_id)
+        .filter(WorkshopPartUsage.id == usage_id, branch_scope(SparePart.branch_id))
+        .first()
+    )
     if not usage:
         return jsonify({"success": False, "error": "Usage record not found"})
-        
+
     part = SparePart.query.filter(SparePart.id == usage.spare_part_id, branch_scope(SparePart.branch_id)).first()
     if part:
         part.quantity += usage.quantity_used

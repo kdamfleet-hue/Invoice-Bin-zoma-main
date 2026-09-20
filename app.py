@@ -1021,6 +1021,11 @@ BRANCHES = [
 ]
 BRANCH_IDS = {b["id"] for b in BRANCHES}
 BRANCH_NAME = {b["id"]: b["name"] for b in BRANCHES}
+# Returned by current_branch_id() when a SaaS company session has no verified
+# branch of its own. Matches no real Branch/Vehicle/Driver/... row (ids are
+# always >= 1), so every branch-scoped query naturally comes back empty
+# instead of silently resolving to a real بن زومة branch.
+NO_ACCESS_BRANCH_ID = -1
 
 
 def _seed_branches():
@@ -1061,21 +1066,33 @@ def current_branch_id():
     at an unknown store.
 
     A SaaS company session's branch_id is its own auto-provisioned branch
-    (routes/saas.py register_company()) — deliberately NOT in the hardcoded
-    BRANCH_IDS set (see models/schema.py Branch.company_id), since that set
-    feeds real-admin aggregation views that must never see a trial company's
-    branch. Still safe to trust here: branch_id is only ever set server-side
-    at registration/login, and /api/branch (the only way to change it) is
-    already blocked entirely for company sessions."""
+    (routes/saas.py register_company() / helpers.ensure_company_branch()) —
+    deliberately NOT in the hardcoded BRANCH_IDS set (see models/schema.py
+    Branch.company_id), since that set feeds real-admin aggregation views
+    that must never see a trial company's branch.
+
+    A company session is resolved on its own path and never falls through to
+    the generic int(..., 1) default below: branch id 1 (الدمام) is itself a
+    member of BRANCH_IDS, so a legacy company account with no branch_id of
+    its own (e.g. created before per-company branches existed) would
+    otherwise silently resolve to a real بن زومة branch. Missing/invalid/
+    colliding branch_id on a company session fails closed instead."""
     try:
-        bid = int(session.get("branch_id", 1))
-    except (TypeError, ValueError, RuntimeError):
+        company_id = session.get("company_id")
+        raw_bid = session.get("branch_id")
+    except RuntimeError:
         return 1
-    if bid in BRANCH_IDS:
-        return bid
-    if session.get("company_id"):
-        return bid
-    return 1
+    if company_id:
+        try:
+            bid = int(raw_bid)
+        except (TypeError, ValueError):
+            return NO_ACCESS_BRANCH_ID
+        return NO_ACCESS_BRANCH_ID if bid in BRANCH_IDS else bid
+    try:
+        bid = int(raw_bid) if raw_bid is not None else 1
+    except (TypeError, ValueError):
+        return 1
+    return bid if bid in BRANCH_IDS else 1
 
 
 def current_branch_name():
