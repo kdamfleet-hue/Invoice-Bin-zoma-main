@@ -228,9 +228,17 @@ def workspace():
         session.clear()
         return redirect(url_for("saas.register_company"))
     subscription = Subscription.query.filter_by(company_id=company.id).order_by(Subscription.id.desc()).first()
-    remaining = max(0, (company.trial_ends_at - utcnow()).days) if company.status == "trial" else 0
+    # Legacy/partially migrated production accounts may have no trial date or
+    # may reference a deleted plan. Keep the account usable instead of letting
+    # a presentation-only field turn the workspace into a 500 response.
+    trial_ends_at = getattr(company, "trial_ends_at", None)
+    remaining = max(0, (trial_ends_at - utcnow()).days) if company.status == "trial" and trial_ends_at else 0
+    trial_ends_label = trial_ends_at.strftime("%Y-%m-%d") if trial_ends_at else "غير محدد"
+    plan_name = getattr(getattr(subscription, "plan", None), "name", None) or "غير محددة"
+    user_count = User.query.filter_by(company_id=company.id).count()
     return render_template("saas/workspace.html", company=company, subscription=subscription,
-                           remaining_days=remaining)
+                           remaining_days=remaining, trial_ends_label=trial_ends_label,
+                           plan_name=plan_name, user_count=user_count)
 
 
 TRIAL_TABS = [
