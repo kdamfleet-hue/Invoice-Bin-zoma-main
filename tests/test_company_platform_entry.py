@@ -53,6 +53,14 @@ class CompanyPlatformEntryTest(unittest.TestCase):
                 app.db.session.delete(company)
                 app.db.session.commit()
 
+    def test_km_login_page_surfaces_legacy_bin_zomah_portal(self):
+        landing = self.client.get("/").get_data(as_text=True)
+        saas_login = self.client.get("/saas-login").get_data(as_text=True)
+        self.assertIn('href="/login"', landing)
+        self.assertIn("بوابة بن زومة", landing)
+        self.assertIn('href="/login"', saas_login)
+        self.assertIn("الدخول إلى بوابة بن زومة", saas_login)
+
     def test_unauthenticated_entry_goes_to_company_login(self):
         response = self.client.get("/company-platform")
         self.assertEqual(response.status_code, 302)
