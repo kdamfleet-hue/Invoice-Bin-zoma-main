@@ -332,9 +332,10 @@
             const st = STATUS[a.status] || STATUS.offline;
             const rot = (typeof a.heading === 'number' && a.status === 'moving') ? a.heading : 0;
             const arrow = a.status === 'moving' ? '<span class="csp-inline-tracking-1879">➤</span> ' : '';
+            const statusClass = 'status-' + (STATUS[a.status] ? a.status : 'offline');
             return L.divIcon({
                 className: 'custom-marker-container',
-                html: '<div class="custom-marker csp-inline-tracking-1880" title="' + escapeHtml(a.name) + '">'
+                html: '<div class="custom-marker ' + statusClass + ' csp-inline-tracking-1880" title="' + escapeHtml(a.name) + '">'
                     + arrow + escapeHtml(a.plate || String(a.id)) + '</div>'
             });
         }
@@ -478,7 +479,7 @@
                 const div = document.createElement('div');
                 div.className = 'asset-item' + (String(a.id) === String(followId) ? ' following' : '');
                 div.innerHTML =
-                    '<div class="status-dot csp-inline-tracking-1882"></div>'
+                    '<div class="status-dot status-' + (STATUS[a.status] ? a.status : 'offline') + ' csp-inline-tracking-1882" title="' + escapeHtml(st.label) + '"></div>'
                     + '<div class="csp-inline-tracking-1883"><div class="asset-name">' + escapeHtml(a.name)
                     + (a.plate ? ' <small class="csp-inline-tracking-1884">' + escapeHtml(a.plate) + '</small>' : '') + '</div>'
                     + '<div class="asset-meta">' + (a.stale ? 'بيانات قديمة' : st.label)
