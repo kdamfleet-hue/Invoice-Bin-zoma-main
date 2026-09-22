@@ -579,40 +579,46 @@ def ensure_protected_admin_role():
         db.session.rollback()
         logger.error(f"❌ Error repairing reserved admin role: {e}")
 
+def run_alembic_upgrade():
+    """Run migrations before SQLAlchemy's create_all fallback.
+
+    Creating model tables first can make an idempotent migration fail because
+    the same table already exists. The migration pass therefore runs first;
+    create_all remains only as a compatibility fallback for unmigrated model
+    tables after the migration pass completes.
+    """
+    try:
+        from flask_migrate import upgrade, stamp
+        from sqlalchemy import inspect as sa_inspect, text as sa_text
+        inspector = sa_inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        if 'erp_branches' in existing_tables:
+            with db.engine.connect() as conn:
+                try:
+                    ver = conn.execute(sa_text("SELECT version_num FROM alembic_version LIMIT 1")).fetchone()
+                except Exception:
+                    ver = None
+            if not ver:
+                try:
+                    stamp(directory='migrations', revision='head')
+                    logger.info("✅ Alembic stamped at head (tables already exist).")
+                except Exception as stamp_err:
+                    logger.warning(f"Alembic stamp skipped: {stamp_err}")
+        upgrade(directory='migrations')
+        logger.info("✅ Alembic upgrade complete.")
+    except Exception as e:
+        logger.warning(f"Alembic upgrade skipped (non-fatal): {e}")
+
+
 def init_db_on_startup():
     with app.app_context():
+        import models.schema
+        run_alembic_upgrade()
         try:
-            import models.schema
             db.create_all()
             logger.info("✅ Database tables checked/created successfully.")
         except Exception as e:
             logger.error(f"❌ Error in db.create_all: {e}")
-        # Alembic: run upgrade but catch gracefully if versions folder is empty/not init'd
-        try:
-            from flask_migrate import upgrade, stamp
-            from sqlalchemy import inspect as sa_inspect, text as sa_text
-            inspector = sa_inspect(db.engine)
-            existing_tables = inspector.get_table_names()
-            # If core tables already exist but alembic_version is missing, stamp head
-            if 'erp_branches' in existing_tables:
-                with db.engine.connect() as conn:
-                    try:
-                        ver = conn.execute(sa_text("SELECT version_num FROM alembic_version LIMIT 1")).fetchone()
-                    except Exception:
-                        ver = None
-                if not ver:
-                    try:
-                        stamp(directory='migrations', revision='head')
-                        logger.info("✅ Alembic stamped at head (tables already exist).")
-                    except Exception as stamp_err:
-                        logger.warning(f"Alembic stamp skipped: {stamp_err}")
-            try:
-                upgrade(directory='migrations')
-                logger.info("✅ Alembic upgrade complete.")
-            except Exception as upg_err:
-                logger.warning(f"Alembic upgrade skipped (non-fatal): {upg_err}")
-        except Exception as e:
-            logger.error(f"❌ Alembic setup error (non-fatal): {e}")
 
         try:
             ensure_db_columns()
