@@ -223,3 +223,10 @@ python app.py
 - Uber Freight
 - DHL Smart Logistics
 - Enterprise Fleet Management Platforms
+
+
+## 🛠️ الوكيل الهندسي المحلي
+
+يتضمن المستودع منسق تطوير محليًا محدود الصلاحيات للتخطيط، توليد التغييرات، تشغيل الفحوص، وإرجاع التعديلات عند فشلها. لا يعمل ضمن خادم Flask ولا ينفذ نشرًا أو تغييرات إنتاجية. راجع [دليل الوكيل الهندسي](docs/autonomous-engineering-agent.md) للتشغيل وحدود الحماية.
+
+إرشادات العمل القابلة لإعادة الاستخدام محفوظة في `skills/autonomous-engineering/SKILL.md`.
