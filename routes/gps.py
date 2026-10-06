@@ -742,6 +742,14 @@ def gps_dashboard():
     return render_template("gps_dashboard.html", google_user=session.get("google_user"), b64_en=load_logo())
 
 
+@gps_bp.route("/fleet-3d-control")
+@gps_bp.route("/fleet-3d-control/")
+@gps_bp.route("/fleet_3d")
+@login_required
+def fleet_3d_control():
+    return render_template("fleet_3d.html")
+
+
 @gps_bp.route("/gps_devices")
 @login_required
 def gps_devices():
