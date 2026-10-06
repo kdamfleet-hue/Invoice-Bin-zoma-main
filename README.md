@@ -47,7 +47,7 @@ Developed for Enterprise Fleet Intelligence & Smart Operations
 - خرائط حرارية للمخاطر
 - محاكاة لحظية
 - مركز قيادة وتشغيل
-- تحديث مباشر كل 3 ثوانٍ
+- تحديث مباشر كل 12 ثانية وفق دورة خدمة GPS الحالية
 
 ---
 
